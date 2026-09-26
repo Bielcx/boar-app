@@ -24,7 +24,10 @@
 // redirect table) follows AndroidLM's scripts/build_corpus.py and
 // build_redirects.py (https://github.com/Phineas1500/AndroidLM, Apache-2.0).
 import { spawn } from "node:child_process";
-import { createReadStream, existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve as resolvePath } from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
 import { constants as zc, createGunzip, zstdCompressSync, zstdDecompressSync } from "node:zlib";
@@ -59,9 +62,17 @@ const USAGE = `usage: node scripts/build-wiki-pack.mjs --out FILE --shards A.par
   --index TXT.BZ2         enwiki-*-pages-articles-multistream-index.txt.bz2
   --wikivoyage XML.BZ2    enwikivoyage-*-pages-articles.xml.bz2
   --no-embed              skip lead embeddings
+  --embed-only            only add lead embeddings and metadata to an existing --out pack
+                          (resumes a build that stopped after its text and index were written)
   --embed-threads N       parallel embedding contexts, default 8
+  --embed-top N           embed only the N most-viewed Wikipedia articles' leads (plus every Wikivoyage guide);
+                          default 0 = all
   --limit N               stop after N Wikipedia articles (a quick test build)
-  --delete-shards         delete each shard once it's in the pack (keeps peak disk use down)
+  --delete-shards         delete each shard once it's in the pack (keeps peak disk use down);
+                          shards given as URLs are always downloaded to --work-dir and deleted
+  --work-dir DIR          where URL shards are downloaded, default next to --out
+  --min-free-gb N         pause (and log PAUSED) while free disk is under N GB, default 0
+  --no-optimize           skip the final FTS 'optimize' merge (it needs free space about the index's size)
   --block-kb N            uncompressed text per compressed block, default 64
   --zlevel N              zstd level, default 12`;
 
@@ -70,8 +81,8 @@ const SOURCE = { enwiki: 0, enwikivoyage: 1 };
 const DF_MIN = 2000; // terms in fewer chunks are counted from their (short) posting lists at query time
 
 function options() {
-  const { values } = parseArgs({
-    allowPositionals: false,
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
     options: {
       out: { type: "string" },
       shards: { type: "string", multiple: true },
@@ -84,15 +95,22 @@ function options() {
       index: { type: "string" },
       wikivoyage: { type: "string" },
       "no-embed": { type: "boolean", default: false },
+      "embed-only": { type: "boolean", default: false },
       "embed-threads": { type: "string", default: "8" },
+      "embed-top": { type: "string", default: "0" },
       limit: { type: "string", default: "0" },
       "delete-shards": { type: "boolean", default: false },
+      "work-dir": { type: "string" },
+      "min-free-gb": { type: "string", default: "0" },
+      "no-optimize": { type: "boolean", default: false },
       "block-kb": { type: "string", default: "64" },
       zlevel: { type: "string", default: "12" },
       help: { type: "boolean", default: false },
     },
   });
-  if (values.help || !values.out || !values.shards?.length) {
+  // "--shards A B C": parseArgs keeps A under --shards and B, C as positionals.
+  values.shards = [...(values.shards ?? []), ...positionals];
+  if (values.help || !values.out || !values.shards.length) {
     console.log(USAGE);
     process.exit(values.help ? 0 : 1);
   }
@@ -113,9 +131,14 @@ function options() {
     index: values.index,
     wikivoyage: values.wikivoyage,
     embed: !values["no-embed"],
+    embedOnly: values["embed-only"],
     embedThreads: n("embed-threads"),
+    embedTop: n("embed-top"),
     limit: n("limit"),
     deleteShards: values["delete-shards"],
+    workDir: values["work-dir"] ?? dirname(values.out),
+    minFreeGb: Number(values["min-free-gb"]),
+    optimize: !values["no-optimize"],
     blockBytes: n("block-kb") * 1024,
     zlevel: n("zlevel"),
   };
@@ -244,10 +267,22 @@ async function addWikipedia(w, opts, views, fullIds) {
     const text = `# ${r.title}\n\n${box ? `${box}\n\n` : ""}${withoutTitle}`;
     if (w.add(SOURCE.enwiki, pid, r.title, views?.get(pid) ?? r.views ?? 0, text) !== null && full) w.stats.full++;
   };
-  for (const shard of opts.shards) {
+  // A shard given as a URL is downloaded into --work-dir just before it's needed (the next
+  // one downloads while the current one is processed) and deleted afterwards.
+  const fetches = new Map();
+  const local = (i) => {
+    const spec = opts.shards[i];
+    if (!/^https?:/.test(spec)) return Promise.resolve(spec);
+    if (!fetches.has(i)) fetches.set(i, downloadShard(spec, opts));
+    return fetches.get(i);
+  };
+  for (let i = 0; i < opts.shards.length; i++) {
+    const shard = await local(i);
+    if (i + 1 < opts.shards.length) local(i + 1).catch(() => {}); // prefetch; errors surface when awaited
     if (shard.endsWith(".jsonl")) {
       const rows = readFileSync(shard, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
       for (const r of rows) addRow(r);
+      if (/^https?:/.test(opts.shards[i])) rmSync(shard);
       continue;
     }
     const file = await asyncBufferFromFile(shard);
@@ -273,8 +308,41 @@ async function addWikipedia(w, opts, views, fullIds) {
         log(`${w.stats.articles} articles (${w.stats.full} full), ${w.stats.chunks} chunks, ${(w.stats.textBytes / 1e9).toFixed(2)} GB text`);
       }
     }
-    if (opts.deleteShards) rmSync(shard);
+    if (opts.deleteShards || /^https?:/.test(opts.shards[i])) rmSync(shard);
+    shardsDone++;
+    log(`shard ${i + 1}/${opts.shards.length} done; pack ${(statSync(opts.out).size / 1e9).toFixed(2)} GB, ${freeGb(opts.out).toFixed(1)} GB free`);
   }
+}
+
+let shardsDone = 0;
+
+function freeGb(path) {
+  const s = statfsSync(dirname(resolvePath(path)));
+  return (s.bavail * s.bsize) / 1e9;
+}
+
+/** Waits while free disk is under --min-free-gb, logging PAUSED (whoever runs the build is told to act). */
+async function waitForDisk(opts) {
+  let warned = false;
+  while (freeGb(opts.out) < opts.minFreeGb) {
+    if (!warned) log(`PAUSED: ${freeGb(opts.out).toFixed(1)} GB free, under --min-free-gb ${opts.minFreeGb}; waiting`);
+    warned = true;
+    await new Promise((r) => setTimeout(r, 60000));
+  }
+  if (warned) log("RESUMED: enough free disk again");
+}
+
+async function downloadShard(url, opts) {
+  await waitForDisk(opts);
+  const dest = join(opts.workDir, url.split("/").pop());
+  if (existsSync(dest)) return dest; // left by an earlier run
+  mkdirSync(opts.workDir, { recursive: true });
+  log(`downloading ${url}`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  await pipeline(Readable.fromWeb(res.body), createWriteStream(`${dest}.part`));
+  renameSync(`${dest}.part`, dest);
+  return dest;
 }
 
 async function addWikivoyage(w, path) {
@@ -350,11 +418,17 @@ async function addRedirects(db, opts, voyageRedirects) {
 }
 
 /** Lead chunks in article order, read back from the pack in batches (a full build has millions). */
-function* leadBatches(db, size) {
+function* leadBatches(db, size, top) {
   const block = db.prepare("SELECT zdata FROM blocks WHERE id = ?");
+  // With --embed-top N: Wikipedia's N most-viewed articles (ties at the cut included) and every Wikivoyage guide.
+  const cut = top
+    ? db.prepare(`SELECT views FROM articles WHERE source = ${SOURCE.enwiki} ORDER BY views DESC LIMIT 1 OFFSET ?`).get(top - 1)?.views ?? 0
+    : 0;
   const rows = db.prepare(
     `SELECT a.id, a.title, a.block_id, a.off, a.len, c.start, c.end FROM articles a
-     JOIN chunks c ON c.article_id = a.id ORDER BY a.id, c.id`
+     JOIN chunks c ON c.article_id = a.id
+     WHERE a.source = ${SOURCE.enwikivoyage} OR a.views >= ${Math.max(cut, top ? 1 : 0)}
+     ORDER BY a.id, c.id`
   );
   let cachedId = 0;
   let cached = null;
@@ -363,7 +437,8 @@ function* leadBatches(db, size) {
   let firstOfArticle = [];
   const emit = () => {
     if (!firstOfArticle.length) return;
-    const [a, first, second] = firstOfArticle;
+    const [first, second] = firstOfArticle;
+    const a = first;
     if (cachedId !== a.block_id) {
       cached = zstdDecompressSync(block.get(a.block_id).zdata);
       cachedId = a.block_id;
@@ -397,7 +472,7 @@ async function addLeadEmbeddings(db, opts) {
   const caches = [];
   let n = 0;
   // Each batch has its own cache file, so an interrupted build re-embeds at most one batch.
-  for (const leads of leadBatches(db, 50000)) {
+  for (const leads of leadBatches(db, 50000, opts.embedTop)) {
     const cache = `${opts.out}.leads-${n}-${leads.length}.f32`;
     caches.push(cache);
     const { data, scales } = quantizeInt8(await embedChunks(leads, cache, opts.embedThreads), 384);
@@ -429,22 +504,43 @@ async function main() {
     fullIds = new Set([...views.keys()].sort((a, b) => views.get(b) - views.get(a)).slice(0, opts.fullTop));
     log(`pageviews for ${views.size} pages; the top ${fullIds.size} are kept in full`);
   }
-  const w = new PackWriter(opts);
-  await addWikipedia(w, opts, views, fullIds);
-  const wikiArticles = w.stats.articles;
-  const voyageRedirects = opts.wikivoyage ? await addWikivoyage(w, opts.wikivoyage) : [];
-  w.finishText();
-  log(`text done: ${JSON.stringify(w.stats)}`);
+  let w;
+  let wikiArticles;
+  if (opts.embedOnly) {
+    // Pick up a pack whose text, redirects and index are already written.
+    const db = new DatabaseSync(opts.out);
+    db.exec("PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF; DROP TABLE IF EXISTS lead_vecs; DELETE FROM meta;");
+    const n = (sql) => db.prepare(sql).get().n;
+    const stats = {
+      articles: n("SELECT COUNT(*) AS n FROM articles"),
+      full: null,
+      chunks: n("SELECT COUNT(*) AS n FROM chunks"),
+      indexed: n("SELECT COUNT(*) AS n FROM fts_docsize"),
+      textBytes: n("SELECT SUM(len) AS n FROM articles"),
+      voyage: n(`SELECT COUNT(*) AS n FROM articles WHERE source = ${SOURCE.enwikivoyage}`),
+    };
+    w = { db, stats };
+    wikiArticles = stats.articles - stats.voyage;
+    log(`embedding leads of an existing pack: ${JSON.stringify(stats)}`);
+  } else {
+    w = new PackWriter(opts);
+    await addWikipedia(w, opts, views, fullIds);
+    wikiArticles = w.stats.articles;
+    const voyageRedirects = opts.wikivoyage ? await addWikivoyage(w, opts.wikivoyage) : [];
+    w.finishText();
+    log(`text done: ${JSON.stringify(w.stats)}`);
 
-  await addRedirects(w.db, opts, voyageRedirects);
-  w.db.exec(`CREATE INDEX chunks_article ON chunks (article_id)`);
+    await addRedirects(w.db, opts, voyageRedirects);
+    w.db.exec(`CREATE INDEX chunks_article ON chunks (article_id)`);
 
-  log("optimizing the keyword index");
-  w.db.exec("INSERT INTO fts (fts) VALUES ('optimize')");
-  w.db.exec(`CREATE VIRTUAL TABLE temp.fts_v USING fts5vocab(main, 'fts', 'row');
-             CREATE TABLE df (term TEXT PRIMARY KEY, doc INTEGER NOT NULL) WITHOUT ROWID;
-             INSERT INTO df SELECT term, doc FROM temp.fts_v WHERE doc >= ${DF_MIN};`);
-
+    if (opts.optimize) {
+      log("optimizing the keyword index");
+      w.db.exec("INSERT INTO fts (fts) VALUES ('optimize')");
+    }
+    w.db.exec(`CREATE VIRTUAL TABLE temp.fts_v USING fts5vocab(main, 'fts', 'row');
+               CREATE TABLE df (term TEXT PRIMARY KEY, doc INTEGER NOT NULL) WITHOUT ROWID;
+               INSERT INTO df SELECT term, doc FROM temp.fts_v WHERE doc >= ${DF_MIN};`);
+  }
   const embedCaches = opts.embed ? await addLeadEmbeddings(w.db, opts) : [];
 
   const meta = {
@@ -463,7 +559,7 @@ async function main() {
     chunks: w.stats.chunks,
     indexedChunks: w.stats.indexed,
     dfMin: DF_MIN,
-    params: JSON.stringify({ fullTop: opts.fullTop, leadChars: opts.leadChars, chunkChars: opts.chunkChars, blockKb: opts.blockBytes / 1024, zlevel: opts.zlevel, limit: opts.limit }),
+    params: JSON.stringify({ fullTop: opts.fullTop, leadChars: opts.leadChars, chunkChars: opts.chunkChars, blockKb: opts.blockBytes / 1024, zlevel: opts.zlevel, limit: opts.limit, embedTop: opts.embedTop }),
     builtAt: new Date().toISOString(),
   };
   const setMeta = w.db.prepare("INSERT INTO meta VALUES (?, ?)");

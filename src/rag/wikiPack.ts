@@ -15,6 +15,8 @@
  * that's only used when the keyword search comes back thin.
  */
 
+import { cosineSimilarityInt8 } from "./pure";
+
 export interface PackSql {
   getAllAsync<T>(sql: string, params: any[]): Promise<T[]>;
   getFirstAsync<T>(sql: string, params: any[]): Promise<T | null>;
@@ -30,6 +32,15 @@ export interface Stem {
 }
 
 export type PackSource = "enwiki" | "enwikivoyage";
+
+/** A ranked BM25 chunk before its text is read. */
+export interface Candidate {
+  chunkId: number;
+  articleId: number;
+  start: number;
+  end: number;
+  score: number;
+}
 
 export interface Article {
   id: number;
@@ -68,9 +79,25 @@ export interface PackSearchOptions {
    */
   expand?: (query: string) => Promise<string[]>;
   minHits?: number;
+  /**
+   * The question's embedding (the app's embedding model). With it, keyword
+   * hits are re-ranked by how close their article's lead is to the question,
+   * and a hit that misses the question's words but is semantically close
+   * (>= SEMANTIC_KEEP) is kept.
+   */
+  queryVec?: Float32Array;
 }
 
 const SOURCES: PackSource[] = ["enwiki", "enwikivoyage"];
+
+/** Share of the question's term weight a name in it must carry to be treated as the question's subject. */
+export const NAMED_MIN_SHARE = 0.5;
+
+/** Questions that read like travel planning: a same-named Wikivoyage guide goes before the encyclopedia article. */
+const TRAVEL_INTENT = /\b(visit|visiting|things to (see|do)|what (can|should) (i|we) (see|do)|see and do|travel|trip|get (to|there|around)|getting (to|around)|stay|hotel|hostel|eat|restaurants?|sights?|tourists?|itinerary|by (train|bus|car|ferry)|airport)\b/i;
+
+/** Cosine (bge-small) of a lead that's about the question even without its words. */
+export const SEMANTIC_KEEP = 0.7;
 
 /** Monthly views below which a topic is "long tail": answer from the sources, not the model's memory. */
 export const LONG_TAIL_VIEWS = 5000;
@@ -189,7 +216,24 @@ function utf8(bytes: Uint8Array): string {
   return out;
 }
 
+/** Ranking constants, measured on eval/retrieval (docs/KNOWLEDGE_PACKS.md). */
+export interface PackTuning {
+  /** bm25() column weights: title, section heading, body. */
+  weights: [number, number, number];
+  /** Popularity prior: + prior × log10(1 + monthly views). */
+  prior: number;
+  /** Share of the question's term weight a name in it must carry to go first. */
+  namedMinShare: number;
+  /** BM25 candidate chunks before the per-article cap and relevance gate. */
+  pool: number;
+}
+
+// Chosen on the dev half of eval/retrieval/questions.v1 (2026-09-26): AndroidLM's title
+// weight 8 and prior 2 cost 6 points of test recall@1 on these questions.
+export const DEFAULT_TUNING: PackTuning = { weights: [2, 1, 1], prior: 0.5, namedMinShare: NAMED_MIN_SHARE, pool: 80 };
+
 export class WikiPack {
+  tuning: PackTuning = { ...DEFAULT_TUNING };
   private blocks = new Lru<number, Uint8Array>(BLOCK_CACHE);
   private articles = new Lru<number, Article>(ARTICLE_CACHE);
   private resolved = new Lru<string, number | null>(512);
@@ -363,48 +407,71 @@ export class WikiPack {
     ]);
   }
 
-  /** Whole-index BM25 (title column weighted 8×, section 3×) plus a popularity prior; at most `perArticle` per article. */
-  async bm25(stems: Stem[], pool = 80, prior = 2, perArticle = 2): Promise<PackHit[]> {
+  /** Whole-index BM25 (column weights and popularity prior from `tuning`); at most `perArticle` per article. */
+  async bm25(stems: Stem[], pool = this.tuning.pool, prior = this.tuning.prior, perArticle = 2): Promise<PackHit[]> {
+    const out: PackHit[] = [];
+    for (const c of await this.bm25Candidates(stems, pool, prior, perArticle)) out.push(await this.materialize(c));
+    return out;
+  }
+
+  /** bm25()'s ranking without reading any article text (cheap: index and table rows only). */
+  async bm25Candidates(stems: Stem[], pool = this.tuning.pool, prior = this.tuning.prior, perArticle = 2): Promise<Candidate[]> {
     const terms = this.queryTerms(stems);
     if (!terms.length) return [];
     const rows = await this.db.getAllAsync<{ id: number; s: number; article_id: number; start: number; end: number; views: number }>(
       `SELECT f.rowid AS id, f.s, c.article_id, c.start, c.end, a.views
-       FROM (SELECT rowid, bm25(fts, 8.0, 3.0, 1.0) AS s FROM fts WHERE fts MATCH ? ORDER BY s LIMIT ?) f
+       FROM (SELECT rowid, bm25(fts, ${this.tuning.weights.map(Number).join(", ")}) AS s FROM fts WHERE fts MATCH ? ORDER BY s LIMIT ?) f
        JOIN chunks c ON c.id = f.rowid JOIN articles a ON a.id = c.article_id`,
       [terms.map((t) => `"${t.replace(/"/g, '""')}"`).join(" OR "), pool]
     );
-    const cands = rows
-      .map((r) => ({ ...r, score: -r.s + prior * Math.log10(1 + r.views) }))
-      .sort((a, b) => b.score - a.score || b.article_id - a.article_id || b.start - a.start);
+    const sorted = rows
+      .map((r) => ({ chunkId: r.id, articleId: r.article_id, start: r.start, end: r.end, score: -r.s + prior * Math.log10(1 + r.views) }))
+      .sort((a, b) => b.score - a.score || b.articleId - a.articleId || b.start - a.start);
     const per = new Map<number, number>();
-    const out: PackHit[] = [];
-    for (const c of cands) {
-      if ((per.get(c.article_id) ?? 0) >= perArticle) continue;
-      per.set(c.article_id, (per.get(c.article_id) ?? 0) + 1);
-      out.push(await this.hit(c.article_id, c.id, c.start, c.end, c.score, "bm25"));
-    }
-    return out;
+    return sorted.filter((c) => {
+      const n = per.get(c.articleId) ?? 0;
+      per.set(c.articleId, n + 1);
+      return n < perArticle;
+    });
   }
 
-  /** Article ids named by the question itself: its longest n-grams that are titles or redirects. */
-  async titlesInQuestion(query: string, stems: Stem[], max = 4): Promise<number[]> {
+  private materialize(c: Candidate): Promise<PackHit> {
+    return this.hit(c.articleId, c.chunkId, c.start, c.end, c.score, "bm25");
+  }
+
+  /**
+   * Articles named by the question itself: its longest n-grams that are
+   * titles or redirects, in Wikipedia and in Wikivoyage (the guide first when
+   * the question sounds like travel). `share` is the part of the question's
+   * term weight the name accounts for: "Daily Bugle" in a long question
+   * about an actor is a side mention, "Fort Naroa" in "Where was Fort Naroa?"
+   * is the subject.
+   */
+  async titlesInQuestion(query: string, stems: Stem[], max = 4): Promise<Array<{ id: number; share: number }>> {
     const rare = new Set(stems.filter((s) => s.idf >= Math.log(1 / 0.002)).map((s) => s.stem));
-    const found: number[] = [];
+    const weight = new Map(stems.map((s) => [s.stem, s.idf]));
+    const total = stems.reduce((n, s) => n + s.idf, 0) || 1;
+    const sources: PackSource[] = TRAVEL_INTENT.test(query) ? ["enwikivoyage", "enwiki"] : ["enwiki", "enwikivoyage"];
+    const found: Array<{ id: number; share: number }> = [];
     const used: string[] = [];
     for (const cand of titleCandidates(query)) {
-      if (found.length >= max) break;
+      if (used.length >= max) break;
       const lower = cand.toLowerCase();
       if (used.some((u) => u.includes(lower))) continue; // inside a longer title already found
       const single = !cand.includes(" ");
       // A lone word only counts when it's capitalized in the question or rare in the index.
       if (single && !/^\p{Lu}/u.test(cand) && !(await this.isRare(lower, rare))) continue;
-      const id =
-        (await this.resolveTitle(cand, { fuzzy: false })) ??
-        (singularTitle(cand) ? await this.resolveTitle(singularTitle(cand)!, { fuzzy: false }) : null);
-      if (id !== null && !found.includes(id)) {
-        found.push(id);
-        used.push(lower);
+      const ids: number[] = [];
+      for (const source of sources) {
+        const id =
+          (await this.resolveTitle(cand, { fuzzy: false, source })) ??
+          (singularTitle(cand) ? await this.resolveTitle(singularTitle(cand)!, { fuzzy: false, source }) : null);
+        if (id !== null && !found.some((f) => f.id === id)) ids.push(id);
       }
+      if (!ids.length) continue;
+      const share = (await this.stems(cand)).reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total;
+      for (const id of ids) found.push({ id, share });
+      used.push(lower);
     }
     return found;
   }
@@ -425,9 +492,10 @@ export class WikiPack {
 
   /** search(), plus the question's stems (for scoring sentences with the same term weights). */
   async searchDetailed(query: string, opts: PackSearchOptions = {}): Promise<{ hits: PackHit[]; stems: Stem[] }> {
-    const { k = 6, titles = [], expand, minHits = 2 } = opts;
+    const { k = 6, titles = [], expand, minHits = 2, queryVec } = opts;
     const stems = await this.stems(query);
-    const ids = await this.titlesInQuestion(query, stems);
+    // Only a name that carries enough of the question goes first; side mentions compete in BM25.
+    const ids = (await this.titlesInQuestion(query, stems)).filter((t) => t.share >= this.tuning.namedMinShare).map((t) => t.id);
     for (const t of titles) {
       const id = await this.resolveTitle(t);
       if (id !== null && !ids.includes(id)) ids.push(id);
@@ -437,10 +505,23 @@ export class WikiPack {
     if (hits.length < limit) {
       const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
       const seen = new Set(hits.map((h) => h.chunkId));
-      for (const h of await this.bm25(stems)) {
-        if (!seen.has(h.chunkId) && coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5) {
+      let keyword = await this.bm25Candidates(stems);
+      const sem = queryVec ? await this.leadSimilarity(keyword.map((c) => c.articleId), queryVec) : null;
+      if (sem && keyword.length) {
+        const max = Math.max(...keyword.map((c) => c.score), 1e-9);
+        const blended = (c: Candidate) => 0.5 * (c.score / max) + 0.5 * (sem.get(c.articleId) ?? 0);
+        keyword = [...keyword].sort((a, b) => blended(b) - blended(a));
+      }
+      // Text is read only for candidates in rank order, until the result is full.
+      for (const c of keyword) {
+        if (hits.length >= limit) break;
+        if (seen.has(c.chunkId)) continue;
+        const h = await this.materialize(c);
+        const relevant =
+          coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5 || (sem?.get(c.articleId) ?? 0) >= SEMANTIC_KEEP;
+        if (relevant) {
           hits.push(h);
-          seen.add(h.chunkId);
+          seen.add(c.chunkId);
         }
       }
     }
@@ -466,6 +547,12 @@ export class WikiPack {
     perTitle[0]?.slice(0, 2).forEach(add);
     for (let r = 0; r < ranks; r++) for (const p of perTitle) if (p[r]) add(p[r]);
     return hits;
+  }
+
+  /** Cosine similarity of each article's lead embedding to the question (articles without one are left out). */
+  async leadSimilarity(ids: number[], queryVec: Float32Array): Promise<Map<number, number>> {
+    const vecs = await this.leadVectors([...new Set(ids)]);
+    return new Map([...vecs].map(([id, v]) => [id, cosineSimilarityInt8(queryVec, v)]));
   }
 
   /** int8 lead embeddings for these articles (only when the pack has them). */

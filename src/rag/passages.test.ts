@@ -17,6 +17,7 @@ vi.mock("expo-file-system/legacy", () => ({
   getInfoAsync: async () => ({ exists: true, size: 1 }),
 }));
 vi.mock("expo-sqlite", () => ({ openDatabaseAsync: async () => nodeSqliteDatabase(packFile) }));
+vi.mock("./embed", () => ({ embeddingEngine: { embed: async () => { throw new Error("no embedding model in tests"); } } }));
 vi.mock("./retrieve", () => ({
   retrieve: async () => [
     { chunkId: "wiki-min-black-hole", docId: "x", title: "Black hole", body: "A black hole bends light. Unrelated words here.", source: "Wikipedia — https://en.wikipedia.org/wiki/Black_hole", score: 1, matchType: "lexical" },
