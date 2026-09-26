@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { useTokens } from "../theme";
+import { stepperValue } from "./stepperA11y";
 import { Text } from "./Text";
 
 export interface StepperProps {
@@ -23,7 +24,7 @@ export function Stepper({ steps, current, accessibilityLabel }: StepperProps) {
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
-      accessibilityValue={{ min: 1, max: steps.length, now: current + 1 }}
+      accessibilityValue={stepperValue(steps.length, current)}
       style={{ flexDirection: "row", gap: t.space.sm }}
     >
       {steps.map((step, i) => (
