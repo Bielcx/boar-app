@@ -104,7 +104,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   useEffect(() => {
     const node = titleRef.current && findNodeHandle(titleRef.current);
     if (node) AccessibilityInfo.setAccessibilityFocus(node);
-    if (step > 1) announce(t("flows.onboarding.stepAnnounce", { step, title: t(`flows.onboarding.step${step}Title`) }));
+    // Same count the Stepper speaks: step 2 is stage 2 (Choose), step 3 starts at stage 3 (Install).
+    if (step > 1) announce(t("flows.onboarding.stageOf", { n: step, total: STAGES.length, name: t(`flows.onboarding.stage.${STAGES[step - 1]}`) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
@@ -589,7 +590,7 @@ function PackageStep({
         </View>
       )}
       <TravelCard selected={travel} onChange={onTravel} lang={lang} trip={trip} onTrip={onTrip} catalog={catalog} />
-      <Text variant="footnote" color="tertiary">
+      <Text variant="footnote" color="secondary">
         {t("flows.onboarding.laterNote")}
       </Text>
     </Screen>
@@ -1052,7 +1053,7 @@ function InstallStep({
                 label={t("flows.onboarding.indexRow")}
                 value={seed.done / seed.total}
                 valueText={t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
-                tone="field"
+                tone="accent"
               />
             )}
           </View>
@@ -1080,7 +1081,7 @@ function InstallStep({
                 {f.asset.label}: {t(`flows.row.error.${f.state.kind === "failed" ? f.state.errorKind : "unknown"}`)}
               </Text>
               {f.state.kind === "failed" && (
-                <Text variant="caption" color="tertiary" selectable>
+                <Text variant="caption" color="secondary" selectable>
                   {f.state.message}
                 </Text>
               )}
@@ -1120,5 +1121,5 @@ function PhaseIcon({ state }: { state: RowState }) {
   if (state.kind === "installed" || state.kind === "in-use") return <Icon name="check-circle" color={tokens.color.status.success.solid} />;
   if (state.kind === "failed") return <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />;
   if (state.kind === "downloading" || state.kind === "verifying") return <Icon name="download" color={tokens.color.accent.text} />;
-  return <Icon name="circle" color={tokens.color.text.tertiary} />;
+  return <Icon name="circle" color={tokens.color.text.secondary} />;
 }
