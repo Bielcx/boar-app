@@ -12,6 +12,7 @@ import { FONT_FILES } from "./src/ui/theme/fontFiles";
 import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
+import { initialRoute as bootRoute } from "./src/ui/flows/boot";
 
 const modelManager = new ModelManager();
 
@@ -25,8 +26,9 @@ function AppContent() {
   useEffect(() => {
     initHaptics();
     (async () => {
-      const ready = await modelManager.requiredModelsPresent();
-      setInitialRoute(ready ? "Main" : "Setup");
+      // Setup unless the chat has an answer model it can load (and saves that one as active).
+      // A failed disk read also lands in setup, never on a spinner or a chat that cannot answer.
+      setInitialRoute(await bootRoute(modelManager).catch(() => "Setup" as const));
     })();
   }, []);
 
