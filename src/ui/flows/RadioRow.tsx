@@ -29,7 +29,7 @@ export function RadioRow({ title, subtitle, selected, onPress }: Props) {
         pressed && { backgroundColor: t.color.bg.sunken },
       ]}
     >
-      <View style={styles.body}>
+      <View style={[styles.body, { gap: t.space.xxs }]}>
         <Text variant="body">{title}</Text>
         {subtitle && (
           <Text variant="footnote" color="secondary">
@@ -37,12 +37,12 @@ export function RadioRow({ title, subtitle, selected, onPress }: Props) {
           </Text>
         )}
       </View>
-      <View style={{ width: 24 }}>{selected && <Icon name="check" color={t.color.accent.text} />}</View>
+      <View style={{ width: t.size.iconLg }}>{selected && <Icon name="check" color={t.color.accent.text} />}</View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
-  body: { flex: 1, gap: 2 },
+  body: { flex: 1 },
 });

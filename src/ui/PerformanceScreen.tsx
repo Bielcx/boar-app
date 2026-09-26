@@ -105,7 +105,7 @@ export function PerformanceScreen() {
   if (!records || !catalog.loaded) {
     return (
       <Screen>
-        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: 12 }}>
+        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={120} />
           <Skeleton height={120} />
         </View>

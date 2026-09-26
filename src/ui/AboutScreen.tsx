@@ -41,7 +41,7 @@ export function AboutScreen() {
       <View style={{ alignItems: "center", gap: tokens.space.sm }}>
         <Image
           source={require("../../assets/boar.png")}
-          style={{ width: 72, height: 72, borderRadius: tokens.radius.lg }}
+          style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
           accessibilityIgnoresInvertColors
           accessible={false}
         />

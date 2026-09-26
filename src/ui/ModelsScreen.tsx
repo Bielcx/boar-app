@@ -62,7 +62,7 @@ export function ModelsScreen() {
   if (!catalog.loaded) {
     return (
       <Screen>
-        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: 12 }}>
+        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={20} width="60%" />
           <Skeleton height={96} />
           <Skeleton height={96} />
@@ -156,7 +156,7 @@ export function ModelsScreen() {
 
       {(offline || catalog.imports.length > 0) && (
         <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
-          <View style={{ padding: 16 }}>
+          <View style={{ padding: tokens.space.base }}>
             <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
           </View>
         </Section>
@@ -166,7 +166,7 @@ export function ModelsScreen() {
         {groups.available.length > 0 ? (
           renderGroup(groups.available)
         ) : (
-          <View style={{ padding: 16 }}>
+          <View style={{ padding: tokens.space.base }}>
             <Text variant="callout" color="secondary">
               {t("flows.models.allInstalled")}
             </Text>

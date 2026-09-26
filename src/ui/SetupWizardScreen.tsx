@@ -265,7 +265,7 @@ function Stepper({ step }: { step: Step }) {
           key={n}
           style={{
             flex: 1,
-            height: 4,
+            height: tokens.space.xs,
             borderRadius: tokens.radius.full,
             backgroundColor: n <= step ? tokens.color.accent.solid : tokens.color.bg.sunken,
           }}
