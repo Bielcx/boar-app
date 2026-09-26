@@ -639,7 +639,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const source = sourceItem?.kind === "assistant" ? sourceItem.answer.sources[openSource!.index] ?? null : null;
 
   return (
-    <Screen scroll={false} padded={false} edges={["top", "bottom", "left", "right"]}>
+    <Screen scroll={false} padded={false} ambient edges={["top", "bottom", "left", "right"]}>
       <ChatHeader
         activeModelLabel={activeModel?.label}
         voiceEnabled={voiceInputEnabled}

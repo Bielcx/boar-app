@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { Pressable, useWindowDimensions, View } from "react-native";
+import { Image, Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Icon, IconButton, Sheet, Text } from "./components";
+import { Icon, IconButton, OfflineSeal, Sheet, Text } from "./components";
 import { useTokens } from "./theme";
 
 // Which build this is (see docs/BUILD_VARIANTS.md on feat/trust-offline). Read the
@@ -28,7 +28,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
   const { width, fontScale } = useWindowDimensions();
   const [offlineOpen, setOfflineOpen] = useState(false);
   const room = width / Math.max(1, fontScale);
-  const showTitle = room >= 330;
+  const showTitle = room >= 340;
   const badgeText = room >= 380;
 
   return (
@@ -46,19 +46,27 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
     >
       <IconButton icon="menu" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+        <Image source={require("../../assets/boar.png")} style={{ width: 28, height: 28 }} accessibilityIgnoresInvertColors importantForAccessibility="no" />
         {showTitle && (
-          <Text variant="headline" header numberOfLines={1}>
-            BOAR
-          </Text>
+          <View style={{ flexShrink: 1 }}>
+            <Text variant="headline" header numberOfLines={1}>
+              boar
+            </Text>
+            {activeModelLabel && (
+              <Text variant="caption" color="tertiary" numberOfLines={1}>
+                {activeModelLabel}
+              </Text>
+            )}
+          </View>
         )}
         <Pressable
           onPress={() => setOfflineOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={tr("chat.header.offlineShort")}
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          style={{ minHeight: t.size.touch, justifyContent: "center" }}
         >
           {badgeText ? (
-            <Badge label={tr("chat.header.offline")} icon="wifi-off" tone="field" />
+            <OfflineSeal label={tr(OFFLINE_BUILD ? "chat.header.offlineSeal" : "chat.header.offlineAnswersSeal")} />
           ) : (
             <View style={{ padding: t.space.xs, borderRadius: t.radius.sm, backgroundColor: t.color.field.soft }}>
               <Icon name="wifi-off" size="sm" color={t.color.field.text} />

@@ -1,8 +1,8 @@
 import React, { memo } from "react";
-import { Pressable, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Sheet, Text, useToast } from "../components";
+import { Badge, Button, Card, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 
@@ -103,7 +103,20 @@ export function ChatEmptyState({
   const { t: tr } = useTranslation();
   return (
     <View style={{ gap: t.space.xl, paddingTop: t.space.xxl }}>
-      <EmptyState icon="book-open" title={tr("chat.empty.title")} body={tr("chat.empty.body")} />
+      <View style={{ alignItems: "center", gap: t.space.sm }}>
+        <Image
+          source={require("../../../assets/boar.png")}
+          style={{ width: 96, height: 96 }}
+          accessibilityIgnoresInvertColors
+          importantForAccessibility="no"
+        />
+        <Text variant="title2" align="center">
+          {tr("chat.empty.title")}
+        </Text>
+        <Text variant="callout" color="secondary" align="center">
+          {tr("chat.empty.body")}
+        </Text>
+      </View>
       {showSuggestions && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>

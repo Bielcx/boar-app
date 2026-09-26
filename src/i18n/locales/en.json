@@ -616,7 +616,9 @@
       "offlineBodyDownloader": "Questions, search and answers run on this phone. This build can download models when you ask it to; answering never uses the network.",
       "modelLoaded": "Model: {{label}}",
       "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
-      "tone": "Change tone"
+      "tone": "Change tone",
+      "offlineSeal": "Offline",
+      "offlineAnswersSeal": "Answers offline"
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {
@@ -723,6 +725,7 @@
       "noneNear": "No places in the offline map near you",
       "noneNearFiltered": "No {{filter}} places in the offline map near you",
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region."
-    }
+    },
+    "assistantName": "boar"
   }
 }

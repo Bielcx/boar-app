@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, Card, Chip, IconButton, Progress, Text } from "../components";
+import { Banner, Button, Card, Icon, IconButton, Progress, Text } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
@@ -47,12 +47,31 @@ function useElapsedSeconds(running: boolean): number {
   return seconds;
 }
 
-/** What the answer is doing, with the seconds since it started (visual only; the reader hears stage changes). */
+/**
+ * What the answer is doing: earlier steps checked off above the current one,
+ * with the seconds since it started (visual only; the reader hears stage changes).
+ */
 function Stage({ label, locale }: { label: string; locale: string }) {
   const t = useTokens();
   const seconds = useElapsedSeconds(true);
+  const trail = useRef<string[]>([]);
+  if (trail.current[trail.current.length - 1] !== label) trail.current = [...trail.current.filter((l) => l !== label), label];
+  const done = trail.current.slice(0, -1);
   return (
-    <View style={{ gap: t.space.sm, paddingVertical: t.space.xs }}>
+    <View style={{ gap: t.space.xs, paddingVertical: t.space.xs }}>
+      {done.map((l) => (
+        <View
+          key={l}
+          style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          <Icon name="check" size={14} color={t.color.text.field} />
+          <Text variant="footnote" color="tertiary">
+            {l}
+          </Text>
+        </View>
+      ))}
       <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.sm }}>
         <Text variant="callout" color="secondary" style={{ flex: 1 }}>
           {label}
@@ -196,27 +215,62 @@ function Receipt({
   );
 }
 
-function SourceStrip({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
+/** The answer's sources as numbered rows; each opens the passage it came from. */
+function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   return (
     <View style={{ gap: t.space.xs }}>
-      <Text variant="label" color="field">
+      <Text variant="label" color="field" header>
         {tr("chat.sources.title", { count: answer.sources.length })}
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: t.space.sm }}>
+      <Card padding="none" style={{ overflow: "hidden" }}>
         {answer.sources.map((s, i) => (
-          <Chip
+          <Pressable
             key={s.chunkId}
-            label={`${i + 1}  ${s.title}`}
-            icon={s.collectionId ? "file-text" : "book"}
-            tone="field"
             onPress={() => onOpenSource(i)}
+            accessibilityRole="button"
             accessibilityLabel={tr("chat.sources.chip", { n: i + 1, title: s.title })}
             accessibilityHint={tr("chat.sources.openHint")}
-          />
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              gap: t.space.md,
+              minHeight: t.size.touch,
+              paddingHorizontal: t.space.md,
+              paddingVertical: t.space.sm,
+              borderTopWidth: i === 0 ? 0 : t.size.hairline,
+              borderTopColor: t.color.line.hairline,
+              backgroundColor: pressed ? t.color.bg.sunken : undefined,
+            })}
+          >
+            <View
+              style={{
+                minWidth: t.size.iconLg,
+                minHeight: t.size.iconLg,
+                paddingHorizontal: t.space.xs,
+                borderRadius: t.radius.full,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: t.color.field.soft,
+              }}
+            >
+              <Text variant="caption" color="field" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
+                {i + 1}
+              </Text>
+            </View>
+            <View style={{ flex: 1, gap: t.space.xxs }}>
+              <Text variant="subhead" numberOfLines={2}>
+                {s.title}
+              </Text>
+              <Text variant="caption" color="tertiary" numberOfLines={1}>
+                {s.collectionId ? tr("chat.sources.myDocuments") : s.source || tr("chat.sources.corpus")}
+              </Text>
+            </View>
+            <Icon name="chevron-right" size="sm" color={t.color.text.tertiary} />
+          </Pressable>
         ))}
-      </ScrollView>
+      </Card>
     </View>
   );
 }
@@ -312,8 +366,24 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
+  const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
   return (
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
+      <View style={{ gap: t.space.xxs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+          <Image
+            source={require("../../../assets/boar.png")}
+            style={{ width: 22, height: 22 }}
+            accessibilityIgnoresInvertColors
+            importantForAccessibility="no"
+          />
+          <Text variant="headline" color="accent">
+            {tr("chat.assistantName")}
+          </Text>
+        </View>
+        {topReceipt && <Receipt receipt={topReceipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />}
+      </View>
+
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
 
       {answer.places && (
@@ -334,9 +404,6 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
       {!answer.deep && stage && <Stage label={stage} locale={locale} />}
       <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
-      {answer.fast?.receipt && (
-        <Receipt receipt={answer.fast.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
-      )}
 
       {answer.deep && (
         <View style={{ gap: t.space.sm, paddingTop: t.space.md, borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
@@ -364,11 +431,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           onAction={props.onRetry}
         />
       )}
-      {instantOnly && answer.instantDone && (
-        <Receipt receipt={answer.instantDone.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
-      )}
 
-      {answer.sources.length > 0 && !placesOnly && <SourceStrip answer={answer} onOpenSource={onOpenSource} />}
+
+      {answer.sources.length > 0 && !placesOnly && <SourceList answer={answer} onOpenSource={onOpenSource} />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginLeft: -t.space.sm }}>
