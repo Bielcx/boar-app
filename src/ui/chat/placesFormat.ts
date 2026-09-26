@@ -165,12 +165,21 @@ export function sourceName(source: Place["source"], t: T): string {
   return t(source === "osm" ? "chat.places.sourceOsm" : "chat.places.sourceWikivoyage");
 }
 
+/**
+ * `now` is the device clock, which is only the place's local time when the
+ * list is around the device ("near"). For another city pass null: no
+ * open/closed is shown rather than a wrong one (places carry no time zone).
+ */
+export function openStateAt(p: Place, now: Date | null): OpenState | null {
+  return now ? openState(p.openingHours, now) : null;
+}
+
 /** One sentence per row for screen readers: name, distance, diet, cuisine, hours, address, source. */
-export function placeA11yLabel(p: Place, now: Date, locale: string, t: T): string {
+export function placeA11yLabel(p: Place, now: Date | null, locale: string, t: T): string {
   const parts = [p.name];
   if (p.distanceM != null) parts.push(spokenDistance(p.distanceM, locale, t));
   parts.push(...dietLabels(p.diet, t), ...cuisineLabels(p.cuisine));
-  const state = openState(p.openingHours, now);
+  const state = openStateAt(p, now);
   if (state) parts.push(openStateLabel(state, t));
   if (p.address) parts.push(p.address);
   parts.push(t("chat.places.fromSource", { source: sourceName(p.source, t) }));
@@ -178,15 +187,15 @@ export function placeA11yLabel(p: Place, now: Date, locale: string, t: T): strin
 }
 
 /** The second line of a row: diet, cuisine and open state, " · " separated. */
-export function placeDetailLine(p: Place, now: Date, t: T): { text: string; closed: boolean } {
+export function placeDetailLine(p: Place, now: Date | null, t: T): { text: string; closed: boolean } {
   const parts = [...dietLabels(p.diet, t), ...cuisineLabels(p.cuisine)];
-  const state = openState(p.openingHours, now);
+  const state = openStateAt(p, now);
   if (state) parts.push(openStateLabel(state, t));
   return { text: parts.join(" · "), closed: state?.open === false };
 }
 
 /** The places as plain text, for copy and share. */
-export function placesForCopy(places: Place[], now: Date, locale: string, t: T): string {
+export function placesForCopy(places: Place[], now: Date | null, locale: string, t: T): string {
   return places
     .map((p, i) => {
       const bits = [`${i + 1}. ${p.name}`];

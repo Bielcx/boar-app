@@ -102,6 +102,11 @@ describe("rows", () => {
     );
   });
 
+  it("shows no open/closed without the device's local time (another city)", () => {
+    expect(placeDetailLine(place, null, t)).toEqual({ text: "chat.places.diet.vegan.only · Brazilian", closed: false });
+    expect(placeA11yLabel(place, null, "en-US", t)).not.toContain("openUntil");
+  });
+
   it("marks the detail line closed only with parsed hours", () => {
     expect(placeDetailLine(place, at(23), t).closed).toBe(true);
     expect(placeDetailLine({ ...place, openingHours: "by appointment" }, at(23), t)).toEqual({

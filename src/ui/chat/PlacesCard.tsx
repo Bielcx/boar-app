@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Linking, Pressable, useWindowDimensions, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,7 @@ import {
   dietLabels,
   formatDistance,
   geoUri,
-  openState,
+  openStateAt,
   openStateLabel,
   placeA11yLabel,
   sourceName,
@@ -47,13 +47,23 @@ function cardSubtitle(r: PlacesResult, locale: string, t: T): string {
   return parts.join(" · ");
 }
 
-function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date; locale: string; onPress: () => void }) {
+/** The device clock, refreshed each minute so open/closed doesn't go stale in a long session. */
+function useMinuteClock(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | null; locale: string; onPress: () => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= 1.6;
   const tags = [...dietLabels(place.diet, tr), ...cuisineLabels(place.cuisine)].join(" · ");
-  const state = openState(place.openingHours, now);
+  const state = openStateAt(place, now);
   const distance = place.distanceM != null ? formatDistance(place.distanceM, locale) : null;
   return (
     <Pressable
@@ -104,7 +114,7 @@ function PlaceSheet({
   onOpenSource,
 }: {
   place: Place | null;
-  now: Date;
+  now: Date | null;
   locale: string;
   onClose: () => void;
   onOpenSource: (index: number) => void;
@@ -113,7 +123,7 @@ function PlaceSheet({
   const { t: tr } = useTranslation();
   const toast = useToast();
   if (!place) return <Sheet visible={false} onClose={onClose} title="" />;
-  const state = openState(place.openingHours, now);
+  const state = openStateAt(place, now);
   const coords = coordinatesText(place);
   const Row = ({ label, value }: { label: string; value: string }) => (
     <View style={{ gap: t.space.xxs }}>
@@ -132,15 +142,7 @@ function PlaceSheet({
         place.distanceM != null ? `${formatDistance(place.distanceM, locale)} · ${sourceName(place.source, tr)}` : sourceName(place.source, tr)
       }
       footer={
-        <View style={{ gap: t.space.sm }}>
-          <Button
-            label={tr("chat.places.openInMaps")}
-            icon="map"
-            fullWidth
-            onPress={() =>
-              Linking.openURL(geoUri(place)).catch(() => toast({ message: tr("chat.places.noMapsApp"), tone: "danger" }))
-            }
-          />
+        <>
           <Button
             label={tr("chat.places.copyCoordinates")}
             variant="secondary"
@@ -151,7 +153,15 @@ function PlaceSheet({
               toast({ message: tr("chat.places.coordinatesCopied"), icon: "check" });
             }}
           />
-        </View>
+          <Button
+            label={tr("chat.places.openInMaps")}
+            icon="map"
+            fullWidth
+            onPress={() =>
+              Linking.openURL(geoUri(place)).catch(() => toast({ message: tr("chat.places.noMapsApp"), tone: "danger" }))
+            }
+          />
+        </>
       }
     >
       <View style={{ gap: t.space.base }}>
@@ -254,8 +264,10 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
   const [expanded, setExpanded] = useState(false);
   const [openPlace, setOpenPlace] = useState<Place | null>(null);
   const [showLicense, setShowLicense] = useState(false);
-  const now = useMemo(() => new Date(), []);
+  const clock = useMinuteClock();
   const r = answer.places!;
+  // Open/closed needs the place's local time; only a "near" list shares the device's clock.
+  const now = r.area.kind === "near" ? clock : null;
   const city = r.area.place?.name ?? r.area.label ?? "";
 
   if (r.coverage === "needs_place") {
@@ -342,8 +354,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             accessibilityRole="button"
             accessibilityState={{ expanded: showLicense }}
             accessibilityLabel={tr("chat.places.attributionLabel")}
-            hitSlop={{ top: 12, bottom: 12 }}
-            style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs }}
+            style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, minHeight: t.size.touch }}
           >
             <Icon name="map" size={14} color={t.color.text.field} />
             <Text variant="caption" color="field" style={{ flex: 1 }}>

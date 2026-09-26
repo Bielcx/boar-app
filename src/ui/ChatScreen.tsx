@@ -592,7 +592,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const copyBody = () =>
         a.places?.places.length
           ? [
-              placesForCopy(a.places.places, new Date(), locale, t),
+              placesForCopy(a.places.places, a.places.area.kind === "near" ? new Date() : null, locale, t),
               a.places.attribution.map((x) => `${sourceName(x.source, t)} (${x.license})`).join(" · "),
             ].join("\n\n")
           : null;
