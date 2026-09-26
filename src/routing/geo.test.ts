@@ -237,6 +237,13 @@ describe("answer(): places path", () => {
     expect(r.text).toMatch(/not installed/);
   });
 
+  it("reports a missing pack when providers are registered but no pack is installed", async () => {
+    geo.hasPlaces = async () => false;
+    const { places } = await ask("best vegan restaurants in São Paulo");
+    expect(places!.coverage).toBe("no_pack");
+    expect(geo.calls).toEqual([]);
+  });
+
   it("leaves ordinary questions to the normal pipeline", async () => {
     const { places } = await ask("Which signature algorithms are quantum resistant?");
     expect(places).toBeUndefined();
