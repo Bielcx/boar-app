@@ -9,6 +9,8 @@ import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
+import { ImportList } from "./flows/ImportList";
+import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
 import type { RootStackParamList } from "./navigation/types";
@@ -26,6 +28,7 @@ export function ModelsScreen() {
   const toast = useToast();
   const catalog = useCatalog();
   const { refresh } = catalog;
+  const offline = !networkAllowed();
 
   useFocusEffect(
     useCallback(() => {
@@ -70,8 +73,9 @@ export function ModelsScreen() {
         <CatalogRow
           model={m}
           view={catalog.view(m)}
+          fit={catalog.fit(m)}
           busy={catalog.loadingId !== null}
-          onDownload={() => catalog.download(m)}
+          onDownload={() => (offline ? catalog.importFiles() : catalog.download(m))}
           onUse={() => use(m)}
           onRemove={() => catalog.remove(m)}
         />
@@ -93,6 +97,14 @@ export function ModelsScreen() {
 
       {groups.installed.length > 0 && <Section title={t("flows.models.installed")}>{renderGroup(groups.installed)}</Section>}
 
+      {(offline || catalog.imports.length > 0) && (
+        <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
+          <View style={{ padding: 16 }}>
+            <ImportList imports={catalog.imports} onPick={catalog.importFiles} />
+          </View>
+        </Section>
+      )}
+
       <Section title={t("flows.models.available")} footer={t("flows.models.availableFooter")}>
         {groups.available.length > 0 ? (
           renderGroup(groups.available)
@@ -105,9 +117,11 @@ export function ModelsScreen() {
         )}
       </Section>
 
-      <Section title={t("flows.models.advanced")} footer={t("flows.models.searchFooter")}>
-        <ListRow icon="search" title={t("flows.models.searchTitle")} onPress={() => navigation.navigate("ModelSearch")} />
-      </Section>
+      {!offline && (
+        <Section title={t("flows.models.advanced")} footer={t("flows.models.searchFooter")}>
+          <ListRow icon="search" title={t("flows.models.searchTitle")} onPress={() => navigation.navigate("ModelSearch")} />
+        </Section>
+      )}
     </Screen>
   );
 }

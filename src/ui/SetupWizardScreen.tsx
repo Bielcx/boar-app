@@ -31,6 +31,8 @@ import { formatBytes, formatCount, minutesLeft } from "./flows/format";
 import { poiCatalogEntry, poiRegions } from "./flows/adapters";
 import { citySummary, deviceTimeZone, PoiRegion, suggestRegion } from "./flows/poi";
 import { locateForUser } from "../services/location";
+import { networkAllowed } from "../config/variant";
+import { ImportList } from "./flows/ImportList";
 
 interface Props {
   onReady: () => void;
@@ -89,7 +91,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const startInstall = () => {
     impact(ImpactFeedbackStyle.Medium);
     setStep(3);
-    for (const a of assets) if (!present[a.id]) catalog.download(a);
+    // The offline build has no network: step 3 imports files instead.
+    if (networkAllowed()) for (const a of assets) if (!present[a.id]) catalog.download(a);
   };
 
   return (
@@ -267,10 +270,11 @@ function PackageStep({
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
     const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], present);
-    const fit = plan.largestLlm ? fitFor(plan.largestLlm, deviceRamBytes) : undefined;
+    const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
     return { ...p, plan, fit, shortfall, seconds };
@@ -283,7 +287,11 @@ function PackageStep({
       footer={
         <>
           <Button
-            label={chosen.plan.downloadBytes > 0 ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) }) : t("flows.onboarding.continue")}
+            label={
+              chosen.plan.downloadBytes > 0 && !offline
+                ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) })
+                : t("flows.onboarding.continue")
+            }
             fullWidth
             disabled={!loaded || chosen.shortfall > 0}
             accessibilityHint={chosen.shortfall > 0 ? t("flows.onboarding.noSpace", { size: formatBytes(chosen.shortfall, lang) }) : undefined}
@@ -312,10 +320,10 @@ function PackageStep({
           const isSelected = p.id === selected;
           const facts = [
             p.plan.downloadBytes > 0
-              ? t("flows.onboarding.download", { size: formatBytes(p.plan.downloadBytes, lang) })
+              ? t(offline ? "flows.onboarding.importSize" : "flows.onboarding.download", { size: formatBytes(p.plan.downloadBytes, lang) })
               : t("flows.onboarding.alreadyDownloaded"),
             t("flows.onboarding.diskAfter", { size: formatBytes(p.plan.installedBytes, lang) }),
-            p.seconds != null && p.plan.downloadBytes > 0
+            !offline && p.seconds != null && p.plan.downloadBytes > 0
               ? t("flows.onboarding.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) })
               : null,
           ].filter(Boolean) as string[];
@@ -464,7 +472,7 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
 function statusLine(state: RowState, model: CatalogModel, t: ReturnType<typeof useTranslation>["t"], lang: string): string {
   switch (state.kind) {
     case "not-installed":
-      return t("flows.onboarding.queued");
+      return t(networkAllowed() ? "flows.onboarding.queued" : "flows.onboarding.toImport");
     case "downloading":
       return t("flows.onboarding.downloadingLine", {
         pct: Math.round(state.progress * 100),
@@ -509,6 +517,7 @@ function InstallStep({
   const [seed, setSeed] = useState<SeedProgress | null>(null);
   const seedStart = useRef<{ at: number; done: number } | null>(null);
   const [now, setNow] = useState(Date.now());
+  const offline = !networkAllowed();
 
   const states = assets.map((a) => ({ asset: a, state: catalog.view(a).state }));
   const downloading = states.some((s) => s.state.kind === "downloading" || s.state.kind === "verifying");
@@ -630,9 +639,18 @@ function InstallStep({
       <StepHeader
         titleRef={titleRef}
         step={3}
-        title={ready ? t("flows.onboarding.doneTitle") : t("flows.onboarding.step3Title")}
-        subtitle={ready ? t("flows.onboarding.doneBody") : t("flows.onboarding.step3Sub")}
+        title={ready ? t("flows.onboarding.doneTitle") : offline ? t("flows.onboarding.importTitle") : t("flows.onboarding.step3Title")}
+        subtitle={ready ? t("flows.onboarding.doneBody") : offline ? t("flows.onboarding.importSub") : t("flows.onboarding.step3Sub")}
       />
+
+      {offline && !allPresent && (
+        <View style={{ gap: tokens.space.sm }}>
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} />
+          <Text variant="footnote" color="secondary" selectable>
+            {t("flows.onboarding.importHow")}
+          </Text>
+        </View>
+      )}
 
       {!allPresent && (
         <View style={{ gap: tokens.space.xs }}>

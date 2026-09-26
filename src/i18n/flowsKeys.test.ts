@@ -16,6 +16,7 @@ const FLOW_FILES = [
   "EvaluationScreen.tsx",
   "AboutScreen.tsx",
   "flows/CatalogRow.tsx",
+  "flows/ImportList.tsx",
   "navigation/RootNavigator.tsx",
 ].map((f) => join(__dirname, "..", "ui", f));
 
@@ -54,7 +55,7 @@ const DYNAMIC_KEYS = [
   ...expand("flows.places.reason.", ["timezone", "location"]),
   ...expand("flows.performance.band.", ["fast", "ok", "slow"]),
   ...expand("flows.performance.outcome.", ["success", "failure", "cancelled"]),
-  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "offline-variant", "load", "unknown"]),
+  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "unknown-file", "offline-variant", "load", "unknown"]),
   ...expand("flows.row.fit.", ["streaming", "thrashing", "insufficient"]),
   ...expand("flows.row.kind.", ["llm", "embedding", "corpus"]),
   ...expand("flows.row.role.", ["answer", "deep", "search"]),
@@ -67,6 +68,8 @@ function staticKeys(): string[] {
   for (const file of FLOW_FILES) {
     const source = readFileSync(file, "utf8");
     for (const m of source.matchAll(/\b(?:t|tr)\(\s*"([\w.-]+)"/g)) keys.add(m[1]);
+    // Any "flows.*" literal, including ones picked by a ternary inside t(...).
+    for (const m of source.matchAll(/"(flows\.[\w.-]+[\w-])"/g)) keys.add(m[1]);
   }
   for (const k of DYNAMIC_KEYS) keys.add(k);
   return [...keys].sort();

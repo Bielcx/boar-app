@@ -349,7 +349,8 @@
         "size-mismatch": "O arquivo veio incompleto. Baixe de novo.",
         "offline-variant": "Esta versão não acessa a internet. Importe o arquivo.",
         "load": "Não foi possível carregar este modelo.",
-        "unknown": "Algo deu errado."
+        "unknown": "Algo deu errado.",
+        "unknown-file": "Este arquivo não é um que o BOAR conhece. Escolha o arquivo indicado para este item."
       },
       "download": "Baixar {{size}}",
       "retry": "Tentar de novo",
@@ -360,7 +361,10 @@
       "removeBody": "Libera {{size}} neste celular. Dá para baixar de novo depois.",
       "removed": "{{name}} removido",
       "wontFitTitle": "{{name}} não cabe neste celular",
-      "downloadAnyway": "Baixar mesmo assim ({{size}})"
+      "downloadAnyway": "Baixar mesmo assim ({{size}})",
+      "fitDetail": "Ele precisa de cerca de {{need}} de memória de trabalho que não dá para ler do armazenamento; há cerca de {{free}} livres de {{total}}. Estimativa.",
+      "importFile": "Importar arquivo ({{size}})",
+      "importAnyway": "Importar mesmo assim ({{size}})"
     },
     "models": {
       "storage": "O BOAR usa {{used}} · {{free}} livres no celular",
@@ -428,7 +432,10 @@
       "filesPicked_one": "{{count}} arquivo selecionado",
       "filesPicked_other": "{{count}} arquivos selecionados",
       "nameLabel": "Nome da coleção",
-      "import": "Importar"
+      "import": "Importar",
+      "indexed": "Indexada",
+      "indexError": "A indexação falhou: {{error}}",
+      "importCancelled": "Importação cancelada"
     },
     "performance": {
       "provisional": "As faixas de velocidade são provisórias até serem medidas em celulares.",
@@ -559,7 +566,12 @@
       "doneAnnounce": "Configuração concluída. O BOAR está pronto.",
       "open": "Abrir o BOAR",
       "languageAnnounce": "Idioma: Português",
-      "smallerPackage": "Escolher um pacote menor"
+      "smallerPackage": "Escolher um pacote menor",
+      "importSize": "Arquivos para importar: {{size}}",
+      "importTitle": "Importe os arquivos",
+      "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
+      "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",
+      "toImport": "Ainda não importado"
     },
     "places": {
       "title": "Lugares (offline)",
@@ -582,6 +594,14 @@
       "rationaleBody": "O BOAR lê sua posição pelo GPS do celular, que funciona sem internet, para sugerir lugares perto de você. Ela nunca sai do celular.",
       "notNow": "Agora não",
       "continue": "Continuar"
+    },
+    "import": {
+      "title": "Importar arquivos",
+      "footer": "Cada arquivo é conferido por tamanho e SHA-256 contra o catálogo. O nome do arquivo não importa.",
+      "pick": "Escolher arquivos",
+      "checking": "Conferindo {{name}}",
+      "checkingValue": "Conferindo, {{pct}}%",
+      "verified": "Verificado: {{item}}"
     }
   },
   "chat": {
