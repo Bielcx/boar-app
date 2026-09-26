@@ -612,7 +612,8 @@
         "default": "Standard: {{name}}",
         "compact": "Compact: {{name}}"
       },
-      "suggestedHere": "suggested for this phone"
+      "suggestedHere": "suggested for this phone",
+      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
     },
     "places": {
       "title": "Places (offline)",

@@ -612,7 +612,8 @@
         "default": "Padrão: {{name}}",
         "compact": "Compacto: {{name}}"
       },
-      "suggestedHere": "sugerido para este celular"
+      "suggestedHere": "sugerido para este celular",
+      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão."
     },
     "places": {
       "title": "Lugares (offline)",

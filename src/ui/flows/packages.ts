@@ -33,11 +33,6 @@ export function answerModelChoices(catalog: CatalogModel[]): Partial<Record<Answ
   };
 }
 
-/** Suggest the compact model only when the memory estimate says the default won't run well here. */
-export function suggestCompact(defaultFit: string | undefined): boolean {
-  return defaultFit === "insufficient" || defaultFit === "thrashing";
-}
-
 /**
  * Everything a package installs: the required non-language assets (the
  * search model), the chosen answer model, and the tier's knowledge packs.
