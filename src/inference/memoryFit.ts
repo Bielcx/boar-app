@@ -261,3 +261,17 @@ export function describeFit(filename: string, f: MemoryFit): string | null {
       );
   }
 }
+
+/**
+ * Context window when the caller does not pick one, by device RAM. The KV
+ * cache is the one allocation mmap cannot page out: 4GB phones (iPhone 13)
+ * get 2048 (jetsam limit, docs/IOS.md), 6GB phones 3072 (Qwen3-4B's KV is
+ * 144 KiB/token: 432 MiB instead of 576), larger ones 4096. 3072 still holds
+ * ~1.2k tokens of sources + 512 answer + 256 thinking + history.
+ */
+export function contextSizeForRam(totalRamBytes: number): number {
+  if (totalRamBytes <= 0) return 4096;
+  if (totalRamBytes <= 4.5 * 1024 ** 3) return 2048;
+  if (totalRamBytes <= 6.5 * 1024 ** 3) return 3072;
+  return 4096;
+}

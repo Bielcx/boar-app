@@ -321,3 +321,35 @@ describe("answer(): rule D6", () => {
     expect(result.receipt.modelId).toBe("qwen7");
   });
 });
+
+describe("answer(): device-dependent default model", () => {
+  const q4b: InstalledLlm = { id: "qwen3-4b", label: "Qwen3 4B", filename: "models/q4b.gguf", sizeBytes: 2.5 * GB, roles: ["fast"], answerTier: "default" };
+  const q15c: InstalledLlm = { ...qwen15, isDefault: false, answerTier: "compact" };
+
+  it("uses the 4B when the user has not picked a model and it fits", async () => {
+    f.installed = [q15c, q4b];
+    f.activeId = null;
+    f.settings.quickFirst = false;
+    f.deps.deviceRamBytes = () => 7.5 * GB;
+    const { result } = await collect("Tell me about Canberra");
+    expect(result.receipt.modelId).toBe("qwen3-4b");
+  });
+
+  it("uses the compact model on a 4 GB phone", async () => {
+    f.installed = [q15c, q4b];
+    f.activeId = null;
+    f.settings.quickFirst = false;
+    f.deps.deviceRamBytes = () => 3.7 * GB;
+    const { result } = await collect("Tell me about Canberra");
+    expect(result.receipt.modelId).toBe("qwen1.5");
+  });
+
+  it("still respects the model the user picked", async () => {
+    f.installed = [q15c, q4b];
+    f.activeId = "qwen1.5";
+    f.settings.quickFirst = false;
+    f.deps.deviceRamBytes = () => 12 * GB;
+    const { result } = await collect("Tell me about Canberra");
+    expect(result.receipt.modelId).toBe("qwen1.5");
+  });
+});
