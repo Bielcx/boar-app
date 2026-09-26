@@ -19,7 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { decompress } from "fzstd";
 import { nodeSqliteDatabase } from "../../src/rag/testing/nodeSqlite";
-import { DEFAULT_TUNING, WikiPack, type PackHit, type PackTuning } from "../../src/rag/wikiPack";
+import { DEFAULT_TUNING, WikiPack, type PackHit, type PackSource, type PackTuning } from "../../src/rag/wikiPack";
 import { buildLexicalQuery, filterByTermCoverage } from "../../src/rag/pure";
 
 const PACK = process.env.BOAR_EVAL_PACK;
@@ -30,7 +30,7 @@ interface Question {
   id: string;
   category: string;
   query: string;
-  gold: Array<{ source: "enwiki" | "enwikivoyage"; title: string }>;
+  gold: Array<{ source: PackSource; title: string }>;
 }
 
 type Ranked = Array<{ title: string; source: string }>;
