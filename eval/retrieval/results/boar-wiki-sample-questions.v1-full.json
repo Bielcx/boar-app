@@ -1,0 +1,243 @@
+{
+  "pack": "boar-wiki-sample.sqlite",
+  "packMeta": {
+    "format": "boar-knowledge-pack",
+    "formatVersion": "2",
+    "dims": "384",
+    "embeddingModelSha256": "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
+    "sources": "{\"enwiki\":{\"dataset\":\"HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)\",\"shards\":[\"000_00007.parquet\"],\"articles\":403973},\"enwikivoyage\":{\"dump\":\"enwikivoyage-latest-pages-articles.xml.bz2\",\"articles\":34002},\"redirects\":\"enwiki-latest-redirect.sql.gz\",\"pageviews\":\"pageviews-en-20250815.tsv\",\"days\":1}",
+    "license": "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    "articles": "437975",
+    "chunks": "2462151",
+    "indexedChunks": "2130224",
+    "dfMin": "2000",
+    "params": "{\"fullTop\":1000000,\"leadChars\":2500,\"chunkChars\":1000,\"blockKb\":64,\"zlevel\":12,\"limit\":0,\"embedTop\":33333}",
+    "builtAt": "2026-09-26T20:30:01.050Z"
+  },
+  "questions": "eval/retrieval/questions.v1.jsonl",
+  "n": 160,
+  "measuredAt": "2026-09-26T20:38:53.181Z",
+  "results": {
+    "full (named titles first)": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.863,
+        "recall@3": 0.969,
+        "recall@6": 0.975,
+        "mrr10": 0.915,
+        "p50ms": 97.1,
+        "p95ms": 185.9
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.882,
+        "recall@3": 0.961,
+        "recall@6": 0.974,
+        "mrr10": 0.925,
+        "p50ms": 95.2,
+        "p95ms": 183.3
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.845,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.907,
+        "p50ms": 101.1,
+        "p95ms": 201.8
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 116.4,
+          "p95ms": 446.4
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 149.1,
+          "p95ms": 269.1
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 114.9,
+          "p95ms": 224.8
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 119.8,
+          "p95ms": 163
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 65.1,
+          "p95ms": 165.7
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 77.3,
+          "p95ms": 144.9
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 59.9,
+          "p95ms": 176.2
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.7,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.825,
+          "p50ms": 75,
+          "p95ms": 249.5
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692"
+      ]
+    },
+    "full + lead-embedding rerank": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.75,
+        "recall@3": 0.9,
+        "recall@6": 0.956,
+        "mrr10": 0.833,
+        "p50ms": 101,
+        "p95ms": 206.4
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.789,
+        "recall@3": 0.934,
+        "recall@6": 0.974,
+        "mrr10": 0.867,
+        "p50ms": 100.1,
+        "p95ms": 210.4
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.714,
+        "recall@3": 0.869,
+        "recall@6": 0.94,
+        "mrr10": 0.802,
+        "p50ms": 105.2,
+        "p95ms": 196.4
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 1,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 1,
+          "p50ms": 105.6,
+          "p95ms": 215.5
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.5,
+          "recall@3": 0.85,
+          "recall@6": 1,
+          "mrr10": 0.677,
+          "p50ms": 135.7,
+          "p95ms": 214.7
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.5,
+          "recall@3": 0.85,
+          "recall@6": 0.95,
+          "mrr10": 0.687,
+          "p50ms": 117.2,
+          "p95ms": 206.4
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.867,
+          "p50ms": 129.4,
+          "p95ms": 178.6
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 76.6,
+          "p95ms": 356.2
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.8,
+          "recall@6": 0.9,
+          "mrr10": 0.825,
+          "p50ms": 79.4,
+          "p95ms": 161.7
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.75,
+          "recall@3": 0.8,
+          "recall@6": 0.9,
+          "mrr10": 0.805,
+          "p50ms": 64.3,
+          "p95ms": 195.3
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.75,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.875,
+          "p50ms": 68.1,
+          "p95ms": 166.4
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-tail-named-00180884",
+        "ret-tail-named-00317024",
+        "ret-unviewed-descriptive-00186694",
+        "ret-unviewed-named-00048069",
+        "ret-unviewed-named-00367576",
+        "ret-voyage-descriptive-00426124"
+      ]
+    }
+  }
+}

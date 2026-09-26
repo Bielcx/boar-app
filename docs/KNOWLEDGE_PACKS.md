@@ -247,7 +247,52 @@ What the measurement changed:
   to be read for all ~80 BM25 candidates); p50 went from ~640 ms to ~100 ms,
   though the two runs were under different machine load.
 
-Not measured yet: semantic re-ranking with lead embeddings (the embeddings are
-built on the Mac mini; `embed-queries.mjs` + `BOAR_EVAL_QVECS` add that
-configuration), questions that span several articles (Sextant's answer-quality
-set carries gold titles for those), and latency on a phone.
+Semantic re-ranking with lead embeddings (67,636 leads in the sample: the top
+33,333 Wikipedia articles by pageviews, i.e. the 500k criterion scaled to one
+shard, plus every Wikivoyage guide; built with Metal on an M4 mini in ~5 min):
+
+| | dev recall@1 | test recall@1 | test recall@3 | test MRR |
+|---|---|---|---|---|
+| keyword ranking only (default) | 0.882 | 0.845 | 0.976 | 0.907 |
+| + rerank, missing vector = 0 | 0.789 | 0.714 | 0.869 | 0.802 |
+| + rerank, missing vector = candidates' median, weight 0.5 | 0.895 | 0.833 | 0.988 | 0.903 |
+
+With embeddings on popular articles only, a missing vector counted as 0 sinks
+exactly the long-tail articles people look up offline. With the median fix the
+rerank is neutral on these questions (±1 question), so it ships off
+(`semanticWeight: 0`). The embeddings still pay for themselves as a relevance
+gate: a keyword hit whose lead is ≥ 0.7 similar to the question is kept even
+without the question's words.
+
+The same measurement set the built-in corpus's semantic floor
+(`MIN_SEMANTIC_SIMILARITY`, `src/rag/pure.ts`): question → right article p5
+0.573 / median 0.776, question → random article median 0.380 / p99 0.530. The
+old floor 0.45 let 13% of random articles through; 0.55 keeps 98% of right
+articles and 0.6% of random ones.
+
+Not measured yet: questions that span several articles (Sextant's
+answer-quality set carries gold titles for those) and latency on a phone.
+
+### Post-quantum signatures (the question Vitalik asked)
+
+"Which signature algorithms are quantum resistant?" was answered from RSA
+sources. Cause, reproduced on the built-in corpus: it has no post-quantum
+article; the lexical gate dropped every keyword hit ("Jump flooding
+algorithm", "Signature quilt", …), and the semantic floor of 0.45 let
+"Public-key cryptography" (RSA) through as context.
+
+With the Wikipedia articles present (`src/rag/wikiPack.pq.test.ts`: 19 real
+articles on post-quantum and classic signatures, fetched 2026-09-26 as a
+test-only fixture), `WikiPack.search` answers from "Digital signature § Some
+digital signature algorithms" (CRYSTALS-Dilithium and Falcon as
+quantum-resistant), "Merkle signature scheme" and "Post-quantum cryptography";
+RSA and "Public-key cryptography" stay out of the top 3. "What are the
+post-quantum signature schemes NIST standardized?" reaches "In August 2024, NIST
+officially standardized CRYSTALS-Dilithium under the name ML-DSA". English
+Wikipedia names ML-DSA, SLH-DSA and FN-DSA in the text of "Post-quantum
+cryptography" and "NIST Post-Quantum Cryptography Standardization"; "ML-DSA" is
+a redirect to "Lattice-based cryptography", not an article.
+
+UNKNOWN until the full pack is built: the same result on FineWiki's August
+2025 text (the fixture is the live 2026 article text) with 6.5M competing
+articles.

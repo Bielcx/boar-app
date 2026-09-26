@@ -13,6 +13,21 @@ export const EMBEDDING_MODEL = {
 
 const log = (msg) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
 
+/**
+ * bge-small reads at most 512 tokens. A chunk is ~1,000 characters, but tables
+ * and non-Latin scripts can take more tokens than that: cut to 1,200
+ * characters, then halve until it fits.
+ */
+async function embedFitting(ctx, text) {
+  for (let len = Math.min(text.length, 1200); ; len = Math.floor(len / 2)) {
+    try {
+      return (await ctx.getEmbeddingFor(text.slice(0, len))).vector;
+    } catch (e) {
+      if (!/longer than the usable context/.test(String(e?.message)) || len < 100) throw e;
+    }
+  }
+}
+
 export async function ensureEmbeddingModel() {
   if (!existsSync(EMBEDDING_MODEL.path)) {
     log(`downloading the embedding model to ${EMBEDDING_MODEL.path}`);
@@ -54,7 +69,7 @@ export async function embedChunks(chunks, cacheFile, threads) {
       await Promise.all(
         contexts.map(async (ctx, w) => {
           for (let j = w; j < group.length; j += threads) {
-            vectors[j] = (await ctx.getEmbeddingFor(`${group[j].title}\n${group[j].body}`)).vector;
+            vectors[j] = await embedFitting(ctx, `${group[j].title}\n${group[j].body}`);
           }
         })
       );

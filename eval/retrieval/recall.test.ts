@@ -107,8 +107,16 @@ describe.skipIf(!PACK)("retrieval recall on a knowledge pack", () => {
       }
     }
     if (qvecs) {
-      configs["full + lead-embedding rerank"] = async (q) =>
-        articles(await pack.search(q.query, { k: 10, queryVec: Float32Array.from(qvecs[q.id] ?? []) }));
+      for (const w of [0.2, 0.5]) {
+        configs[`full + lead-embedding rerank w${w}`] = async (q) => {
+          pack.tuning = { ...DEFAULT_TUNING, semanticWeight: w };
+          try {
+            return articles(await pack.search(q.query, { k: 10, queryVec: Float32Array.from(qvecs[q.id] ?? []) }));
+          } finally {
+            pack.tuning = { ...DEFAULT_TUNING };
+          }
+        };
+      }
     }
 
     const only = process.env.BOAR_EVAL_CONFIGS?.split(",").map((x: string) => x.trim().toLowerCase());

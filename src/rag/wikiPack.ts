@@ -226,11 +226,13 @@ export interface PackTuning {
   namedMinShare: number;
   /** BM25 candidate chunks before the per-article cap and relevance gate. */
   pool: number;
+  /** Weight of the lead-embedding similarity when a query vector is given (0 = keyword order only). */
+  semanticWeight: number;
 }
 
 // Chosen on the dev half of eval/retrieval/questions.v1 (2026-09-26): AndroidLM's title
 // weight 8 and prior 2 cost 6 points of test recall@1 on these questions.
-export const DEFAULT_TUNING: PackTuning = { weights: [2, 1, 1], prior: 0.5, namedMinShare: NAMED_MIN_SHARE, pool: 80 };
+export const DEFAULT_TUNING: PackTuning = { weights: [2, 1, 1], prior: 0.5, namedMinShare: NAMED_MIN_SHARE, pool: 80, semanticWeight: 0 };
 
 export class WikiPack {
   tuning: PackTuning = { ...DEFAULT_TUNING };
@@ -507,9 +509,14 @@ export class WikiPack {
       const seen = new Set(hits.map((h) => h.chunkId));
       let keyword = await this.bm25Candidates(stems);
       const sem = queryVec ? await this.leadSimilarity(keyword.map((c) => c.articleId), queryVec) : null;
-      if (sem && keyword.length) {
+      const w = this.tuning.semanticWeight;
+      if (sem && sem.size && w > 0 && keyword.length) {
+        // Only the most-read articles have embeddings: one without gets the candidates' median
+        // similarity, so a missing vector neither sinks a long-tail article nor lifts it.
+        const known = [...sem.values()].sort((a, b) => a - b);
+        const median = known[Math.floor(known.length / 2)];
         const max = Math.max(...keyword.map((c) => c.score), 1e-9);
-        const blended = (c: Candidate) => 0.5 * (c.score / max) + 0.5 * (sem.get(c.articleId) ?? 0);
+        const blended = (c: Candidate) => (1 - w) * (c.score / max) + w * (sem.get(c.articleId) ?? median);
         keyword = [...keyword].sort((a, b) => blended(b) - blended(a));
       }
       // Text is read only for candidates in rank order, until the result is full.

@@ -24,10 +24,8 @@
 // redirect table) follows AndroidLM's scripts/build_corpus.py and
 // build_redirects.py (https://github.com/Phineas1500/AndroidLM, Apache-2.0).
 import { spawn } from "node:child_process";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
 import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
 import { constants as zc, createGunzip, zstdCompressSync, zstdDecompressSync } from "node:zlib";
@@ -72,6 +70,7 @@ const USAGE = `usage: node scripts/build-wiki-pack.mjs --out FILE --shards A.par
                           shards given as URLs are always downloaded to --work-dir and deleted
   --work-dir DIR          where URL shards are downloaded, default next to --out
   --min-free-gb N         pause (and log PAUSED) while free disk is under N GB, default 0
+  --wait-for-shards       don't download URL shards: wait for them to appear in --work-dir (scripts/fetch-shards.sh)
   --no-optimize           skip the final FTS 'optimize' merge (it needs free space about the index's size)
   --block-kb N            uncompressed text per compressed block, default 64
   --zlevel N              zstd level, default 12`;
@@ -103,6 +102,7 @@ function options() {
       "work-dir": { type: "string" },
       "min-free-gb": { type: "string", default: "0" },
       "no-optimize": { type: "boolean", default: false },
+      "wait-for-shards": { type: "boolean", default: false },
       "block-kb": { type: "string", default: "64" },
       zlevel: { type: "string", default: "12" },
       help: { type: "boolean", default: false },
@@ -139,6 +139,7 @@ function options() {
     workDir: values["work-dir"] ?? dirname(values.out),
     minFreeGb: Number(values["min-free-gb"]),
     optimize: !values["no-optimize"],
+    waitForShards: values["wait-for-shards"],
     blockBytes: n("block-kb") * 1024,
     zlevel: n("zlevel"),
   };
@@ -335,12 +336,22 @@ async function waitForDisk(opts) {
 async function downloadShard(url, opts) {
   await waitForDisk(opts);
   const dest = join(opts.workDir, url.split("/").pop());
-  if (existsSync(dest)) return dest; // left by an earlier run
+  if (existsSync(dest)) return dest; // left by an earlier run, or by --wait-for-shards' downloader
+  if (opts.waitForShards) {
+    // Another process (scripts/fetch-shards.sh) downloads into --work-dir at normal priority, so a
+    // background-priority build isn't also throttled on the network.
+    log(`waiting for ${dest}`);
+    while (!existsSync(dest)) await new Promise((r) => setTimeout(r, 30000));
+    return dest;
+  }
   mkdirSync(opts.workDir, { recursive: true });
   log(`downloading ${url}`);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-  await pipeline(Readable.fromWeb(res.body), createWriteStream(`${dest}.part`));
+  // curl resumes a partial file (-C -) and retries dropped connections; a 2.5 GB fetch() can't resume.
+  await new Promise((ok, fail) => {
+    const c = spawn("curl", ["-fsSL", "-C", "-", "--retry", "20", "--retry-all-errors", "--retry-delay", "10", "-o", `${dest}.part`, url], { stdio: ["ignore", "ignore", "inherit"] });
+    c.on("exit", (code) => (code === 0 ? ok() : fail(new Error(`${url}: curl exit ${code}`))));
+    c.on("error", fail);
+  });
   renameSync(`${dest}.part`, dest);
   return dest;
 }
