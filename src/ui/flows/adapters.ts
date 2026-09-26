@@ -4,8 +4,8 @@
  * the body when the branch is integrated, and no screen changes.
  *
  * - Memory fit and pack removal are wired (estimateMemoryFit, removeCorpusPackIndex).
- * - Places: POI_REGIONS and poiCatalogEntries are wired; the gazetteer's
- *   catalog entry is built here until Bramble exports worldPlacesEntry().
+ * - Places: POI_REGIONS, poiCatalogEntries, worldPlacesEntry and
+ *   searchPlaces are wired. Still interim: map tiles and the preparedness pack.
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
@@ -16,9 +16,8 @@ import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
 import type { PoiRegion } from "./poi";
 import type { City } from "./travel";
-import type { ModelSpeed } from "./modelSpeed";
-import { resolvePlace } from "../../rag/pois";
-import { POI_REGIONS, poiCatalogEntries, WORLD_PLACES } from "../../rag/poiRegions";
+import { searchPlaces } from "../../rag/pois";
+import { POI_REGIONS, poiCatalogEntries, worldPlacesEntry } from "../../rag/poiRegions";
 import type { NativePosition } from "../../services/location.pure";
 import * as OfflineLocation from "offline-location";
 
@@ -49,25 +48,8 @@ export function poiCatalogEntry(region: PoiRegion): CatalogModel {
   return poiCatalogEntries([region])[0];
 }
 
-/**
- * The world gazetteer every places pack needs to resolve place names.
- * Interim copy until Bramble exports worldPlacesEntry() with the same id.
- */
-export function worldPlacesEntry(): CatalogModel {
-  return {
-    id: "poi-world-places",
-    kind: "corpus",
-    format: "poi-pack",
-    label: "World places (GeoNames)",
-    filename: WORLD_PLACES.filename,
-    sizeBytes: WORLD_PLACES.sizeBytes,
-    sha256: WORLD_PLACES.sha256,
-    sourceUrl: "",
-    license: WORLD_PLACES.license,
-    description: "",
-    required: false,
-  };
-}
+/** The world gazetteer every places pack needs to resolve place names. */
+export { worldPlacesEntry };
 
 /** A region pack plus the gazetteer it needs, as one install. */
 export function placesInstall(region: PoiRegion): CatalogModel[] {
@@ -86,16 +68,11 @@ export function deviceLocation(): DeviceLocationModule | null {
   return OfflineLocation.isOfflineLocationSupported() ? OfflineLocation : null;
 }
 
-/**
- * Cities matching what the user typed, from the offline gazetteer.
- * Interim: exact-name resolvePlace (one match) until Bramble's prefix
- * searchPlaces is integrated.
- */
+/** Cities matching what the user typed (prefix, alternate names, most populous first), from the offline gazetteer. */
 export async function searchCities(query: string, limit = 8): Promise<City[]> {
   const q = query.trim();
   if (!q) return [];
-  const match = await resolvePlace(q);
-  return match ? [match].slice(0, limit) : [];
+  return searchPlaces(q, limit);
 }
 
 /** Map tiles covering a city (Bramble's tilesFor). Interim: null until the tile catalog is decided and built. */
@@ -106,16 +83,4 @@ export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): Ca
 /** The Emergency & Preparedness pack (boar-preparedness). Interim: none until it exists. */
 export function preparednessEntry(): CatalogModel | undefined {
   return undefined;
-}
-
-/**
- * Whether automatic full answers may use a model, from its measured speed.
- * Interim copy of Tusk's rule (src/routing/depth.ts on feat/engine-routing:
- * DEEP_AUTO_MIN_TOK_PER_SEC = 5, MIN_SPEED_SAMPLES = 2; no measurement or
- * too few samples means not eligible) until it is integrated.
- */
-export const MIN_DEEP_TOK_PER_SEC = 5;
-export const MIN_SPEED_SAMPLES = 2;
-export function deepAutoEligible(speed: ModelSpeed | undefined): boolean {
-  return !!speed && speed.samples >= MIN_SPEED_SAMPLES && speed.medianTokPerSec >= MIN_DEEP_TOK_PER_SEC;
 }

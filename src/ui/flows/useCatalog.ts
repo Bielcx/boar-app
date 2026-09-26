@@ -18,6 +18,7 @@ import { networkAllowed } from "../../config/variant";
 import { fitFor, poiCatalogEntry, poiRegions, preparednessEntry, removePackIndex, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
+import { answerModelChoices } from "./packages";
 
 export const modelManager = new ModelManager();
 
@@ -64,7 +65,9 @@ export interface CatalogState {
   cancelImports: () => void;
 }
 
+/** With no saved choice: the manifest's standard answer model, and the required search model. */
 function defaultId(kind: "llm" | "embedding"): string | undefined {
+  if (kind === "llm") return answerModelChoices(MODEL_CATALOG).default?.id;
   return MODEL_CATALOG.find((m) => m.kind === kind && m.required)?.id;
 }
 

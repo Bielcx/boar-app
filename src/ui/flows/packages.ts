@@ -18,7 +18,6 @@ export const PACKAGES: { id: PackageId; tier: SetupTier }[] = [
 
 /** The answer model a package installs: "default" (bigger, better answers) or "compact" (low-RAM phones). */
 export type AnswerTier = "default" | "compact";
-type WithTier = CatalogModel & { answerTier?: AnswerTier };
 
 /**
  * The answer models the setup can offer. Uses the manifest's answerTier when
@@ -26,7 +25,7 @@ type WithTier = CatalogModel & { answerTier?: AnswerTier };
  * default and there is no compact option.
  */
 export function answerModelChoices(catalog: CatalogModel[]): Partial<Record<AnswerTier, CatalogModel>> {
-  const llms = catalog.filter((m) => m.kind === "llm") as WithTier[];
+  const llms = catalog.filter((m) => m.kind === "llm");
   const byTier = (tier: AnswerTier) => llms.find((m) => m.answerTier === tier);
   return {
     default: byTier("default") ?? llms.find((m) => m.required),

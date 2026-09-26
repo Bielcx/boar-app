@@ -10,8 +10,7 @@ import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
 import { RadioRow } from "./flows/RadioRow";
-import { speedsByModel, ModelSpeed } from "./flows/modelSpeed";
-import { deepAutoEligible, MIN_DEEP_TOK_PER_SEC, MIN_SPEED_SAMPLES } from "./flows/adapters";
+import { DEEP_AUTO_MIN_TOK_PER_SEC as MIN_DEEP_TOK_PER_SEC, deepAutoEligible, MIN_SPEED_SAMPLES, ModelSpeed, modelSpeedStats } from "../routing/depth";
 import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
 import { listRecentExecutions } from "../services/executionTelemetry";
 import { ImportList } from "./flows/ImportList";
@@ -42,7 +41,7 @@ export function ModelsScreen() {
       refresh();
       getAnswerSettings().then(setAnswer);
       listRecentExecutions(200)
-        .then((records) => setSpeeds(speedsByModel(records)))
+        .then((records) => setSpeeds(Object.fromEntries(modelSpeedStats(records))))
         .catch(() => setSpeeds({}));
     }, [refresh])
   );
@@ -56,7 +55,7 @@ export function ModelsScreen() {
     return t("flows.models.measured", {
       rate: formatRate(sp.medianTokPerSec, i18n.language),
       count: sp.samples,
-      date: new Date(sp.lastAt).toLocaleDateString(i18n.language),
+      date: sp.lastAt ? new Date(sp.lastAt).toLocaleDateString(i18n.language) : "—",
     });
   };
 
