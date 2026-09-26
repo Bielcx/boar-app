@@ -5,7 +5,7 @@ import { useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
 import { Text } from "./Text";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
+export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "destructive";
 
 export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
@@ -40,9 +40,10 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
   const inactive = disabled || loading;
   const palette = {
     primary: { bg: c.accent.solid, bgPressed: c.accent.pressed, fg: c.accent.on, border: "transparent" },
-    secondary: { bg: c.bg.surface, bgPressed: c.bg.sunken, fg: c.text.primary, border: c.line.strong },
+    secondary: { bg: c.bg.raised, bgPressed: c.bg.sunken, fg: c.text.primary, border: "transparent" },
+    outline: { bg: "transparent", bgPressed: c.bg.sunken, fg: c.text.primary, border: c.line.strong },
     ghost: { bg: "transparent", bgPressed: c.bg.sunken, fg: c.accent.text, border: "transparent" },
-    destructive: { bg: c.status.danger.soft, bgPressed: c.status.danger.soft, fg: c.status.danger.solid, border: c.status.danger.solid },
+    destructive: { bg: c.status.danger.fill, bgPressed: c.status.danger.fill, fg: c.accent.on, border: "transparent" },
   }[variant];
   const height = size === "sm" ? t.size.controlSm : t.size.touch;
   const slop = Math.max(0, (t.size.touch - height) / 2);
@@ -64,11 +65,13 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
         {
           minHeight: height,
           paddingHorizontal: size === "sm" ? t.space.md : t.space.lg,
-          borderRadius: t.radius.md,
+          borderRadius: t.radius.full,
           backgroundColor: pressed ? palette.bgPressed : palette.bg,
           borderColor: palette.border,
           borderWidth: palette.border === "transparent" ? 0 : t.size.border,
-          opacity: inactive && !loading ? 0.45 : 1,
+          opacity: inactive && !loading ? 0.45 : pressed && variant === "destructive" ? 0.85 : 1,
+          // The ember glow marks the one primary action on a screen.
+          ...(variant === "primary" && !inactive ? (t.elevation.glow as object) : null),
         },
         fullWidth && styles.fullWidth,
         style,
@@ -80,7 +83,7 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
       ) : (
         <View style={[styles.row, { gap: t.space.sm, flexDirection: iconPosition === "end" ? "row-reverse" : "row" }]}>
           {icon && <Icon name={icon} size={size === "sm" ? "sm" : "md"} color={palette.fg} />}
-          <Text variant={size === "sm" ? "subhead" : "headline"} style={{ color: palette.fg }} weight="semibold" numberOfLines={2} align="center">
+          <Text variant={size === "sm" ? "subhead" : "button"} style={{ color: palette.fg }} numberOfLines={2} align="center">
             {label}
           </Text>
         </View>

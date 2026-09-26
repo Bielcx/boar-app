@@ -57,6 +57,7 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
           justifyContent: "center",
           backgroundColor: pressed ? (variant === "filled" ? c.accent.pressed : c.bg.sunken) : bg,
           opacity: disabled ? 0.45 : 1,
+          ...(variant === "filled" && !disabled ? (t.elevation.glow as object) : null),
         },
         style,
       ]}

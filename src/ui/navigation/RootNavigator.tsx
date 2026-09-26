@@ -59,9 +59,8 @@ function Legacy({ children }: { children: React.ReactNode }) {
 function ChatRoute() {
   const navigation = useNavigation<RootNav>();
   return (
-    <Legacy>
-      <ChatScreen onRelaunchWizard={() => navigation.navigate("Setup")} />
-    </Legacy>
+    // ChatScreen pads its own safe area (<Screen edges=all>, Quill's feat/ui-chat).
+    <ChatScreen onRelaunchWizard={() => navigation.navigate("Setup")} />
   );
 }
 

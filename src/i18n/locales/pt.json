@@ -162,7 +162,9 @@
     "undo": "Desfazer",
     "cancel": "Cancelar",
     "delete": "Apagar",
-    "back": "Voltar"
+    "back": "Voltar",
+    "offline": "Offline",
+    "localModel": "Modelo local"
   },
   "nav": {
     "subtitle": "Pesquisa offline",

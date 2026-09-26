@@ -5,7 +5,8 @@
  */
 import { Easing, Platform, StyleSheet, TextStyle } from "react-native";
 import type { FontScale } from "../../models/settings";
-import { darkPalette, lightPalette, Palette } from "./palette";
+import { fontFamilyFor, FontFace, FontWeight } from "./fonts";
+import { getPalette, PaletteId, ResolvedPalette } from "./palette";
 
 export type ColorScheme = "light" | "dark";
 
@@ -21,58 +22,61 @@ function withAlpha(hex: string, alpha: number): string {
   return `${hex}${a}`;
 }
 
-function buildColors(p: Palette, scheme: ColorScheme) {
-  const hex = (k: keyof Palette) => p[k].hex;
+function buildColors(p: ResolvedPalette, scheme: ColorScheme) {
+  const [r, g, b] = p.glow;
   return {
     bg: {
-      /** Screen background. */
-      canvas: hex("canvas"),
-      /** Cards, list groups, input fields. */
-      surface: hex("surface"),
-      /** Sheets, menus, toasts: anything floating above content. */
-      raised: hex("surfaceRaised"),
-      /** Wells, code blocks, pressed rows. */
-      sunken: hex("sunken"),
+      /** Screen background (designer `bg`). */
+      canvas: p.canvas,
+      /** Cards, list groups, the composer (designer `s1`). */
+      surface: p.surface,
+      /** Sheets, toasts, secondary buttons: anything above a surface. */
+      raised: p.raised,
+      /** Wells inside cards (source rows, inputs in a card), pressed rows, skeletons. */
+      sunken: p.sunken,
       /** Backdrop behind sheets and the drawer. */
-      scrim: withAlpha(hex("scrim"), scheme === "dark" ? 0.6 : 0.36),
+      scrim: scheme === "dark" ? "rgba(0, 0, 0, 0.6)" : withAlpha(p.textPrimary, 0.36),
     },
     text: {
-      primary: hex("textPrimary"),
-      secondary: hex("textSecondary"),
-      /** Still AA (>= 4.5:1) on every surface: metadata, placeholders. */
-      tertiary: hex("textTertiary"),
+      primary: p.textPrimary,
+      /** Designer `mu`. AA on every surface; also used for metadata and placeholders. */
+      secondary: p.textSecondary,
+      tertiary: p.textSecondary,
       /** Decorative / disabled only. Fails AA on purpose; never carry information with it. */
-      disabled: hex("textDisabled"),
-      accent: hex("accentText"),
-      field: hex("fieldText"),
-      onAccent: hex("onAccent"),
+      disabled: p.textDisabled,
+      accent: p.accentText,
+      field: p.fieldText,
+      onAccent: p.onAccent,
     },
     line: {
-      /** Default separator. Decorative: never the only affordance of a control. */
-      hairline: hex("hairline"),
-      /** Control borders (inputs, switches off-state): >= 3:1 against the surface. */
-      strong: hex("hairlineStrong"),
-      focus: hex("accent"),
+      /** Designer `bd`. Decorative separator: never the only affordance of a control. */
+      hairline: p.hairline,
+      /** Control borders that are the affordance (inputs, switch off, outline button): >= 3:1. */
+      strong: p.lineStrong,
+      focus: p.accent,
     },
     accent: {
-      solid: hex("accent"),
-      pressed: hex("accentPressed"),
-      soft: hex("accentSoft"),
-      text: hex("accentText"),
-      on: hex("onAccent"),
+      solid: p.accent,
+      pressed: p.accentPressed,
+      soft: p.accentSoft,
+      text: p.accentText,
+      on: p.onAccent,
     },
-    /** Olive: provenance. Sources, offline, verified on device. */
+    /** Designer `a2` ("verified"): provenance, sources, the OFFLINE seal. */
     field: {
-      solid: hex("field"),
-      soft: hex("fieldSoft"),
-      text: hex("fieldText"),
+      solid: p.fieldSolid,
+      soft: p.fieldSoft,
+      text: p.fieldText,
     },
     status: {
-      success: { solid: hex("success"), soft: hex("successSoft") },
-      warning: { solid: hex("warning"), soft: hex("warningSoft") },
-      danger: { solid: hex("danger"), soft: hex("dangerSoft") },
-      info: { solid: hex("info"), soft: hex("infoSoft") },
+      success: { solid: p.success, soft: p.successSoft },
+      warning: { solid: p.warning, soft: p.warningSoft },
+      danger: { solid: p.danger, soft: p.dangerSoft, fill: p.dangerFill },
+      info: { solid: p.info, soft: p.infoSoft },
     },
+    /** Ember/moon light as "r, g, b" for rgba() glows. */
+    glow: `${r}, ${g}, ${b}`,
+    moon: p.moon,
   };
 }
 
@@ -97,11 +101,6 @@ export function toneColors(c: ColorTokens, tone: Tone): { fg: string; bg: string
 // Typography
 // ---------------------------------------------------------------------------
 
-export const fontFamily = {
-  sans: Platform.select({ ios: "System", default: "sans-serif" }),
-  mono: Platform.select({ ios: "Menlo", default: "monospace" }),
-};
-
 /** In-app text size preference, applied on top of the OS font scale. */
 export const APP_FONT_SCALE: Record<FontScale, number> = {
   compact: 0.94,
@@ -109,41 +108,51 @@ export const APP_FONT_SCALE: Record<FontScale, number> = {
   large: 1.12,
 };
 
-/** Informative text never renders below this, whatever the app scale. */
+/** Informative text never renders below this, whatever the app scale. The mockup's 9-11px labels are raised to it. */
 export const MIN_FONT_SIZE = 12;
 
 type TypeSpec = {
+  face: FontFace;
+  weight: FontWeight;
   size: number;
   /** Line height as a ratio of size, so it tracks every scale. */
   leading: number;
-  weight: TextStyle["fontWeight"];
   tracking?: number;
-  mono?: boolean;
   uppercase?: boolean;
+  tabular?: boolean;
   /** Cap for OS font scaling. Undefined = unlimited (the default for content). */
   maxScale?: number;
 };
 
+/** Baloo 2 (display) for the wordmark, titles, buttons and big numbers; Lexend (text) for everything read. */
 const TYPE_SCALE = {
-  display: { size: 32, leading: 1.2, weight: "700", tracking: -0.5, maxScale: 1.5 },
-  title1: { size: 26, leading: 1.23, weight: "700", tracking: -0.3 },
-  title2: { size: 21, leading: 1.28, weight: "600", tracking: -0.2 },
-  title3: { size: 18, leading: 1.33, weight: "600", tracking: -0.1 },
-  headline: { size: 16, leading: 1.375, weight: "600" },
-  body: { size: 16, leading: 1.5, weight: "400" },
-  callout: { size: 15, leading: 1.45, weight: "400" },
-  subhead: { size: 14, leading: 1.43, weight: "500" },
-  footnote: { size: 13, leading: 1.38, weight: "400" },
-  caption: { size: 12, leading: 1.33, weight: "400" },
-  /** Section overlines and instrument labels. */
-  label: { size: 12, leading: 1.33, weight: "600", tracking: 0.6, uppercase: true },
-  /** Code, raw values, hashes. For numbers in UI prefer `numeric` on a sans variant. */
-  mono: { size: 13, leading: 1.46, weight: "400", mono: true },
+  display: { face: "display", weight: 800, size: 34, leading: 1.1, tracking: -0.7, maxScale: 1.5 },
+  title1: { face: "display", weight: 800, size: 26, leading: 1.15, tracking: -0.5 },
+  title2: { face: "display", weight: 800, size: 22, leading: 1.2, tracking: -0.4 },
+  title3: { face: "display", weight: 700, size: 18, leading: 1.25, tracking: -0.2 },
+  headline: { face: "display", weight: 700, size: 17, leading: 1.3, tracking: -0.2 },
+  /** Button labels and the OFFLINE seal. */
+  button: { face: "display", weight: 800, size: 16, leading: 1.25, tracking: -0.2 },
+  body: { face: "text", weight: 400, size: 16, leading: 1.5 },
+  callout: { face: "text", weight: 400, size: 15, leading: 1.45 },
+  subhead: { face: "text", weight: 500, size: 14, leading: 1.43 },
+  footnote: { face: "text", weight: 400, size: 13, leading: 1.4 },
+  caption: { face: "text", weight: 400, size: 12, leading: 1.35 },
+  /** Uppercase letterspaced overline: section labels, status badges ("ACTIVE", "LOCAL INDEX"). */
+  label: { face: "text", weight: 600, size: 12, leading: 1.35, tracking: 1.1, uppercase: true },
+  /** Data readouts: sizes, speeds, model file names. Lexend with tabular figures (designer `--fm`). */
+  mono: { face: "text", weight: 400, size: 13, leading: 1.45, tabular: true },
+  /** Code blocks and raw hashes: system monospace. */
+  code: { face: "code", weight: 400, size: 13, leading: 1.5 },
 } satisfies Record<string, TypeSpec>;
 
 export type TextVariant = keyof typeof TYPE_SCALE;
 
 export type TypeStyle = TextStyle & { maxFontSizeMultiplier?: number };
+
+export function variantFace(variant: TextVariant): FontFace {
+  return TYPE_SCALE[variant].face;
+}
 
 function buildType(fontScale: FontScale): Record<TextVariant, TypeStyle> {
   const k = APP_FONT_SCALE[fontScale];
@@ -151,12 +160,13 @@ function buildType(fontScale: FontScale): Record<TextVariant, TypeStyle> {
   for (const [name, spec] of Object.entries(TYPE_SCALE) as [TextVariant, TypeSpec][]) {
     const fontSize = Math.max(MIN_FONT_SIZE, Math.round(spec.size * k * 2) / 2);
     out[name] = {
-      fontFamily: spec.mono ? fontFamily.mono : fontFamily.sans,
+      fontFamily: fontFamilyFor(spec.face, spec.weight),
       fontSize,
       lineHeight: Math.round(fontSize * spec.leading),
-      fontWeight: spec.weight,
       letterSpacing: spec.tracking ?? 0,
+      ...(spec.face === "code" ? { fontWeight: "400" as const } : null),
       ...(spec.uppercase ? { textTransform: "uppercase" as const } : null),
+      ...(spec.tabular ? { fontVariant: ["tabular-nums" as const] } : null),
       ...(spec.maxScale ? { maxFontSizeMultiplier: spec.maxScale } : null),
     };
   }
@@ -183,16 +193,18 @@ export const space = {
   giant: 64,
 } as const;
 
+/** From the mockup: pills for actions and inputs, soft cards. */
 export const radius = {
   xs: 4,
-  /** Chips, badges, small controls. */
+  /** Relevance bars, small tags. */
   sm: 8,
-  /** Buttons, inputs, list groups. */
-  md: 12,
+  /** Rows inside cards (source items), toasts, segments. */
+  md: 14,
   /** Cards. */
-  lg: 16,
+  lg: 20,
   /** Sheets (top corners). */
-  xl: 24,
+  xl: 28,
+  /** Buttons, inputs, badges, the OFFLINE seal. */
   full: 999,
 } as const;
 
@@ -216,19 +228,21 @@ export const size = {
 // ---------------------------------------------------------------------------
 
 /**
- * Light mode separates planes with soft shadows + hairlines. Dark mode never
- * uses shadows (they vanish on charcoal); it steps surface lightness instead
- * (canvas -> surface -> raised) and keeps the hairline.
+ * Dark mode (the default) separates planes by surface lightness, never by
+ * shadow; the only "shadow" is the ember glow on the primary action and the
+ * OFFLINE seal (`glow`). Light mode adds soft warm shadows to floating planes.
  */
-function buildElevation(scheme: ColorScheme) {
+function buildElevation(scheme: ColorScheme, glow: string) {
+  const glowShadow = { boxShadow: `0px 0px 22px rgba(${glow}, ${scheme === "dark" ? 0.45 : 0.3})` };
   if (scheme === "dark") {
-    return { 0: {}, 1: {}, 2: {}, 3: {} } as const;
+    return { 0: {}, 1: {}, 2: {}, 3: { boxShadow: "0px 16px 40px rgba(0, 0, 0, 0.45)" }, glow: glowShadow } as const;
   }
   return {
     0: {},
-    1: { boxShadow: "0px 1px 2px rgba(40, 28, 20, 0.06)" },
-    2: { boxShadow: "0px 4px 16px rgba(40, 28, 20, 0.10), 0px 1px 3px rgba(40, 28, 20, 0.06)" },
-    3: { boxShadow: "0px 12px 32px rgba(40, 28, 20, 0.16), 0px 2px 6px rgba(40, 28, 20, 0.08)" },
+    1: { boxShadow: "0px 1px 2px rgba(40, 24, 12, 0.08)" },
+    2: { boxShadow: "0px 4px 16px rgba(40, 24, 12, 0.12), 0px 1px 3px rgba(40, 24, 12, 0.08)" },
+    3: { boxShadow: "0px 12px 32px rgba(40, 24, 12, 0.18), 0px 2px 6px rgba(40, 24, 12, 0.08)" },
+    glow: glowShadow,
   } as const;
 }
 
@@ -251,15 +265,17 @@ export const motion = {
 // Assembly
 // ---------------------------------------------------------------------------
 
-export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standard") {
+export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standard", palette: PaletteId = "fogueira") {
+  const color = buildColors(getPalette(palette, scheme), scheme);
   return {
     scheme,
-    color: buildColors(scheme === "dark" ? darkPalette : lightPalette, scheme),
+    palette,
+    color,
     type: buildType(fontScale),
     space,
     radius,
     size,
-    elevation: buildElevation(scheme),
+    elevation: buildElevation(scheme, color.glow),
     motion,
   };
 }

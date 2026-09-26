@@ -162,7 +162,9 @@
     "undo": "Undo",
     "cancel": "Cancel",
     "delete": "Delete",
-    "back": "Back"
+    "back": "Back",
+    "offline": "Offline",
+    "localModel": "Local model"
   },
   "nav": {
     "subtitle": "Offline research",
