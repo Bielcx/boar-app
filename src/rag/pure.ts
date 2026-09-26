@@ -286,12 +286,12 @@ export function assemblePrompt(
   // found nothing relevant for), the whole context/citation framing is
   // omitted entirely rather than left as an empty "Context:\n\n" section —
   // an empty-but-present section still tells the model there's supposed to
-  // be something there and to "cite sources as [n]", which is exactly the
+  // be something there and to "cite a source you used by its number", which is exactly the
   // kind of dangling framing that nudges a small model toward inventing
   // content to fill it instead of just answering conversationally.
   const hasContext = chunks.length > 0;
   const contextInstruction = hasContext
-    ? " Use the context below when relevant, and cite sources as [n]. " +
+    ? " Use the context below when relevant, and cite a source you used by its number, like [1] or [2]. " +
       "If the context doesn't cover the question, say so and answer from general knowledge."
     : "";
   const contextSection = hasContext
@@ -338,7 +338,7 @@ export function assembleChatMessages(
 
   const hasContext = chunks.length > 0;
   const contextInstruction = hasContext
-    ? " Use the context below when relevant, and cite sources as [n]. " +
+    ? " Use the context below when relevant, and cite a source you used by its number, like [1] or [2]. " +
       "If the context doesn't cover the question, say so and answer from general knowledge."
     : "";
   const contextSection = hasContext
