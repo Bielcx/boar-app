@@ -173,6 +173,19 @@ describe("answer(): places path", () => {
     expect(r.text).toMatch(/^Lugares com opção vegano em São Paulo/);
   });
 
+  it("in a named city, lists places with an address before those without", async () => {
+    geo.searchPois = async () => ({
+      pois: [poi("osm:node/7", "No Address Vegan", 0, "only", { address: undefined }), ...SP_POIS],
+      radiusUsedM: 3000,
+      coverage: "full" as const,
+    });
+    const { places, r } = await ask("vegan restaurants in São Paulo");
+    expect(places!.places.map((p) => p.name)).toEqual(["Tokyo Vegan", "Casa Verde", "Padaria Central", "No Address Vegan", "Feira Orgânica"]);
+    // sourceIndex follows the emitted order.
+    expect(places!.places.map((p) => p.sourceIndex)).toEqual([0, 1, 2, 3, 4]);
+    expect(r.text).toMatch(/OpenStreetMap \(extract 2026-08\), maintained by volunteers/);
+  });
+
   it("says it has no offline data for an unknown city instead of listing anything", async () => {
     const { r, places } = await ask("best vegan restaurants in Ulaanbaatar");
     expect(places!.coverage).toBe("none");

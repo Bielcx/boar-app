@@ -200,10 +200,12 @@ export interface PlacesAnswerInput {
   areaLabel: string;
   byDistance: boolean;
   radiusM?: number;
+  /** OpenStreetMap extract date, for the provenance line. */
+  osmDate?: string;
 }
 
 /** Text answer (also what screen readers and "copy" get). Every name comes from `places`. */
-export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radiusM }: PlacesAnswerInput): string {
+export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radiusM, osmDate }: PlacesAnswerInput): string {
   const pt = intent.lang === "pt";
   const L = pt ? "pt" : "en";
   const dietWords = intent.diet.map((d) => DIET_LABEL[L][d]).join(pt ? " e " : " and ");
@@ -251,6 +253,13 @@ export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radi
     );
   }
   if (radiusM && byDistance) lines.push(pt ? `Raio da busca: ${formatDistance(radiusM)}.` : `Search radius: ${formatDistance(radiusM)}.`);
+  if (listed.length) {
+    lines.push(
+      pt
+        ? `Dados do OpenStreetMap${osmDate ? ` (extrato de ${osmDate})` : ""}, mantidos por voluntários: etiquetas e horários podem estar errados; confira a fonte [n].`
+        : `Data from OpenStreetMap${osmDate ? ` (extract ${osmDate})` : ""}, maintained by volunteers: tags and hours can be wrong; check the source [n].`
+    );
+  }
   return lines.join("\n");
 }
 
