@@ -31,7 +31,7 @@ export interface Stem {
   idf: number;
 }
 
-export type PackSource = "enwiki" | "enwikivoyage" | "enwikibooks" | "appropedia" | "usgov";
+export type PackSource = "enwiki" | "enwikivoyage" | "enwikibooks" | "appropedia" | "usgov" | "eips" | "ethspecs" | "ethereumorg" | "bips";
 
 /** A ranked BM25 chunk before its text is read. */
 export interface Candidate {
@@ -95,7 +95,7 @@ export interface PackSearchOptions {
 }
 
 // Index = articles.source code written by scripts/build-wiki-pack.mjs.
-const SOURCES: PackSource[] = ["enwiki", "enwikivoyage", "enwikibooks", "appropedia", "usgov"];
+const SOURCES: PackSource[] = ["enwiki", "enwikivoyage", "enwikibooks", "appropedia", "usgov", "eips", "ethspecs", "ethereumorg", "bips"];
 
 /** Share of the question's term weight a name in it must carry to be treated as the question's subject. */
 export const NAMED_MIN_SHARE = 0.5;
@@ -265,7 +265,9 @@ export class WikiPack {
     private nIndexed: number,
     private hasRedirects: boolean,
     private hasDf: boolean,
-    private hasMeta: boolean
+    private hasMeta: boolean,
+    /** Sources besides Wikipedia and Wikivoyage in a multi-source pack (EIPs, BIPs…): their titles count as names too. */
+    private topicSources: PackSource[] = []
   ) {}
 
   static async open(db: PackSql, decompress: Decompress): Promise<WikiPack> {
@@ -282,7 +284,13 @@ export class WikiPack {
     `);
     const tables = await db.getAllAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'", []);
     const has = (n: string) => tables.some((t) => t.name === n);
-    return new WikiPack(db, decompress, meta, Number(meta.indexedChunks) || 1, has("redirects"), has("df"), has("article_meta"));
+    // Only multi-source packs (small topic packs) record article_meta, so the scan stays cheap.
+    const topicSources = has("article_meta")
+      ? (await db.getAllAsync<{ source: number }>("SELECT DISTINCT source FROM articles", []))
+          .map((r) => SOURCES[r.source])
+          .filter((x): x is PackSource => !!x && x !== "enwiki" && x !== "enwikivoyage")
+      : [];
+    return new WikiPack(db, decompress, meta, Number(meta.indexedChunks) || 1, has("redirects"), has("df"), has("article_meta"), topicSources);
   }
 
   /** [stem, idf] for the content words of `text`, stemmed by FTS5 itself. */
@@ -485,7 +493,10 @@ export class WikiPack {
     const rare = new Set(stems.filter((s) => s.idf >= Math.log(1 / 0.002)).map((s) => s.stem));
     const weight = new Map(stems.map((s) => [s.stem, s.idf]));
     const total = stems.reduce((n, s) => n + s.idf, 0) || 1;
-    const sources: PackSource[] = TRAVEL_INTENT.test(query) ? ["enwikivoyage", "enwiki"] : ["enwiki", "enwikivoyage"];
+    const sources: PackSource[] = [
+      ...(TRAVEL_INTENT.test(query) ? ["enwikivoyage", "enwiki"] as const : ["enwiki", "enwikivoyage"] as const),
+      ...this.topicSources,
+    ];
     const found: Array<{ id: number; share: number }> = [];
     const used: string[] = [];
     for (const cand of titleCandidates(query)) {
@@ -503,7 +514,9 @@ export class WikiPack {
         if (id !== null && !found.some((f) => f.id === id)) ids.push(id);
       }
       if (!ids.length) continue;
-      const share = (await this.stems(cand)).reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total;
+      const own = await this.stems(cand);
+      // A name none of whose words are in the index (an alias like "ERC20") matched a title exactly: it's the subject.
+      const share = own.length ? own.reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total : 1;
       for (const id of ids) found.push({ id, share });
       used.push(lower);
     }

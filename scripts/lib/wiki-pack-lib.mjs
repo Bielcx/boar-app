@@ -189,10 +189,35 @@ function stripTemplates(text) {
   return out;
 }
 
+/** Drops [[File:…]], [[Image:…]] and [[Category:…]] links, including captions that hold nested [[links]]. */
+function stripMediaLinks(s) {
+  const open = /\[\[(?:File|Image|Category):/gi;
+  let out = "";
+  let from = 0;
+  for (let m = open.exec(s); m; m = open.exec(s)) {
+    out += s.slice(from, m.index);
+    let depth = 0;
+    let i = m.index;
+    while (i < s.length) {
+      if (s.startsWith("[[", i)) depth++;
+      else if (s.startsWith("]]", i)) depth--;
+      else {
+        i++;
+        continue;
+      }
+      i += 2;
+      if (depth === 0) break;
+    }
+    from = i;
+    open.lastIndex = from;
+  }
+  return out + s.slice(from);
+}
+
 function cleanInline(s) {
   if (s.includes("{{")) s = stripTemplates(s);
+  if (s.includes("[[")) s = stripMediaLinks(s);
   return s
-    .replace(/\[\[(?:File|Image|Category):[^\]]*\]\]/gi, "")
     .replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, "$1")
     .replace(/\[\[([^\]]*)\]\]/g, "$1")
     .replace(/\[https?:\/\/\S+\s+([^\]]*)\]/g, "$1")

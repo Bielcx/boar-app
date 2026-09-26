@@ -110,4 +110,9 @@ describe("cleanWikivoyage", () => {
       "Rome is the Italian capital.\n\n## See\n\n- Colosseum: Piazza del Colosseo. €18. The amphitheatre."
     );
   });
+
+  it("drops image links whose captions hold nested links", () => {
+    const wikitext = "[[File:Trail.jpg|thumb|A trail in [[Jotunheimen]], [[Norway]]]]\nHiking is walking in [[nature]].";
+    expect(cleanWikivoyage(wikitext)).toBe("Hiking is walking in nature.");
+  });
 });

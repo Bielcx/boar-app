@@ -13,8 +13,8 @@ export const PREPAREDNESS_PACK = {
   filename: "corpus/boar-preparedness.sqlite",
   sizeBytes: 19554304,
   sha256: "65dff5d9988a6fe2bffe17a4d3ab096a1a8f580d20b1ab18d0ada41bbbc0b4e8",
-  /** Empty until the pack is hosted. */
-  sourceUrl: "",
+  /** Pinned to the upload commit on the Hugging Face dataset r4topunk/boar-packs. */
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/topics/boar-preparedness.sqlite",
   docCount: 1721,
   builtAt: "2026-09-26",
 };

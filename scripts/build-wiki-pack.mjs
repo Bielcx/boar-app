@@ -81,7 +81,7 @@ const USAGE = `usage: node scripts/build-wiki-pack.mjs --out FILE --shards A.par
 
 const log = (msg) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
 // Source codes stored in articles.source (the app maps them back in src/rag/wikiPack.ts).
-const SOURCE = { enwiki: 0, enwikivoyage: 1, enwikibooks: 2, appropedia: 3, usgov: 4 };
+const SOURCE = { enwiki: 0, enwikivoyage: 1, enwikibooks: 2, appropedia: 3, usgov: 4, eips: 5, ethspecs: 6, ethereumorg: 7, bips: 8 };
 const DF_MIN = 2000; // terms in fewer chunks are counted from their (short) posting lists at query time
 
 function options() {
@@ -195,6 +195,7 @@ class PackWriter {
     this.articleId = 0;
     this.chunkId = 0;
     this.stats = { articles: 0, full: 0, chunks: 0, indexed: 0, textBytes: 0, voyage: 0 };
+    this.aliases = [];
     this.pending = 0;
     this.db.exec("BEGIN");
   }
@@ -289,6 +290,8 @@ async function addWikipedia(w, opts, views, fullIds) {
     if (source === undefined) throw new Error(`unknown source "${r.source}" for "${r.title}"`);
     const id = w.add(source, pid, r.title, views?.get(pid) ?? r.views ?? 0, text);
     if (id !== null && (r.url || r.license)) w.addMeta(id, r.url ?? null, r.license ?? null);
+    // Alternative names ("ERC-20", "EIP-4844") land in the redirects table like Wikipedia redirects.
+    if (id !== null) for (const a of r.aliases ?? []) w.aliases.push([a, id]);
     if (id !== null && full) w.stats.full++;
   };
   // A shard given as a URL is downloaded into --work-dir just before it's needed (the next
@@ -406,7 +409,7 @@ async function addWikivoyage(w, path) {
 }
 
 /** Wikipedia redirects whose target is in the pack; joined in a scratch database to keep memory small. */
-async function addRedirects(db, opts, voyageRedirects) {
+async function addRedirects(db, opts, voyageRedirects, aliases = []) {
   db.exec(`CREATE TABLE redirects (title TEXT NOT NULL COLLATE NOCASE, article_id INTEGER NOT NULL, PRIMARY KEY (title, article_id)) WITHOUT ROWID`);
   const ins = db.prepare("INSERT OR IGNORE INTO redirects VALUES (?, ?)");
   db.exec("BEGIN");
@@ -448,6 +451,7 @@ async function addRedirects(db, opts, voyageRedirects) {
     const row = target.get(to);
     if (row) ins.run(from, row.id);
   }
+  for (const [title, id] of aliases) ins.run(title, id);
   db.exec("COMMIT");
 }
 
@@ -582,7 +586,7 @@ async function main() {
     w.finishText();
     log(`text done: ${JSON.stringify(w.stats)}`);
 
-    await addRedirects(w.db, opts, voyageRedirects);
+    await addRedirects(w.db, opts, voyageRedirects, w.aliases);
     w.db.exec(`CREATE INDEX chunks_article ON chunks (article_id)`);
 
     if (opts.optimize) {

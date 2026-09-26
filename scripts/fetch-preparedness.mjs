@@ -13,28 +13,15 @@
 // (FEMA, CDC, USDA answer 403) are skipped, not worked around.
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanWikivoyage } from "./lib/wiki-pack-lib.mjs";
+import { categoryPages, get, prefixPages, wikiText, wikitexts } from "./lib/mediawiki.mjs";
 import { htmlToText } from "./lib/prep-lib.mjs";
 
 const out = process.argv[2] ?? "build/preparedness";
 mkdirSync(out, { recursive: true });
-const UA = "BOAR-preparedness-pack-builder/0.1 (https://github.com/rferrari/boar-app)";
 const BY_SA = "CC BY-SA 4.0";
 const PD = "Public domain (US federal government work, 17 U.S.C. §105)";
 const log = (m) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function get(url, { json = true, attempt = 0 } = {}) {
-  const res = await fetch(url, { headers: { "User-Agent": UA } });
-  const body = await res.text();
-  const limited = res.status === 429 || res.status >= 500 || (json && !body.trimStart().startsWith("{"));
-  if (limited && attempt < 6) {
-    await sleep(5000 * 2 ** attempt);
-    return get(url, { json, attempt: attempt + 1 });
-  }
-  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-  return json ? JSON.parse(body) : body;
-}
 
 const manifest = [];
 function emit(shard, doc) {
@@ -42,72 +29,7 @@ function emit(shard, doc) {
   manifest.push({ source: doc.source, title: doc.title, url: doc.url, license: doc.license, chars: doc.text.length });
 }
 
-// Headings in the pack are markdown ("## Treatment"); cleanWikivoyage already writes them.
-const SKIP_SECTIONS = /\n#{2,3} (See also|References|Notes|Footnotes|External links|Further reading|Bibliography|Sources)\s*\n[\s\S]*$/;
-function wikiText(title, wikitext) {
-  const body = cleanWikivoyage(wikitext).replace(SKIP_SECTIONS, "").trim();
-  return `# ${title}\n\n${body}`;
-}
-
 // ---- MediaWiki sites ----
-
-async function categoryPages(api, roots, depth) {
-  const pages = new Set();
-  const seenCats = new Set();
-  let frontier = roots.map((c) => `Category:${c}`);
-  for (let d = 0; d <= depth && frontier.length; d++) {
-    const next = [];
-    for (const cat of frontier) {
-      if (seenCats.has(cat)) continue;
-      seenCats.add(cat);
-      let cont = {};
-      do {
-        const q = new URLSearchParams({ action: "query", format: "json", formatversion: "2", list: "categorymembers", cmtitle: cat, cmlimit: "500", cmtype: "page|subcat", ...cont });
-        const j = await get(`${api}?${q}`);
-        for (const m of j.query.categorymembers) {
-          if (m.ns === 14) next.push(m.title);
-          else if (m.ns === 0) pages.add(m.title);
-        }
-        cont = j.continue ?? null;
-        await sleep(300);
-      } while (cont);
-    }
-    frontier = next;
-  }
-  return [...pages];
-}
-
-async function prefixPages(api, prefixes) {
-  const pages = [];
-  for (const p of prefixes) {
-    let cont = {};
-    do {
-      const q = new URLSearchParams({ action: "query", format: "json", formatversion: "2", list: "allpages", apprefix: p, aplimit: "500", apfilterredir: "nonredirects", ...cont });
-      const j = await get(`${api}?${q}`);
-      pages.push(...j.query.allpages.map((x) => x.title));
-      cont = j.continue ?? null;
-      await sleep(300);
-    } while (cont);
-  }
-  return pages;
-}
-
-/** Wikitext of up to 50 pages per request; redirects followed, missing pages skipped. */
-async function* wikitexts(api, titles) {
-  for (let i = 0; i < titles.length; i += 50) {
-    const q = new URLSearchParams({
-      action: "query", format: "json", formatversion: "2", prop: "revisions|info", rvprop: "content|ids", rvslots: "main",
-      inprop: "url", redirects: "1", titles: titles.slice(i, i + 50).join("|"),
-    });
-    const j = await get(`${api}?${q}`);
-    for (const p of j.query.pages ?? []) {
-      const rev = p.revisions?.[0];
-      if (p.missing || !rev) continue;
-      yield { id: p.pageid, title: p.title, url: p.fullurl, revid: rev.revid, wikitext: rev.slots.main.content };
-    }
-    await sleep(1000);
-  }
-}
 
 async function mediawiki(shard, { api, source, code, titles, minChars = 300 }) {
   const seen = new Set();

@@ -4,10 +4,15 @@
 // in the catalog are always the measured ones.
 //
 //   node scripts/poi-regions-catalog.mjs poi/sao-paulo.sqlite poi/berlin.sqlite ...
+//
+// POI_URL_BASE: where the packs are hosted, pinned to the upload commit
+// (https://huggingface.co/datasets/r4topunk/boar-packs/resolve/<sha>/places/cities);
+// each pack's URL is <base>/<id>.sqlite.
 import { readFileSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 const TARGET = "src/rag/poiRegions.ts";
+const URL_BASE = process.env.POI_URL_BASE?.replace(/\/$/, "");
 const regions = process.argv.slice(2).map((file) => {
   const s = JSON.parse(readFileSync(`${file}.json`, "utf8"));
   const db = new DatabaseSync(file, { readOnly: true });
@@ -18,7 +23,7 @@ const regions = process.argv.slice(2).map((file) => {
     name: { en: m.nameEn, pt: m.namePt },
     sizeBytes: s.sizeBytes,
     sha256: s.sha256,
-    sourceUrl: "",
+    sourceUrl: URL_BASE ? `${URL_BASE}/${m.id}.sqlite` : "",
     filename: `poi/${m.id}.sqlite`,
     poiCount: Number(m.poiCount),
     veganCount: s.vegan,
