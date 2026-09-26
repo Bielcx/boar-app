@@ -176,6 +176,7 @@ Patterns:
 - **Settings rows show their current value** (`ListRow value`). Toggle only for immediate effect; 3+ options → subscreen or `SegmentedControl`.
 - **Errors** say what happened, why if known, and the next action (`EmptyState tone="error"` or `Banner tone="danger"`). No raw "Error: …" strings.
 - **Streaming**: announce start and end once (`useAnnounce`), never per token.
+- **Dense result lists** (places, sources, models): one row per item inside one inset surface, hairlines between rows, max two text lines, the key number in a right-aligned column with `numeric` and a unit, provenance once in the footer in `field` color, "Show N more" instead of nested scroll. Reference: the geo result card spec (`review/ui-qa/specs/geo-result-card.md`).
 - Keyboard: the shell mounts `KeyboardProvider` (react-native-keyboard-controller). `Screen` scrolls focused inputs into view. The chat composer should use the controller's `KeyboardStickyView` / `KeyboardAvoidingView`.
 - Safe area: per screen through `Screen edges`. The shell has no global `SafeAreaView`; legacy screens are wrapped in `RootNavigator.tsx` until migrated.
 
