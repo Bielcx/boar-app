@@ -29,7 +29,7 @@ Each pack keeps the license of its sources. Share-alike packs stay share-alike; 
 | Path | What | Sources | License |
 |---|---|---|---|
 | `places/world-places.sqlite` | Gazetteer: cities and towns with 15,000+ people, to resolve "restaurants in Lisbon" to a place | [GeoNames](https://www.geonames.org) `cities15000` | CC BY 4.0, © GeoNames |
-| `places/cities/<city>.sqlite` | Places to eat and drink around a city: name, address, opening hours, coordinates, diet tags (`diet:vegan`, `diet:vegetarian`), cuisine; plus Wikivoyage "Eat"/"Drink" listings | [OpenStreetMap](https://www.openstreetmap.org/copyright) via [Geofabrik](https://download.geofabrik.de) extracts; [Wikivoyage](https://en.wikivoyage.org) | ODbL 1.0, © OpenStreetMap contributors (database); CC BY-SA 4.0 (Wikivoyage text) |
+| `places/cities/<city>.sqlite` | Places to eat and drink around one of ten cities (below): name, address, opening hours, coordinates, diet tags (`diet:vegan`, `diet:vegetarian`), cuisine; plus Wikivoyage "Eat"/"Drink" listings | [OpenStreetMap](https://www.openstreetmap.org/copyright) via [Geofabrik](https://download.geofabrik.de) extracts; [Wikivoyage](https://en.wikivoyage.org) | ODbL 1.0, © OpenStreetMap contributors (database); CC BY-SA 4.0 (Wikivoyage text) |
 | `places/tiles/…` | The same places for the whole world as 1°×1° tiles (coming) | as above | as above |
 | `topics/boar-preparedness.sqlite` | Emergency and preparedness: first aid, survival, disasters, water, food preservation, self-sufficiency | Wikipedia, Wikibooks (First Aid, Outdoor Survival), Wikivoyage, [Appropedia](https://www.appropedia.org); Ready.gov and the US National Park Service; US Army FM 21-76 *Survival* (1992) | CC BY-SA 4.0 (wiki sources); public domain (US government works, 17 U.S.C. §105) |
 | `topics/boar-preparedness.manifest.json` | Every document in the preparedness pack with its source URL and license | — | — |
@@ -40,6 +40,27 @@ Coming next (listed here when uploaded):
 |---|---|---|---|
 | `topics/boar-crypto.sqlite` | Ethereum and cryptography | Ethereum EIPs and ERCs, consensus/execution specs (CC0 1.0); Ethereum Yellow Paper (CC BY-SA 4.0); ethereum.org content (MIT); Bitcoin BIPs whose header names a permissive license; Wikipedia cryptography and blockchain categories (CC BY-SA 4.0) | per document, recorded in the pack |
 | `wiki/en/boar-wiki-en-NN.sqlite` | English Wikipedia, sharded, plus Wikivoyage | Wikipedia via [HuggingFaceFW/finewiki](https://huggingface.co/datasets/HuggingFaceFW/finewiki); Wikivoyage dump | CC BY-SA 4.0 |
+
+### Which cities have a places pack
+
+Ten metropolitan areas, each a box of about 20 km around the city (the 1°×1° world tiles, coming, cover everything else):
+
+- Chosen by hand as the first samples: São Paulo, Singapore, Taipei, Buenos Aires, Berlin.
+- **Drawn at random**, to test cities nobody picked: GeoNames `cities15000` with a population of 1,000,000 or more (568 cities),
+  minus the five above, sorted by GeoNames id, shuffled with Fisher-Yates and the mulberry32 generator, **seed 20261003**, first five taken
+  (`node scripts/draw-poi-cities.mjs --cities cities15000.txt --seed 20261003 --n 5 --exclude sao-paulo,singapore,taipei,buenos-aires,berlin`).
+  The draw gave Edmonton, Qujing, Queens, Biên Hòa and Ciudad Nezahualcóyotl.
+
+| City | Places (OSM) | Tagged vegan | Wikivoyage listings | OSM data as of |
+|---|---|---|---|---|
+| Edmonton | 2,409 | 12 | 111 | 2026-09-26 |
+| Qujing | **0** | 0 | 3 | 2026-09-26 |
+| Queens (with parts of Brooklyn and Manhattan) | 19,963 | 665 | 48 | 2026-09-26 |
+| Biên Hòa (with eastern Ho Chi Minh City) | 3,206 | 266 | 0 | 2026-09-26 |
+| Ciudad Nezahualcóyotl (with eastern Mexico City) | 6,098 | 60 | 0 | 2026-09-26 |
+
+OpenStreetMap has almost no restaurants mapped in Qujing, so its pack holds only the Wikivoyage listings, and the app says it has
+no offline data for places to eat there instead of making names up.
 
 ### Attribution
 
