@@ -724,7 +724,8 @@
       "noneInCityFiltered": "Não tenho dados offline de lugares ({{filter}}) em {{city}}",
       "noneNear": "Não tenho dados offline de lugares perto de você",
       "noneNearFiltered": "Não tenho dados offline de lugares ({{filter}}) perto de você",
-      "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região."
+      "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
+      "searchHint": "Digite uma cidade primeiro"
     },
     "assistantName": "boar"
   }

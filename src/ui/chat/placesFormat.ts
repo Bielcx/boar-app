@@ -208,3 +208,31 @@ export function placesForCopy(places: Place[], now: Date | null, locale: string,
     })
     .join("\n");
 }
+
+/** Localized name of the first requested filter ("vegan" → "Vegan"), or null. */
+export function filterName(filters: string[] | undefined, t: T): string | null {
+  const f = filters?.[0];
+  if (!f) return null;
+  const key = `chat.places.filter.${f}`;
+  const name = t(key);
+  return name === key ? f : name;
+}
+
+/**
+ * The title shown (and announced) when a places answer has no list: no map
+ * installed, or nothing recorded for the city / around the device. Null when
+ * there are places, or when the card asks for a city instead.
+ */
+export function placesEmptyTitle(
+  r: { coverage: "ok" | "none" | "no_pack" | "needs_place"; places: unknown[]; filters?: string[]; area: { label?: string; place?: { name: string } } },
+  t: T
+): string | null {
+  if (r.coverage === "needs_place") return null;
+  if (r.coverage === "no_pack") return t("chat.places.noPackTitle");
+  if (r.coverage === "ok" && r.places.length > 0) return null;
+  const city = r.area.place?.name ?? r.area.label ?? "";
+  const filter = filterName(r.filters, t);
+  return city
+    ? t(filter ? "chat.places.noneInCityFiltered" : "chat.places.noneInCity", { city, filter })
+    : t(filter ? "chat.places.noneNearFiltered" : "chat.places.noneNear", { filter });
+}

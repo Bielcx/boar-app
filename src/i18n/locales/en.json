@@ -724,7 +724,8 @@
       "noneInCityFiltered": "No {{filter}} places in the offline map for {{city}}",
       "noneNear": "No places in the offline map near you",
       "noneNearFiltered": "No {{filter}} places in the offline map near you",
-      "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region."
+      "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
+      "searchHint": "Type a city first"
     },
     "assistantName": "boar"
   }
