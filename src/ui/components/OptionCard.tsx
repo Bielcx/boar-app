@@ -28,7 +28,7 @@ export interface OptionCardProps {
 
 /**
  * A choice among siblings (install tier, model, language). Selection is carried
- * by three cues at once: accent border, soft accent wash, filled indicator;
+ * by three cues at once: accent border, raised surface, filled indicator;
  * never the border alone.
  */
 export function OptionCard({
@@ -56,7 +56,8 @@ export function OptionCard({
     borderRadius: t.radius.lg,
     borderWidth: 1.5,
     borderColor: selected ? t.color.accent.solid : restBorder,
-    backgroundColor: selected ? t.color.accent.soft : pressed ? t.color.bg.raised : t.color.bg.surface,
+    // Selected rises to `raised` (mockup): an accent.soft wash would swallow soft accent badges.
+    backgroundColor: selected || pressed ? t.color.bg.raised : t.color.bg.surface,
     opacity: disabled ? 0.5 : 1,
   });
 
@@ -75,13 +76,16 @@ export function OptionCard({
       {indicator === "radio" && <Radio on={selected} />}
       {leading}
       <View style={{ flex: 1, gap: t.space.xs }}>
-        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: t.space.sm }}>
-          <Text variant="headline" style={{ flexShrink: 1 }}>
-            {title}
-          </Text>
-          {badge}
+        {/* Title and badge wrap together; the deciding figure keeps its column on the right. */}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm }}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: t.space.sm, rowGap: t.space.xs }}>
+            <Text variant="headline" style={{ flexShrink: 1 }}>
+              {title}
+            </Text>
+            {badge}
+          </View>
           {trailing !== undefined && (
-            <View style={{ marginLeft: "auto" }}>
+            <View style={{ flexShrink: 0 }}>
               {typeof trailing === "string" ? (
                 <Text variant="headline" numeric>
                   {trailing}
