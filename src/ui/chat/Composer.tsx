@@ -31,7 +31,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   return (
     <View
       style={{
-        paddingHorizontal: t.space.lg,
+        paddingHorizontal: t.space.gutter,
         paddingTop: t.space.sm,
         paddingBottom: t.space.md,
         gap: t.space.xs,

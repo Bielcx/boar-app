@@ -89,14 +89,14 @@ describe("receiptLine", () => {
 
 describe("receiptShort", () => {
   it("is the total time and speed, numbers only", () => {
-    expect(receiptShort(receipt, "pt-BR")).toBe("6,2 s · 14,8 tok/s");
-    expect(receiptShort(receipt, "en-US")).toBe("6.2 s · 14.8 tok/s");
+    expect(receiptShort(receipt, "pt-BR")).toEqual(["6,2 s", "14,8 tok/s"]);
+    expect(receiptShort(receipt, "en-US")).toEqual(["6.2 s", "14.8 tok/s"]);
   });
 
   it("keeps only the time when no model generated the answer", () => {
-    expect(receiptShort({ ...receipt, modelId: "extractive", totalMs: 400 }, "en-US")).toBe("0.4 s");
-    expect(receiptShort({ ...receipt, modelId: "places", totalMs: 300 }, "en-US")).toBe("0.3 s");
-    expect(receiptShort({ ...receipt, tokPerSec: 0 }, "en-US")).toBe("6.2 s");
+    expect(receiptShort({ ...receipt, modelId: "extractive", totalMs: 400 }, "en-US")).toEqual(["0.4 s"]);
+    expect(receiptShort({ ...receipt, modelId: "places", totalMs: 300 }, "en-US")).toEqual(["0.3 s"]);
+    expect(receiptShort({ ...receipt, tokPerSec: 0 }, "en-US")).toEqual(["6.2 s"]);
   });
 });
 

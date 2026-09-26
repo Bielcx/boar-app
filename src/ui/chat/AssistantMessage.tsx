@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, Text } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, MetaLine, Text } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
@@ -81,9 +81,9 @@ function Stage({ label }: { label: string }) {
 function Elapsed({ locale }: { locale: string }) {
   const seconds = useElapsedSeconds(true);
   return (
-    <Text variant="mono" color="secondary" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      {formatSeconds(seconds * 1000, locale)}
-    </Text>
+    <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <MetaLine items={[formatSeconds(seconds * 1000, locale)]} />
+    </View>
   );
 }
 
@@ -186,9 +186,7 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
       accessibilityElementsHidden={hidden}
       hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
     >
-      <Text variant="mono" color="secondary">
-        {r.short}
-      </Text>
+      <MetaLine items={r.short} numberOfLines={1} />
     </Pressable>
   );
 }
@@ -430,8 +428,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <View
             style={{
-              width: t.space.xxl,
-              height: t.space.xxl,
+              width: t.size.avatar,
+              height: t.size.avatar,
               borderRadius: t.radius.full,
               backgroundColor: t.color.bg.surface,
               alignItems: "center",
@@ -441,7 +439,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           >
             <Image
               source={require("../../../assets/boar.png")}
-              style={{ width: t.space.xl, height: t.space.xl }}
+              style={{ width: t.size.avatarSm, height: t.size.avatarSm }}
               accessibilityIgnoresInvertColors
               importantForAccessibility="no"
             />

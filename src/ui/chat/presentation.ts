@@ -84,16 +84,16 @@ export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
 }
 
 /**
- * The receipt as it sits next to the assistant's name: total time, plus the
+ * The receipt facts that sit next to the assistant's name (a MetaLine): total time, plus the
  * generation speed when a model wrote the answer ("1.4 s · 16 tok/s"). Numbers
  * only; the spoken and expanded forms use `receiptLine`.
  */
-export function receiptShort(r: AnswerReceipt, locale: string): string {
+export function receiptShort(r: AnswerReceipt, locale: string): string[] {
   const parts = [formatSeconds(r.totalMs, locale)];
   if (r.modelId !== EXTRACTIVE_MODEL_ID && r.modelId !== PLACES_MODEL_ID && r.tokPerSec > 0) {
     parts.push(`${formatTokPerSec(r.tokPerSec, locale)} tok/s`);
   }
-  return parts.join(" · ");
+  return parts;
 }
 
 /** The measured details shown when the receipt is expanded, as label/value rows. */

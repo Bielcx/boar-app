@@ -690,15 +690,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
         {items.length > 0 && loadError ? (
-          <View style={{ paddingHorizontal: tk.space.lg }}>
+          <View style={{ paddingHorizontal: tk.space.gutter }}>
             <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
           </View>
         ) : items.length > 0 && !ready ? (
-          <View style={{ paddingHorizontal: tk.space.lg, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
+          <View style={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
             <Text variant="footnote" color="secondary">
               {loadStatus.label}
             </Text>
-            <Progress label={loadStatus.label} value={loadStatus.progress} tone="field" height={tk.space.xs} />
+            <Progress label={loadStatus.label} value={loadStatus.progress} tone="accent" height={tk.space.xs} />
           </View>
         ) : null}
 
@@ -709,7 +709,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           extraData={renderItem}
-          contentContainerStyle={{ paddingHorizontal: tk.space.lg, paddingVertical: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={

@@ -91,7 +91,7 @@ export const UserMessage = memo(function UserMessage({
 /** The mascot at hero size (empty and loading states). Decorative: the wordmark or status next to it carries the meaning. */
 function Mascot({ dim }: { dim?: boolean }) {
   const t = useTokens();
-  const side = t.space.giant * 2;
+  const side = t.size.mascot;
   return (
     <Image
       source={require("../../../assets/boar.png")}
@@ -173,7 +173,7 @@ export function ChatModelLoading({ label, progress }: { label: string; progress?
         {label}
       </Text>
       <View style={{ alignSelf: "stretch", paddingHorizontal: t.space.xxl }}>
-        <Progress label={label} value={progress} tone="field" height={t.space.xs} />
+        <Progress label={label} value={progress} tone="accent" height={t.space.xs} />
       </View>
     </View>
   );
@@ -211,7 +211,7 @@ export function ChatModelError({
       )}
       <Card
         accessibilityRole="alert"
-        style={{ gap: t.space.md, borderWidth: t.size.focusRing, borderColor: t.color.status.danger.solid }}
+        style={{ gap: t.space.md, borderWidth: t.size.border * 1.5, borderColor: t.color.status.danger.solid }}
       >
         <View style={{ alignSelf: "flex-start" }}>
           <Badge label={tr("chat.modelError.overline")} tone="danger" icon="alert-triangle" />
@@ -239,11 +239,10 @@ export function ChatModelError({
             )}
           </View>
         </View>
-        {setupLeads ? (
+        {/* Freeing memory can make a retry work; for the other causes two actions are enough. */}
+        {setupLeads && kind === "memory" && (
           <Button label={tr("chat.actions.retry")} variant="ghost" size="sm" icon="rotate-cw" onPress={onRetry} style={{ alignSelf: "center" }} />
-        ) : onRelaunchWizard ? (
-          <Button label={tr("chat.modelError.setup")} variant="ghost" size="sm" onPress={onRelaunchWizard} style={{ alignSelf: "center" }} />
-        ) : null}
+        )}
       </Card>
     </View>
   );
