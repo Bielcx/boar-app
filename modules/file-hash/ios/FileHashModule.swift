@@ -10,12 +10,24 @@ private let progressEveryBytes: Int64 = 32 << 20 // 32 MiB
  * incremental) over FileHandle reads, so multi-GB GGUFs never enter JS memory.
  * Accepts file:// URIs and plain paths. URLs handed out by the document
  * picker without copying are security-scoped; access is opened around the read.
+ *
+ * cancel(jobId) makes that job reject with E_CANCELLED at its next chunk;
+ * a cancelled copyWithSha256 deletes the partial destination.
  */
 public class FileHashModule: Module {
+  private let cancelLock = NSLock()
+  private var cancelled = Set<String>()
+
   public func definition() -> ModuleDefinition {
     Name("FileHash")
 
     Events("onProgress")
+
+    Function("cancel") { (jobId: String) in
+      self.cancelLock.lock()
+      self.cancelled.insert(jobId)
+      self.cancelLock.unlock()
+    }
 
     AsyncFunction("sha256") { (uri: String, jobId: String) -> String in
       let src = Self.fileURL(uri)
@@ -37,21 +49,32 @@ public class FileHashModule: Module {
         let input = try FileHandle(forReadingFrom: src)
         defer { try? input.close() }
         let output = try FileHandle(forWritingTo: dest)
-        defer { try? output.close() }
-        let (digest, bytes) = try self.digest(input, output: output, jobId: jobId, total: Self.size(of: src))
-        try output.synchronize()
-        return ["sha256": digest, "bytes": Double(bytes)]
+        do {
+          let (digest, bytes) = try self.digest(input, output: output, jobId: jobId, total: Self.size(of: src))
+          try output.synchronize()
+          try? output.close()
+          return ["sha256": digest, "bytes": Double(bytes)]
+        } catch let error as CancelledException {
+          try? output.close()
+          try? fm.removeItem(at: dest)
+          throw error
+        } catch {
+          try? output.close()
+          throw error
+        }
       }
     }
   }
 
   private func digest(_ input: FileHandle, output: FileHandle?, jobId: String, total: Int64) throws -> (String, Int64) {
+    defer { clearCancel(jobId) }
     var hasher = SHA256()
     var done: Int64 = 0
     var nextReport = progressEveryBytes
     while true {
       let chunk = try autoreleasepool { try input.read(upToCount: bufferBytes) }
       guard let data = chunk, !data.isEmpty else { break }
+      if isCancelled(jobId) { throw CancelledException(jobId) }
       hasher.update(data: data)
       try output?.write(contentsOf: data)
       done += Int64(data.count)
@@ -63,6 +86,18 @@ public class FileHashModule: Module {
     sendProgress(jobId, done, total)
     let hex = hasher.finalize().map { String(format: "%02x", $0) }.joined()
     return (hex, done)
+  }
+
+  private func isCancelled(_ jobId: String) -> Bool {
+    cancelLock.lock()
+    defer { cancelLock.unlock() }
+    return cancelled.contains(jobId)
+  }
+
+  private func clearCancel(_ jobId: String) {
+    cancelLock.lock()
+    cancelled.remove(jobId)
+    cancelLock.unlock()
   }
 
   private func sendProgress(_ jobId: String, _ done: Int64, _ total: Int64) {
@@ -84,4 +119,9 @@ public class FileHashModule: Module {
     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
     return try body()
   }
+}
+
+private final class CancelledException: GenericException<String> {
+  override var code: String { "E_CANCELLED" }
+  override var reason: String { "File hash job \(param) was cancelled" }
 }
