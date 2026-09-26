@@ -10,7 +10,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { PoiPack, cellRanges, distanceM, resolvePlaceIn, searchPlacesIn, searchPoiPacks } from "./poiPack";
+import { PoiPack, cellRanges, coverageOf, distanceM, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PoiArea } from "./poiPack";
 import type { PackSql } from "./wikiPack";
 
 const C = { lat: 10, lon: 10 };
@@ -173,5 +173,35 @@ describe("diet tag audit", () => {
   it("doesn't flag anything when the diet asked isn't the one checked", async () => {
     const r = await searchPoiPacks([pack], { center: C });
     expect(r.pois.every((p) => !p.dietFlag)).toBe(true);
+  });
+});
+
+describe("areas (tiles)", () => {
+  const area = (id: string, bbox: PoiArea["bbox"], names: string[]): PoiArea => ({
+    id,
+    bbox,
+    within: async (q, r) =>
+      names.map((name, i) => ({
+        id: `${id}:${i}`, name, lat: bbox[0] + 0.5, lon: bbox[1] + 0.05, category: "restaurant", cuisine: [], diet: {},
+        source: { kind: "osm" as const, url: "" }, distanceM: distanceM(q.center, { lat: bbox[0] + 0.5, lon: bbox[1] + 0.05 }),
+      })).filter((p) => p.distanceM <= r),
+  });
+
+  it("counts coverage over the union of areas, so a neighbouring tile keeps it full", () => {
+    const west = area("t-N10E009", [10, 9, 11, 10], []);
+    const east = area("t-N10E010", [10, 10, 11, 11], []);
+    const edge = { lat: 10.5, lon: 9.999 };
+    expect(coverageOf([west], edge, 3000)).toBe("partial");
+    expect(coverageOf([west, east], edge, 3000)).toBe("full");
+    expect(coverageOf([east], { lat: 12, lon: 12 }, 3000)).toBe("none");
+  });
+
+  it("queries a neighbouring tile once the widened circle reaches it", async () => {
+    const west = area("t-N10E009", [10, 9, 11, 10], []);
+    const east = area("t-N10E010", [10, 10, 11, 11], ["East A", "East B", "East C"]);
+    // In the west tile, ~16 km from the east tile's places: out of reach at 3 and 10 km, reached at 25 km.
+    const r = await searchPoiPacks([west, east], { center: { lat: 10.5, lon: 9.9 } });
+    expect(r.radiusUsedM).toBe(25000);
+    expect(r.pois.map((p) => p.name)).toEqual(["East A", "East B", "East C"]);
   });
 });

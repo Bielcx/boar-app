@@ -7,11 +7,13 @@
 // doubtful claims last with an "OSM tag to verify" mark.
 //
 //   node scripts/audit-poi-diet.mjs --out diet-check.json osm-sao-paulo.json osm-berlin.json ...
+//   node scripts/audit-poi-diet.mjs --out diet-check-world.json work/extracts/*.jsonl.gz
 //
 // Build-time only (Jev via the Vercel AI Gateway, VERCEL_AI_GATEWAY); cached,
 // cost logged, budget-capped (see scripts/lib/jev.mjs).
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
+import { gunzipSync } from "node:zlib";
 import { booleanPerItem, spentUsd } from "./lib/jev.mjs";
 import { cuisinesOf, dietOf } from "./lib/poi-pack-lib.mjs";
 
@@ -36,9 +38,18 @@ export function claimOf(tags) {
   return null;
 }
 
+/** Elements of an Overpass JSON file, or of a build-poi-world.mjs extract (.jsonl.gz, one element per line). */
+function* elementsOf(file) {
+  if (file.endsWith(".jsonl.gz")) {
+    for (const line of gunzipSync(readFileSync(file)).toString("utf8").split("\n")) if (line) yield JSON.parse(line);
+  } else {
+    yield* JSON.parse(readFileSync(file, "utf8")).elements ?? [];
+  }
+}
+
 const items = new Map();
 for (const file of positionals) {
-  for (const e of JSON.parse(readFileSync(file, "utf8")).elements ?? []) {
+  for (const e of elementsOf(file)) {
     const t = e.tags ?? {};
     const claim = t.name ? claimOf(t) : null;
     if (!claim) continue;

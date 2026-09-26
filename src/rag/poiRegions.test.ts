@@ -30,3 +30,21 @@ describe("poiRegions", () => {
     for (const r of POI_REGIONS) expect(ids).toContain(`poi-${r.id}`);
   });
 });
+
+describe("tiles", () => {
+  it("names tiles by their south-west corner and back", async () => {
+    const { tileIdOf, tileBbox } = await import("./poiRegions");
+    expect(tileIdOf(41.89, 12.48)).toBe("t-N41E012");
+    expect(tileIdOf(-23.55, -46.63)).toBe("t-S24W047");
+    expect(tileBbox("t-S24W047")).toEqual([-24, -47, -23, -46]);
+    expect(tileBbox("sao-paulo")).toBeNull();
+  });
+  it("lists the tiles a city's circle touches", async () => {
+    const { tileIdsFor } = await import("./poiRegions");
+    expect(tileIdsFor(41.89, 12.48, 8)).toEqual(["t-N41E012"]);
+    // Rome at 15 km reaches past 42°N.
+    expect(tileIdsFor(41.89, 12.48, 15)).toEqual(["t-N41E012", "t-N42E012"]);
+    // Near a corner the circle spans four tiles.
+    expect(tileIdsFor(42.0, 13.0, 10).sort()).toEqual(["t-N41E012", "t-N41E013", "t-N42E012", "t-N42E013"]);
+  });
+});
