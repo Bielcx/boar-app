@@ -100,3 +100,14 @@ describe("activity configChanges", () => {
     expect(cfg.mods?.android?.manifest).toBeTypeOf("function");
   });
 });
+
+describe("backup and device transfer", () => {
+  it("excludes every storage domain from cloud backup and from device transfer", () => {
+    const xml: string = plugin.dataExtractionRulesXml();
+    for (const section of ["cloud-backup", "device-transfer"]) {
+      const body = xml.split(`<${section}>`)[1].split(`</${section}>`)[0];
+      for (const d of plugin.BACKUP_DOMAINS) expect(body).toContain(`<exclude domain="${d}" path="." />`);
+      expect(body).not.toContain("<include");
+    }
+  });
+});

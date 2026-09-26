@@ -92,8 +92,9 @@ Permissions the published **v1.0.0** APK declares (`aapt dump permissions`):
 **not** declare `ACCESS_NETWORK_STATE`; an earlier version of this page said it
 did. From the next release both builds drop `SYSTEM_ALERT_WINDOW` (left over
 from the development template) and the storage permissions (imports use the
-system file picker), and set `allowBackup="false"` and
-`usesCleartextTraffic="false"`. The offline build also drops `RECORD_AUDIO`
+system file picker), and set `allowBackup="false"`, `usesCleartextTraffic="false"`
+and `dataExtractionRules` excluding every storage domain from cloud backup and
+device-to-device transfer (Android 12+ ignores `allowBackup` for transfers). The offline build also drops `RECORD_AUDIO`
 unless built with `EXPO_PUBLIC_BOAR_VOICE=1`.
 
 The only network code in the app (`src/`), both refusing to run in the offline

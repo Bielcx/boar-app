@@ -94,6 +94,7 @@ if [[ "$variant" == offline ]]; then
   done <<<"$perms"
   grep -Eq 'usesCleartextTraffic(="|\(.*\)=)(false|0|0x0)' <<<"$manifest" || bad "cleartext traffic not explicitly disabled"
   grep -Eq 'allowBackup(="|\(.*\)=)(false|0|0x0)' <<<"$manifest" || bad "allowBackup not disabled"
+  grep -q 'dataExtractionRules' <<<"$manifest" || bad "no dataExtractionRules (Android 12+ device transfer would copy app data)"
   if [[ -n "$packages" ]]; then
     for pkg in "${FORBIDDEN_PACKAGES[@]}"; do
       grep -q "^${pkg//./\\.}" <<<"$packages" && bad "ships network/cloud package $pkg"
