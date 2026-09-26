@@ -82,7 +82,13 @@ describe("modelRowView", () => {
     expect(view({ fit: "streaming" }).fitWarning).toBe("streaming");
     const insufficient = view({ fit: "insufficient" });
     expect(insufficient.fitWarning).toBe("insufficient");
-    expect(insufficient.primary).toBe("download");
+    expect(insufficient.state).toEqual({ kind: "not-installed" });
+  });
+
+  it("explains instead of downloading a model that cannot run here", () => {
+    expect(view({ fit: "insufficient" }).primary).toBe("explain");
+    expect(view({ fit: "thrashing" }).primary).toBe("download");
+    expect(view({ fit: "streaming" }).primary).toBe("download");
   });
 });
 

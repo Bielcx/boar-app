@@ -55,7 +55,12 @@ export type RowState =
   | { kind: "in-use"; roles: ModelRole[]; verified: boolean }
   | { kind: "installed"; verified: boolean };
 
-export type PrimaryAction = "download" | "retry" | "use" | "none";
+/**
+ * "explain" replaces "download" when the memory estimate says the model
+ * cannot run here: the row explains why, and downloading takes an explicit
+ * "download anyway".
+ */
+export type PrimaryAction = "download" | "explain" | "retry" | "use" | "none";
 export type BadgeTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export interface RowView {
@@ -99,7 +104,7 @@ export function modelRowView(input: RowInput): RowView {
   const base = { removeBlocked: state.kind === "in-use", fitWarning };
   switch (state.kind) {
     case "not-installed":
-      return { ...base, state, primary: "download", tone: "neutral" };
+      return { ...base, state, primary: fitWarning === "insufficient" ? "explain" : "download", tone: "neutral" };
     case "downloading":
     case "verifying":
       return { ...base, state, primary: "none", tone: "info" };

@@ -283,7 +283,9 @@
       "eraseSettings": "Seus ajustes",
       "eraseConfirm": "Apagar tudo",
       "saveFailed": "Não foi possível salvar essa mudança. Tente de novo.",
-      "resetFailed": "Não foi possível apagar os dados: {{error}}"
+      "resetFailed": "Não foi possível apagar os dados: {{error}}",
+      "quickFirstHint": "Mostra um trecho das suas fontes em menos de um segundo.",
+      "alwaysCompleteHint": "Pesquisa cada parte da pergunta. Mais lento."
     },
     "tone": {
       "footer": "Muda o jeito de escrever as respostas a partir da próxima pergunta.",
@@ -356,7 +358,9 @@
       "inUseHint": "Em uso. Escolha outro modelo antes de remover este.",
       "removeTitle": "Remover {{name}}?",
       "removeBody": "Libera {{size}} neste celular. Dá para baixar de novo depois.",
-      "removed": "{{name}} removido"
+      "removed": "{{name}} removido",
+      "wontFitTitle": "{{name}} não cabe neste celular",
+      "downloadAnyway": "Baixar mesmo assim ({{size}})"
     },
     "models": {
       "storage": "O BOAR usa {{used}} · {{free}} livres no celular",
@@ -553,7 +557,31 @@
       "doneTitle": "Pronto",
       "doneBody": "Tudo roda offline a partir de agora.",
       "doneAnnounce": "Configuração concluída. O BOAR está pronto.",
-      "open": "Abrir o BOAR"
+      "open": "Abrir o BOAR",
+      "languageAnnounce": "Idioma: Português",
+      "smallerPackage": "Escolher um pacote menor"
+    },
+    "places": {
+      "title": "Lugares (offline)",
+      "footer": "Restaurantes e lugares do OpenStreetMap (ODbL) e dicas de viagem do Wikivoyage (CC BY-SA). Busca feita no celular, sem internet.",
+      "none": "Os pacotes de lugares ainda não estão disponíveis nesta versão.",
+      "meta": "{{places}} lugares · {{size}}",
+      "citiesMore_one": "{{cities}} e mais {{count}} cidade",
+      "citiesMore_other": "{{cities}} e mais {{count}} cidades",
+      "travelTitle": "Viagem",
+      "include": "Incluir lugares de {{region}}",
+      "reason": {
+        "timezone": "Sugerido pelo fuso horário do celular.",
+        "location": "Sugerido pela sua localização."
+      },
+      "noRegionHere": "Ainda não há pacote de lugares para a sua região.",
+      "useLocation": "Usar minha localização",
+      "locationDeclined": "Localização não permitida. A sugestão usa o fuso horário.",
+      "locationUnavailable": "Não foi possível obter a localização. Tente de novo ao ar livre.",
+      "rationaleTitle": "Usar sua localização?",
+      "rationaleBody": "O BOAR lê sua posição pelo GPS do celular, que funciona sem internet, para sugerir lugares perto de você. Ela nunca sai do celular.",
+      "notNow": "Agora não",
+      "continue": "Continuar"
     }
   },
   "chat": {
