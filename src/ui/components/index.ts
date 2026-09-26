@@ -22,6 +22,8 @@ export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
 export { ListRow } from "./ListRow";
 export type { ListRowProps } from "./ListRow";
+export { Mascot } from "./Mascot";
+export type { MascotProps } from "./Mascot";
 export { MetaLine } from "./MetaLine";
 export type { MetaLineProps } from "./MetaLine";
 export { OfflineSeal } from "./OfflineSeal";
