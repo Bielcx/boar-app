@@ -56,7 +56,8 @@
           "backgroundColor": "#080C14"
         }
       ],
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "expo-font"
     ],
     "extra": {
       "eas": {

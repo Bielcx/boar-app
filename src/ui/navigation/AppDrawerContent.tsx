@@ -61,12 +61,14 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
       <View style={[styles.brand, { paddingHorizontal: t.space.base, paddingVertical: t.space.md, gap: t.space.md }]}>
         <Image
           source={require("../../../assets/boar.png")}
-          style={{ width: 40, height: 40, borderRadius: t.radius.md }}
+          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.color.accent.solid }}
           accessibilityIgnoresInvertColors
           accessible={false}
         />
         <View style={{ flex: 1 }} accessible accessibilityRole="header">
-          <Text variant="headline">BOAR</Text>
+          <Text variant="title2" accessibilityLabel="BOAR">
+            boar
+          </Text>
           <Text variant="footnote" color="field">
             {tr("nav.subtitle")}
           </Text>

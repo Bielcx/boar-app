@@ -35,7 +35,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
         flexDirection: vertical ? "column" : "row",
         padding: 3,
         gap: 3,
-        borderRadius: t.radius.md,
+        borderRadius: t.radius.full,
         backgroundColor: t.color.bg.sunken,
       }}
     >
@@ -61,7 +61,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
                 justifyContent: vertical ? "flex-start" : "center",
                 gap: t.space.xs,
                 paddingHorizontal: t.space.sm,
-                borderRadius: t.radius.sm,
+                borderRadius: t.radius.full,
                 backgroundColor: selected ? t.color.bg.raised : "transparent",
                 // Selection is marked by border + weight + check, not by fill alone.
                 borderWidth: selected ? t.size.border : 0,

@@ -17,7 +17,7 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
   return (
     <View style={[{ gap: t.space.sm }, style]} {...rest}>
       {title && (
-        <Text variant="label" color="tertiary" header style={{ paddingHorizontal: t.space.base }}>
+        <Text variant="label" color="secondary" header style={{ paddingHorizontal: t.space.base }}>
           {title}
         </Text>
       )}
@@ -25,8 +25,8 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
         <View
           style={{
             backgroundColor: t.color.bg.surface,
-            borderRadius: t.radius.md,
-            borderWidth: t.size.hairline,
+            borderRadius: t.radius.lg,
+            borderWidth: t.scheme === "light" ? t.size.hairline : 0,
             borderColor: t.color.line.hairline,
             overflow: "hidden",
           }}

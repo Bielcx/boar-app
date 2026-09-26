@@ -7,26 +7,31 @@ export interface CardProps extends ViewProps {
   level?: 0 | 1 | 2;
   padding?: "none" | "sm" | "md";
   onPress?: () => void;
+  /** Secondary action (e.g. edit). Also offer it another way: long-press is hard to discover. */
+  onLongPress?: () => void;
+  accessibilityHint?: string;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Grouped content on a surface with a hairline. Hairline first, shadow second. */
-export function Card({ level = 1, padding = "md", onPress, style, children, ...rest }: CardProps) {
+export function Card({ level = 1, padding = "md", onPress, onLongPress, style, children, ...rest }: CardProps) {
   const t = useTokens();
   const base: ViewStyle = {
     backgroundColor: level === 2 ? t.color.bg.raised : t.color.bg.surface,
     borderRadius: t.radius.lg,
-    borderWidth: t.size.hairline,
+    // Dark: planes read by lightness alone (mockup). Light: a hairline keeps cards on paper.
+    borderWidth: t.scheme === "light" ? t.size.hairline : 0,
     borderColor: t.color.line.hairline,
     padding: padding === "none" ? 0 : padding === "sm" ? t.space.md : t.space.base,
     ...(t.elevation[level] as ViewStyle),
   };
-  if (onPress) {
+  if (onPress || onLongPress) {
     return (
       <Pressable
         accessibilityRole="button"
         onPress={onPress}
+        onLongPress={onLongPress}
         style={({ pressed }) => [base, pressed && { backgroundColor: t.color.bg.sunken }, style]}
         {...rest}
       >

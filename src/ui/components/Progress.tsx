@@ -13,7 +13,7 @@ export interface ProgressProps {
 }
 
 /** Linear progress. Determinate when `value` is set; otherwise an indeterminate sweep (static under reduce motion). */
-export function Progress({ value, valueText, label, tone = "accent", height = 6 }: ProgressProps) {
+export function Progress({ value, valueText, label, tone = "accent", height = 8 }: ProgressProps) {
   const { tokens: t, reduceMotion } = useTheme();
   const sweep = useRef(new Animated.Value(0)).current;
   const indeterminate = value === undefined;
@@ -36,7 +36,7 @@ export function Progress({ value, valueText, label, tone = "accent", height = 6 
       accessibilityLabel={label}
       accessibilityState={{ busy: indeterminate }}
       accessibilityValue={indeterminate ? { text: valueText } : { min: 0, max: 100, now: pct, text: valueText ?? `${pct}%` }}
-      style={{ height, borderRadius: height, backgroundColor: t.color.bg.sunken, overflow: "hidden" }}
+      style={{ height, borderRadius: height, backgroundColor: t.color.bg.raised, overflow: "hidden" }}
     >
       {indeterminate ? (
         <Animated.View

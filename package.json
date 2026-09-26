@@ -5,6 +5,8 @@
   "license": "MIT",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/baloo-2": "^0.4.2",
+    "@expo-google-fonts/lexend": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@noble/hashes": "2.4.0",
     "@react-navigation/drawer": "^7.14.2",
@@ -19,6 +21,7 @@
     "expo-dev-client": "~57.0.19",
     "expo-document-picker": "~57.0.2",
     "expo-file-system": "~57.0.7",
+    "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-linear-gradient": "~57.0.2",
     "expo-pdf-text-extract": "^1.1.0",
