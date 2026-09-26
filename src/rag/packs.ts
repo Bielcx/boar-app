@@ -127,21 +127,30 @@ export async function searchWikiPacks(query: string, opts: PackSearchOptions = {
   return out;
 }
 
-/** Wikipedia/Wikivoyage URL of a pack article. */
-export function articleUrl(title: string, source: PackHit["source"]): string {
-  const host = source === "enwikivoyage" ? "en.wikivoyage.org" : "en.wikipedia.org";
+const SOURCE_LABEL: Record<PackHit["source"], string> = {
+  enwiki: "Wikipedia",
+  enwikivoyage: "Wikivoyage",
+  enwikibooks: "Wikibooks",
+  appropedia: "Appropedia",
+  usgov: "US government",
+};
+
+/** URL of a pack article: its recorded URL, else the Wikipedia/Wikivoyage/Wikibooks page for its title. */
+export function articleUrl(title: string, source: PackHit["source"], url?: string): string {
+  if (url) return url;
+  const host = source === "enwikivoyage" ? "en.wikivoyage.org" : source === "enwikibooks" ? "en.wikibooks.org" : "en.wikipedia.org";
   return `https://${host}/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 }
 
 /** A format-2 pack hit in the shape the chat's retrieval uses. */
 export function packHitToChunk(packId: string, h: PackHit): RetrievedChunk {
-  const label = h.source === "enwikivoyage" ? "Wikivoyage" : "Wikipedia";
+  const label = SOURCE_LABEL[h.source] ?? "Source";
   return {
     chunkId: `pack:${packId}:${h.chunkId}`,
     docId: `pack:${packId}:a${h.articleId}`,
-    title: h.source === "enwikivoyage" ? `Wikivoyage: ${h.title}` : h.title,
+    title: h.source === "enwiki" ? h.title : `${label}: ${h.title}`,
     body: h.section ? `${h.section}: ${h.text}` : h.text,
-    source: `${label} — ${articleUrl(h.title, h.source)}`,
+    source: `${label} — ${articleUrl(h.title, h.source, h.url)}${h.license ? ` (${h.license})` : ""}`,
     score: h.score,
     matchType: "lexical",
   };

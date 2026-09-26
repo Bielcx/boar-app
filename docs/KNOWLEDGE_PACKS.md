@@ -296,3 +296,59 @@ a redirect to "Lattice-based cryptography", not an article.
 UNKNOWN until the full pack is built: the same result on FineWiki's August
 2025 text (the fixture is the live 2026 article text) with 6.5M competing
 articles.
+
+## Topic packs: Emergency and preparedness (`boar-preparedness`)
+
+A small format-2 pack for travelers and anyone offline in an emergency: first
+aid, survival skills, disaster response and evacuation, water purification and
+sanitation, food preservation, self-sufficiency and small-scale agriculture.
+Same search as the Wikipedia pack; every document keeps its own URL and license
+(`article_meta`), shown with each passage (`Passage.source.url` / `.license`).
+
+```bash
+node scripts/fetch-preparedness.mjs build/preparedness          # all sources (network, polite rate)
+# relevance filter on the category crawls (Jev, build time only)
+node scripts/filter-relevance.mjs --topic "…" --task prep-relevance --drop-translations --report report.json build/preparedness/appropedia.jsonl
+node scripts/filter-relevance.mjs --topic "…" --task prep-relevance --report report.json --titles build/preparedness/wikipedia-titles.json --out kept.json
+PREP_WP_TITLES=kept.json node scripts/fetch-preparedness.mjs build/preparedness wikipedia
+node scripts/build-wiki-pack.mjs --out boar-preparedness.sqlite --shards <kept shards> --manifest manifest.json --name "Emergency and preparedness"
+```
+
+| Source | License | Documents |
+|---|---|---|
+| Wikipedia: categories First aid, Wilderness medical emergencies, Survival skills, Emergency management, Disaster preparedness, Water treatment, Food preservation, Sustainable agriculture, Permaculture (depth 1), relevance-filtered | CC BY-SA 4.0 | 869 of 3,066 |
+| Appropedia: Water treatment, Sanitation, Emergency management, Food and agriculture, Agriculture, Health (depth 1), English only, relevance-filtered | CC BY-SA 4.0 | 567 of 1,309 (+1,594 translations dropped) |
+| Wikibooks: *First Aid*, *Outdoor Survival* (all subpages) | CC BY-SA 4.0 | 71 |
+| Wikivoyage: Stay healthy, Stay safe, Water, Hiking, Wilderness backpacking, Cold weather, Hot weather, Earthquake safety | CC BY-SA 4.0 | 8 |
+| Ready.gov (every English guidance page in its sitemap) and NPS hiking safety | Public domain (17 U.S.C. §105) | 182 |
+| US Army FM 21-76 *Survival* (1992), OCR text from archive.org (Public Domain Mark) | Public domain | 24 chapters |
+
+Not included: FEMA, CDC and USDA pages (their sites answer 403 to automated
+requests; not worked around), WikiHow (non-commercial license), Red Cross and
+WHO material (non-commercial or unclear), copyrighted books.
+
+**Relevance filter.** The category crawls bring in people, companies and
+events (depth 2 of the Wikipedia categories gave 9,591 titles, mostly off
+topic, so the crawl stops at depth 1). Each candidate's title and beginning go
+to Jev as one yes/no question ("useful reference material for an offline pack
+about …? no if mainly a person, company, brand, organization, fiction, a
+specific event or place"), kept at ≥ 0.5. Curated sources (Wikibooks,
+Wikivoyage, government pages, the manual) aren't filtered. Everything dropped,
+with its probability, is in `docs/packs/boar-preparedness.relevance.json`; the
+documents kept are in `docs/packs/boar-preparedness.manifest.json`. Cost: US$0.092.
+The grey zone is visible there: pages such as "Rain garden", "Home gardens" and
+"Do not resuscitate" sit at 0.49 and were dropped.
+
+**Result** (2026-09-26): 1,721 documents, 13.3 MB of text, 20,446 chunks;
+pack **19,554,304 bytes**, SHA-256 `65dff5d9988a6fe2bffe17a4d3ab096a1a8f580d20b1ab18d0ada41bbbc0b4e8`,
+lead embeddings for all 1,721 documents. Spot checks: "How do I purify water in
+an emergency?" → Appropedia *Water supply and purification for emergencies §
+Purification methods*, Wikipedia *Water purification*; "What should I do during
+an earthquake?" → Ready.gov *Earthquakes § During an Earthquake*; "How can I
+start a fire without matches?" → FM 21-76 ch. 7 *Firecraft*; "How to treat a
+snake bite?" → Wikibooks *First Aid/Wilderness First Aid § Snakes*.
+
+Attribution: CC BY-SA 4.0 requires crediting each page; the app shows every
+passage's source title, URL and license, and the pack's `meta.license` lists
+all licenses. Public-domain text needs no license, but the source is still
+shown.

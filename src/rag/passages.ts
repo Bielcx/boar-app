@@ -45,7 +45,13 @@ export async function retrievePassages(query: string, opts: PassageOptions = {})
         text: sentences.map((s) => s.text).join(" "),
         sentences,
         score: Math.min(1, best + (h.via === "title" ? NAMED_BONUS : 0)),
-        source: { title: h.title, section: h.section, url: articleUrl(h.title, h.source), kind: h.source },
+        source: {
+          title: h.title,
+          section: h.section,
+          url: articleUrl(h.title, h.source, h.url),
+          kind: h.source,
+          ...(h.license ? { license: h.license } : {}),
+        },
         views: h.views,
         via: h.via,
       });
