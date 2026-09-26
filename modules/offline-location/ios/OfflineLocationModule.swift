@@ -2,7 +2,7 @@ import CoreLocation
 import ExpoModulesCore
 
 /**
- * iOS side of modules/device-location (JS contract in index.ts, Android side
+ * iOS side of modules/offline-location (JS contract in index.ts, Android side
  * in LocationManager). One-shot "when in use" position from CoreLocation.
  * GPS fixes work with no network (a cold fix is just slower without
  * assisted data). No CLGeocoder: reverse geocoding goes to Apple's servers,
@@ -11,11 +11,11 @@ import ExpoModulesCore
  * Precise location turned off by the user still counts as granted; the fix
  * then has a coarse accuracyM (kilometres), which is enough to pick a city.
  */
-public class DeviceLocationModule: Module {
+public class OfflineLocationModule: Module {
   private lazy var delegate = LocationDelegate()
 
   public func definition() -> ModuleDefinition {
-    Name("DeviceLocation")
+    Name("OfflineLocation")
 
     AsyncFunction("getPermissionStatus") { () -> String in
       return Self.status(CLLocationManager().authorizationStatus)
@@ -23,6 +23,12 @@ public class DeviceLocationModule: Module {
 
     AsyncFunction("requestPermission") { (promise: Promise) in
       self.delegate.requestPermission { promise.resolve($0 == "granted" ? "granted" : "denied") }
+    }.runOnQueue(.main)
+
+    // Last fix CoreLocation already has, without turning on GPS; null if none
+    // or permission is missing.
+    AsyncFunction("getLastKnownPosition") { () -> [String: Any]? in
+      return self.delegate.lastKnown()
     }.runOnQueue(.main)
 
     AsyncFunction("getCurrentPosition") { (opts: [String: Double]?, promise: Promise) in
@@ -56,14 +62,20 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
 
   func requestPermission(_ done: @escaping (String) -> Void) {
     guard manager.authorizationStatus == .notDetermined else {
-      return done(DeviceLocationModule.status(manager.authorizationStatus))
+      return done(OfflineLocationModule.status(manager.authorizationStatus))
     }
     permissionWaiters.append(done)
     manager.requestWhenInUseAuthorization()
   }
 
+  func lastKnown() -> [String: Any]? {
+    guard OfflineLocationModule.status(manager.authorizationStatus) == "granted",
+          let last = manager.location else { return nil }
+    return Self.payload(last, source: "cached")
+  }
+
   func currentPosition(timeoutMs: Double, maxAgeMs: Double, promise: Promise) {
-    guard DeviceLocationModule.status(manager.authorizationStatus) == "granted" else {
+    guard OfflineLocationModule.status(manager.authorizationStatus) == "granted" else {
       return promise.reject("E_PERMISSION", "Location permission not granted")
     }
     guard CLLocationManager.locationServicesEnabled() else {
@@ -84,7 +96,7 @@ private final class LocationDelegate: NSObject, CLLocationManagerDelegate {
   }
 
   func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-    let status = DeviceLocationModule.status(manager.authorizationStatus)
+    let status = OfflineLocationModule.status(manager.authorizationStatus)
     guard status != "undetermined" else { return }
     let waiters = permissionWaiters
     permissionWaiters.removeAll()

@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name           = 'DeviceLocation'
+  s.name           = 'OfflineLocation'
   s.version        = '0.1.0'
   # Self-contained (no ../package.json): this ios/ dir can land before the
   # module's JS side, and pod install must not break in between.
