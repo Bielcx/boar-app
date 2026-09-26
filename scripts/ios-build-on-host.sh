@@ -70,14 +70,23 @@ case "$MODE" in
     DEV="${IOS_SIM_DEVICE:-}"
     if [[ -z "$DEV" ]]; then
       DEV=$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
-      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}')
+      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}' || true)
     fi
-    DEST="platform=iOS Simulator,id=$DEV"
+    if [[ -n "$DEV" ]]; then
+      DEST_ARGS=(-destination "platform=iOS Simulator,id=$DEV")
+    elif [[ "$MODE" == "sim" ]]; then
+      # A build host without any simulator runtime (the mini) still has the
+      # simulator SDK; the .app then runs on another Mac's runtime.
+      log "no simulator available: building with -sdk only"
+      DEST_ARGS=()
+    else
+      echo "sim-run needs an available simulator" >&2; exit 2
+    fi
     SIGN_ARGS=(ARCHS=arm64 ONLY_ACTIVE_ARCH=YES)
     ;;
   device|device-run)
     : "${IOS_TEAM:?set IOS_TEAM to the Apple team id (Xcode > Settings > Accounts)}"
-    SDK=iphoneos; DEST="generic/platform=iOS"
+    SDK=iphoneos; DEST_ARGS=(-destination "generic/platform=iOS")
     SIGN_ARGS=(-allowProvisioningUpdates DEVELOPMENT_TEAM="$IOS_TEAM" CODE_SIGN_STYLE=Automatic)
     ENT=ios/BOAR/BOAR.entitlements
     IFS=',' read -ra STRIP <<< "${IOS_STRIP_ENTITLEMENTS:-}"
@@ -92,7 +101,7 @@ esac
 
 log "xcodebuild $CONFIG $SDK"
 heavy xcodebuild -workspace ios/BOAR.xcworkspace -scheme BOAR -configuration "$CONFIG" \
-  -sdk "$SDK" -destination "$DEST" -derivedDataPath ios/build "${SIGN_ARGS[@]}" \
+  -sdk "$SDK" ${DEST_ARGS[@]+"${DEST_ARGS[@]}"} -derivedDataPath ios/build "${SIGN_ARGS[@]}" \
   > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -40; exit 65; }
 APP="$ROOT/ios/build/Build/Products/$CONFIG-$SDK/BOAR.app"
 log "built $APP ($(du -sh "$APP" | cut -f1))"
