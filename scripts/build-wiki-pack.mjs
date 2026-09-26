@@ -65,6 +65,8 @@ const USAGE = `usage: node scripts/build-wiki-pack.mjs --out FILE --shards A.par
   --embed-only            only add lead embeddings and metadata to an existing --out pack
                           (resumes a build that stopped after its text and index were written)
   --embed-threads N       parallel embedding contexts, default 8
+  --embed-top N           embed only the N most-viewed Wikipedia articles' leads (plus every Wikivoyage guide);
+                          default 0 = all
   --limit N               stop after N Wikipedia articles (a quick test build)
   --delete-shards         delete each shard once it's in the pack (keeps peak disk use down);
                           shards given as URLs are always downloaded to --work-dir and deleted
@@ -95,6 +97,7 @@ function options() {
       "no-embed": { type: "boolean", default: false },
       "embed-only": { type: "boolean", default: false },
       "embed-threads": { type: "string", default: "8" },
+      "embed-top": { type: "string", default: "0" },
       limit: { type: "string", default: "0" },
       "delete-shards": { type: "boolean", default: false },
       "work-dir": { type: "string" },
@@ -130,6 +133,7 @@ function options() {
     embed: !values["no-embed"],
     embedOnly: values["embed-only"],
     embedThreads: n("embed-threads"),
+    embedTop: n("embed-top"),
     limit: n("limit"),
     deleteShards: values["delete-shards"],
     workDir: values["work-dir"] ?? dirname(values.out),
@@ -414,11 +418,17 @@ async function addRedirects(db, opts, voyageRedirects) {
 }
 
 /** Lead chunks in article order, read back from the pack in batches (a full build has millions). */
-function* leadBatches(db, size) {
+function* leadBatches(db, size, top) {
   const block = db.prepare("SELECT zdata FROM blocks WHERE id = ?");
+  // With --embed-top N: Wikipedia's N most-viewed articles (ties at the cut included) and every Wikivoyage guide.
+  const cut = top
+    ? db.prepare(`SELECT views FROM articles WHERE source = ${SOURCE.enwiki} ORDER BY views DESC LIMIT 1 OFFSET ?`).get(top - 1)?.views ?? 0
+    : 0;
   const rows = db.prepare(
     `SELECT a.id, a.title, a.block_id, a.off, a.len, c.start, c.end FROM articles a
-     JOIN chunks c ON c.article_id = a.id ORDER BY a.id, c.id`
+     JOIN chunks c ON c.article_id = a.id
+     WHERE a.source = ${SOURCE.enwikivoyage} OR a.views >= ${Math.max(cut, top ? 1 : 0)}
+     ORDER BY a.id, c.id`
   );
   let cachedId = 0;
   let cached = null;
@@ -462,7 +472,7 @@ async function addLeadEmbeddings(db, opts) {
   const caches = [];
   let n = 0;
   // Each batch has its own cache file, so an interrupted build re-embeds at most one batch.
-  for (const leads of leadBatches(db, 50000)) {
+  for (const leads of leadBatches(db, 50000, opts.embedTop)) {
     const cache = `${opts.out}.leads-${n}-${leads.length}.f32`;
     caches.push(cache);
     const { data, scales } = quantizeInt8(await embedChunks(leads, cache, opts.embedThreads), 384);
@@ -549,7 +559,7 @@ async function main() {
     chunks: w.stats.chunks,
     indexedChunks: w.stats.indexed,
     dfMin: DF_MIN,
-    params: JSON.stringify({ fullTop: opts.fullTop, leadChars: opts.leadChars, chunkChars: opts.chunkChars, blockKb: opts.blockBytes / 1024, zlevel: opts.zlevel, limit: opts.limit }),
+    params: JSON.stringify({ fullTop: opts.fullTop, leadChars: opts.leadChars, chunkChars: opts.chunkChars, blockKb: opts.blockBytes / 1024, zlevel: opts.zlevel, limit: opts.limit, embedTop: opts.embedTop }),
     builtAt: new Date().toISOString(),
   };
   const setMeta = w.db.prepare("INSERT INTO meta VALUES (?, ?)");
