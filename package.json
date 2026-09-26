@@ -8,6 +8,7 @@
     "@noble/hashes": "2.4.0",
     "adb": "^0.2.0",
     "bundled-assets": "file:./modules/bundled-assets",
+    "device-location": "file:./modules/device-location",
     "download-wake-lock": "file:./modules/download-wake-lock",
     "expo": "~57.0.24",
     "expo-clipboard": "~57.0.2",

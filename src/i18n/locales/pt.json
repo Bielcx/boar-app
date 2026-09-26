@@ -443,5 +443,13 @@
     "runFailedTitle": "Falha na avaliação",
     "deviceRequest": "Iniciado por um computador conectado (pedido {{id}}).",
     "noRetrieval": "sem recuperação"
+  },
+  "location": {
+    "rationaleTitle": "Usar sua localização?",
+    "rationaleBody": "Para achar lugares perto de você, o BOAR lê sua posição pelo GPS deste aparelho, que funciona sem internet. Sua localização nunca sai do aparelho: ela não é salva, e este app não envia nada para lugar nenhum.",
+    "continue": "Continuar",
+    "notNow": "Agora não",
+    "declined": "Localização desligada. Diga uma cidade ou bairro na pergunta.",
+    "unavailable": "Não foi possível obter o GPS. Tente ao ar livre, ligue a localização ou diga um lugar na pergunta."
   }
 }

@@ -443,5 +443,13 @@
     "runFailedTitle": "Evaluation failed",
     "deviceRequest": "Started from a connected computer (request {{id}}).",
     "noRetrieval": "no retrieval"
+  },
+  "location": {
+    "rationaleTitle": "Use your location?",
+    "rationaleBody": "To find places near you, BOAR reads your position from this phone's GPS, which works without internet. Your location never leaves the device: it isn't saved, and this app sends nothing anywhere.",
+    "continue": "Continue",
+    "notNow": "Not now",
+    "declined": "Location is off. Name a city or neighbourhood in your question instead.",
+    "unavailable": "Couldn't get a GPS fix. Try outdoors, turn on location, or name a place in your question."
   }
 }

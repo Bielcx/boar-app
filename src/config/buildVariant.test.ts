@@ -58,3 +58,21 @@ describe("native and JS agree on the variant", () => {
     }
   });
 });
+
+describe("location", () => {
+  it("is declared (foreground only) in both variants, and background location is blocked", () => {
+    for (const env of [{}, { EXPO_PUBLIC_BOAR_VARIANT: "offline" }] as Record<string, string>[]) {
+      const cfg = build(env);
+      for (const p of plugin.LOCATION_PERMISSIONS) {
+        expect(cfg.android.permissions).toContain(p);
+        expect(cfg.android.blockedPermissions).not.toContain(p);
+      }
+      expect(cfg.android.blockedPermissions).toContain("android.permission.ACCESS_BACKGROUND_LOCATION");
+    }
+  });
+
+  it("does not bring back any network permission in the offline variant", () => {
+    const cfg = build({ EXPO_PUBLIC_BOAR_VARIANT: "offline" });
+    for (const p of plugin.NETWORK_PERMISSIONS) expect(cfg.android.permissions).not.toContain(p);
+  });
+});

@@ -113,6 +113,12 @@ its sockets.
 Inference, retrieval, chat history, telemetry and evaluation make no network
 calls.
 
+Location ("restaurants near me") comes from the phone's GPS through the plain
+Android `LocationManager`, with no network provider, no Play Services and no
+reverse geocoding (`modules/device-location`). It's asked for only on the first
+question that needs it, and it's never stored or sent. Both builds declare
+`ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`, never background location.
+
 Voice input is off by default. When turned on, BOAR uses Android 12+'s
 on-device speech recognizer. The regular system recognizer (usually Google's,
 which may send audio to its servers even with `EXTRA_PREFER_OFFLINE`) is used
