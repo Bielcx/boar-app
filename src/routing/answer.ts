@@ -209,7 +209,8 @@ export function createAnswerer(deps: AnswerDeps) {
       emit({ type: "stage", answerId, stage: "retrieving", tier: "instant", at: deps.now() });
       const geo = deps.getGeoProviders?.() ?? null;
       const pt = intent.lang === "pt";
-      if (!geo) {
+      const packInstalled = geo ? await (geo.hasPlaces?.() ?? Promise.resolve(true)).catch(() => true) : false;
+      if (!geo || !packInstalled) {
         reasonCodes.push("places:no-pack");
         return finishPlaces("no_pack", noPackAnswer(intent), { kind: intent.near.kind === "device" ? "near" : "city" });
       }

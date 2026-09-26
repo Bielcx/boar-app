@@ -55,6 +55,8 @@ export interface GeoPoint {
 }
 
 export interface GeoProviders {
+  /** Whether any places pack is installed (false → "places pack not installed", not "no data for X"). */
+  hasPlaces?(): Promise<boolean>;
   /** Device position; must not prompt for permission (the UI asks in context). */
   getLocation(opts: { timeoutMs: number }): Promise<GeoPoint | { error: "denied" | "unavailable" | "timeout" | "prompt" }>;
   resolvePlace(name: string): Promise<{ name: string; lat: number; lon: number; country?: string; kind: string } | null>;
