@@ -54,7 +54,7 @@ const DYNAMIC_KEYS = [
   ...expand("flows.places.reason.", ["timezone", "location"]),
   ...expand("flows.performance.band.", ["fast", "ok", "slow"]),
   ...expand("flows.performance.outcome.", ["success", "failure", "cancelled"]),
-  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "offline-variant", "load", "unknown"]),
+  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "unknown-file", "offline-variant", "load", "unknown"]),
   ...expand("flows.row.fit.", ["streaming", "thrashing", "insufficient"]),
   ...expand("flows.row.kind.", ["llm", "embedding", "corpus"]),
   ...expand("flows.row.role.", ["answer", "deep", "search"]),

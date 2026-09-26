@@ -349,7 +349,8 @@
         "size-mismatch": "O arquivo veio incompleto. Baixe de novo.",
         "offline-variant": "Esta versão não acessa a internet. Importe o arquivo.",
         "load": "Não foi possível carregar este modelo.",
-        "unknown": "Algo deu errado."
+        "unknown": "Algo deu errado.",
+        "unknown-file": "Este arquivo não é um que o BOAR conhece. Escolha o arquivo indicado para este item."
       },
       "download": "Baixar {{size}}",
       "retry": "Tentar de novo",

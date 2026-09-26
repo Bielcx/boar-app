@@ -349,7 +349,8 @@
         "size-mismatch": "The file is incomplete. Download it again.",
         "offline-variant": "This version has no internet access. Import the file instead.",
         "load": "Couldn't load this model.",
-        "unknown": "Something went wrong."
+        "unknown": "Something went wrong.",
+        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item."
       },
       "download": "Download {{size}}",
       "retry": "Try again",
