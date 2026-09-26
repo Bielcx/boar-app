@@ -21,15 +21,18 @@ export interface ScreenProps {
   footer?: React.ReactNode;
   /** Draw the identity's light pattern (ember / moon) behind the content. Hero screens: chat, onboarding. */
   ambient?: boolean;
+  /** Center the content vertically when it is shorter than the screen (welcome, errors). Scrolls when taller. */
+  center?: boolean;
 }
 
 /** Screen scaffold: canvas background, safe area, keyboard handling, content rhythm. */
-export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient }: ScreenProps) {
+export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient, center }: ScreenProps) {
   const t = useTokens();
   const inner: ViewStyle = {
-    paddingHorizontal: padded ? t.space.base : 0,
+    paddingHorizontal: padded ? t.space.gutter : 0,
     paddingVertical: t.space.base,
     gap: t.space.xl,
+    ...(center ? { flexGrow: 1, justifyContent: "center" } : null),
   };
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: t.color.bg.canvas }}>
@@ -45,12 +48,12 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
           {children}
         </KeyboardAwareScrollView>
       ) : (
-        <View style={[{ flex: 1 }, contentStyle]}>{children}</View>
+        <View style={[{ flex: 1 }, center && { justifyContent: "center" }, contentStyle]}>{children}</View>
       )}
       {footer && (
         <View
           style={{
-            paddingHorizontal: t.space.base,
+            paddingHorizontal: t.space.gutter,
             paddingTop: t.space.md,
             paddingBottom: t.space.sm,
             gap: t.space.sm,

@@ -88,9 +88,10 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 
 ## 4. Space, radius, size
 
-- 4pt grid: `space.xxs 2 · xs 4 · sm 8 · md 12 · base 16 · lg 20 · xl 24 · xxl 32 · xxxl 40 · huge 48 · giant 64`. Screen gutter 16.
+- 4pt grid: `space.xxs 2 · xs 4 · sm 8 · md 12 · base 16 · lg 20 · xl 24 · xxl 32 · xxxl 40 · huge 48 · giant 64`. Screen gutter `space.gutter` 20 (`Screen` applies it; also the footer).
 - Radius (from the mockup): `sm 8` bars/tags · `md 14` rows in cards, toasts · `lg 20` cards · `xl 28` sheets · `full` buttons, inputs, badges, seals.
 - `size.touch` = 44 (iOS) / 48 (Android). The mockup's 40–42px controls are raised to this.
+- Brand sizes: `size.avatar 32` / `avatarSm 24` (assistant in header / message row), `size.mascotSm 56` (horizontal brand line), `size.mascot 128` (hero of empty/loading).
 
 ## 5. Elevation and light
 
@@ -131,7 +132,11 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Section` | Titled group; `inset` draws the grouped surface with hairlines; `footer` explains effect | Title is a header |
 | `ListRow` | Settings/navigation row: `title`, `value`, `subtitle`, `icon`, `trailing` (non-interactive), `switch={{ value, onValueChange }}`, `destructive` | One focus stop reading "title, value, subtitle"; with `switch` the whole row is role switch + `checked`; title/value wrap instead of truncating |
 | `Switch` | Immediate on/off only | role switch, `checked`, named by the row text |
-| `SegmentedControl` | 2-4 exclusive options | radiogroup + radio `checked`; turns vertical at ≥ 1.35 font scale |
+| `SegmentedControl` | 2-4 exclusive options; `size="compact"` for forms | radiogroup + radio `checked`; turns vertical at ≥ 1.35 font scale; compact keeps the touch target through `hitSlop` |
+| `OptionCard` | One choice among sibling cards (install tier, model, language): `title`, `badge` (on the title line), `trailing` (the deciding figure, right), `description`, `meta`, `leading`, `indicator` radio/check/none | role radio + `selected`/`checked`; selection = accent border + `accent.soft` wash + filled indicator (text AA on the wash is in the gate) |
+| `Stat` | The number that leads a card: `value`, `unit`, `label` overline, `size` lg 34 / md 26 / sm 17 | One focus stop "label: value unit"; tabular |
+| `MetaLine` | One line of secondary facts, "978 MB · ~4 min"; falsy items dropped | Read with commas; tabular |
+| `Stepper` | Linear flow progress: bar + short label per step | One progressbar stop with the caller's "Step 2 of 4: Model" |
 | `Chip` | Filter/toggle/tag; `size="inline"` for citation `[n]` inside text | Button + `selected` when pressable; inline chip keeps a 44/48-tall hit area (horizontal slop is limited so adjacent citations stay separate) |
 | `Badge` | Status seal, pill, caps: `solid` = ACTIVE, `soft` = CACHED, `outline` = DOWNLOADING (tone) / NOT ON DISK (neutral); `dot` + `caps={false}` for compatibility seals | Text always present |
 | `OfflineSeal` | `pill` (ember, crossed wifi, header), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
@@ -146,6 +151,14 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `useAnnounce()` | `announce(msg, { assertive })` for state changes (answer ready, download failed) | iOS `announceForAccessibilityWithOptions`; Android < 16 `announceForAccessibility` (no priority there: `assertive` is ignored); Android 16+ a 1×1 live-region node in the viewport (UNKNOWN until verified on device, Prism A1) |
 
 Patterns:
+- **Finish rules (UI priority, 26/09).** Full plan: `review/ui-qa/specs/ui-finish.md`.
+  1. Dark Fogueira is the default (`DEFAULT_APPEARANCE`); light and Luar are options.
+  2. Only tokens: no literal font size, margin, padding or color in a screen diff.
+  3. Screen rhythm: gutter 20 · between sections 24 (hero → content 32) · between cards 12 · card padding 16 · rows inside a card 8 · title ↔ overline 4.
+  4. Card hierarchy: title (`headline`) → one leading number (`Stat` or `trailing`) → one `MetaLine`. Never a stack of equal-weight "Label: value" lines. At most 3 sizes and 2 text tones per card.
+  5. Two surface levels per screen: `canvas` + `surface`. `raised` only for wells inside a card, the user's bubble, sheets.
+  6. One accent per screen: ember on the primary action and the selection. `field` amber only for provenance / OFFLINE / verified facts.
+  7. Done = a dark screenshot next to the mockup crop (`review/ui-ref/screens/`, compose with `review/ui-ref/side-by-side.py`), the same screen at font scale 1.3 without clipping, Prism review.
 - **Destructive = confirm or undo.** Irreversible (delete model, erase data, delete chat): `Sheet` with a `destructive` Button and a ghost Cancel. Reversible: act immediately and offer Undo in a toast.
 - **Settings rows show their current value** (`ListRow value`). Toggle only for immediate effect; 3+ options → subscreen or `SegmentedControl`.
 - **Errors** say what happened, why if known, and the next action (`EmptyState tone="error"` or `Banner tone="danger"`). No raw "Error: …" strings.

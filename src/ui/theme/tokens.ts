@@ -191,6 +191,8 @@ export const space = {
   xxxl: 40,
   huge: 48,
   giant: 64,
+  /** Screen side margin (mockup: 20). Use this, not `base`, for screen-level horizontal padding. */
+  gutter: 20,
 } as const;
 
 /** From the mockup: pills for actions and inputs, soft cards. */
@@ -218,6 +220,13 @@ export const size = {
   iconLg: 24,
   controlSm: 36,
   control: 48,
+  /** Assistant avatar in the chat header / a message row. */
+  avatar: 32,
+  avatarSm: 24,
+  /** Mascot in a horizontal brand line (setup). */
+  mascotSm: 56,
+  /** Mascot as the hero of an empty or loading screen. */
+  mascot: 128,
   hairline: StyleSheet.hairlineWidth,
   border: 1,
   focusRing: 2,

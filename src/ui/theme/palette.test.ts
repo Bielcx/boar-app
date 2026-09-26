@@ -68,6 +68,11 @@ describe.each(combos)("%s / %s", (id, mode) => {
     for (const [fg, bg] of pairs) expect(c(p, fg, bg), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("keeps primary and secondary text >= 4.5:1 on a selected option (accentSoft)", () => {
+    expect(c(p, "textPrimary", "accentSoft")).toBeGreaterThanOrEqual(4.5);
+    expect(c(p, "textSecondary", "accentSoft")).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("gives button labels >= 4.5:1 on accent, pressed and destructive fills", () => {
     expect(c(p, "onAccent", "accent")).toBeGreaterThanOrEqual(4.5);
     expect(c(p, "onAccent", "accentPressed")).toBeGreaterThanOrEqual(4.5);

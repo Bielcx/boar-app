@@ -17,24 +17,32 @@ export interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   /** Name of the group for screen readers, e.g. "Appearance". */
   label: string;
+  /** `compact`: a slimmer track for forms (segments keep a full touch target via hitSlop). */
+  size?: "regular" | "compact";
 }
+
+/** Compact segments are this much shorter than the touch minimum; hitSlop gives it back. */
+const COMPACT_INSET = 8;
 
 /**
  * 2-4 mutually exclusive options. Exposed as a radio group. Falls back to a
  * vertical list at large text sizes so long labels never truncate.
  */
-export function SegmentedControl<T extends string>({ options, value, onChange, label }: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({ options, value, onChange, label, size = "regular" }: SegmentedControlProps<T>) {
   const t = useTokens();
   const { fontScale } = useWindowDimensions();
   const vertical = fontScale >= 1.35;
+  const compact = size === "compact";
+  const inset = compact ? 2 : 3;
+  const slop = compact ? COMPACT_INSET / 2 : 0;
   return (
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
       style={{
         flexDirection: vertical ? "column" : "row",
-        padding: 3,
-        gap: 3,
+        padding: inset,
+        gap: inset,
         borderRadius: t.radius.full,
         backgroundColor: t.color.bg.sunken,
       }}
@@ -47,6 +55,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
             accessibilityRole="radio"
             accessibilityLabel={opt.label}
             accessibilityState={{ checked: selected, selected }}
+            hitSlop={{ top: slop, bottom: slop }}
             onPress={() => {
               if (selected) return;
               selection();
@@ -55,7 +64,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
             style={({ pressed }) => [
               {
                 flex: vertical ? undefined : 1,
-                minHeight: t.size.touch,
+                minHeight: compact ? t.size.touch - COMPACT_INSET : t.size.touch,
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: vertical ? "flex-start" : "center",
