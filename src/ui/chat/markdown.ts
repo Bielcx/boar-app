@@ -45,7 +45,8 @@ export function parseInline(text: string, sourceCount: number): Inline[] {
     if (inline.type === "text" && last?.type === "text") last.text += inline.text;
     else out.push(inline);
   };
-  const re = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)|(\[[\d,\s\-–]+\])/g;
+  // Group 5: a literal "[n]" some models copy from the prompt's citation instruction; it is dropped.
+  const re = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\*[^*\s][^*\n]*\*|_[^_\s][^_\n]*_)|(\[[\d,\s\-–]+\])|([ \t]*\[n\])/gi;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
@@ -54,7 +55,9 @@ export function parseInline(text: string, sourceCount: number): Inline[] {
     if (m[1]) push({ type: "code", text: tok.slice(1, -1) });
     else if (m[2]) push({ type: "bold", text: tok.slice(2, -2) });
     else if (m[3]) push({ type: "italic", text: tok.slice(1, -1) });
-    else {
+    else if (m[5]) {
+      // skip
+    } else {
       const nums = citationNumbers(tok.slice(1, -1), sourceCount);
       if (nums) nums.forEach((n) => push({ type: "cite", n }));
       else push({ type: "text", text: tok });
