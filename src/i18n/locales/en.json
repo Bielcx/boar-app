@@ -397,7 +397,8 @@
       "import": "Import",
       "indexed": "Indexed",
       "indexError": "Indexing failed: {{error}}",
-      "importCancelled": "Import cancelled"
+      "importCancelled": "Import cancelled",
+      "cancelImportA11y": "Cancel importing {{name}}"
     },
     "performance": {
       "provisional": "Speed ratings are provisional until they are measured on phones.",
@@ -547,7 +548,8 @@
       "include": "Include places for {{region}}",
       "reason": {
         "timezone": "Suggested from your phone's time zone.",
-        "location": "Suggested from your location."
+        "location": "Suggested from your location.",
+        "manual": "Chosen by you."
       },
       "noRegionHere": "No places pack covers your region yet.",
       "useLocation": "Use my location",
@@ -556,7 +558,9 @@
       "rationaleTitle": "Use your location?",
       "rationaleBody": "BOAR reads your position from the phone's GPS, which works without internet, to suggest places near you. It never leaves the phone.",
       "notNow": "Not now",
-      "continue": "Continue"
+      "continue": "Continue",
+      "openSettings": "Open app settings",
+      "otherRegion": "Choose another region"
     },
     "import": {
       "title": "Import files",
@@ -564,7 +568,8 @@
       "pick": "Choose files",
       "checking": "Checking {{name}}",
       "checkingValue": "Checking, {{pct}}%",
-      "verified": "Verified: {{item}}"
+      "verified": "Verified: {{item}}",
+      "checkingAnnounce": "{{name}}: {{pct}}% checked"
     }
   }
 }

@@ -397,7 +397,8 @@
       "import": "Importar",
       "indexed": "Indexada",
       "indexError": "A indexação falhou: {{error}}",
-      "importCancelled": "Importação cancelada"
+      "importCancelled": "Importação cancelada",
+      "cancelImportA11y": "Cancelar a importação de {{name}}"
     },
     "performance": {
       "provisional": "As faixas de velocidade são provisórias até serem medidas em celulares.",
@@ -547,7 +548,8 @@
       "include": "Incluir lugares de {{region}}",
       "reason": {
         "timezone": "Sugerido pelo fuso horário do celular.",
-        "location": "Sugerido pela sua localização."
+        "location": "Sugerido pela sua localização.",
+        "manual": "Escolhida por você."
       },
       "noRegionHere": "Ainda não há pacote de lugares para a sua região.",
       "useLocation": "Usar minha localização",
@@ -556,7 +558,9 @@
       "rationaleTitle": "Usar sua localização?",
       "rationaleBody": "O BOAR lê sua posição pelo GPS do celular, que funciona sem internet, para sugerir lugares perto de você. Ela nunca sai do celular.",
       "notNow": "Agora não",
-      "continue": "Continuar"
+      "continue": "Continuar",
+      "openSettings": "Abrir ajustes do app",
+      "otherRegion": "Escolher outra região"
     },
     "import": {
       "title": "Importar arquivos",
@@ -564,7 +568,8 @@
       "pick": "Escolher arquivos",
       "checking": "Conferindo {{name}}",
       "checkingValue": "Conferindo, {{pct}}%",
-      "verified": "Verificado: {{item}}"
+      "verified": "Verificado: {{item}}",
+      "checkingAnnounce": "{{name}}: {{pct}}% conferido"
     }
   }
 }
