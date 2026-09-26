@@ -103,7 +103,7 @@ describe("answerReducer", () => {
       { answerId: "a1", type: "done", tier: "instant", outcome: "success", receipt: receipt({ modelId: "extractive", tokens: 0 }) },
     ]);
     expect(state.instant?.confidence).toBe(0.92);
-    expect(state.extractiveReceipt?.modelId).toBe("extractive");
+    expect(state.instantDone?.receipt.modelId).toBe("extractive");
     expect(state.fast).toBeUndefined();
     expect(answerPhase(state)).toBe("done");
   });
@@ -130,6 +130,36 @@ describe("answerReducer", () => {
     expect(answerPhase(deepening)).toBe("synthesizing");
     expect(deepening.deep?.detail).toEqual({ index: 1, count: 3 });
     expect(deepening.fast?.text).toBe("Short answer.");
+  });
+
+  it("keeps a places answer as sent, with the location status", () => {
+    const place = { id: "osm:node/1", name: "Mão Verde", lat: 1, lon: 2, source: "osm" as const };
+    const state = run([
+      { answerId: "a1", type: "stage", stage: "retrieving", tier: "instant", at: 0 },
+      { answerId: "a1", type: "location", status: "granted", accuracyM: 12 },
+      {
+        answerId: "a1",
+        type: "places",
+        tier: "instant",
+        places: [place],
+        area: { kind: "near", radiusM: 2000 },
+        criterion: "diet_match",
+        coverage: "ok",
+        attribution: [{ source: "osm", date: "2026-08", license: "ODbL" }],
+      },
+      { answerId: "a1", type: "done", tier: "instant", outcome: "success", receipt: receipt({ modelId: "places", tokens: 0 }) },
+    ]);
+    expect(state.location).toEqual({ status: "granted", accuracyM: 12, ageS: undefined });
+    expect(state.places?.places).toEqual([place]);
+    expect(state.places?.criterion).toBe("diet_match");
+    expect(answerPhase(state)).toBe("done");
+  });
+
+  it("reports an instant-tier error", () => {
+    const state = run([
+      { answerId: "a1", type: "done", tier: "instant", outcome: "error", receipt: receipt(), error: { code: "unknown", message: "x" } },
+    ]);
+    expect(answerPhase(state)).toBe("error");
   });
 
   it("flags a model whose weights stream from storage", () => {

@@ -45,6 +45,12 @@ export function phaseAnnouncement(
     case "generating":
       return { message: t("chat.announce.answering") };
     case "done":
+      if (state.places) {
+        const count = state.places.coverage === "ok" ? state.places.places.length : 0;
+        return state.places.coverage === "needs_place"
+          ? { message: t("chat.places.whichCity") }
+          : { message: t("chat.announce.placesFound", { count }) };
+      }
       return { message: t("chat.announce.ready", { count: state.sources.length }) };
     case "stopped":
       return { message: t("chat.announce.stopped") };
@@ -58,15 +64,21 @@ export function phaseAnnouncement(
   }
 }
 
-/** "Qwen3 4B · 14.8 tok/s · started in 2.1 s · 6.2 s" (or the source-passage form). */
+export const PLACES_MODEL_ID = "places";
+
+/**
+ * Total time first, since that's what a person compares: "Answered in 6.2 s ·
+ * Qwen3 4B · 14.8 tok/s · started in 2.1 s · offline". The source-passage and
+ * offline-map answers name their source instead of a model.
+ */
 export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
-  if (r.modelId === EXTRACTIVE_MODEL_ID) {
-    return [t("chat.receipt.sourcePassage"), formatSeconds(r.totalMs, locale), t("chat.receipt.offline")].join(" · ");
-  }
-  const parts = [r.modelLabel || t("chat.receipt.localModel")];
+  const total = t("chat.receipt.answeredIn", { time: formatSeconds(r.totalMs, locale) });
+  if (r.modelId === EXTRACTIVE_MODEL_ID) return [total, t("chat.receipt.sourcePassage"), t("chat.receipt.offline")].join(" · ");
+  if (r.modelId === PLACES_MODEL_ID) return [total, t("chat.receipt.offlineMap"), t("chat.receipt.offline")].join(" · ");
+  const parts = [total, r.modelLabel || t("chat.receipt.localModel")];
   if (r.tokPerSec > 0) parts.push(`${formatTokPerSec(r.tokPerSec, locale)} tok/s`);
   if (r.ttftMs > 0) parts.push(t("chat.receipt.started", { time: formatSeconds(r.ttftMs, locale) }));
-  parts.push(formatSeconds(r.totalMs, locale), t("chat.receipt.offline"));
+  parts.push(t("chat.receipt.offline"));
   return parts.join(" · ");
 }
 

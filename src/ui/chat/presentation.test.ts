@@ -42,24 +42,44 @@ describe("phaseAnnouncement", () => {
     expect(phaseAnnouncement("error", state, t)).toEqual({ message: "chat.error.generic", assertive: true });
     expect(phaseAnnouncement("reading", state, t)).toBeNull();
   });
+
+  it("announces how many places were found, or asks for the city", () => {
+    const places = (coverage: "ok" | "none" | "needs_place", n: number): AnswerState => ({
+      answerIds: ["a"],
+      sources: [],
+      places: {
+        places: Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}`, lat: 0, lon: 0, source: "osm" as const })),
+        area: { kind: "city", label: "Lisboa" },
+        criterion: "diet_match",
+        coverage,
+        attribution: [],
+      },
+    });
+    expect(phaseAnnouncement("done", places("ok", 4), t)).toEqual({ message: 'chat.announce.placesFound{"count":4}' });
+    expect(phaseAnnouncement("done", places("none", 0), t)).toEqual({ message: 'chat.announce.placesFound{"count":0}' });
+    expect(phaseAnnouncement("done", places("needs_place", 0), t)).toEqual({ message: "chat.places.whichCity" });
+  });
 });
 
 describe("receiptLine", () => {
   it("lists model, speed, time to first token and total", () => {
     expect(receiptLine(receipt, "pt-BR", t)).toBe(
-      'Qwen3 4B · 14,8 tok/s · chat.receipt.started{"time":"2,1 s"} · 6,2 s · chat.receipt.offline'
+      'chat.receipt.answeredIn{"time":"6,2 s"} · Qwen3 4B · 14,8 tok/s · chat.receipt.started{"time":"2,1 s"} · chat.receipt.offline'
     );
   });
 
   it("uses the source-passage form for extractive answers", () => {
     expect(receiptLine({ ...receipt, modelId: "extractive", tokens: 0, totalMs: 400 }, "en-US", t)).toBe(
-      "chat.receipt.sourcePassage · 0.4 s · chat.receipt.offline"
+      'chat.receipt.answeredIn{"time":"0.4 s"} · chat.receipt.sourcePassage · chat.receipt.offline'
+    );
+    expect(receiptLine({ ...receipt, modelId: "places", tokens: 0, totalMs: 300 }, "en-US", t)).toBe(
+      'chat.receipt.answeredIn{"time":"0.3 s"} · chat.receipt.offlineMap · chat.receipt.offline'
     );
   });
 
   it("omits speed when nothing was generated", () => {
     expect(receiptLine({ ...receipt, tokens: 0, tokPerSec: 0, ttftMs: 0 }, "en-US", t)).toBe(
-      "Qwen3 4B · 6.2 s · chat.receipt.offline"
+      'chat.receipt.answeredIn{"time":"6.2 s"} · Qwen3 4B · chat.receipt.offline'
     );
   });
 });

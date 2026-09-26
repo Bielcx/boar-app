@@ -10,6 +10,7 @@ import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, type AnswerState, type TierState } from "./answerReducer";
 import { receiptDetails, receiptLine, stageLine } from "./presentation";
 import { formatSeconds } from "./shareFormat";
+import { PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 
 export interface AssistantMessageProps {
@@ -29,6 +30,10 @@ export interface AssistantMessageProps {
   onCopy: () => void;
   onShare: () => void;
   onCopyReceipt: (text: string) => void;
+  /** Places answers: re-ask for a typed city, or with the device position. */
+  onCity: (city: string) => void;
+  onUseLocation?: () => void;
+  onGetMap?: () => void;
 }
 
 function useElapsedSeconds(running: boolean): number {
@@ -42,13 +47,26 @@ function useElapsedSeconds(running: boolean): number {
   return seconds;
 }
 
-function Stage({ label }: { label: string }) {
+/** What the answer is doing, with the seconds since it started (visual only; the reader hears stage changes). */
+function Stage({ label, locale }: { label: string; locale: string }) {
   const t = useTokens();
+  const seconds = useElapsedSeconds(true);
   return (
     <View style={{ gap: t.space.sm, paddingVertical: t.space.xs }}>
-      <Text variant="callout" color="secondary">
-        {label}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.sm }}>
+        <Text variant="callout" color="secondary" style={{ flex: 1 }}>
+          {label}
+        </Text>
+        <Text
+          variant="footnote"
+          color="tertiary"
+          numeric
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          {formatSeconds(seconds * 1000, locale)}
+        </Text>
+      </View>
       <Progress label={label} tone="field" height={3} />
     </View>
   );
@@ -284,10 +302,12 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const { t: tr } = useTranslation();
   const phase = answerPhase(answer);
   const sourceTitles = answer.sources.map((s) => s.title);
-  const extractiveOnly = !!answer.extractiveReceipt && !answer.fast;
+  const placesOnly = !!answer.places && !answer.fast;
+  const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
+  const instantOnly = !!answer.instantDone && !answer.fast;
   const lastTier = answer.deep ?? answer.fast;
-  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant);
-  const done = !active && (lastTier?.outcome || extractiveOnly);
+  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.places?.places.length);
+  const done = !active && (lastTier?.outcome || instantOnly);
   const stage = active ? (stopping ? tr("chat.stage.stopping") : stageLine(answer, tr)) : null;
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
@@ -296,12 +316,23 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
 
+      {answer.places && (
+        <PlacesCard
+          answer={answer}
+          locale={locale}
+          onOpenSource={onOpenSource}
+          onCity={props.onCity}
+          onUseLocation={props.onUseLocation}
+          onGetMap={props.onGetMap}
+        />
+      )}
+
       {answer.instant && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
 
       {answer.fast && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}
-      {!answer.deep && stage && <Stage label={stage} />}
+      {!answer.deep && stage && <Stage label={stage} locale={locale} />}
       <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
       {answer.fast?.receipt && (
         <Receipt receipt={answer.fast.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
@@ -313,7 +344,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.deep.title")}
           </Text>
           <TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
-          {stage && <Stage label={stage} />}
+          {stage && <Stage label={stage} locale={locale} />}
           <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
           {answer.deep.receipt && (
             <Receipt receipt={answer.deep.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
@@ -321,11 +352,23 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         </View>
       )}
 
-      {extractiveOnly && answer.extractiveReceipt && (
-        <Receipt receipt={answer.extractiveReceipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
+      {instantOnly && answer.instantDone && answer.instantDone.outcome !== "success" && (
+        <Banner
+          tone={answer.instantDone.outcome === "error" ? "danger" : "info"}
+          message={
+            answer.instantDone.outcome === "error"
+              ? tr(`chat.error.${answer.instantDone.error?.code ?? "generic"}`)
+              : tr(`chat.notice.${answer.instantDone.outcome}`)
+          }
+          actionLabel={answer.instantDone.outcome === "stopped" ? undefined : tr("chat.actions.retry")}
+          onAction={props.onRetry}
+        />
+      )}
+      {instantOnly && answer.instantDone && (
+        <Receipt receipt={answer.instantDone.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
       )}
 
-      {answer.sources.length > 0 && <SourceStrip answer={answer} onOpenSource={onOpenSource} />}
+      {answer.sources.length > 0 && !placesOnly && <SourceStrip answer={answer} onOpenSource={onOpenSource} />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginLeft: -t.space.sm }}>
