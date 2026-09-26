@@ -49,7 +49,6 @@ import { EvaluationScreen } from "./EvaluationScreen";
 import { takePendingEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { ChatHeader } from "./ChatHeader";
-import { ModelLoadErrorCard } from "./components/ModelLoadErrorCard";
 import { Banner, Button, IconButton, Progress, Screen, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
 import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./chat/answerApi";
@@ -60,7 +59,7 @@ import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type Cha
 import { phaseAnnouncement } from "./chat/presentation";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { AssistantMessage } from "./chat/AssistantMessage";
-import { ChatEmptyState, SourceSheet, UserMessage } from "./chat/ChatPieces";
+import { ChatEmptyState, ChatModelError, ChatModelLoading, SourceSheet, UserMessage } from "./chat/ChatPieces";
 import { Composer } from "./chat/Composer";
 import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
@@ -689,14 +688,17 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         onNewChat={resetToNewChat}
       />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        {loadError ? (
-          <View style={{ padding: tk.space.base }}>
-            <ModelLoadErrorCard error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+        {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
+        {items.length > 0 && loadError ? (
+          <View style={{ paddingHorizontal: tk.space.lg }}>
+            <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
           </View>
-        ) : !ready ? (
-          <View style={{ padding: tk.space.base, gap: tk.space.sm }}>
-            <Banner tone="info" icon="cpu" message={loadStatus.label} />
-            <Progress label={loadStatus.label} value={loadStatus.progress} tone="field" height={3} />
+        ) : items.length > 0 && !ready ? (
+          <View style={{ paddingHorizontal: tk.space.lg, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
+            <Text variant="footnote" color="secondary">
+              {loadStatus.label}
+            </Text>
+            <Progress label={loadStatus.label} value={loadStatus.progress} tone="field" height={tk.space.xs} />
           </View>
         ) : null}
 
@@ -707,11 +709,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           extraData={renderItem}
-          contentContainerStyle={{ padding: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: tk.space.lg, paddingVertical: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            ready ? (
+            loadError ? (
+              <ChatModelError error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+            ) : !ready ? (
+              <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
+            ) : (
               <ChatEmptyState
                 suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language) : []}
                 onAsk={ask}
@@ -720,7 +726,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
                   inputRef.current?.focus();
                 }}
               />
-            ) : null
+            )
           }
           // Snap while streaming (animations started on every token fight each other); animate otherwise.
           onContentSizeChange={() => {

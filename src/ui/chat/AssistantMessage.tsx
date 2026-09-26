@@ -1,14 +1,14 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Image, Pressable, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, Card, Icon, IconButton, Progress, Text } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, Text } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, type AnswerState, type TierState } from "./answerReducer";
-import { receiptDetails, receiptLine, stageLine } from "./presentation";
+import { receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
 import { formatSeconds } from "./shareFormat";
 import { PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -48,46 +48,42 @@ function useElapsedSeconds(running: boolean): number {
 }
 
 /**
- * What the answer is doing: earlier steps checked off above the current one,
- * with the seconds since it started (visual only; the reader hears stage changes).
+ * What the answer is doing, as the mockup's step list: earlier steps checked
+ * off above the current one, which spins. Visual only; the reader hears stage
+ * changes through the screen's announcer.
  */
-function Stage({ label, locale }: { label: string; locale: string }) {
+function Stage({ label }: { label: string }) {
   const t = useTokens();
-  const seconds = useElapsedSeconds(true);
   const trail = useRef<string[]>([]);
   if (trail.current[trail.current.length - 1] !== label) trail.current = [...trail.current.filter((l) => l !== label), label];
   const done = trail.current.slice(0, -1);
   return (
-    <View style={{ gap: t.space.xs, paddingVertical: t.space.xs }}>
+    <Card padding="sm" style={{ gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       {done.map((l) => (
-        <View
-          key={l}
-          style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-        >
-          <Icon name="check" size={14} color={t.color.text.field} />
-          <Text variant="footnote" color="tertiary">
+        <View key={l} style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+          <Icon name="check" size="sm" color={t.color.text.field} />
+          <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
             {l}
           </Text>
         </View>
       ))}
-      <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.sm }}>
-        <Text variant="callout" color="secondary" style={{ flex: 1 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+        <ActivityIndicator size="small" color={t.color.field.solid} />
+        <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
           {label}
         </Text>
-        <Text
-          variant="footnote"
-          color="tertiary"
-          numeric
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-        >
-          {formatSeconds(seconds * 1000, locale)}
-        </Text>
       </View>
-      <Progress label={label} tone="field" height={3} />
-    </View>
+    </Card>
+  );
+}
+
+/** Seconds since the answer started, next to the name while it runs (the receipt takes its place when done). */
+function Elapsed({ locale }: { locale: string }) {
+  const seconds = useElapsedSeconds(true);
+  return (
+    <Text variant="mono" color="secondary" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      {formatSeconds(seconds * 1000, locale)}
+    </Text>
   );
 }
 
@@ -161,6 +157,67 @@ function TierBody({
   );
 }
 
+/**
+ * The measured receipt: a short numbers-only line ("1.4 s · 16 tok/s") that
+ * sits by the name and opens the full measurement below the header row.
+ */
+function useReceipt(receipt: AnswerReceipt | undefined, locale: string) {
+  const { t: tr } = useTranslation();
+  const [open, setOpen] = useState(false);
+  if (!receipt) return null;
+  return {
+    open,
+    toggle: () => setOpen((o) => !o),
+    short: receiptShort(receipt, locale),
+    line: receiptLine(receipt, locale, tr),
+    details: receiptDetails(receipt, locale, tr),
+  };
+}
+
+function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean }) {
+  const { t: tr } = useTranslation();
+  return (
+    <Pressable
+      onPress={r.toggle}
+      accessibilityRole="button"
+      accessibilityLabel={`${tr("chat.receipt.details")}: ${r.line}`}
+      accessibilityState={{ expanded: r.open }}
+      importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
+      accessibilityElementsHidden={hidden}
+      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+    >
+      <Text variant="mono" color="secondary">
+        {r.short}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ReceiptDetails({ r, onCopy }: { r: NonNullable<ReturnType<typeof useReceipt>>; onCopy: (text: string) => void }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  if (!r.open) return null;
+  const rows = [r.line, ...r.details.map((d) => `${d.label}: ${d.value}`)];
+  return (
+    <View style={{ gap: t.space.xxs, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.surface }}>
+      {rows.map((row) => (
+        <Text key={row} variant="mono" color="secondary">
+          {row}
+        </Text>
+      ))}
+      <Button
+        label={tr("chat.receipt.copy")}
+        variant="ghost"
+        size="sm"
+        icon="copy"
+        style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
+        onPress={() => onCopy(rows.join("\n"))}
+      />
+    </View>
+  );
+}
+
+/** A small receipt line for the deep tier, which has its own section. */
 function Receipt({
   receipt,
   locale,
@@ -173,105 +230,104 @@ function Receipt({
   onCopy: (text: string) => void;
 }) {
   const t = useTokens();
-  const { t: tr } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const line = receiptLine(receipt, locale, tr);
-  const details = receiptDetails(receipt, locale, tr);
+  const r = useReceipt(receipt, locale)!;
   return (
-    <View
-      importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
-      accessibilityElementsHidden={hidden}
-      style={{ gap: t.space.xs }}
-    >
-      <Pressable
-        onPress={() => setOpen((o) => !o)}
-        accessibilityRole="button"
-        accessibilityLabel={`${tr("chat.receipt.details")}: ${line}`}
-        accessibilityState={{ expanded: open }}
-        hitSlop={{ top: 12, bottom: 12 }}
-      >
-        <Text variant="caption" color="tertiary" numeric>
-          {line}
-        </Text>
-      </Pressable>
-      {open && (
-        <View style={{ gap: t.space.xxs }}>
-          {details.map((d) => (
-            <Text key={d.label} variant="caption" color="tertiary" numeric>
-              {`${d.label}: ${d.value}`}
-            </Text>
-          ))}
-          <Button
-            label={tr("chat.receipt.copy")}
-            variant="ghost"
-            size="sm"
-            icon="copy"
-            style={{ alignSelf: "flex-start" }}
-            onPress={() => onCopy([line, ...details.map((d) => `${d.label}: ${d.value}`)].join("\n"))}
-          />
-        </View>
-      )}
+    <View style={{ gap: t.space.xs }}>
+      <ReceiptToggle r={r} hidden={hidden} />
+      <ReceiptDetails r={r} onCopy={onCopy} />
     </View>
   );
 }
 
-/** The answer's sources as numbered rows; each opens the passage it came from. */
+/**
+ * The answer's sources as the mockup's card: a header with the count, then
+ * numbered rows that expand in place into a well with where the passage comes
+ * from and its first lines. The full passage opens in the source sheet.
+ */
 function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
+  const [expanded, setExpanded] = useState<number | null>(null);
   return (
-    <View style={{ gap: t.space.xs }}>
-      <Text variant="label" color="field" header>
-        {tr("chat.sources.title", { count: answer.sources.length })}
-      </Text>
-      <Card padding="none" style={{ overflow: "hidden" }}>
-        {answer.sources.map((s, i) => (
-          <Pressable
+    <Card padding="sm" style={{ gap: t.space.xs }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingHorizontal: t.space.xs }}>
+        <Icon name="book-open" size="sm" color={t.color.text.field} />
+        <Text variant="label" color="field" header style={{ flex: 1 }}>
+          {tr("chat.sources.heading")}
+        </Text>
+        <Badge label={String(answer.sources.length)} tone="field" />
+      </View>
+      {answer.sources.map((s, i) => {
+        const open = expanded === i;
+        const origin = s.collectionId ? tr("chat.sources.myDocuments") : s.source || tr("chat.sources.corpus");
+        return (
+          <View
             key={s.chunkId}
-            onPress={() => onOpenSource(i)}
-            accessibilityRole="button"
-            accessibilityLabel={tr("chat.sources.chip", { n: i + 1, title: s.title })}
-            accessibilityHint={tr("chat.sources.openHint")}
-            style={({ pressed }) => ({
-              flexDirection: "row",
-              alignItems: "center",
-              gap: t.space.md,
-              minHeight: t.size.touch,
-              paddingHorizontal: t.space.md,
-              paddingVertical: t.space.sm,
-              borderTopWidth: i === 0 ? 0 : t.size.hairline,
-              borderTopColor: t.color.line.hairline,
-              backgroundColor: pressed ? t.color.bg.sunken : undefined,
-            })}
+            style={{
+              borderRadius: t.radius.md,
+              borderWidth: t.size.border,
+              borderColor: open ? t.color.field.solid : "transparent",
+              backgroundColor: open ? t.color.bg.raised : undefined,
+            }}
           >
-            <View
-              style={{
-                minWidth: t.size.iconLg,
-                minHeight: t.size.iconLg,
-                paddingHorizontal: t.space.xs,
-                borderRadius: t.radius.full,
+            <Pressable
+              onPress={() => setExpanded(open ? null : i)}
+              accessibilityRole="button"
+              accessibilityLabel={tr("chat.sources.chip", { n: i + 1, title: s.title })}
+              accessibilityHint={tr("chat.sources.expandHint")}
+              accessibilityState={{ expanded: open }}
+              style={({ pressed }) => ({
+                flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: t.color.field.soft,
-              }}
+                gap: t.space.sm,
+                minHeight: t.size.touch,
+                paddingHorizontal: t.space.sm,
+                borderRadius: t.radius.md,
+                backgroundColor: pressed ? t.color.bg.sunken : undefined,
+              })}
             >
-              <Text variant="caption" color="field" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
-                {i + 1}
-              </Text>
-            </View>
-            <View style={{ flex: 1, gap: t.space.xxs }}>
-              <Text variant="subhead" numberOfLines={2}>
+              <View
+                style={{
+                  minWidth: t.size.iconLg,
+                  minHeight: t.size.iconLg,
+                  paddingHorizontal: t.space.xs,
+                  borderRadius: t.radius.full,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: t.color.field.soft,
+                }}
+              >
+                <Text variant="caption" color="field" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
+                  {i + 1}
+                </Text>
+              </View>
+              <Text variant="subhead" numberOfLines={open ? undefined : 1} style={{ flex: 1 }}>
                 {s.title}
               </Text>
-              <Text variant="caption" color="tertiary" numberOfLines={1}>
-                {s.collectionId ? tr("chat.sources.myDocuments") : s.source || tr("chat.sources.corpus")}
-              </Text>
-            </View>
-            <Icon name="chevron-right" size="sm" color={t.color.text.tertiary} />
-          </Pressable>
-        ))}
-      </Card>
-    </View>
+              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+            </Pressable>
+            {open && (
+              <View style={{ gap: t.space.xs, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
+                <Text variant="label" color="field" numberOfLines={1}>
+                  {origin}
+                </Text>
+                <Text variant="footnote" numberOfLines={4}>
+                  {s.body}
+                </Text>
+                <Button
+                  label={tr("chat.sources.fullPassage")}
+                  variant="ghost"
+                  size="sm"
+                  icon="maximize-2"
+                  style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
+                  onPress={() => onOpenSource(i)}
+                />
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </Card>
   );
 }
 
@@ -367,21 +423,35 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
+  const receipt = useReceipt(topReceipt, locale);
   return (
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
-      <View style={{ gap: t.space.xxs }}>
+      <View style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Image
-            source={require("../../../assets/boar.png")}
-            style={{ width: 22, height: 22 }}
-            accessibilityIgnoresInvertColors
-            importantForAccessibility="no"
-          />
-          <Text variant="headline" color="accent">
+          <View
+            style={{
+              width: t.space.xxl,
+              height: t.space.xxl,
+              borderRadius: t.radius.full,
+              backgroundColor: t.color.bg.surface,
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            <Image
+              source={require("../../../assets/boar.png")}
+              style={{ width: t.space.xl, height: t.space.xl }}
+              accessibilityIgnoresInvertColors
+              importantForAccessibility="no"
+            />
+          </View>
+          <Text variant="headline" style={{ flexShrink: 1 }}>
             {tr("chat.assistantName")}
           </Text>
+          {active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
-        {topReceipt && <Receipt receipt={topReceipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />}
+        {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
 
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
@@ -402,7 +472,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {answer.fast && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}
-      {!answer.deep && stage && <Stage label={stage} locale={locale} />}
+      {!answer.deep && stage && <Stage label={stage} />}
       <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
 
       {answer.deep && (
@@ -411,7 +481,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.deep.title")}
           </Text>
           <TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
-          {stage && <Stage label={stage} locale={locale} />}
+          {stage && <Stage label={stage} />}
           <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
           {answer.deep.receipt && (
             <Receipt receipt={answer.deep.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
@@ -436,9 +506,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {answer.sources.length > 0 && !placesOnly && <SourceList answer={answer} onOpenSource={onOpenSource} />}
 
       {done && hasText && (
-        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginLeft: -t.space.sm }}>
-          <IconButton icon="copy" label={tr("chat.actions.copy")} onPress={props.onCopy} />
-          <IconButton icon="share-2" label={tr("chat.actions.share")} onPress={props.onShare} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, marginLeft: -t.space.sm }}>
           <IconButton
             icon="thumbs-up"
             label={tr("chat.actions.helpful")}
@@ -453,6 +521,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             accessibilityState={{ selected: feedback === "down" }}
             onPress={() => props.onRate("down")}
           />
+          <View style={{ flex: 1 }} />
+          <IconButton icon="share-2" label={tr("chat.actions.share")} onPress={props.onShare} />
+          <Button label={tr("chat.actions.copyAnswer")} variant="secondary" size="sm" icon="copy" onPress={props.onCopy} />
         </View>
       )}
 

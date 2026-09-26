@@ -520,7 +520,10 @@
       "copyPassage": "Copy passage",
       "passageCopied": "Passage copied",
       "sheetTitle": "Source {{n}}",
-      "openHint": "Opens the passage"
+      "openHint": "Opens the passage",
+      "heading": "Sources on this phone",
+      "expandHint": "Shows where the passage comes from",
+      "fullPassage": "Full passage"
     },
     "receipt": {
       "sourcePassage": "Source passage",
@@ -558,7 +561,8 @@
       "retry": "Try again",
       "copyQuestion": "Copy question",
       "editQuestion": "Edit and resend",
-      "questionCopied": "Question copied"
+      "questionCopied": "Question copied",
+      "copyAnswer": "Copy answer"
     },
     "deep": {
       "title": "Deeper answer",
@@ -598,7 +602,8 @@
       "body": "Answers come from the model and library on this phone, with sources.",
       "suggestionsLabel": "Try asking",
       "ask": "Ask: {{question}}",
-      "fill": "Put in the input to edit"
+      "fill": "Put in the input to edit",
+      "tagline": "Answers from this phone, with sources"
     },
     "suggestions": {
       "q1": "Why do we have seasons on Earth?",
@@ -733,6 +738,37 @@
       "searchHint": "Type a city first",
       "dietToVerify": "OSM diet tag to double-check"
     },
-    "assistantName": "boar"
+    "assistantName": "boar",
+    "suggestionTopics": {
+      "q1": "Science",
+      "q2": "Health",
+      "q3": "Quick math",
+      "q4": "First aid"
+    },
+    "modelError": {
+      "overline": "Action needed",
+      "settings": "Settings",
+      "setup": "Set up the model",
+      "memory": {
+        "title": "Not enough memory",
+        "body": "This phone didn’t have enough free memory to open the model.",
+        "hint": "Close other apps and try again, or pick a smaller model in setup."
+      },
+      "corrupt": {
+        "title": "The model file is damaged",
+        "body": "The model file on this phone is incomplete or changed since it was installed.",
+        "hint": "Install the model again from setup."
+      },
+      "missing": {
+        "title": "The model file is missing",
+        "body": "The model chosen for this chat is not on this phone anymore.",
+        "hint": "Install or import a model in setup."
+      },
+      "general": {
+        "title": "The model didn’t start",
+        "body": "The engine couldn’t open the model.",
+        "hint": "Try again. If it keeps failing, check the model in Settings or run setup again."
+      }
+    }
   }
 }

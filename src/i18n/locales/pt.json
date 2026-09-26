@@ -520,7 +520,10 @@
       "copyPassage": "Copiar trecho",
       "passageCopied": "Trecho copiado",
       "sheetTitle": "Fonte {{n}}",
-      "openHint": "Abre o trecho"
+      "openHint": "Abre o trecho",
+      "heading": "Fontes deste celular",
+      "expandHint": "Mostra de onde vem o trecho",
+      "fullPassage": "Trecho completo"
     },
     "receipt": {
       "sourcePassage": "Trecho da fonte",
@@ -558,7 +561,8 @@
       "retry": "Tentar de novo",
       "copyQuestion": "Copiar pergunta",
       "editQuestion": "Editar e reenviar",
-      "questionCopied": "Pergunta copiada"
+      "questionCopied": "Pergunta copiada",
+      "copyAnswer": "Copiar resposta"
     },
     "deep": {
       "title": "Resposta aprofundada",
@@ -598,7 +602,8 @@
       "body": "As respostas vêm do modelo e da biblioteca deste celular, com fontes.",
       "suggestionsLabel": "Experimente perguntar",
       "ask": "Perguntar: {{question}}",
-      "fill": "Colocar no campo para editar"
+      "fill": "Colocar no campo para editar",
+      "tagline": "Respostas deste celular, com fontes"
     },
     "suggestions": {
       "q1": "Por que existem estações do ano na Terra?",
@@ -733,6 +738,37 @@
       "searchHint": "Digite uma cidade primeiro",
       "dietToVerify": "Etiqueta de dieta do OSM a conferir"
     },
-    "assistantName": "boar"
+    "assistantName": "boar",
+    "suggestionTopics": {
+      "q1": "Ciência",
+      "q2": "Saúde",
+      "q3": "Conta rápida",
+      "q4": "Primeiros socorros"
+    },
+    "modelError": {
+      "overline": "Ação necessária",
+      "settings": "Ajustes",
+      "setup": "Configurar o modelo",
+      "memory": {
+        "title": "Memória insuficiente",
+        "body": "Este celular não tinha memória livre suficiente para abrir o modelo.",
+        "hint": "Feche outros apps e tente de novo, ou escolha um modelo menor na configuração."
+      },
+      "corrupt": {
+        "title": "O arquivo do modelo está danificado",
+        "body": "O arquivo do modelo neste celular está incompleto ou mudou desde a instalação.",
+        "hint": "Instale o modelo de novo pela configuração."
+      },
+      "missing": {
+        "title": "O arquivo do modelo sumiu",
+        "body": "O modelo escolhido para este chat não está mais neste celular.",
+        "hint": "Instale ou importe um modelo na configuração."
+      },
+      "general": {
+        "title": "O modelo não iniciou",
+        "body": "O motor não conseguiu abrir o modelo.",
+        "hint": "Tente de novo. Se continuar falhando, confira o modelo em Ajustes ou refaça a configuração."
+      }
+    }
   }
 }
