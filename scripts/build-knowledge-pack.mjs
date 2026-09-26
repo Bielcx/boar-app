@@ -8,20 +8,14 @@
 //   node scripts/build-knowledge-pack.mjs --titles my.txt     # your own list, one title per line
 //
 // Every step is cached under build/knowledge-pack/<id>/, so an interrupted run resumes.
-import { createHash } from "node:crypto";
-import { createReadStream, existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync, rmSync, statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join, resolve } from "node:path";
 import { chunkIntro, cleanIntro, parseArgs, quantizeInt8, USAGE, vitalListPages } from "./lib/knowledge-pack-lib.mjs";
+import { EMBEDDING_MODEL, embedChunks, ensureEmbeddingModel, sha256File } from "./lib/embedding.mjs";
 
 const WIKI_API = "https://en.wikipedia.org/w/api.php";
 const USER_AGENT = "BOAR-knowledge-pack-builder/1.0 (https://github.com/rferrari/boar-app)";
-const EMBEDDING_MODEL = {
-  path: "assets/models/embedding.gguf",
-  url: "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf",
-  sha256: "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
-};
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (msg) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
 
@@ -106,69 +100,6 @@ async function fetchIntros(titles, cacheFile) {
     for (const p of JSON.parse(line).pages) byId.set(p.pageid, p);
   }
   return [...byId.values()].sort((a, b) => a.pageid - b.pageid);
-}
-
-async function ensureEmbeddingModel() {
-  if (!existsSync(EMBEDDING_MODEL.path)) {
-    log(`downloading the embedding model to ${EMBEDDING_MODEL.path}`);
-    mkdirSync(dirname(EMBEDDING_MODEL.path), { recursive: true });
-    const res = await fetch(EMBEDDING_MODEL.url);
-    if (!res.ok) throw new Error(`embedding model download failed: HTTP ${res.status}`);
-    writeFileSync(EMBEDDING_MODEL.path, Buffer.from(await res.arrayBuffer()));
-  }
-  const sha = await sha256File(EMBEDDING_MODEL.path);
-  if (sha !== EMBEDDING_MODEL.sha256) {
-    throw new Error(`${EMBEDDING_MODEL.path} doesn't match the app's embedding model (sha256 ${sha}); packs must use the same model`);
-  }
-}
-
-function sha256File(path) {
-  return new Promise((ok, fail) => {
-    const h = createHash("sha256");
-    createReadStream(path).on("data", (d) => h.update(d)).on("end", () => ok(h.digest("hex"))).on("error", fail);
-  });
-}
-
-async function embedChunks(chunks, cacheFile, threads) {
-  // Cache: raw float32 vectors appended in chunk order.
-  const dims = 384;
-  const have = existsSync(cacheFile) ? Math.floor(statSync(cacheFile).size / (dims * 4)) : 0;
-  log(`embeddings: ${have} cached, ${chunks.length - have} to compute`);
-  if (have < chunks.length) {
-    const { getLlama } = await import("node-llama-cpp");
-    const llama = await getLlama({ gpu: false });
-    const model = await llama.loadModel({ modelPath: EMBEDDING_MODEL.path });
-    const contexts = await Promise.all(
-      Array.from({ length: threads }, () => model.createEmbeddingContext({ contextSize: 512, threads: 2 }))
-    );
-    const start = Date.now();
-    for (let i = have; i < chunks.length; i += threads * 16) {
-      const group = chunks.slice(i, i + threads * 16);
-      const vectors = new Array(group.length);
-      await Promise.all(
-        contexts.map(async (ctx, w) => {
-          for (let j = w; j < group.length; j += threads) {
-            vectors[j] = (await ctx.getEmbeddingFor(`${group[j].title}\n${group[j].body}`)).vector;
-          }
-        })
-      );
-      const buf = Buffer.alloc(group.length * dims * 4);
-      vectors.forEach((v, j) => {
-        if (v.length !== dims) throw new Error(`expected ${dims} dims, got ${v.length}`);
-        Float32Array.from(v).forEach((x, k) => buf.writeFloatLE(x, (j * dims + k) * 4));
-      });
-      appendFileSync(cacheFile, buf);
-      const doneNow = i + group.length;
-      if (Math.floor(doneNow / 2000) > Math.floor(i / 2000)) {
-        const rate = (doneNow - have) / ((Date.now() - start) / 1000);
-        log(`embeddings: ${doneNow}/${chunks.length} (${rate.toFixed(0)}/s, ~${Math.round((chunks.length - doneNow) / rate / 60)} min left)`);
-      }
-    }
-    await Promise.all(contexts.map((c) => c.dispose()));
-    await model.dispose();
-  }
-  const raw = readFileSync(cacheFile);
-  return new Float32Array(raw.buffer, raw.byteOffset, chunks.length * dims);
 }
 
 function writePack(file, opts, chunks, vectors, meta) {

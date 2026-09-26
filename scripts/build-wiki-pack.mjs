@@ -1,0 +1,491 @@
+#!/usr/bin/env node
+// Builds a large offline knowledge pack (format 2): full Wikipedia articles for
+// the most-read pages and lead sections for the rest, from FineWiki parquet
+// shards, plus Wikivoyage, redirects and embeddings of each article's lead.
+// See docs/KNOWLEDGE_PACKS.md ("Large packs"). Needs Node >= 23.8 (zstd in node:zlib).
+//
+//   node scripts/build-wiki-pack.mjs --out pack.sqlite \
+//     --shards /data/finewiki/000_00007.parquet [more shards...] \
+//     --pageviews pageviews-en.tsv --full-top 1000000 \
+//     --redirects enwiki-latest-redirect.sql.gz --index enwiki-latest-pages-articles-multistream-index.txt.bz2 \
+//     --wikivoyage enwikivoyage-latest-pages-articles.xml.bz2
+//
+// Pack layout (one SQLite file, opened read-only by src/rag/wikiPack.ts):
+//   meta(key, value)                       format, sources, build parameters, embedding model
+//   blocks(id, zdata)                      zstd-compressed runs of article text (UTF-8)
+//   articles(id, source, page_id, title, views, block_id, off, len)   off/len: bytes in the block
+//   chunks(id, article_id, start, end)     UTF-16 offsets into the article text
+//   fts(title, section, body)              contentless FTS5, rowid = chunks.id
+//   redirects(title, article_id)           alternative titles → article
+//   df(term, doc)                          document counts of common index terms (query-time idf)
+//   lead_vecs(article_id, scale, vec)      int8 embedding of the article's lead chunk
+//
+// The approach (tiering by pageviews, contentless index over compressed blocks,
+// redirect table) follows AndroidLM's scripts/build_corpus.py and
+// build_redirects.py (https://github.com/Phineas1500/AndroidLM, Apache-2.0).
+import { spawn } from "node:child_process";
+import { createReadStream, existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
+import { DatabaseSync } from "node:sqlite";
+import { constants as zc, createGunzip, zstdCompressSync, zstdDecompressSync } from "node:zlib";
+import { parseArgs } from "node:util";
+import { asyncBufferFromFile, parquetMetadataAsync, parquetReadObjects } from "hyparquet";
+import { compressors } from "hyparquet-compressors";
+import {
+  chunkArticle,
+  cleanWikivoyage,
+  infoboxText,
+  isTable,
+  leadChunkIndex,
+  leadOf,
+  parseDumpPage,
+  parseIndexLine,
+  parseRedirectRows,
+} from "./lib/wiki-pack-lib.mjs";
+import { quantizeInt8 } from "./lib/knowledge-pack-lib.mjs";
+import { EMBEDDING_MODEL, embedChunks, ensureEmbeddingModel, sha256File } from "./lib/embedding.mjs";
+
+const USAGE = `usage: node scripts/build-wiki-pack.mjs --out FILE --shards A.parquet [B.parquet ...] [options]
+
+  --out FILE              pack to write (replaced if it exists)
+  --shards FILES...       FineWiki parquet shards (data/enwiki/*.parquet), processed in order;
+                          a .jsonl file with {page_id, title, text} per line also works (test fixtures)
+  --pageviews TSV         page_id<TAB>views; ranks articles for --full-top and the popularity signal
+  --pageview-days N       days the pageviews TSV covers (views are scaled to a month), default 30
+  --full-top N            articles kept in full, by views (others keep their lead), default 1000000
+  --lead-chars N          lead size cap for the other articles, default 2500
+  --chunk-chars N         target chunk size, default 1000
+  --redirects SQL.GZ      enwiki-*-redirect.sql.gz        (with --index)
+  --index TXT.BZ2         enwiki-*-pages-articles-multistream-index.txt.bz2
+  --wikivoyage XML.BZ2    enwikivoyage-*-pages-articles.xml.bz2
+  --no-embed              skip lead embeddings
+  --embed-threads N       parallel embedding contexts, default 8
+  --limit N               stop after N Wikipedia articles (a quick test build)
+  --delete-shards         delete each shard once it's in the pack (keeps peak disk use down)
+  --block-kb N            uncompressed text per compressed block, default 64
+  --zlevel N              zstd level, default 12`;
+
+const log = (msg) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
+const SOURCE = { enwiki: 0, enwikivoyage: 1 };
+const DF_MIN = 2000; // terms in fewer chunks are counted from their (short) posting lists at query time
+
+function options() {
+  const { values } = parseArgs({
+    allowPositionals: false,
+    options: {
+      out: { type: "string" },
+      shards: { type: "string", multiple: true },
+      pageviews: { type: "string" },
+      "pageview-days": { type: "string", default: "30" },
+      "full-top": { type: "string", default: "1000000" },
+      "lead-chars": { type: "string", default: "2500" },
+      "chunk-chars": { type: "string", default: "1000" },
+      redirects: { type: "string" },
+      index: { type: "string" },
+      wikivoyage: { type: "string" },
+      "no-embed": { type: "boolean", default: false },
+      "embed-threads": { type: "string", default: "8" },
+      limit: { type: "string", default: "0" },
+      "delete-shards": { type: "boolean", default: false },
+      "block-kb": { type: "string", default: "64" },
+      zlevel: { type: "string", default: "12" },
+      help: { type: "boolean", default: false },
+    },
+  });
+  if (values.help || !values.out || !values.shards?.length) {
+    console.log(USAGE);
+    process.exit(values.help ? 0 : 1);
+  }
+  if ((values.redirects && !values.index) || (!values.redirects && values.index)) {
+    throw new Error("--redirects and --index go together");
+  }
+  const n = (k) => Number(values[k]);
+  return {
+    out: values.out,
+    shards: values.shards,
+    pageviews: values.pageviews,
+    pageviewDays: n("pageview-days"),
+    fullTop: n("full-top"),
+    leadChars: n("lead-chars"),
+    chunkChars: n("chunk-chars"),
+    maxChunkChars: Math.round(n("chunk-chars") * 1.5),
+    redirects: values.redirects,
+    index: values.index,
+    wikivoyage: values.wikivoyage,
+    embed: !values["no-embed"],
+    embedThreads: n("embed-threads"),
+    limit: n("limit"),
+    deleteShards: values["delete-shards"],
+    blockBytes: n("block-kb") * 1024,
+    zlevel: n("zlevel"),
+  };
+}
+
+/** Lines of a .bz2 file, decompressed by the system's bzcat (no bzip2 in node:zlib). */
+function bz2Lines(path) {
+  const child = spawn("bzcat", [path], { stdio: ["ignore", "pipe", "inherit"] });
+  return createInterface({ input: child.stdout, crlfDelay: Infinity });
+}
+
+function loadPageviews(path, days) {
+  const views = new Map();
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const tab = line.indexOf("\t");
+    if (tab < 0) continue;
+    views.set(Number(line.slice(0, tab)), Math.round((Number(line.slice(tab + 1)) * 30) / days));
+  }
+  return views;
+}
+
+class PackWriter {
+  constructor(opts) {
+    this.opts = opts;
+    rmSync(opts.out, { force: true });
+    this.db = new DatabaseSync(opts.out);
+    this.db.exec(`
+      PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF; PRAGMA page_size = 8192; PRAGMA cache_size = -1000000;
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE blocks (id INTEGER PRIMARY KEY, zdata BLOB NOT NULL);
+      CREATE TABLE articles (id INTEGER PRIMARY KEY, source INTEGER NOT NULL, page_id INTEGER NOT NULL, title TEXT NOT NULL,
+                             views INTEGER NOT NULL, block_id INTEGER NOT NULL, off INTEGER NOT NULL, len INTEGER NOT NULL);
+      CREATE TABLE chunks (id INTEGER PRIMARY KEY, article_id INTEGER NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL);
+      CREATE VIRTUAL TABLE fts USING fts5(title, section, body, content='', detail=full,
+                                          tokenize='porter unicode61 remove_diacritics 2');
+    `);
+    this.insArticle = this.db.prepare("INSERT INTO articles VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    this.insChunk = this.db.prepare("INSERT INTO chunks VALUES (?, ?, ?, ?)");
+    this.insFts = this.db.prepare("INSERT INTO fts (rowid, title, section, body) VALUES (?, ?, ?, ?)");
+    this.insBlock = this.db.prepare("INSERT INTO blocks VALUES (?, ?)");
+    this.blockId = 1;
+    this.block = [];
+    this.blockLen = 0;
+    this.articleId = 0;
+    this.chunkId = 0;
+    this.stats = { articles: 0, full: 0, chunks: 0, indexed: 0, textBytes: 0, voyage: 0 };
+    this.pending = 0;
+    this.db.exec("BEGIN");
+  }
+
+  flushBlock() {
+    if (!this.blockLen) return;
+    const zdata = zstdCompressSync(Buffer.concat(this.block), { params: { [zc.ZSTD_c_compressionLevel]: this.opts.zlevel } });
+    this.insBlock.run(this.blockId++, zdata);
+    this.block = [];
+    this.blockLen = 0;
+  }
+
+  /** Adds one article; returns its id, or null if it has no text worth indexing. */
+  add(source, pageId, title, views, text) {
+    const spans = chunkArticle(text, this.opts.chunkChars, this.opts.maxChunkChars);
+    if (!spans.length) return null;
+    const id = ++this.articleId;
+    const data = Buffer.from(text, "utf8");
+    this.insArticle.run(id, source, pageId, title, views, this.blockId, this.blockLen, data.length);
+    this.block.push(data);
+    this.blockLen += data.length;
+    if (this.blockLen >= this.opts.blockBytes) this.flushBlock();
+
+    const sections = sectionsAt(text, spans);
+    spans.forEach(([s, e], i) => {
+      const cid = ++this.chunkId;
+      this.insChunk.run(cid, id, s, e);
+      const piece = text.slice(s, e);
+      if (!isTable(piece)) {
+        this.insFts.run(cid, title, sections[i], piece);
+        this.stats.indexed++;
+      }
+    });
+    this.stats.articles++;
+    this.stats.chunks += spans.length;
+    this.stats.textBytes += data.length;
+    if (++this.pending >= 20000) {
+      this.db.exec("COMMIT; BEGIN");
+      this.pending = 0;
+    }
+    return id;
+  }
+
+  finishText() {
+    this.flushBlock();
+    this.db.exec("COMMIT");
+  }
+}
+
+/** Heading path ("History > Early years") in force at each span's start; headings are "#"-lines. */
+function sectionsAt(text, spans) {
+  const heads = [...text.matchAll(/^(#{1,6})\s+(.*)$/gm)].map((m) => ({ at: m.index, level: m[1].length, name: m[2].trim() }));
+  const out = [];
+  let h = 0;
+  const path = [];
+  for (const [s] of spans) {
+    while (h < heads.length && heads[h].at < s) {
+      const { level, name } = heads[h++];
+      path.length = Math.max(0, level - 1);
+      path[level - 1] = name;
+    }
+    // path[0] is the article's own "# Title" heading
+    out.push(path.slice(1).filter(Boolean).join(" > "));
+  }
+  return out;
+}
+
+async function addWikipedia(w, opts, views, fullIds) {
+  const seen = new Set();
+  const addRow = (r) => {
+    const pid = Number(r.page_id);
+    if (seen.has(pid) || !r.text || r.text.length < 200) return;
+    if (opts.limit && w.stats.articles >= opts.limit) return;
+    seen.add(pid);
+    const full = !fullIds || fullIds.has(pid);
+    const body = full ? r.text : leadOf(r.text, opts.leadChars);
+    const box = infoboxText(r.infoboxes);
+    // "# Title" heading first, then infobox facts, then the body without its own title heading
+    const withoutTitle = body.replace(/^# [^\n]*\n+/, "");
+    const text = `# ${r.title}\n\n${box ? `${box}\n\n` : ""}${withoutTitle}`;
+    if (w.add(SOURCE.enwiki, pid, r.title, views?.get(pid) ?? r.views ?? 0, text) !== null && full) w.stats.full++;
+  };
+  for (const shard of opts.shards) {
+    if (shard.endsWith(".jsonl")) {
+      const rows = readFileSync(shard, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+      for (const r of rows) addRow(r);
+      continue;
+    }
+    const file = await asyncBufferFromFile(shard);
+    const md = await parquetMetadataAsync(file);
+    let row = 0;
+    log(`${shard}: ${md.num_rows} rows`);
+    for (const rg of md.row_groups) {
+      const n = Number(rg.num_rows);
+      const rows = await parquetReadObjects({
+        file,
+        metadata: md,
+        compressors,
+        rowStart: row,
+        rowEnd: row + n,
+        columns: ["page_id", "title", "text", "infoboxes"],
+      });
+      row += n;
+      for (const r of rows) {
+        addRow(r);
+        if (opts.limit && w.stats.articles >= opts.limit) return;
+      }
+      if (w.stats.articles % 100000 < rows.length) {
+        log(`${w.stats.articles} articles (${w.stats.full} full), ${w.stats.chunks} chunks, ${(w.stats.textBytes / 1e9).toFixed(2)} GB text`);
+      }
+    }
+    if (opts.deleteShards) rmSync(shard);
+  }
+}
+
+async function addWikivoyage(w, path) {
+  const redirects = [];
+  let buf = "";
+  const child = spawn("bzcat", [path], { stdio: ["ignore", "pipe", "inherit"] });
+  child.stdout.setEncoding("utf8");
+  for await (const piece of child.stdout) {
+    buf += piece;
+    let end;
+    while ((end = buf.indexOf("</page>")) >= 0) {
+      const start = buf.indexOf("<page>");
+      const page = parseDumpPage(buf.slice(start, end));
+      buf = buf.slice(end + 7);
+      if (page.ns !== "0") continue;
+      if (page.redirect) {
+        redirects.push([page.title, page.redirect]);
+        continue;
+      }
+      const body = cleanWikivoyage(page.text);
+      if (body.length < 200) continue;
+      if (w.add(SOURCE.enwikivoyage, page.id, page.title, 0, `# ${page.title}\n\n${body}`) !== null) w.stats.voyage++;
+    }
+  }
+  log(`wikivoyage: ${w.stats.voyage} guides, ${redirects.length} redirects`);
+  return redirects;
+}
+
+/** Wikipedia redirects whose target is in the pack; joined in a scratch database to keep memory small. */
+async function addRedirects(db, opts, voyageRedirects) {
+  db.exec(`CREATE TABLE redirects (title TEXT NOT NULL COLLATE NOCASE, article_id INTEGER NOT NULL, PRIMARY KEY (title, article_id)) WITHOUT ROWID`);
+  const ins = db.prepare("INSERT OR IGNORE INTO redirects VALUES (?, ?)");
+  db.exec("BEGIN");
+  if (opts.redirects) {
+    const scratchPath = `${opts.out}.redirects.tmp`;
+    rmSync(scratchPath, { force: true });
+    const s = new DatabaseSync(scratchPath);
+    s.exec(`PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF;
+            CREATE TABLE rd (rd_from INTEGER PRIMARY KEY, target TEXT NOT NULL);
+            CREATE TABLE idx (page_id INTEGER PRIMARY KEY, title TEXT NOT NULL);`);
+    const insRd = s.prepare("INSERT OR IGNORE INTO rd VALUES (?, ?)");
+    s.exec("BEGIN");
+    const gz = createInterface({ input: createReadStream(opts.redirects).pipe(createGunzip()), crlfDelay: Infinity });
+    let n = 0;
+    for await (const line of gz) for (const [from, target] of parseRedirectRows(line)) (insRd.run(from, target), n++);
+    s.exec("COMMIT; BEGIN");
+    log(`redirect rows: ${n}`);
+    const insIdx = s.prepare("INSERT OR IGNORE INTO idx SELECT ?, ? WHERE EXISTS (SELECT 1 FROM rd WHERE rd_from = ?)");
+    for await (const line of bz2Lines(opts.index)) {
+      const p = parseIndexLine(line);
+      if (p) insIdx.run(p[0], p[1], p[0]);
+    }
+    s.exec("COMMIT");
+    s.close();
+    db.exec(`ATTACH '${scratchPath.replace(/'/g, "''")}' AS scratch`);
+    db.exec(`CREATE INDEX articles_title ON articles (title COLLATE NOCASE)`);
+    const r = db.prepare(`
+      INSERT OR IGNORE INTO redirects
+      SELECT i.title, a.id FROM scratch.rd r JOIN scratch.idx i ON i.page_id = r.rd_from
+      JOIN articles a ON a.title = r.target COLLATE NOCASE AND a.source = ${SOURCE.enwiki}`).run();
+    log(`wikipedia redirects into the pack: ${r.changes}`);
+    db.exec("COMMIT; DETACH scratch; BEGIN");
+    rmSync(scratchPath, { force: true });
+  } else {
+    db.exec(`CREATE INDEX articles_title ON articles (title COLLATE NOCASE)`);
+  }
+  const target = db.prepare(`SELECT id FROM articles WHERE title = ? COLLATE NOCASE AND source = ${SOURCE.enwikivoyage}`);
+  for (const [from, to] of voyageRedirects) {
+    const row = target.get(to);
+    if (row) ins.run(from, row.id);
+  }
+  db.exec("COMMIT");
+}
+
+/** Lead chunks in article order, read back from the pack in batches (a full build has millions). */
+function* leadBatches(db, size) {
+  const block = db.prepare("SELECT zdata FROM blocks WHERE id = ?");
+  const rows = db.prepare(
+    `SELECT a.id, a.title, a.block_id, a.off, a.len, c.start, c.end FROM articles a
+     JOIN chunks c ON c.article_id = a.id ORDER BY a.id, c.id`
+  );
+  let cachedId = 0;
+  let cached = null;
+  let batch = [];
+  let lastArticle = 0;
+  let firstOfArticle = [];
+  const emit = () => {
+    if (!firstOfArticle.length) return;
+    const [a, first, second] = firstOfArticle;
+    if (cachedId !== a.block_id) {
+      cached = zstdDecompressSync(block.get(a.block_id).zdata);
+      cachedId = a.block_id;
+    }
+    const text = cached.subarray(a.off, a.off + a.len).toString("utf8");
+    const spans = [[first.start, first.end], ...(second ? [[second.start, second.end]] : [])];
+    const [s, e] = spans[leadChunkIndex(text, spans)];
+    batch.push({ articleId: a.id, title: a.title, body: text.slice(s, e) });
+  };
+  for (const r of rows.iterate()) {
+    if (r.id !== lastArticle) {
+      emit();
+      if (batch.length >= size) {
+        yield batch;
+        batch = [];
+      }
+      lastArticle = r.id;
+      firstOfArticle = [r];
+    } else if (firstOfArticle.length < 2) {
+      firstOfArticle.push(r);
+    }
+  }
+  emit();
+  if (batch.length) yield batch;
+}
+
+async function addLeadEmbeddings(db, opts) {
+  await ensureEmbeddingModel();
+  db.exec("CREATE TABLE lead_vecs (article_id INTEGER PRIMARY KEY, scale REAL NOT NULL, vec BLOB NOT NULL)");
+  const ins = db.prepare("INSERT INTO lead_vecs VALUES (?, ?, ?)");
+  const caches = [];
+  let n = 0;
+  // Each batch has its own cache file, so an interrupted build re-embeds at most one batch.
+  for (const leads of leadBatches(db, 50000)) {
+    const cache = `${opts.out}.leads-${n}-${leads.length}.f32`;
+    caches.push(cache);
+    const { data, scales } = quantizeInt8(await embedChunks(leads, cache, opts.embedThreads), 384);
+    db.exec("BEGIN");
+    leads.forEach((l, i) => ins.run(l.articleId, scales[i], Buffer.from(data.buffer, data.byteOffset + i * 384, 384)));
+    db.exec("COMMIT");
+    n += leads.length;
+    log(`lead embeddings: ${n}`);
+  }
+  return caches;
+}
+
+function tableBytes(db) {
+  try {
+    return Object.fromEntries(
+      db.prepare("SELECT name, SUM(pgsize) AS bytes FROM dbstat GROUP BY name ORDER BY bytes DESC").all().map((r) => [r.name, r.bytes])
+    );
+  } catch {
+    return null; // dbstat isn't compiled into every SQLite
+  }
+}
+
+async function main() {
+  const opts = options();
+  const t0 = Date.now();
+  const views = opts.pageviews ? loadPageviews(opts.pageviews, opts.pageviewDays) : null;
+  let fullIds = null;
+  if (views) {
+    fullIds = new Set([...views.keys()].sort((a, b) => views.get(b) - views.get(a)).slice(0, opts.fullTop));
+    log(`pageviews for ${views.size} pages; the top ${fullIds.size} are kept in full`);
+  }
+  const w = new PackWriter(opts);
+  await addWikipedia(w, opts, views, fullIds);
+  const wikiArticles = w.stats.articles;
+  const voyageRedirects = opts.wikivoyage ? await addWikivoyage(w, opts.wikivoyage) : [];
+  w.finishText();
+  log(`text done: ${JSON.stringify(w.stats)}`);
+
+  await addRedirects(w.db, opts, voyageRedirects);
+  w.db.exec(`CREATE INDEX chunks_article ON chunks (article_id)`);
+
+  log("optimizing the keyword index");
+  w.db.exec("INSERT INTO fts (fts) VALUES ('optimize')");
+  w.db.exec(`CREATE VIRTUAL TABLE temp.fts_v USING fts5vocab(main, 'fts', 'row');
+             CREATE TABLE df (term TEXT PRIMARY KEY, doc INTEGER NOT NULL) WITHOUT ROWID;
+             INSERT INTO df SELECT term, doc FROM temp.fts_v WHERE doc >= ${DF_MIN};`);
+
+  const embedCaches = opts.embed ? await addLeadEmbeddings(w.db, opts) : [];
+
+  const meta = {
+    format: "boar-knowledge-pack",
+    formatVersion: 2,
+    dims: 384,
+    embeddingModelSha256: opts.embed ? EMBEDDING_MODEL.sha256 : "",
+    sources: JSON.stringify({
+      enwiki: { dataset: "HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)", shards: opts.shards.map((s) => s.split("/").pop()), articles: wikiArticles },
+      ...(opts.wikivoyage ? { enwikivoyage: { dump: opts.wikivoyage.split("/").pop(), articles: w.stats.voyage } } : {}),
+      ...(opts.redirects ? { redirects: opts.redirects.split("/").pop() } : {}),
+      ...(opts.pageviews ? { pageviews: opts.pageviews.split("/").pop(), days: opts.pageviewDays } : {}),
+    }),
+    license: "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    articles: w.stats.articles,
+    chunks: w.stats.chunks,
+    indexedChunks: w.stats.indexed,
+    dfMin: DF_MIN,
+    params: JSON.stringify({ fullTop: opts.fullTop, leadChars: opts.leadChars, chunkChars: opts.chunkChars, blockKb: opts.blockBytes / 1024, zlevel: opts.zlevel, limit: opts.limit }),
+    builtAt: new Date().toISOString(),
+  };
+  const setMeta = w.db.prepare("INSERT INTO meta VALUES (?, ?)");
+  for (const [k, v] of Object.entries(meta)) setMeta.run(k, String(v));
+  const tables = tableBytes(w.db);
+  w.db.close();
+  for (const c of embedCaches) rmSync(c, { force: true });
+
+  const sizeBytes = statSync(opts.out).size;
+  const summary = {
+    file: opts.out,
+    sizeBytes,
+    sha256: await sha256File(opts.out),
+    ...w.stats,
+    tables,
+    buildSeconds: Math.round((Date.now() - t0) / 1000),
+  };
+  writeFileSync(`${opts.out}.json`, `${JSON.stringify(summary, null, 2)}\n`);
+  console.log(JSON.stringify(summary, null, 2));
+}
+
+main().catch((e) => {
+  console.error(`\n✗ ${e.stack ?? e.message}`);
+  process.exit(1);
+});

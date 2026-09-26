@@ -12,6 +12,7 @@ import {
   getCollectionDocs,
   CustomCollection,
 } from "../rag/db";
+import { clearCollectionIndexStatus, setCollectionIndexStatus } from "../rag/indexStatus";
 
 /**
  * User-supplied document import for the local knowledge base (Settings >
@@ -40,6 +41,14 @@ export const SUPPORTED_MIME_TYPES = [
   "application/json",
   "application/pdf",
 ];
+
+/** Thrown by importDocuments when its signal aborts; the import leaves nothing behind. */
+export class ImportCancelledError extends Error {
+  name = "AbortError";
+  constructor() {
+    super("Import cancelled");
+  }
+}
 
 export interface ImportProgress {
   stage: "reading" | "chunking" | "embedding";
@@ -155,58 +164,87 @@ export async function pickDocuments(): Promise<DocumentPicker.DocumentPickerAsse
  * embedding context can't run concurrent embeddings), and inserts into the
  * FTS5 + vector tables tagged with this collection's id so it can be
  * toggled or deleted as a unit later.
+ *
+ * The collection row is created before its chunks, so a failed or cancelled
+ * import can always be removed as a unit (no orphaned chunks). Its state is
+ * published in the shared collection index status (src/rag/indexStatus.ts):
+ * "indexing" with chunk counts, then "indexed", or "error". Aborting
+ * `signal` deletes everything inserted so far, clears the state (as if the
+ * import never started) and rejects with ImportCancelledError.
  */
 export async function importDocuments(
   files: DocumentPicker.DocumentPickerAsset[],
   collectionName: string,
-  onProgress?: (p: ImportProgress) => void
+  onProgress?: (p: ImportProgress) => void,
+  signal?: AbortSignal
 ): Promise<CustomCollection> {
   const collectionId = `custom-${Date.now()}-${slug(collectionName)}`;
+  const checkCancelled = () => {
+    if (signal?.aborted) throw new ImportCancelledError();
+  };
+  let created = false;
 
-  onProgress?.({ stage: "reading" });
-  const allDocs: ParsedDoc[] = [];
-  let totalSizeBytes = 0;
-  for (const file of files) {
-    totalSizeBytes += file.size ?? 0;
-    const fallbackTitle = file.name.replace(/\.[^.]+$/, "");
-    allDocs.push(...(await parseFileContent(file, fallbackTitle)));
-  }
+  try {
+    checkCancelled();
+    setCollectionIndexStatus(collectionId, { state: "indexing", done: 0, total: 0 });
+    onProgress?.({ stage: "reading" });
+    const allDocs: ParsedDoc[] = [];
+    let totalSizeBytes = 0;
+    for (const file of files) {
+      totalSizeBytes += file.size ?? 0;
+      const fallbackTitle = file.name.replace(/\.[^.]+$/, "");
+      allDocs.push(...(await parseFileContent(file, fallbackTitle)));
+      checkCancelled();
+    }
 
-  onProgress?.({ stage: "chunking" });
-  const chunks: { chunkId: string; docId: string; title: string; body: string; source: string }[] = [];
-  allDocs.forEach((doc, docIndex) => {
-    const docId = `${collectionId}-doc${docIndex}-${slug(doc.title)}`;
-    const pieces = chunkText(doc.body);
-    pieces.forEach((body, i) => {
-      chunks.push({
-        chunkId: `${docId}-c${i}`,
-        docId,
-        title: pieces.length > 1 ? `${doc.title} (part ${i + 1}/${pieces.length})` : doc.title,
-        body,
-        source: doc.source,
+    onProgress?.({ stage: "chunking" });
+    const chunks: { chunkId: string; docId: string; title: string; body: string; source: string }[] = [];
+    allDocs.forEach((doc, docIndex) => {
+      const docId = `${collectionId}-doc${docIndex}-${slug(doc.title)}`;
+      const pieces = chunkText(doc.body);
+      pieces.forEach((body, i) => {
+        chunks.push({
+          chunkId: `${docId}-c${i}`,
+          docId,
+          title: pieces.length > 1 ? `${doc.title} (part ${i + 1}/${pieces.length})` : doc.title,
+          body,
+          source: doc.source,
+        });
       });
     });
-  });
 
-  for (let i = 0; i < chunks.length; i++) {
-    onProgress?.({ stage: "embedding", chunkIndex: i, chunkCount: chunks.length });
-    const chunk = chunks[i];
-    const embedding = await embeddingEngine.embed(`${chunk.title}\n${chunk.body}`);
-    await insertChunk({ ...chunk, collectionId }, embedding);
+    await createCustomCollection({
+      id: collectionId,
+      name: collectionName,
+      sourceFilename: files.map((f) => f.name).join(", "),
+      docCount: allDocs.length,
+      chunkCount: chunks.length,
+      sizeBytes: totalSizeBytes,
+    });
+    created = true;
+
+    for (let i = 0; i < chunks.length; i++) {
+      checkCancelled();
+      onProgress?.({ stage: "embedding", chunkIndex: i, chunkCount: chunks.length });
+      setCollectionIndexStatus(collectionId, { state: "indexing", done: i, total: chunks.length });
+      const chunk = chunks[i];
+      const embedding = await embeddingEngine.embed(`${chunk.title}\n${chunk.body}`);
+      await insertChunk({ ...chunk, collectionId }, embedding);
+    }
+    checkCancelled();
+    setCollectionIndexStatus(collectionId, { state: "indexed", done: chunks.length, total: chunks.length });
+
+    const [collection] = (await listCustomCollections()).filter((c) => c.id === collectionId);
+    return collection;
+  } catch (e: any) {
+    if (created) await deleteCustomCollection(collectionId).catch((err) => console.warn("[import] cleanup failed:", err));
+    if (e instanceof ImportCancelledError) {
+      clearCollectionIndexStatus(collectionId);
+    } else {
+      setCollectionIndexStatus(collectionId, { state: "error", done: 0, total: 0, error: String(e?.message ?? e) });
+    }
+    throw e;
   }
-
-  const collection: Omit<CustomCollection, "active" | "createdAt"> = {
-    id: collectionId,
-    name: collectionName,
-    sourceFilename: files.map((f) => f.name).join(", "),
-    docCount: allDocs.length,
-    chunkCount: chunks.length,
-    sizeBytes: totalSizeBytes,
-  };
-  await createCustomCollection(collection);
-
-  const [created] = (await listCustomCollections()).filter((c) => c.id === collectionId);
-  return created;
 }
 
 export { listCustomCollections, setCustomCollectionActive, deleteCustomCollection };

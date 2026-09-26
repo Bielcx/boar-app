@@ -13,11 +13,15 @@ import * as FileSystem from "expo-file-system/legacy";
 import { CORPUS_CATALOG, MODEL_CATALOG, CatalogModel } from "../models/manifest";
 import { buildLexicalQuery, cosineSimilarityInt8, filterByMinScore, filterByTermCoverage, MIN_SEMANTIC_SIMILARITY } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
+import { decompress } from "fzstd";
+import { WikiPack, type PackHit, type PackSearchOptions, type Stem } from "./wikiPack";
 
 const PACK_CANDIDATES = 400;
 const EMBEDDING_SHA256 = MODEL_CATALOG.find((m) => m.kind === "embedding" && m.required)!.sha256;
 
 const openPacks = new Map<string, SQLite.SQLiteDatabase>();
+/** Format-2 packs (scripts/build-wiki-pack.mjs), keyed like openPacks. */
+const wikiPacks = new Map<string, WikiPack>();
 
 const CORPUS_DIR = "corpus/";
 
@@ -52,6 +56,7 @@ export async function knowledgePacks(): Promise<CatalogModel[]> {
 export async function closePack(id: string): Promise<void> {
   const db = openPacks.get(id);
   openPacks.delete(id);
+  wikiPacks.delete(id);
   await db?.closeAsync().catch(() => {});
 }
 
@@ -78,13 +83,68 @@ async function openPack(pack: CatalogModel): Promise<SQLite.SQLiteDatabase | nul
     .getAllAsync<{ key: string; value: string }>("SELECT key, value FROM meta")
     .then((rows) => Object.fromEntries(rows.map((r) => [r.key, r.value])))
     .catch(() => ({} as Record<string, string>));
-  if (meta.format !== "boar-knowledge-pack" || meta.embeddingModelSha256 !== EMBEDDING_SHA256) {
+  // Format 2 may be built without embeddings (empty embeddingModelSha256); format 1 always has them.
+  const embeddingsOk = meta.embeddingModelSha256 === EMBEDDING_SHA256 || (meta.formatVersion === "2" && !meta.embeddingModelSha256);
+  if (meta.format !== "boar-knowledge-pack" || !embeddingsOk) {
     console.warn(`[packs] ${pack.filename} isn't a knowledge pack for this app's embedding model; skipping it`);
     await db.closeAsync().catch(() => {});
     return null;
   }
+  if (meta.formatVersion === "2") {
+    try {
+      wikiPacks.set(pack.id, await WikiPack.open(db, decompress));
+    } catch (e: any) {
+      console.warn(`[packs] ${pack.filename} failed to open:`, e?.message ?? e);
+      await db.closeAsync().catch(() => {});
+      return null;
+    }
+  }
   openPacks.set(pack.id, db);
   return db;
+}
+
+export interface WikiPackResult {
+  packId: string;
+  pack: WikiPack;
+  hits: PackHit[];
+  stems: Stem[];
+}
+
+/** Searches every installed format-2 pack (a failing pack is skipped). */
+export async function searchWikiPacks(query: string, opts: PackSearchOptions = {}): Promise<WikiPackResult[]> {
+  const out: WikiPackResult[] = [];
+  for (const pack of await knowledgePacks()) {
+    try {
+      if (!(await openPack(pack))) continue;
+      const wp = wikiPacks.get(pack.id);
+      if (!wp) continue;
+      const { hits, stems } = await wp.searchDetailed(query, opts);
+      out.push({ packId: pack.id, pack: wp, hits, stems });
+    } catch (e: any) {
+      console.warn(`[packs] search failed in ${pack.id}:`, e?.message ?? e);
+    }
+  }
+  return out;
+}
+
+/** Wikipedia/Wikivoyage URL of a pack article. */
+export function articleUrl(title: string, source: PackHit["source"]): string {
+  const host = source === "enwikivoyage" ? "en.wikivoyage.org" : "en.wikipedia.org";
+  return `https://${host}/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+}
+
+/** A format-2 pack hit in the shape the chat's retrieval uses. */
+export function packHitToChunk(packId: string, h: PackHit): RetrievedChunk {
+  const label = h.source === "enwikivoyage" ? "Wikivoyage" : "Wikipedia";
+  return {
+    chunkId: `pack:${packId}:${h.chunkId}`,
+    docId: `pack:${packId}:a${h.articleId}`,
+    title: h.source === "enwikivoyage" ? `Wikivoyage: ${h.title}` : h.title,
+    body: h.section ? `${h.section}: ${h.text}` : h.text,
+    source: `${label} — ${articleUrl(h.title, h.source)}`,
+    score: h.score,
+    matchType: "lexical",
+  };
 }
 
 type PackRow = { id: number; title: string; body: string; vec: Uint8Array; rank: number };
@@ -103,7 +163,7 @@ export async function searchPacks(
   for (const pack of await knowledgePacks()) {
     try {
       const db = await openPack(pack);
-      if (!db) continue;
+      if (!db || wikiPacks.has(pack.id)) continue;
       const rows = await db.getAllAsync<PackRow>(
         `SELECT c.id, c.title, c.body, c.vec, bm25(chunks_fts) AS rank
          FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
