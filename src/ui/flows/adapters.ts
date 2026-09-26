@@ -10,8 +10,7 @@
  */
 import type { CatalogModel } from "../../models/manifest";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
-import { availableRamFrom, MemoryFit } from "../../inference/memoryFit";
-import { defaultContextSize } from "../../inference/LlamaEngine";
+import { availableRamFrom, contextSizeForRam, MemoryFit } from "../../inference/memoryFit";
 import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
 import type { PoiRegion } from "./poi";
@@ -31,7 +30,7 @@ export function fitFor(model: CatalogModel): MemoryFit | undefined {
   } catch {
     return undefined;
   }
-  return catalogFit(model, { totalBytes, availableBytes }, defaultContextSize());
+  return catalogFit(model, { totalBytes, availableBytes }, contextSizeForRam(totalBytes));
 }
 
 /** Deletes a JSON pack's indexed chunks or closes a sqlite pack, before the file goes. */
@@ -80,7 +79,18 @@ export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): Ca
   return null;
 }
 
-/** The Emergency & Preparedness pack (boar-preparedness). Interim: none until it exists. */
+/** The Emergency & Preparedness pack (boar-preparedness). Interim: none until Bramble's export is integrated. */
 export function preparednessEntry(): CatalogModel | undefined {
+  return undefined;
+}
+
+export interface PackSource {
+  name: string;
+  license: string;
+  url?: string;
+}
+
+/** Document count and attributed sources of the preparedness pack. Interim: nothing until Bramble's export is integrated. */
+export function preparednessInfo(): { docCount: number; sources: PackSource[] } | undefined {
   return undefined;
 }

@@ -28,7 +28,8 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
-import { answerModelChoices, AnswerTier, suggestCompact } from "./flows/packages";
+import { answerModelChoices, AnswerTier } from "./flows/packages";
+import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
 import { canDownload } from "./flows/useCatalog";
 import { CitySearch } from "./flows/CitySearch";
@@ -357,8 +358,15 @@ function PackageStep({
   onBack: () => void;
   onInstall: () => void;
 }) {
-  const defaultFit = choices.default ? fitFor(choices.default)?.verdict : undefined;
-  const compactSuggested = !!choices.compact && suggestCompact(defaultFit);
+  // Tusk's rule (src/routing/defaultModel.ts): standard model unless the phone is low on RAM or it won't run well.
+  const pick = pickDefaultAnswerModel(
+    (["default", "compact"] as const)
+      .map((tierId) => choices[tierId])
+      .filter((m): m is CatalogModel => !!m)
+      .map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fitFor(m)?.verdict })),
+    deviceRamBytes
+  );
+  const compactSuggested = !!choices.compact && pick?.id === choices.compact.id;
   // Pre-select the compact model once, when the estimate says the default won't run well here.
   const suggestedOnce = useRef(false);
   useEffect(() => {
@@ -477,7 +485,13 @@ function PackageStep({
         })}
       </View>
       {choices.compact && choices.default && (
-        <Section title={t("flows.onboarding.answerModelTitle")} footer={compactSuggested ? t("flows.onboarding.compactWhy") : t("flows.onboarding.answerModelFooter")}>
+        <Section title={t("flows.onboarding.answerModelTitle")} footer={
+            compactSuggested
+              ? pick?.reason === "compact-low-ram"
+                ? t("flows.onboarding.compactLowRam", { ram: formatBytes(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                : t("flows.onboarding.compactWhy")
+              : t("flows.onboarding.answerModelFooter")
+          }>
           <View accessibilityRole="radiogroup">
             {(["default", "compact"] as const).map((tierId) => {
               const m = choices[tierId]!;

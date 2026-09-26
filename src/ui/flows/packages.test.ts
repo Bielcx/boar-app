@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMPACT_ANSWER_MODEL, DEFAULT_ANSWER_MODEL, MODEL_CATALOG, TIERS } from "../../models/manifest";
-import { answerModelChoices, PACKAGES, packageAssets, planPackage, storageShortfall, suggestCompact, transferSeconds } from "./packages";
+import { answerModelChoices, PACKAGES, packageAssets, planPackage, storageShortfall, transferSeconds } from "./packages";
 
 const tier = (id: string) => TIERS.find((t) => t.id === id)!;
 
@@ -91,11 +91,4 @@ describe("answer model choice", () => {
     expect(assets).toContain(embedding);
   });
 
-  it("suggests the compact model only when the default won't run well", () => {
-    expect(suggestCompact("insufficient")).toBe(true);
-    expect(suggestCompact("thrashing")).toBe(true);
-    expect(suggestCompact("streaming")).toBe(false);
-    expect(suggestCompact("resident")).toBe(false);
-    expect(suggestCompact(undefined)).toBe(false);
-  });
 });
