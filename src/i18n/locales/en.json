@@ -591,6 +591,8 @@
       "totalValue": "{{done}} of {{total}}",
       "percentAnnounce": "{{pct}}% downloaded",
       "queued": "Waiting",
+      "checking": "Checking",
+      "failedShort": "Failed",
       "downloadingLine": "{{pct}}% · {{done}} of {{total}}",
       "ready": "Ready",
       "indexRow": "Search index on the phone",

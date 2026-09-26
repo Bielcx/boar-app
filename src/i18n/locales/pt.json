@@ -591,6 +591,8 @@
       "totalValue": "{{done}} de {{total}}",
       "percentAnnounce": "{{pct}}% baixado",
       "queued": "Na fila",
+      "checking": "Conferindo",
+      "failedShort": "Falhou",
       "downloadingLine": "{{pct}}% · {{done}} de {{total}}",
       "ready": "Pronto",
       "indexRow": "Índice de busca no celular",
