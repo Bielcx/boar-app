@@ -66,7 +66,7 @@ export async function prefixPages(api, prefixes) {
   return pages;
 }
 
-/** Wikitext of up to 50 pages per request; redirects followed, missing pages skipped. */
+/** Wikitext of up to 50 pages per request; redirects followed (their titles in `aliases`), missing pages skipped. */
 export async function* wikitexts(api, titles) {
   for (let i = 0; i < titles.length; i += 50) {
     const q = new URLSearchParams({
@@ -74,10 +74,12 @@ export async function* wikitexts(api, titles) {
       inprop: "url", redirects: "1", titles: titles.slice(i, i + 50).join("|"),
     });
     const j = await get(`${api}?${q}`);
+    const aliases = new Map();
+    for (const r of j.query.redirects ?? []) aliases.set(r.to, [...(aliases.get(r.to) ?? []), r.from]);
     for (const p of j.query.pages ?? []) {
       const rev = p.revisions?.[0];
       if (p.missing || !rev) continue;
-      yield { id: p.pageid, title: p.title, url: p.fullurl, revid: rev.revid, wikitext: rev.slots.main.content };
+      yield { id: p.pageid, title: p.title, url: p.fullurl, revid: rev.revid, wikitext: rev.slots.main.content, aliases: aliases.get(p.title) ?? [] };
     }
     await sleep(1000);
   }

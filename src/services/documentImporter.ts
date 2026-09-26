@@ -14,6 +14,7 @@ import {
 } from "../rag/db";
 import { clearCollectionIndexStatus, setCollectionIndexStatus } from "../rag/indexStatus";
 import { checkImportSize, importKindOfDocument } from "../models/importLimits";
+import { discardPickerCopies } from "./pickerCache";
 
 /**
  * User-supplied document import for the local knowledge base (Settings >
@@ -248,6 +249,9 @@ export async function importDocuments(
       setCollectionIndexStatus(collectionId, { state: "error", done: 0, total: 0, error: String(e?.message ?? e) });
     }
     throw e;
+  } finally {
+    // The picker's cache copy of a private document must not outlive the import, whatever its outcome.
+    await discardPickerCopies(files);
   }
 }
 

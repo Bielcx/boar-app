@@ -48,9 +48,10 @@ db.exec("COMMIT; CREATE INDEX names_name ON names (name); CREATE INDEX places_la
 // The places tiles (scripts/build-poi-world.mjs index), so the app knows what exists and what to download offline.
 let tiles = 0;
 if (tilesIndex) {
-  db.exec("CREATE TABLE tiles (id TEXT PRIMARY KEY, size_bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, pois INTEGER NOT NULL, vegan INTEGER NOT NULL, osm_date TEXT) WITHOUT ROWID; BEGIN");
-  const insTile = db.prepare("INSERT INTO tiles VALUES (?, ?, ?, ?, ?, ?)");
-  for (const t of JSON.parse(readFileSync(tilesIndex, "utf8"))) (insTile.run(t.id, t.sizeBytes, t.sha256, t.pois, t.vegan, t.osmDate ?? ""), tiles++);
+  // url: where the tile is hosted, pinned to its upload commit (null while it isn't).
+  db.exec("CREATE TABLE tiles (id TEXT PRIMARY KEY, size_bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, pois INTEGER NOT NULL, vegan INTEGER NOT NULL, osm_date TEXT, url TEXT) WITHOUT ROWID; BEGIN");
+  const insTile = db.prepare("INSERT INTO tiles VALUES (?, ?, ?, ?, ?, ?, ?)");
+  for (const t of JSON.parse(readFileSync(tilesIndex, "utf8"))) (insTile.run(t.id, t.sizeBytes, t.sha256, t.pois, t.vegan, t.osmDate ?? "", t.url ?? null), tiles++);
   db.exec("COMMIT");
 }
 const meta = { format: "boar-places-pack", formatVersion: 1, source: "GeoNames cities15000", license: "CC BY 4.0 (GeoNames)", places: n, tiles, builtAt: new Date().toISOString() };

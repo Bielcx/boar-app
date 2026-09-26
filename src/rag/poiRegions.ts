@@ -2,8 +2,9 @@
  * Catalog of offline places packs (scripts/build-poi-pack.mjs), one per
  * region, and the pure helpers the UI uses to suggest one. No native imports.
  *
- * The entries below are the SAMPLE build of 2026-09-26 (five metropolitan
- * areas), generated from each pack's .json summary: sizes, SHA-256 and counts
+ * The entries below are the SAMPLE build of 2026-09-26: five metropolitan
+ * areas picked by hand and five drawn at random (scripts/draw-poi-cities.mjs,
+ * seed 20261003), generated from each pack's .json summary: sizes, SHA-256 and counts
  * are measured, not estimated. `sourceUrl` is the file on the Hugging Face
  * dataset r4topunk/boar-packs, pinned to the commit it was uploaded in.
  */
@@ -56,7 +57,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 1380352,
     sha256: "42e6caf31e9018ad76e282f26114812dbdf0ab23c2aaf269199b9126bbe935d3",
-    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/sao-paulo.sqlite",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/sao-paulo.sqlite",
     filename: "poi/sao-paulo.sqlite",
     poiCount: 7013,
     veganCount: 126,
@@ -143,7 +144,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 1863680,
     sha256: "bd7c1afcb59f4438bb2a9b0fbde2360720194ea05ac5081ee9dc4fed0c094506",
-    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/singapore.sqlite",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/singapore.sqlite",
     filename: "poi/singapore.sqlite",
     poiCount: 10188,
     veganCount: 97,
@@ -230,7 +231,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 3366912,
     sha256: "0831d93f747e4fa002d850523fc4098bc58ee262058b8b54b6a0b3cc60f5f480",
-    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/taipei.sqlite",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/taipei.sqlite",
     filename: "poi/taipei.sqlite",
     poiCount: 18857,
     veganCount: 156,
@@ -287,7 +288,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 1482752,
     sha256: "dedc896e659e112e16811005d038bd9cff6ead678b8d63b566565eec67ca8b73",
-    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/buenos-aires.sqlite",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/buenos-aires.sqlite",
     filename: "poi/buenos-aires.sqlite",
     poiCount: 8049,
     veganCount: 78,
@@ -374,7 +375,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 3309568,
     sha256: "9216b3b0e55eb435390c79fc9460b99bc60d4396520091a8e37c22155e3c7ba3",
-    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/berlin.sqlite",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/berlin.sqlite",
     filename: "poi/berlin.sqlite",
     poiCount: 15278,
     veganCount: 1979,
@@ -452,6 +453,351 @@ export const POI_REGIONS: PoiRegion[] = [
     ],
     osmDate: "2026-09-26T20:27:59Z",
     builtAt: "2026-09-26T21:32:37.864Z"
+  },
+  {
+    id: "edmonton",
+    name: {
+      en: "Edmonton",
+      pt: "Edmonton"
+    },
+    sizeBytes: 552960,
+    sha256: "76ad021e7048813c4eab394689c97c78123ea5e1bfed73e7b95cc162a6f8cb4c",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/edmonton.sqlite",
+    filename: "poi/edmonton.sqlite",
+    poiCount: 2520,
+    veganCount: 12,
+    vegetarianCount: 16,
+    cities: [
+      {
+        name: "Edmonton",
+        lat: 53.5501,
+        lon: -113.4687,
+        pois: 688
+      },
+      {
+        name: "Sherwood Park",
+        lat: 53.5168,
+        lon: -113.3187,
+        pois: 154
+      },
+      {
+        name: "St. Albert",
+        lat: 53.6334,
+        lon: -113.6353,
+        pois: 144
+      },
+      {
+        name: "Wîhkwêntôwin",
+        lat: 53.5431,
+        lon: -113.5222,
+        pois: 777
+      }
+    ],
+    bbox: [
+      53.37,
+      -113.77,
+      53.73,
+      -113.17
+    ],
+    timeZones: [
+      "America/Edmonton"
+    ],
+    osmDate: "2026-09-26T22:35:51Z",
+    builtAt: "2026-09-26T22:42:52.012Z"
+  },
+  {
+    id: "qujing",
+    name: {
+      en: "Qujing",
+      pt: "Qujing"
+    },
+    sizeBytes: 36864,
+    sha256: "17a462c6eba34d34a7011295799e3e7372b7a3e44fadf5f9fe7152298e126443",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/qujing.sqlite",
+    filename: "poi/qujing.sqlite",
+    poiCount: 3,
+    veganCount: 0,
+    vegetarianCount: 0,
+    cities: [
+      {
+        name: "Qujing",
+        lat: 25.4833,
+        lon: 103.7833,
+        pois: 0
+      }
+    ],
+    bbox: [
+      25.3,
+      103.58,
+      25.66,
+      103.98
+    ],
+    timeZones: [
+      "Asia/Shanghai"
+    ],
+    osmDate: "2026-09-26T22:35:51Z",
+    builtAt: "2026-09-26T22:43:15.855Z"
+  },
+  {
+    id: "queens",
+    name: {
+      en: "Queens",
+      pt: "Queens"
+    },
+    sizeBytes: 4292608,
+    sha256: "00e0239a7f0aa7e9671607adb8c2893f84eeef94ad1e5e453b65db7b7c9c3f0a",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/queens.sqlite",
+    filename: "poi/queens.sqlite",
+    poiCount: 20011,
+    veganCount: 665,
+    vegetarianCount: 837,
+    cities: [
+      {
+        name: "New York City",
+        lat: 40.7143,
+        lon: -74.006,
+        pois: 8090
+      },
+      {
+        name: "Brooklyn",
+        lat: 40.6501,
+        lon: -73.9496,
+        pois: 2936
+      },
+      {
+        name: "Queens",
+        lat: 40.6815,
+        lon: -73.8365,
+        pois: 1088
+      },
+      {
+        name: "Manhattan",
+        lat: 40.7834,
+        lon: -73.9663,
+        pois: 5824
+      },
+      {
+        name: "The Bronx",
+        lat: 40.8499,
+        lon: -73.8664,
+        pois: 316
+      },
+      {
+        name: "Upper West Side",
+        lat: 40.7871,
+        lon: -73.9754,
+        pois: 5142
+      },
+      {
+        name: "Jamaica",
+        lat: 40.6915,
+        lon: -73.8057,
+        pois: 1184
+      },
+      {
+        name: "East Flatbush",
+        lat: 40.6537,
+        lon: -73.9304,
+        pois: 2179
+      },
+      {
+        name: "East New York",
+        lat: 40.6668,
+        lon: -73.8824,
+        pois: 1244
+      },
+      {
+        name: "Washington Heights",
+        lat: 40.8501,
+        lon: -73.9354,
+        pois: 825
+      }
+    ],
+    bbox: [
+      40.5,
+      -74.07,
+      40.86,
+      -73.6
+    ],
+    timeZones: [
+      "America/New_York"
+    ],
+    osmDate: "2026-09-26T22:37:50Z",
+    builtAt: "2026-09-26T22:43:29.773Z"
+  },
+  {
+    id: "bien-hoa",
+    name: {
+      en: "Biên Hòa",
+      pt: "Biên Hòa"
+    },
+    sizeBytes: 614400,
+    sha256: "d9ce786f500286ac56584b06c4ba01c1d092254ded8d0e78c475d861540318d3",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/bien-hoa.sqlite",
+    filename: "poi/bien-hoa.sqlite",
+    poiCount: 3206,
+    veganCount: 266,
+    vegetarianCount: 305,
+    cities: [
+      {
+        name: "Biên Hòa",
+        lat: 10.9447,
+        lon: 106.8243,
+        pois: 93
+      },
+      {
+        name: "Thuận An",
+        lat: 10.9239,
+        lon: 106.7143,
+        pois: 34
+      },
+      {
+        name: "Bình Thạnh",
+        lat: 10.811,
+        lon: 106.706,
+        pois: 2582
+      },
+      {
+        name: "Thủ Đức",
+        lat: 10.8486,
+        lon: 106.7721,
+        pois: 402
+      },
+      {
+        name: "Dĩ An",
+        lat: 10.9068,
+        lon: 106.7694,
+        pois: 122
+      },
+      {
+        name: "Quận Mười",
+        lat: 10.7682,
+        lon: 106.6663,
+        pois: 2177
+      },
+      {
+        name: "Thủ Dầu Một",
+        lat: 10.9804,
+        lon: 106.6519,
+        pois: 53
+      },
+      {
+        name: "Quận Mười Một",
+        lat: 10.7638,
+        lon: 106.6436,
+        pois: 1152
+      },
+      {
+        name: "Quận Ba",
+        lat: 10.7749,
+        lon: 106.6863,
+        pois: 2398
+      },
+      {
+        name: "Quận Bốn",
+        lat: 10.7668,
+        lon: 106.7057,
+        pois: 2396
+      }
+    ],
+    bbox: [
+      10.76,
+      106.64,
+      11.12,
+      107.01
+    ],
+    timeZones: [
+      "Asia/Ho_Chi_Minh"
+    ],
+    osmDate: "2026-09-26T22:39:54Z",
+    builtAt: "2026-09-26T22:43:42.292Z"
+  },
+  {
+    id: "ciudad-nezahualcoyotl",
+    name: {
+      en: "Ciudad Nezahualcoyotl",
+      pt: "Ciudad Nezahualcoyotl"
+    },
+    sizeBytes: 1036288,
+    sha256: "7c0818b511f504a4bd824dd069b54d32445ddcf36200d1bc5dff54dbf08f2a6a",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/ciudad-nezahualcoyotl.sqlite",
+    filename: "poi/ciudad-nezahualcoyotl.sqlite",
+    poiCount: 6098,
+    veganCount: 60,
+    vegetarianCount: 56,
+    cities: [
+      {
+        name: "Mexico City",
+        lat: 19.4285,
+        lon: -99.1277,
+        pois: 2957
+      },
+      {
+        name: "Iztapalapa",
+        lat: 19.3553,
+        lon: -99.0622,
+        pois: 329
+      },
+      {
+        name: "Gustavo Adolfo Madero",
+        lat: 19.4939,
+        lon: -99.1107,
+        pois: 625
+      },
+      {
+        name: "Ciudad Nezahualcoyotl",
+        lat: 19.4006,
+        lon: -99.0148,
+        pois: 90
+      },
+      {
+        name: "Álvaro Obregón",
+        lat: 19.3587,
+        lon: -99.2033,
+        pois: 1304
+      },
+      {
+        name: "Tlalnepantla",
+        lat: 19.5401,
+        lon: -99.1954,
+        pois: 119
+      },
+      {
+        name: "Coyoacán",
+        lat: 19.3467,
+        lon: -99.1617,
+        pois: 1679
+      },
+      {
+        name: "Tlalpan",
+        lat: 19.2951,
+        lon: -99.1621,
+        pois: 702
+      },
+      {
+        name: "Cuauhtémoc",
+        lat: 19.4451,
+        lon: -99.1461,
+        pois: 2919
+      },
+      {
+        name: "Xochimilco",
+        lat: 19.2547,
+        lon: -99.1036,
+        pois: 203
+      }
+    ],
+    bbox: [
+      19.22,
+      -99.21,
+      19.58,
+      -98.82
+    ],
+    timeZones: [
+      "America/Mexico_City"
+    ],
+    osmDate: "2026-09-26T22:39:54Z",
+    builtAt: "2026-09-26T22:43:53.860Z"
   }
 ];
 // </generated>
@@ -518,6 +864,8 @@ export interface PoiTile {
   pois: number;
   vegan: number;
   osmDate: string;
+  /** Hosted file, pinned to its upload commit; absent while the tile isn't hosted. */
+  url?: string;
 }
 
 /** "t-N41E012" for the tile containing a point (south-west corner 41°N 12°E). */
@@ -559,7 +907,7 @@ export function tileEntry(t: PoiTile): CatalogModel {
     filename: `poi/${t.id}.sqlite`,
     sizeBytes: t.sizeBytes,
     sha256: t.sha256,
-    sourceUrl: "",
+    sourceUrl: t.url ?? "",
     license: POI_LICENSE,
     description: `${t.pois.toLocaleString("en-US")} places to eat and drink (${t.vegan} tagged vegan), OpenStreetMap ${t.osmDate.slice(0, 10)}`,
     required: false,

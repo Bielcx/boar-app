@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
 import { PoiPack, cellRanges, coverageOf, distanceM, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PoiArea } from "./poiPack";
 import type { PackSql } from "./wikiPack";
+import { tileEntry } from "./poiRegions";
 
 const C = { lat: 10, lon: 10 };
 // A point `m` meters north of the center.
@@ -203,5 +204,23 @@ describe("areas (tiles)", () => {
     const r = await searchPoiPacks([west, east], { center: { lat: 10.5, lon: 9.9 } });
     expect(r.radiusUsedM).toBe(25000);
     expect(r.pois.map((p) => p.name)).toEqual(["East A", "East B", "East C"]);
+  });
+});
+
+describe("tile index in the gazetteer", () => {
+  it("carries each hosted tile's pinned URL to its catalog entry, and none for a tile not hosted yet", () => {
+    const d = mkdtempSync(join(tmpdir(), "boar-tiles-"));
+    const url = "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/0123456789abcdef0123456789abcdef01234567/places/tiles/t-N41E012.sqlite";
+    writeFileSync(join(d, "index.json"), JSON.stringify([
+      { id: "t-N41E012", sizeBytes: 100, sha256: "a".repeat(64), pois: 5, vegan: 1, osmDate: "2026-09-25T20:24:36Z", url },
+      { id: "t-N42E012", sizeBytes: 50, sha256: "b".repeat(64), pois: 2, vegan: 0, osmDate: "2026-09-25T20:24:36Z" },
+    ]));
+    writeFileSync(join(d, "cities.txt"), ["1", "Rome", "Rome", "", "41.9", "12.5", "P", "PPLC", "IT", "", "", "", "", "", "2800000", "", "", "Europe/Rome", "2026-01-01"].join("\t"));
+    writeFileSync(join(d, "countries.txt"), "IT\tITA\t380\tIT\tItaly\n");
+    execFileSync(process.execPath, ["scripts/build-places-pack.mjs", join(d, "cities.txt"), join(d, "countries.txt"), join(d, "places.sqlite"), join(d, "index.json")], { stdio: "pipe" });
+    const rows = nodeSqliteDatabase(join(d, "places.sqlite")).raw.prepare("SELECT id, size_bytes AS sizeBytes, sha256, pois, vegan, osm_date AS osmDate, url FROM tiles ORDER BY id").all() as any[];
+    const [hosted, pending] = rows.map(({ url: u, ...t }) => tileEntry(u ? { ...t, url: u } : t));
+    expect(hosted.sourceUrl).toBe(url);
+    expect(pending.sourceUrl).toBe("");
   });
 });

@@ -5,12 +5,15 @@ import { nodeSqliteDatabase } from "../rag/testing/nodeSqlite";
 let current: ReturnType<typeof nodeSqliteDatabase>;
 let files: Record<string, string> = {};
 let onEmbed: () => void = () => {};
+let deleted: string[] = [];
 vi.mock("expo-sqlite", () => ({ openDatabaseAsync: async () => current, deleteDatabaseAsync: async () => {} }));
 vi.mock("expo-file-system/legacy", () => ({
   readAsStringAsync: async (uri: string) => {
     if (!(uri in files)) throw new Error(`no such file ${uri}`);
     return files[uri];
   },
+  cacheDirectory: "file:///cache/",
+  deleteAsync: async (uri: string) => void deleted.push(uri),
 }));
 vi.mock("expo-document-picker", () => ({}));
 vi.mock("expo-sharing", () => ({}));
@@ -27,6 +30,7 @@ describe("importDocuments", () => {
     vi.resetModules();
     current = nodeSqliteDatabase();
     onEmbed = () => {};
+    deleted = [];
     files = { "file:///notes.txt": "word ".repeat(1200), "file:///b.md": "short note" };
   });
 
@@ -63,6 +67,16 @@ describe("importDocuments", () => {
     expect(errors).toHaveLength(1);
     expect(count("SELECT COUNT(*) AS n FROM chunks")).toBe(0);
     expect(count("SELECT COUNT(*) AS n FROM custom_collections")).toBe(0);
+  });
+
+  it("deletes the picker's cache copies after an import, successful or not, and never the originals", async () => {
+    const { importDocuments } = await import("./documentImporter");
+    files["file:///cache/DocumentPicker/secret.txt"] = "private words";
+    await importDocuments([asset("cache/DocumentPicker/secret.txt"), asset("b.md")], "Secret");
+    expect(deleted).toEqual(["file:///cache/DocumentPicker/secret.txt"]);
+    deleted = [];
+    await expect(importDocuments([asset("cache/DocumentPicker/secret.txt"), asset("missing.txt")], "Broken")).rejects.toThrow(/no such file/);
+    expect(deleted).toEqual(["file:///cache/DocumentPicker/secret.txt"]);
   });
 
   it("refuses a document over the size limit before reading it", async () => {
