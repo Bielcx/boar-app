@@ -246,13 +246,23 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
-      const sources = found.pois.map(toSourceChunk);
-      const places = found.pois.map((p, i) => toPlace(p, i, byDistance));
+      // Without a distance (city named), a place is only findable by its
+      // address: exact places with an address come first, ranking kept
+      // within each group; approximate guide listings stay last.
+      const ranked = byDistance
+        ? found.pois
+        : [
+            ...found.pois.filter((p) => !p.approx && p.address),
+            ...found.pois.filter((p) => !p.approx && !p.address),
+            ...found.pois.filter((p) => p.approx),
+          ];
+      const sources = ranked.map(toSourceChunk);
+      const places = ranked.map((p, i) => toPlace(p, i, byDistance));
       const attribution: { source: "osm" | "wikivoyage"; date?: string; license: string }[] = [];
-      if (found.pois.some((p) => p.source.kind === "osm")) {
-        attribution.push({ source: "osm", date: found.pois.find((p) => p.osmDate)?.osmDate, license: "ODbL" });
+      if (ranked.some((p) => p.source.kind === "osm")) {
+        attribution.push({ source: "osm", date: ranked.find((p) => p.osmDate)?.osmDate, license: "ODbL" });
       }
-      if (found.pois.some((p) => p.source.kind === "wikivoyage")) attribution.push({ source: "wikivoyage", license: "CC BY-SA" });
+      if (ranked.some((p) => p.source.kind === "wikivoyage")) attribution.push({ source: "wikivoyage", license: "CC BY-SA" });
 
       markVisible();
       emit({ type: "sources", answerId, tier: "instant", sources });
@@ -265,11 +275,18 @@ export function createAnswerer(deps: AnswerDeps) {
         filters,
         criterion,
         coverage: "ok",
-        truncated: found.pois.length >= PLACES_LIMIT,
+        truncated: ranked.length >= PLACES_LIMIT,
         attribution,
       });
-      reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`);
-      const text = formatPlacesAnswer({ intent, places, areaLabel: area.label ?? "", byDistance, radiusM: found.radiusUsedM });
+      reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`, ...(found.region ? [`places:region-${found.region}`] : []));
+      const text = formatPlacesAnswer({
+        intent,
+        places,
+        areaLabel: area.label ?? "",
+        byDistance,
+        radiusM: found.radiusUsedM,
+        osmDate: attribution.find((a) => a.source === "osm")?.date,
+      });
       const r = receipt(retrievalMs);
       emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r });
       return { answerId, tier: "instant", outcome: "success", text, sources, receipt: r };
