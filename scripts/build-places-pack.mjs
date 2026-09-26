@@ -12,8 +12,8 @@ import { createHash } from "node:crypto";
 import { readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-const [citiesFile, countryFile, out] = process.argv.slice(2);
-if (!out) throw new Error("usage: build-places-pack.mjs cities15000.txt countryInfo.txt out.sqlite");
+const [citiesFile, countryFile, out, tilesIndex] = process.argv.slice(2);
+if (!out) throw new Error("usage: build-places-pack.mjs cities15000.txt countryInfo.txt out.sqlite [tiles/index.json]");
 const countries = new Map(
   readFileSync(countryFile, "utf8").split("\n").filter((l) => l && !l.startsWith("#")).map((l) => {
     const f = l.split("\t");
@@ -45,12 +45,20 @@ for (const line of readFileSync(citiesFile, "utf8").split("\n")) {
   n++;
 }
 db.exec("COMMIT; CREATE INDEX names_name ON names (name); CREATE INDEX places_latlon ON places (lat, lon);");
-const meta = { format: "boar-places-pack", formatVersion: 1, source: "GeoNames cities15000", license: "CC BY 4.0 (GeoNames)", places: n, builtAt: new Date().toISOString() };
+// The places tiles (scripts/build-poi-world.mjs index), so the app knows what exists and what to download offline.
+let tiles = 0;
+if (tilesIndex) {
+  db.exec("CREATE TABLE tiles (id TEXT PRIMARY KEY, size_bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, pois INTEGER NOT NULL, vegan INTEGER NOT NULL, osm_date TEXT) WITHOUT ROWID; BEGIN");
+  const insTile = db.prepare("INSERT INTO tiles VALUES (?, ?, ?, ?, ?, ?)");
+  for (const t of JSON.parse(readFileSync(tilesIndex, "utf8"))) (insTile.run(t.id, t.sizeBytes, t.sha256, t.pois, t.vegan, t.osmDate ?? ""), tiles++);
+  db.exec("COMMIT");
+}
+const meta = { format: "boar-places-pack", formatVersion: 1, source: "GeoNames cities15000", license: "CC BY 4.0 (GeoNames)", places: n, tiles, builtAt: new Date().toISOString() };
 const setMeta = db.prepare("INSERT INTO meta VALUES (?, ?)");
 for (const [k, v] of Object.entries(meta)) setMeta.run(k, String(v));
 db.exec("VACUUM");
 db.close();
 const sha = createHash("sha256").update(readFileSync(out)).digest("hex");
-const summary = { file: out, sizeBytes: statSync(out).size, sha256: sha, places: n, names };
+const summary = { file: out, sizeBytes: statSync(out).size, sha256: sha, places: n, names, tiles };
 writeFileSync(`${out}.json`, `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));

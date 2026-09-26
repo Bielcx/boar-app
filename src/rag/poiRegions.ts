@@ -506,3 +506,61 @@ export function worldPlacesEntry(): CatalogModel {
 
 // Places packs and the gazetteer are installable (download or file import) wherever the catalog is read.
 registerAssetProvider("poi", () => [...poiCatalogEntries(), worldPlacesEntry()]);
+
+// ---- 1°×1° tiles (scripts/build-poi-world.mjs) ----
+
+/** A tile as listed in the gazetteer's tile index. */
+export interface PoiTile {
+  id: string;
+  sizeBytes: number;
+  sha256: string;
+  pois: number;
+  vegan: number;
+  osmDate: string;
+}
+
+/** "t-N41E012" for the tile containing a point (south-west corner 41°N 12°E). */
+export function tileIdOf(lat: number, lon: number): string {
+  const la = Math.floor(lat);
+  const lo = Math.floor(lon);
+  return `t-${la >= 0 ? "N" : "S"}${String(Math.abs(la)).padStart(2, "0")}${lo >= 0 ? "E" : "W"}${String(Math.abs(lo)).padStart(3, "0")}`;
+}
+
+/** [minLat, minLon, maxLat, maxLon] of a tile id, or null if it isn't one. */
+export function tileBbox(id: string): [number, number, number, number] | null {
+  const m = id.match(/^t-([NS])(\d{2})([EW])(\d{3})$/);
+  if (!m) return null;
+  const lat = (m[1] === "N" ? 1 : -1) * Number(m[2]);
+  const lon = (m[3] === "E" ? 1 : -1) * Number(m[4]);
+  return [lat, lon, lat + 1, lon + 1];
+}
+
+/** Ids of the tiles a circle touches: the city's area for "I'm going to X" (1 to 4 tiles for a city). */
+export function tileIdsFor(lat: number, lon: number, radiusKm: number): string[] {
+  const dLat = radiusKm / 111.195;
+  const dLon = dLat / Math.max(0.01, Math.cos((lat * Math.PI) / 180));
+  const ids: string[] = [];
+  for (let la = Math.floor(lat - dLat); la <= Math.floor(lat + dLat); la++) {
+    for (let lo = Math.floor(lon - dLon); lo <= Math.floor(lon + dLon); lo++) {
+      if (la >= -90 && la < 90) ids.push(tileIdOf(la, ((((lo + 180) % 360) + 360) % 360) - 180));
+    }
+  }
+  return [...new Set(ids)];
+}
+
+/** Catalog entry of a tile (id "poi-t-N41E012", file "poi/t-N41E012.sqlite"). */
+export function tileEntry(t: PoiTile): CatalogModel {
+  return {
+    id: `poi-${t.id}`,
+    kind: "corpus",
+    format: "poi-pack",
+    label: `Places ${t.id.slice(2)}`,
+    filename: `poi/${t.id}.sqlite`,
+    sizeBytes: t.sizeBytes,
+    sha256: t.sha256,
+    sourceUrl: "",
+    license: POI_LICENSE,
+    description: `${t.pois.toLocaleString("en-US")} places to eat and drink (${t.vegan} tagged vegan), OpenStreetMap ${t.osmDate.slice(0, 10)}`,
+    required: false,
+  };
+}

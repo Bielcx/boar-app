@@ -149,3 +149,17 @@ function parseListing(body, section) {
     content: clean(f.content) || null,
   };
 }
+
+// ---- 1°×1° tiles ----
+
+/** [lat, lon] of the south-west corner of the 1° tile containing a point. */
+export function tileOf(lat, lon) {
+  return [Math.floor(lat), Math.floor(lon)];
+}
+
+/** "t-N41E012" for the tile whose south-west corner is 41°N 12°E ("t-S24W047" for -24, -47). */
+export function tileId(lat, lon) {
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lon >= 0 ? "E" : "W";
+  return `t-${ns}${String(Math.abs(lat)).padStart(2, "0")}${ew}${String(Math.abs(lon)).padStart(3, "0")}`;
+}

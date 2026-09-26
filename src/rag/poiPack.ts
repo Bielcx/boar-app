@@ -104,8 +104,16 @@ function toPoi(r: Row, meta: PoiPackMeta): Poi {
   };
 }
 
-export class PoiPack {
+export class PoiPack implements PoiArea {
   private constructor(private db: PackSql, readonly meta: PoiPackMeta) {}
+
+  get id(): string {
+    return this.meta.id;
+  }
+
+  get bbox(): PoiArea["bbox"] {
+    return this.meta.bbox;
+  }
 
   static async open(db: PackSql): Promise<PoiPack> {
     const rows = await db.getAllAsync<{ key: string; value: string }>("SELECT key, value FROM meta", []);
@@ -119,19 +127,6 @@ export class PoiPack {
       osmDate: m.osmDate ?? "",
       voyageDump: m.voyageDump ?? "",
     });
-  }
-
-  /** "full" when the circle is inside the pack's area, "partial" when it crosses the edge, "none" when the center is outside. */
-  coverage(center: { lat: number; lon: number }, radiusM: number): PoiSearchResult["coverage"] {
-    const [minLat, minLon, maxLat, maxLon] = this.meta.bbox;
-    if (center.lat < minLat || center.lat > maxLat || center.lon < minLon || center.lon > maxLon) return "none";
-    const edge = Math.min(
-      distanceM(center, { lat: minLat, lon: center.lon }),
-      distanceM(center, { lat: maxLat, lon: center.lon }),
-      distanceM(center, { lat: center.lat, lon: minLon }),
-      distanceM(center, { lat: center.lat, lon: maxLon })
-    );
-    return edge >= radiusM ? "full" : "partial";
   }
 
   /** Places within `radiusM` matching the query's categories, diet and text, unsorted. */
@@ -178,26 +173,66 @@ function strength(p: Poi, diets: Diet[]): number {
  * diet strength (only > yes > limited) when a diet was asked, then distance;
  * guide listings without their own coordinates come after them.
  */
-export async function searchPoiPacks(packs: PoiPack[], q: PoiQuery): Promise<PoiSearchResult> {
+/** Anything searchable by area: an open places pack, or a tile that opens its file on first use. */
+export interface PoiArea {
+  id: string;
+  /** [minLat, minLon, maxLat, maxLon] */
+  bbox: [number, number, number, number];
+  within(q: PoiQuery, radiusM: number): Promise<Array<Poi & { distanceM: number }>>;
+}
+
+const EARTH_DEG_M = (Math.PI / 180) * EARTH_M;
+
+/** Bounding box of a circle, in degrees. */
+function circleBox(c: { lat: number; lon: number }, radiusM: number): [number, number, number, number] {
+  const dLat = radiusM / EARTH_DEG_M;
+  const dLon = dLat / Math.max(0.01, Math.cos((c.lat * Math.PI) / 180));
+  return [c.lat - dLat, c.lon - dLon, c.lat + dLat, c.lon + dLon];
+}
+
+const inside = (b: PoiArea["bbox"], lat: number, lon: number) => lat >= b[0] && lat <= b[2] && lon >= b[1] && lon <= b[3];
+const overlaps = (a: PoiArea["bbox"], b: PoiArea["bbox"]) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+
+/**
+ * "none" when no area contains the center; "full" when the areas together
+ * cover the circle (its box's corners and edge midpoints), else "partial".
+ */
+export function coverageOf(areas: PoiArea[], center: { lat: number; lon: number }, radiusM: number): PoiSearchResult["coverage"] {
+  if (!areas.some((a) => inside(a.bbox, center.lat, center.lon))) return "none";
+  const [s, w, n, e] = circleBox(center, radiusM);
+  const probes = [[s, w], [s, e], [n, w], [n, e], [s, center.lon], [n, center.lon], [center.lat, w], [center.lat, e]];
+  return probes.every(([la, lo]) => areas.some((a) => inside(a.bbox, la, lo))) ? "full" : "partial";
+}
+
+/**
+ * Searches the areas around the center, widening the radius (3 km → 10 km →
+ * 25 km) until at least 3 exact places match; each radius queries every area
+ * its circle touches (a neighboring tile too). Exact places are ordered by
+ * diet strength (only > yes > limited) when a diet was asked, then distance;
+ * guide listings without their own coordinates come after them, and places
+ * whose diet tag looks doubtful last.
+ */
+export async function searchPoiPacks(areas: PoiArea[], q: PoiQuery): Promise<PoiSearchResult> {
   const t0 = Date.now();
   const limit = q.limit ?? 10;
   const diets = q.diet ?? [];
   const start = q.radiusM ?? RADII_M[0];
   const radii = [start, ...RADII_M.filter((r) => r > start)];
-  const covering = packs
-    .map((p) => ({ p, cov: p.coverage(q.center, start) }))
-    .filter((x) => x.cov !== "none")
-    .sort((a, b) => (a.cov === "full" ? 0 : 1) - (b.cov === "full" ? 0 : 1));
   const criterion = diets.length
     ? `diet tag strength (${diets.join("/")}: only > yes > limited), then distance; places whose tag looks doubtful are listed last; popularity isn't known offline`
     : "distance; popularity isn't known offline";
-  if (!covering.length) return { pois: [], radiusUsedM: start, coverage: "none", criterion, timingsMs: { search: Date.now() - t0 } };
+  const coverage = coverageOf(areas, q.center, start);
+  if (coverage === "none") return { pois: [], radiusUsedM: start, coverage, criterion, timingsMs: { search: Date.now() - t0 } };
+  const home = areas
+    .filter((a) => inside(a.bbox, q.center.lat, q.center.lon))
+    .sort((x, y) => (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]) - (y.bbox[2] - y.bbox[0]) * (y.bbox[3] - y.bbox[1]))[0];
 
   let found: Array<Poi & { distanceM: number }> = [];
   let radiusUsedM = start;
   for (const r of radii) {
     radiusUsedM = r;
-    found = (await Promise.all(covering.map((c) => c.p.within(q, r)))).flat();
+    const box = circleBox(q.center, r);
+    found = (await Promise.all(areas.filter((a) => overlaps(a.bbox, box)).map((a) => a.within(q, r)))).flat();
     if (found.filter((p) => !p.approx && !(p.dietCheck != null && p.dietCheck < DIET_DOUBTFUL)).length >= MIN_RESULTS) break;
   }
   const seen = new Set<string>();
@@ -212,12 +247,11 @@ export async function searchPoiPacks(packs: PoiPack[], q: PoiQuery): Promise<Poi
     .sort((a, b) => (diets.length ? strength(b, diets) - strength(a, diets) : 0) || a.distanceM - b.distanceM);
   const doubtful = found.filter((p) => !p.approx && p.dietFlag === "verify").sort((a, b) => a.distanceM - b.distanceM);
   const approx = found.filter((p) => p.approx).sort((a, b) => a.distanceM - b.distanceM);
-  const main = covering[0];
   return {
     pois: [...exact, ...approx, ...doubtful].slice(0, limit),
     radiusUsedM,
-    coverage: covering.some((c) => c.cov === "full") ? "full" : "partial",
-    region: main.p.meta.id,
+    coverage,
+    region: home.id,
     criterion,
     timingsMs: { search: Date.now() - t0 },
   };
