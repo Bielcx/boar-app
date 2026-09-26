@@ -1,6 +1,7 @@
 import { EXTRACTIVE_MODEL_ID, type AnswerReceipt } from "./answerEvents";
 import { answerPhase, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds, formatTokPerSec } from "./shareFormat";
+import { placesEmptyTitle } from "./placesFormat";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -46,10 +47,10 @@ export function phaseAnnouncement(
       return { message: t("chat.announce.answering") };
     case "done":
       if (state.places) {
-        const count = state.places.coverage === "ok" ? state.places.places.length : 0;
-        return state.places.coverage === "needs_place"
-          ? { message: t("chat.places.whichCity") }
-          : { message: t("chat.announce.placesFound", { count }) };
+        if (state.places.coverage === "needs_place") return { message: t("chat.places.whichCity") };
+        // Say what the screen says: the empty-state title, or how many places are listed.
+        const empty = placesEmptyTitle(state.places, t);
+        return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
       return { message: t("chat.announce.ready", { count: state.sources.length }) };
     case "stopped":

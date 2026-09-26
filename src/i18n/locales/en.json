@@ -792,10 +792,11 @@
       "fill": "Put in the input to edit"
     },
     "suggestions": {
-      "q1": "How do vaccines train the immune system?",
-      "q2": "Compare a virus and a bacterium",
-      "q3": "Why do we have seasons on Earth?",
-      "q4": "How do I treat a minor burn?"
+      "q1": "Why do we have seasons on Earth?",
+      "q2": "What is the difference between a pandemic and an epidemic?",
+      "q3": "What is 30 °C in Fahrenheit?",
+      "q4": "How do I stop a nosebleed?",
+      "available": "q1,q2,q3,q4"
     },
     "header": {
       "menu": "Open menu",
@@ -915,7 +916,8 @@
       "noneInCityFiltered": "No {{filter}} places in the offline map for {{city}}",
       "noneNear": "No places in the offline map near you",
       "noneNearFiltered": "No {{filter}} places in the offline map near you",
-      "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region."
+      "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
+      "searchHint": "Type a city first"
     },
     "assistantName": "boar"
   },

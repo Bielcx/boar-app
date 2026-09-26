@@ -26,6 +26,14 @@ describe("parseInline", () => {
     expect(parseInline("array[0]", 3)).toEqual([{ type: "text", text: "array[0]" }]);
   });
 
+  it("drops a literal [n] copied from the prompt, even while streaming", () => {
+    expect(parseInline("Canberra is the capital [n].", 2)).toEqual([{ type: "text", text: "Canberra is the capital." }]);
+    expect(parseInline("A [N] and [1]", 1)).toEqual([
+      { type: "text", text: "A and " },
+      { type: "cite", n: 1 },
+    ]);
+  });
+
   it("keeps an unclosed ** as text while streaming", () => {
     expect(parseInline("so **important", 0)).toEqual([{ type: "text", text: "so **important" }]);
   });

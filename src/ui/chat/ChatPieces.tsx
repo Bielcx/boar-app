@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
+import { suggestionKeys } from "./chatItems";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
@@ -87,8 +88,6 @@ export const UserMessage = memo(function UserMessage({
   );
 });
 
-export const SUGGESTION_KEYS = ["q1", "q2", "q3", "q4"] as const;
-
 /** A new chat: what the app does, and questions to start with (tap sends; long-press or the screen reader action fills the composer). */
 export function ChatEmptyState({
   showSuggestions,
@@ -122,7 +121,7 @@ export function ChatEmptyState({
           <Text variant="label" color="secondary" header>
             {tr("chat.empty.suggestionsLabel")}
           </Text>
-          {SUGGESTION_KEYS.map((k) => {
+          {suggestionKeys(tr("chat.suggestions.available")).map((k) => {
             const q = tr(`chat.suggestions.${k}`);
             return (
               <Card

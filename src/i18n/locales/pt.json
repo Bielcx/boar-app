@@ -792,10 +792,11 @@
       "fill": "Colocar no campo para editar"
     },
     "suggestions": {
-      "q1": "Como as vacinas treinam o sistema imunológico?",
-      "q2": "Compare um vírus e uma bactéria",
-      "q3": "Por que existem estações do ano na Terra?",
-      "q4": "Como tratar uma queimadura leve?"
+      "q1": "Por que existem estações do ano na Terra?",
+      "q2": "Qual a diferença entre pandemia e epidemia?",
+      "q3": "Quanto é 30 °C em Fahrenheit?",
+      "q4": "Como estancar um sangramento nasal?",
+      "available": "q3"
     },
     "header": {
       "menu": "Abrir menu",
@@ -915,7 +916,8 @@
       "noneInCityFiltered": "Não tenho dados offline de lugares ({{filter}}) em {{city}}",
       "noneNear": "Não tenho dados offline de lugares perto de você",
       "noneNearFiltered": "Não tenho dados offline de lugares ({{filter}}) perto de você",
-      "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região."
+      "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
+      "searchHint": "Digite uma cidade primeiro"
     },
     "assistantName": "boar"
   },

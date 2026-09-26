@@ -36,6 +36,7 @@ import {
   pruneSessions,
   setMessageFeedback,
   setMessageMeta,
+  upsertMessage,
   ChatSession,
 } from "../services/chatHistory";
 import { generateSessionTitle, summarizeConversation } from "../services/summarize";
@@ -422,10 +423,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     async (messageId: string, kind: "deep" | "fast" | { place?: string }) => {
       const item = itemsRef.current.find((m) => m.id === messageId);
       if (!item || item.kind !== "assistant" || activeRef.current || !ready) return;
+      const sessionId = activeSessionId;
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
       if (typeof kind === "object") {
-        const fresh = (items: ChatItem[]) => updateAnswer(items, messageId, () => ({ answerIds: [], sources: [] }));
+        const fresh = (items: ChatItem[]) =>
+          updateAnswer(items, messageId, () => ({ answerIds: [], sources: [] })).map((m) =>
+            m.kind === "assistant" && m.id === messageId ? { ...m, interrupted: false } : m
+          );
         itemsRef.current = fresh(itemsRef.current);
         setItems(fresh);
       }
@@ -437,6 +442,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               ? runAnswer({ query: item.question, tier: "fast" }, onEvent, ctx)
               : runAnswer({ query: item.question, place: kind.place }, onEvent, ctx)
         );
+        // A redo replaces the answer: keep the saved text in step (Deepen only adds to it).
+        if (typeof kind === "object" && sessionId) await upsertMessage(sessionId, "assistant", answerTextForHistory(final), messageId);
         await setMessageMeta(messageId, toStoredAnswer(final));
       } catch (e: any) {
         console.warn("[ChatScreen] follow-up failed:", e?.message ?? e);
@@ -444,7 +451,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         finish();
       }
     },
-    [ready, runInto, finish]
+    [ready, runInto, finish, activeSessionId]
   );
 
   // "Use my location": explain in context first (only while the permission is undetermined).
@@ -593,7 +600,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     openSource: (id, index) => setOpenSource({ messageId: id, index }),
     deepen: (id) => followUp(id, "deep"),
     askModel: (id) => followUp(id, "fast"),
-    retry: (question) => ask(question),
+    // Retry redoes the answer in place; without a saved session (it failed before one existed) it asks again.
+    retry: (id, question) => (activeSessionId ? followUp(id, {}) : ask(question)),
     rate: (id, r) => rate(id, r),
     copy: (item) => copyText(copyBody(item) ?? formatForCopy(answerForCopy(item.answer), item.answer.sources, shareLabels), t("chat.actions.copied")),
     share: (item) => {
@@ -629,7 +637,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       openSource: (id, i) => rowActions.current.openSource(id, i),
       deepen: (id) => rowActions.current.deepen(id),
       askModel: (id) => rowActions.current.askModel(id),
-      retry: (q) => rowActions.current.retry(q),
+      retry: (id, q) => rowActions.current.retry(id, q),
       rate: (id, r) => rowActions.current.rate(id, r),
       copy: (item) => rowActions.current.copy(item),
       share: (item) => rowActions.current.share(item),
@@ -775,7 +783,7 @@ interface RowActions {
   openSource: (id: string, index: number) => void;
   deepen: (id: string) => void;
   askModel: (id: string) => void;
-  retry: (question: string) => void;
+  retry: (id: string, question: string) => void;
   rate: (id: string, rating: "up" | "down") => void;
   copy: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
   share: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
@@ -815,7 +823,7 @@ const AssistantRow = memo(function AssistantRow({
       onOpenSource: (i: number) => actions.openSource(id, i),
       onDeepen: () => actions.deepen(id),
       onAskModel: () => actions.askModel(id),
-      onRetry: () => actions.retry(itemRef.current.question),
+      onRetry: () => actions.retry(id, itemRef.current.question),
       onRate: (r: "up" | "down") => actions.rate(id, r),
       onCopy: () => actions.copy(itemRef.current),
       onShare: () => actions.share(itemRef.current),

@@ -132,6 +132,21 @@ export async function addMessage(
   await db.runAsync(`UPDATE chat_sessions SET updated_at = ? WHERE id = ?`, [now, sessionId]);
 }
 
+/**
+ * Saves a message, or updates the text of one saved before (an answer retried
+ * in place keeps its id and position).
+ */
+export async function upsertMessage(sessionId: string, role: "user" | "assistant", text: string, id: string): Promise<void> {
+  const db = await getDb();
+  const now = Date.now();
+  await db.runAsync(
+    `INSERT INTO chat_messages (id, session_id, role, text, created_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET text = excluded.text`,
+    [id, sessionId, role, text, now]
+  );
+  await db.runAsync(`UPDATE chat_sessions SET updated_at = ? WHERE id = ?`, [now, sessionId]);
+}
+
 /** `rating: null` clears any existing feedback (tapping the same thumb again to un-rate). */
 export async function setMessageFeedback(messageId: string, rating: "up" | "down" | null): Promise<void> {
   const db = await getDb();

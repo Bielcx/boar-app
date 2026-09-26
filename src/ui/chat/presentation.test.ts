@@ -44,7 +44,7 @@ describe("phaseAnnouncement", () => {
   });
 
   it("announces how many places were found, or asks for the city", () => {
-    const places = (coverage: "ok" | "none" | "needs_place", n: number): AnswerState => ({
+    const places = (coverage: "ok" | "none" | "no_pack" | "needs_place", n: number): AnswerState => ({
       answerIds: ["a"],
       sources: [],
       places: {
@@ -56,7 +56,10 @@ describe("phaseAnnouncement", () => {
       },
     });
     expect(phaseAnnouncement("done", places("ok", 4), t)).toEqual({ message: 'chat.announce.placesFound{"count":4}' });
-    expect(phaseAnnouncement("done", places("none", 0), t)).toEqual({ message: 'chat.announce.placesFound{"count":0}' });
+    expect(phaseAnnouncement("done", places("none", 0), t)).toEqual({
+      message: 'chat.places.noneInCity{"city":"Lisboa","filter":null}',
+    });
+    expect(phaseAnnouncement("done", places("no_pack", 0), t)).toEqual({ message: "chat.places.noPackTitle" });
     expect(phaseAnnouncement("done", places("needs_place", 0), t)).toEqual({ message: "chat.places.whichCity" });
   });
 });

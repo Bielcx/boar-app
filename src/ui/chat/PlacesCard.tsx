@@ -12,8 +12,10 @@ import {
   dietLabels,
   formatDistance,
   geoUri,
+  filterName,
   openStateAt,
   openStateLabel,
+  placesEmptyTitle,
   placeA11yLabel,
   sourceName,
 } from "./placesFormat";
@@ -21,14 +23,6 @@ import {
 const VISIBLE = 5;
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
-
-function filterName(filters: string[] | undefined, t: T): string | null {
-  const f = filters?.[0];
-  if (!f) return null;
-  const key = `chat.places.filter.${f}`;
-  const name = t(key);
-  return name === key ? f : name;
-}
 
 function cardTitle(r: PlacesResult, count: number, t: T): string {
   const filter = filterName(r.filters, t);
@@ -234,7 +228,13 @@ function CityPrompt({
         autoCapitalize="words"
       />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-        <Button label={tr("chat.places.search")} icon="search" disabled={!city.trim()} onPress={submit} />
+        <Button
+          label={tr("chat.places.search")}
+          icon="search"
+          disabled={!city.trim()}
+          accessibilityHint={city.trim() ? undefined : tr("chat.places.searchHint")}
+          onPress={submit}
+        />
         {onUseLocation && locationStatus !== "denied" && (
           <Button label={tr("chat.places.useLocation")} variant="secondary" icon="navigation" onPress={onUseLocation} />
         )}
@@ -268,35 +268,24 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
   const r = answer.places!;
   // Open/closed needs the place's local time; only a "near" list shares the device's clock.
   const now = r.area.kind === "near" ? clock : null;
-  const city = r.area.place?.name ?? r.area.label ?? "";
 
   if (r.coverage === "needs_place") {
     return <CityPrompt locationStatus={answer.location?.status} onCity={onCity} onUseLocation={onUseLocation} />;
   }
+  const emptyTitle = placesEmptyTitle(r, tr);
   if (r.coverage === "no_pack") {
     return (
       <EmptyState
         icon="map"
-        title={tr("chat.places.noPackTitle")}
+        title={emptyTitle!}
         body={tr("chat.places.noPackBody")}
         actionLabel={onGetMap ? tr("chat.places.getMap") : undefined}
         onAction={onGetMap}
       />
     );
   }
-  if (r.coverage === "none" || r.places.length === 0) {
-    const filter = filterName(r.filters, tr);
-    return (
-      <EmptyState
-        icon="map"
-        title={
-          city
-            ? tr(filter ? "chat.places.noneInCityFiltered" : "chat.places.noneInCity", { city, filter })
-            : tr(filter ? "chat.places.noneNearFiltered" : "chat.places.noneNear", { filter })
-        }
-        body={tr("chat.places.noneBody")}
-      />
-    );
+  if (emptyTitle) {
+    return <EmptyState icon="map" title={emptyTitle} body={tr("chat.places.noneBody")} />;
   }
 
   const shown = expanded ? r.places : r.places.slice(0, VISIBLE);
