@@ -4,9 +4,8 @@
  * the body when the branch is integrated, and no screen changes.
  *
  * - Memory fit and pack removal are wired (estimateMemoryFit, removeCorpusPackIndex).
- * - Places: POI_REGIONS and poiCatalogEntries (feat/knowledge,
- *   src/rag/poiRegions.ts). Interim: no regions, so the UI shows its empty
- *   state instead of made-up regions.
+ * - Places: POI_REGIONS and poiCatalogEntries are wired; the gazetteer's
+ *   catalog entry is built here until Bramble exports worldPlacesEntry().
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
@@ -16,6 +15,7 @@ import { defaultContextSize } from "../../inference/LlamaEngine";
 import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
 import type { PoiRegion } from "./poi";
+import { POI_REGIONS, poiCatalogEntries, WORLD_PLACES } from "../../rag/poiRegions";
 import type { NativePosition } from "../../services/location.pure";
 import * as OfflineLocation from "offline-location";
 
@@ -38,24 +38,37 @@ export async function removePackIndex(model: CatalogModel): Promise<void> {
 }
 
 export function poiRegions(): PoiRegion[] {
-  return [];
+  return POI_REGIONS;
 }
 
 /** A region as a catalog entry, so downloads, verification and removal reuse the model rows. */
 export function poiCatalogEntry(region: PoiRegion): CatalogModel {
+  return poiCatalogEntries([region])[0];
+}
+
+/**
+ * The world gazetteer every places pack needs to resolve place names.
+ * Interim copy until Bramble exports worldPlacesEntry() with the same id.
+ */
+export function worldPlacesEntry(): CatalogModel {
   return {
-    id: region.id,
+    id: "poi-world-places",
     kind: "corpus",
-    label: region.name.en,
-    filename: region.filename,
-    sizeBytes: region.sizeBytes,
-    sha256: region.sha256,
-    sourceUrl: region.sourceUrl,
-    license: region.license,
+    format: "poi-pack",
+    label: "World places (GeoNames)",
+    filename: WORLD_PLACES.filename,
+    sizeBytes: WORLD_PLACES.sizeBytes,
+    sha256: WORLD_PLACES.sha256,
+    sourceUrl: "",
+    license: WORLD_PLACES.license,
     description: "",
     required: false,
-    format: "sqlite-pack",
   };
+}
+
+/** A region pack plus the gazetteer it needs, as one install. */
+export function placesInstall(region: PoiRegion): CatalogModel[] {
+  return [poiCatalogEntry(region), worldPlacesEntry()];
 }
 
 export interface DeviceLocationModule {

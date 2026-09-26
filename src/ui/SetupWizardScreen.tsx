@@ -28,7 +28,8 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
-import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { placesInstall, poiRegions } from "./flows/adapters";
+import { canDownload } from "./flows/useCatalog";
 import { citySummary, deviceTimeZone, PoiRegion, suggestRegion } from "./flows/poi";
 import { locateForUser } from "../services/location";
 import { networkAllowed } from "../config/variant";
@@ -87,7 +88,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   }, [step]);
 
   const tier = TIERS.find((x) => x.id === PACKAGES.find((p) => p.id === packageId)!.tier)!;
-  const assets = useMemo(() => [...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], [tier, travel]);
+  const assets = useMemo(() => [...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : [])], [tier, travel]);
   const present = useMemo(
     () => Object.fromEntries(Object.values(catalog.statuses).map((s) => [s.asset.id, s.present])),
     [catalog.statuses]
@@ -114,7 +115,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
     resumed.current = true;
     for (const a of assets) {
       const kind = catalog.view(a).state.kind;
-      if (!present[a.id] && kind !== "downloading" && kind !== "verifying") catalog.download(a);
+      if (!present[a.id] && canDownload(a) && kind !== "downloading" && kind !== "verifying") catalog.download(a);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored, step, catalog.loaded]);
@@ -124,7 +125,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
     impact(ImpactFeedbackStyle.Medium);
     setStep(3);
     // The offline build has no network: step 3 imports files instead.
-    if (networkAllowed()) for (const a of assets) if (!present[a.id]) catalog.download(a);
+    for (const a of assets) if (!present[a.id] && canDownload(a)) catalog.download(a);
   };
 
   return (
@@ -330,7 +331,7 @@ function PackageStep({
   const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
-    const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], present);
+    const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : [])], present);
     const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
@@ -568,7 +569,7 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
 function statusLine(state: RowState, model: CatalogModel, t: ReturnType<typeof useTranslation>["t"], lang: string): string {
   switch (state.kind) {
     case "not-installed":
-      return t(networkAllowed() ? "flows.onboarding.queued" : "flows.onboarding.toImport");
+      return t(canDownload(model) ? "flows.onboarding.queued" : "flows.onboarding.toImport");
     case "downloading":
       return t("flows.onboarding.downloadingLine", {
         pct: Math.round(state.progress * 100),
@@ -614,6 +615,8 @@ function InstallStep({
   const seedStart = useRef<{ at: number; done: number } | null>(null);
   const [now, setNow] = useState(Date.now());
   const offline = !networkAllowed();
+  // Offline build, or items with no published URL yet (places packs): those are imported.
+  const needsImport = offline || assets.some((a) => !canDownload(a) && !catalog.statuses[a.id]?.present);
 
   const states = assets.map((a) => ({ asset: a, state: catalog.view(a).state }));
   const downloading = states.some((s) => s.state.kind === "downloading" || s.state.kind === "verifying");
@@ -739,8 +742,13 @@ function InstallStep({
         subtitle={ready ? t("flows.onboarding.doneBody") : offline ? t("flows.onboarding.importSub") : t("flows.onboarding.step3Sub")}
       />
 
-      {offline && !allPresent && (
+      {needsImport && !allPresent && (
         <View style={{ gap: tokens.space.sm }}>
+          {!offline && (
+            <Text variant="footnote" color="secondary">
+              {t("flows.onboarding.importPlacesNote")}
+            </Text>
+          )}
           <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
           <Text variant="footnote" color="secondary" selectable>
             {t("flows.onboarding.importHow")}

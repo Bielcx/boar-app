@@ -24,7 +24,8 @@ import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
-import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { placesInstall, poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
 
 function importPercent(p: ImportProgress): number | undefined {
@@ -178,13 +179,13 @@ export function KnowledgeScreen() {
             model={pack}
             details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
-            onDownload={() => (networkAllowed() ? downloadPack(pack) : catalog.importFiles())}
+            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.importFiles())}
             onRemove={() => catalog.remove(pack)}
           />
         ))}
       </Section>
 
-      {catalog.imports.length > 0 && (
+      {(catalog.imports.length > 0 || regions.some((r) => !canDownload(poiCatalogEntry(r)) && !catalog.statuses[poiCatalogEntry(r).id]?.present)) && (
         <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
           <View style={{ padding: tokens.space.base }}>
             <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
@@ -211,12 +212,13 @@ export function KnowledgeScreen() {
                 title={name}
                 meta={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
                 details={[
+                  t("flows.places.vegan", { vegan: formatCount(r.veganCount, lang), vegetarian: formatCount(r.vegetarianCount, lang) }),
                   cities.more > 0
                     ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more })
                     : cities.names.join(", "),
                 ].filter(Boolean)}
                 view={catalog.view(entry)}
-                onDownload={() => (networkAllowed() ? catalog.download(entry) : catalog.importFiles())}
+                onDownload={() => catalog.install(placesInstall(r))}
                 onRemove={() => catalog.remove(entry)}
               />
             );

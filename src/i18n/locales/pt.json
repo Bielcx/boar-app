@@ -585,7 +585,8 @@
       "importTitle": "Importe os arquivos",
       "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
       "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",
-      "toImport": "Ainda não importado"
+      "toImport": "Ainda não importado",
+      "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo)."
     },
     "places": {
       "title": "Lugares (offline)",
@@ -610,7 +611,8 @@
       "notNow": "Agora não",
       "continue": "Continuar",
       "openSettings": "Abrir ajustes do app",
-      "otherRegion": "Escolher outra região"
+      "otherRegion": "Escolher outra região",
+      "vegan": "{{vegan}} com opção vegana · {{vegetarian}} vegetarianos"
     },
     "import": {
       "title": "Importar arquivos",

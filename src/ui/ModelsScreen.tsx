@@ -75,7 +75,7 @@ export function ModelsScreen() {
           view={catalog.view(m)}
           fit={catalog.fit(m)}
           busy={catalog.loadingId !== null}
-          onDownload={() => (offline ? catalog.importFiles() : catalog.download(m))}
+          onDownload={() => catalog.install([m])}
           onUse={() => use(m)}
           onRemove={() => catalog.remove(m)}
         />

@@ -4,6 +4,13 @@ import { useTranslation } from "react-i18next";
 import { Button, Icon, Progress, Text, useAnnounce } from "../components";
 import { useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
+import { poiCatalogEntries } from "../../rag/poiRegions";
+import { worldPlacesEntry } from "./adapters";
+
+function labelFor(assetId: string | undefined): string | undefined {
+  if (!assetId) return undefined;
+  return [...MODEL_CATALOG, ...poiCatalogEntries(), worldPlacesEntry()].find((m) => m.id === assetId)?.label;
+}
 import type { FileImport } from "./useCatalog";
 
 interface Props {
@@ -40,8 +47,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
         const pct = Math.floor(f.progress * 4) * 25;
         announce(pct === 0 ? t("flows.import.checking", { name: f.name }) : t("flows.import.checkingAnnounce", { name: f.name, pct }));
       } else if (f.status === "verified") {
-        const asset = f.assetId ? MODEL_CATALOG.find((m) => m.id === f.assetId) : undefined;
-        announce(t("flows.import.verified", { item: asset?.label ?? f.assetId ?? f.name }));
+        announce(t("flows.import.verified", { item: labelFor(f.assetId) ?? f.assetId ?? f.name }));
       } else {
         announce(`${f.name}: ${t(`flows.row.error.${f.errorKind ?? "unknown"}`)}`, { assertive: true });
         refused = true;
@@ -59,7 +65,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
   return (
     <View style={{ gap: tokens.space.md }}>
       {imports.map((f) => {
-        const asset = f.assetId ? MODEL_CATALOG.find((m) => m.id === f.assetId) : undefined;
+        const label = labelFor(f.assetId);
         return (
           <View key={f.name} style={{ gap: tokens.space.xs }}>
             <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
@@ -88,7 +94,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
             )}
             {f.status === "verified" && (
               <Text variant="footnote" color="success">
-                {t("flows.import.verified", { item: asset?.label ?? f.assetId ?? "" })}
+                {t("flows.import.verified", { item: label ?? f.assetId ?? "" })}
               </Text>
             )}
             {f.status === "failed" && (
