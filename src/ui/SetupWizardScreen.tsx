@@ -4,7 +4,7 @@
  * manifest (flows-spec §4.1); nothing is typed in by hand.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Pressable, Text as RNText, View } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Linking, Pressable, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, EmptyState, Icon, IconName, ListRow, Progress, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
 import { useTokens } from "./theme";
@@ -33,6 +33,7 @@ import { citySummary, deviceTimeZone, PoiRegion, suggestRegion } from "./flows/p
 import { locateForUser } from "../services/location";
 import { networkAllowed } from "../config/variant";
 import { ImportList } from "./flows/ImportList";
+import { RadioRow } from "./flows/RadioRow";
 
 interface Props {
   onReady: () => void;
@@ -414,10 +415,19 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
   const [locating, setLocating] = useState(false);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [explainOpen, setExplainOpen] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [manual, setManual] = useState<PoiRegion | null>(null);
+  const announce = useAnnounce();
   const explainAnswer = useRef<((ok: boolean) => void) | null>(null);
+  const locateRef = useRef<View>(null);
+  const otherRef = useRef<View>(null);
 
   if (regions.length === 0) return null;
-  const suggestion = suggestRegion(regions, { timeZone: deviceTimeZone(), point });
+  const auto = suggestRegion(regions, { timeZone: deviceTimeZone(), point });
+  const suggestion: { region: PoiRegion; reason: "location" | "timezone" | "manual" } | null = manual
+    ? { region: manual, reason: "manual" }
+    : auto;
 
   const explain = () =>
     new Promise<boolean>((resolve) => {
@@ -437,10 +447,15 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
     setLocating(false);
     if (result.status === "ok") {
       setPoint({ lat: result.lat, lon: result.lon });
+      setManual(null);
+      setDeclined(false);
       // A different region now wins: don't keep including the old one silently.
       if (selected) onChange(null);
     } else {
-      setLocationNote(t(result.status === "declined" ? "flows.places.locationDeclined" : "flows.places.locationUnavailable"));
+      const note = t(result.status === "declined" ? "flows.places.locationDeclined" : "flows.places.locationUnavailable");
+      setLocationNote(note);
+      setDeclined(result.status === "declined");
+      announce(note);
     }
   };
 
@@ -467,16 +482,41 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
       )}
       {suggestion?.reason !== "location" && (
         <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
-          <Button size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
+          <Button ref={locateRef} size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
           {locationNote && (
             <Text variant="footnote" color="secondary">
               {locationNote}
             </Text>
           )}
+          {declined && <Button size="sm" variant="ghost" label={t("flows.places.openSettings")} onPress={() => Linking.openSettings()} />}
         </View>
       )}
+      {regions.length > 1 && (
+        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+          <Button ref={otherRef} size="sm" variant="ghost" icon="map" label={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
+        </View>
+      )}
+      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title={t("flows.places.otherRegion")} returnFocusRef={otherRef}>
+        <View accessibilityRole="radiogroup">
+          {regions.map((r) => (
+            <RadioRow
+              key={r.id}
+              title={lang.startsWith("pt") ? r.name.pt : r.name.en}
+              subtitle={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
+              selected={suggestion?.region.id === r.id}
+              onPress={() => {
+                // Picking a region means wanting it: include it right away.
+                setManual(r);
+                onChange(r);
+                setPickerOpen(false);
+              }}
+            />
+          ))}
+        </View>
+      </Sheet>
       <Sheet
         visible={explainOpen}
+        returnFocusRef={locateRef}
         onClose={() => answerExplain(false)}
         title={t("flows.places.rationaleTitle")}
         description={t("flows.places.rationaleBody")}
