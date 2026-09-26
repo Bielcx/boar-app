@@ -13,6 +13,8 @@ export type IntegrityErrorKind =
   | "network"
   | "storage"
   | "offline-variant"
+  | "too-large"
+  | "no-source"
   | "cancelled"
   | "unknown";
 

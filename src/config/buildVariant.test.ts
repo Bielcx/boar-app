@@ -76,3 +76,27 @@ describe("location", () => {
     for (const p of plugin.NETWORK_PERMISSIONS) expect(cfg.android.permissions).not.toContain(p);
   });
 });
+
+describe("activity configChanges", () => {
+  const EXPO_DEFAULT = "keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize|assetsPaths";
+
+  it("adds fontScale, density, locale and layoutDirection to Expo's defaults (system font change must not restart the app)", () => {
+    const flags = plugin.mergeConfigChanges(EXPO_DEFAULT).split("|");
+    for (const f of ["fontScale", "density", "uiMode", "locale", "layoutDirection", "orientation", "screenSize"]) {
+      expect(flags).toContain(f);
+    }
+    expect(flags).toContain("assetsPaths"); // keeps what was there
+    expect(new Set(flags).size).toBe(flags.length);
+  });
+
+  it("works from an empty attribute and is idempotent", () => {
+    const once = plugin.mergeConfigChanges(undefined);
+    expect(once.split("|")).toEqual(plugin.REQUIRED_CONFIG_CHANGES);
+    expect(plugin.mergeConfigChanges(once)).toBe(once);
+  });
+
+  it("is applied to the main activity by the variant plugin (mod registered)", () => {
+    const cfg = build({});
+    expect(cfg.mods?.android?.manifest).toBeTypeOf("function");
+  });
+});

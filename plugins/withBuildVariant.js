@@ -43,6 +43,33 @@ const LOCATION_PERMISSIONS = [
   "android.permission.ACCESS_COARSE_LOCATION",
 ];
 
+// Configuration changes the app handles itself instead of letting Android
+// destroy and recreate the activity. Without fontScale/density, changing the
+// system font or display size restarted the app and threw the setup wizard
+// back to step 1 (device baseline finding #4). React Native re-lays itself
+// out on these (onConfigurationChanged -> Dimensions/fontScale update).
+const REQUIRED_CONFIG_CHANGES = [
+  "keyboard",
+  "keyboardHidden",
+  "orientation",
+  "screenSize",
+  "screenLayout",
+  "smallestScreenSize",
+  "uiMode",
+  "fontScale",
+  "density",
+  "locale",
+  "layoutDirection",
+];
+
+/** Pure: the activity's configChanges with every required flag present, existing order kept. */
+function mergeConfigChanges(existing) {
+  const current = String(existing ?? "").split("|").map((s) => s.trim()).filter(Boolean);
+  const merged = [...current];
+  for (const flag of REQUIRED_CONFIG_CHANGES) if (!merged.includes(flag)) merged.push(flag);
+  return merged.join("|");
+}
+
 function parseVariant(raw) {
   return String(raw ?? "").trim().toLowerCase() === "offline" ? "offline" : "downloader";
 }
@@ -83,7 +110,15 @@ function applyBuildVariant(config, env = process.env) {
     android,
     extra: { ...(config.extra ?? {}), boarVariant: variant, boarVoice: voice },
   };
-  return withNoCleartext(next);
+  return withMainActivityConfigChanges(withNoCleartext(next));
+}
+
+function withMainActivityConfigChanges(config) {
+  return withAndroidManifest(config, (config) => {
+    const activity = AndroidConfig.Manifest.getMainActivityOrThrow(config.modResults);
+    activity.$["android:configChanges"] = mergeConfigChanges(activity.$["android:configChanges"]);
+    return config;
+  });
 }
 
 // Release builds never talk plain HTTP. The debug manifest (dev client ->
@@ -103,4 +138,6 @@ module.exports = {
   variantFromEnv,
   NETWORK_PERMISSIONS,
   LOCATION_PERMISSIONS,
+  REQUIRED_CONFIG_CHANGES,
+  mergeConfigChanges,
 };

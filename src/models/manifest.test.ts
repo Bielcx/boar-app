@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   MODEL_CATALOG,
   REQUIRED_MODELS,
+  ANSWER_MODELS,
+  DEFAULT_ANSWER_MODEL,
+  COMPACT_ANSWER_MODEL,
   CORPUS_CATALOG,
   TIERS,
   STORAGE_BUDGET_BYTES,
@@ -20,17 +23,29 @@ describe("totalManifestBytes", () => {
   });
 });
 
-describe("REQUIRED_MODELS", () => {
-  it("is one small llm (Qwen2.5-1.5B) and one embedding model, so first-run setup is ~1GB", () => {
-    // One required LLM keeps the first download short; adaptive routing falls
-    // back to it for every role until the user adds more models.
-    expect(REQUIRED_MODELS.filter((m) => m.kind === "llm").map((m) => m.id)).toEqual(["qwen2.5-1.5b-instruct-q4km"]);
-    expect(REQUIRED_MODELS.filter((m) => m.kind === "embedding")).toHaveLength(1);
-    expect(REQUIRED_MODELS.reduce((sum, m) => sum + m.sizeBytes, 0)).toBeLessThan(1.1 * 1024 ** 3);
+describe("answer models and the setup set", () => {
+  it("has exactly one default (Qwen3-4B-2507) and one compact (Qwen2.5-1.5B) answer model, neither required", () => {
+    expect(ANSWER_MODELS.map((m) => [m.id, m.answerTier])).toEqual([
+      ["qwen3-4b-instruct-2507-q4km", "default"],
+      ["qwen2.5-1.5b-instruct-q4km", "compact"],
+    ]);
+    for (const m of ANSWER_MODELS) {
+      expect(m.kind).toBe("llm");
+      expect(m.required).toBe(false);
+    }
+    expect(DEFAULT_ANSWER_MODEL.license).toBe("Apache-2.0");
+    expect(COMPACT_ANSWER_MODEL.sizeBytes).toBeLessThan(DEFAULT_ANSWER_MODEL.sizeBytes);
   });
 
-  it("every required model has a non-empty checksum and filename", () => {
-    for (const m of REQUIRED_MODELS) {
+  it("requires only the embedding model; the default setup set adds the default answer model (~2.5GB total)", () => {
+    expect(MODEL_CATALOG.filter((m) => m.required).map((m) => m.kind)).toEqual(["embedding"]);
+    expect(REQUIRED_MODELS.map((m) => m.kind).sort()).toEqual(["embedding", "llm"]);
+    expect(REQUIRED_MODELS.find((m) => m.kind === "llm")?.id).toBe("qwen3-4b-instruct-2507-q4km");
+    expect(REQUIRED_MODELS.reduce((sum, m) => sum + m.sizeBytes, 0)).toBeLessThan(2.7 * 1024 ** 3);
+  });
+
+  it("every setup model has a non-empty checksum and filename", () => {
+    for (const m of [...REQUIRED_MODELS, ...ANSWER_MODELS]) {
       expect(m.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(m.filename.length).toBeGreaterThan(0);
     }

@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 
 // In-memory stand-in for expo-file-system/legacy: path -> bytes.
 const files = new Map<string, Buffer>();
+// Pretend sizes for huge files we don't want to allocate.
+const fakeSizes = new Map<string, number>();
 let mtime = 1;
 const mtimes = new Map<string, number>();
 const put = (path: string, data: Buffer) => {
@@ -13,12 +15,15 @@ const put = (path: string, data: Buffer) => {
 type Progress = (d: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void;
 let serverBody: Buffer = Buffer.alloc(0);
 let serverAnnouncedSize: number | null = null;
+let dropConnectionAt: number | null = null;
+let ignoreRange = false;
+const requestedOffsets: number[] = [];
 
 vi.mock("expo-file-system/legacy", () => ({
   documentDirectory: "file:///doc/",
   getInfoAsync: async (path: string) =>
     files.has(path)
-      ? { exists: true, isDirectory: false, size: files.get(path)!.length, modificationTime: mtimes.get(path) }
+      ? { exists: true, isDirectory: false, size: fakeSizes.get(path) ?? files.get(path)!.length, modificationTime: mtimes.get(path) }
       : { exists: false },
   deleteAsync: async (path: string) => {
     files.delete(path);
@@ -35,21 +40,34 @@ vi.mock("expo-file-system/legacy", () => ({
     put(to, files.get(from)!);
     files.delete(from);
   },
-  createDownloadResumable: (_url: string, dest: string, _opts: unknown, cb: Progress) => {
+  createDownloadResumable: (_url: string, dest: string, _opts: unknown, cb: Progress, resumeData?: string) => {
     let paused = false;
+    // Mimics expo-file-system's Android legacy downloader: resumeData is the
+    // byte offset, sent as "Range: bytes=N-" and appended to the file; the
+    // reported total is (response length + offset).
+    const run = async (from: number) => {
+      requestedOffsets.push(from);
+      const start = ignoreRange ? 0 : from;
+      const body = serverBody.subarray(start);
+      const total = (serverAnnouncedSize ?? serverBody.length) - start + from;
+      cb({ totalBytesWritten: from, totalBytesExpectedToWrite: total });
+      if (paused) return undefined;
+      const kept = from > 0 ? files.get(dest)!.subarray(0, from) : Buffer.alloc(0);
+      if (dropConnectionAt !== null && dropConnectionAt > from) {
+        put(dest, Buffer.concat([kept, body.subarray(0, dropConnectionAt - from)]));
+        dropConnectionAt = null;
+        throw new Error("unexpected end of stream");
+      }
+      put(dest, Buffer.concat([kept, body]));
+      cb({ totalBytesWritten: from + body.length, totalBytesExpectedToWrite: total });
+      return { uri: dest, status: from > 0 ? 206 : 200 };
+    };
     return {
       pauseAsync: async () => {
         paused = true;
       },
-      downloadAsync: async () => {
-        const total = serverAnnouncedSize ?? serverBody.length;
-        cb({ totalBytesWritten: Math.min(1, serverBody.length), totalBytesExpectedToWrite: total });
-        if (paused) return undefined;
-        put(dest, serverBody);
-        cb({ totalBytesWritten: serverBody.length, totalBytesExpectedToWrite: total });
-        return { uri: dest, status: 200 };
-      },
-      resumeAsync: async () => undefined,
+      downloadAsync: () => run(0),
+      resumeAsync: () => run(resumeData ? Number(resumeData) : files.get(dest)?.length ?? 0),
     };
   },
 }));
@@ -83,6 +101,8 @@ vi.mock("./fileHash", () => ({
 }));
 
 import { ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
+import { registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
+import * as manifestModule from "./manifest";
 import { AssetIntegrityError } from "./integrity";
 import type { CatalogModel } from "./manifest";
 
@@ -111,6 +131,10 @@ beforeEach(() => {
   offline = false;
   excludeFromBackup.mockClear();
   copyHook = null;
+  dropConnectionAt = null;
+  ignoreRange = false;
+  requestedOffsets.length = 0;
+  fakeSizes.clear();
 });
 
 async function rejection(p: Promise<unknown>): Promise<AssetIntegrityError> {
@@ -239,5 +263,144 @@ describe("importFromFile cancellation", () => {
     await expect(new ModelManager([asset()]).importFromFile(SRC, undefined, ctrl.signal)).rejects.toMatchObject({ name: "AbortError" });
     expect(files.has(DEST)).toBe(false);
     expect([...files.keys()].filter((k) => k.includes("/imports/"))).toEqual([]);
+  });
+});
+
+describe("interrupted downloads resume from the last byte", () => {
+  it("keeps the partial file on a dropped connection, and the retry continues from there and verifies", async () => {
+    const a = asset();
+    const mm = new ModelManager([a]);
+    dropConnectionAt = 10;
+    const e = await rejection(mm.downloadCatalogModel(a));
+    expect(e).toMatchObject({ kind: "network", permanent: false });
+    expect(files.get(DEST)!.length).toBe(10);
+    // The UI sees it as not installed, with the resume point.
+    expect(await mm.statusOf(a)).toMatchObject({ present: false, partialBytes: 10 });
+    expect(files.get(DEST)!.length).toBe(10); // statusOf didn't delete it
+
+    await new ModelManager([a]).downloadCatalogModel(a); // e.g. after an app restart
+    expect(requestedOffsets).toEqual([0, 10]);
+    expect(files.get(DEST)).toEqual(body);
+    expect(await mm.statusOf(a)).toMatchObject({ present: true, checksumOk: true });
+  });
+
+  it("still rejects a resumed file whose bytes don't hash right", async () => {
+    const a = asset();
+    dropConnectionAt = 10;
+    await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    serverBody = Buffer.from("pretend this is a GGUF fil3"); // tail changed upstream, same size
+    const e = await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    expect(e.kind).toBe("hash-mismatch");
+    expect(files.has(DEST)).toBe(false);
+  });
+
+  it("throws the partial away when the server ignores Range, instead of appending the whole file", async () => {
+    const a = asset();
+    dropConnectionAt = 10;
+    await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    ignoreRange = true;
+    const e = await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    expect(e).toMatchObject({ kind: "network", permanent: false });
+    expect(files.has(DEST)).toBe(false);
+    ignoreRange = false;
+    await new ModelManager([a]).downloadCatalogModel(a);
+    expect(requestedOffsets.at(-1)).toBe(0);
+    expect(files.get(DEST)).toEqual(body);
+  });
+
+  it("verifies a complete file already on disk without downloading again", async () => {
+    const a = asset();
+    put(DEST, body);
+    await new ModelManager([a]).downloadCatalogModel(a);
+    expect(requestedOffsets).toEqual([]);
+    expect(await new ModelManager([a]).statusOf(a)).toMatchObject({ present: true, checksumOk: true });
+  });
+
+  it("deletes an oversized file instead of treating it as partial", async () => {
+    const a = asset();
+    put(DEST, Buffer.concat([body, Buffer.from("extra")]));
+    expect(await new ModelManager([a]).statusOf(a)).toMatchObject({ present: false });
+    expect(files.has(DEST)).toBe(false);
+  });
+});
+
+describe("importFromFile with an extended catalog (place packs, gazetteer)", () => {
+  const SRC = "content://picker/doc/3";
+  const pack = Buffer.from("offline places of somewhere, OSM-derived");
+  const poi = asset({ id: "poi-x", kind: "corpus", format: "poi-pack", filename: "corpus/poi-x.sqlite", sourceUrl: "", sizeBytes: pack.length, sha256: sha(pack) });
+
+  it("accepts an import-only entry (empty sourceUrl) passed in the catalog", async () => {
+    put(SRC, pack);
+    const got = await new ModelManager([asset()]).importFromFile(SRC, undefined, undefined, [asset(), poi]);
+    expect(got.id).toBe("poi-x");
+    expect(files.get("file:///doc/corpus/poi-x.sqlite")).toEqual(pack);
+  });
+
+  it("is unknown-file with the default catalog, and ignores entries without a sha256", async () => {
+    put(SRC, pack);
+    expect((await rejection(new ModelManager([asset()]).importFromFile(SRC))).kind).toBe("unknown-file");
+    const noHash = { ...poi, sha256: "" };
+    expect((await rejection(new ModelManager([]).importFromFile(SRC, undefined, undefined, [noHash]))).kind).toBe("unknown-file");
+  });
+});
+
+describe("import size limits", () => {
+  const SRC = "content://picker/doc/4";
+
+  it("rejects a file bigger than anything installable before copying or hashing it", async () => {
+    put(SRC, body);
+    fakeSizes.set(SRC, 40 * 1024 ** 3);
+    const e = await rejection(new ModelManager([asset()]).importFromFile(SRC));
+    expect(e).toMatchObject({ kind: "too-large", permanent: true });
+    expect(e.message).toMatch(/This file is 40\.0 GB; nothing BOAR can install is larger than 30\.0 GB/);
+    expect([...files.keys()]).toEqual([SRC]);
+  });
+});
+
+describe("asset registry integration", () => {
+  const SRC = "content://picker/doc/5";
+  const gazetteer = Buffer.from("GeoNames cities15000, as SQLite");
+
+  it("a default ModelManager imports any registered asset, e.g. the gazetteer, with no download URL", async () => {
+    registerAssetProvider("poi", () => [
+      asset({ id: "poi-world-places", kind: "corpus", format: "poi-pack", filename: "poi/world-places.sqlite", sourceUrl: "", sizeBytes: gazetteer.length, sha256: sha(gazetteer) }),
+    ]);
+    try {
+      put(SRC, gazetteer);
+      const got = await new ModelManager().importFromFile(SRC);
+      expect(got.id).toBe("poi-world-places");
+      expect(files.get("file:///doc/poi/world-places.sqlite")).toEqual(gazetteer);
+    } finally {
+      unregisterAssetProvider("poi");
+    }
+  });
+
+  it("refuses to download an asset that has no source URL yet, pointing to import", async () => {
+    const a = asset({ sourceUrl: "" });
+    const e = await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    expect(e).toMatchObject({ kind: "no-source", permanent: true });
+    expect(e.message).toMatch(/Import the file/);
+  });
+});
+
+describe("requiredModelsPresent (setup complete)", () => {
+  const { MODEL_CATALOG: CAT, DEFAULT_ANSWER_MODEL: DEF, COMPACT_ANSWER_MODEL: COMP } = manifestModule;
+  const embedding = CAT.find((m) => m.kind === "embedding" && m.required)!;
+
+  it("needs the embedding model plus ONE answer model, default or compact", async () => {
+    // Real sizes would allocate GBs; shrink the catalog entries' files with fakeSizes instead.
+    for (const a of [embedding, DEF, COMP]) fakeSizes.set(`file:///doc/${a.filename}`, a.sizeBytes);
+    const mm = new ModelManager();
+    const mark = (a: { filename: string }) => put(`file:///doc/${a.filename}`, Buffer.alloc(1));
+    expect(await mm.requiredModelsPresent()).toBe(false);
+    mark(embedding);
+    expect(await mm.requiredModelsPresent()).toBe(false);
+    mark(COMP);
+    expect(await mm.requiredModelsPresent()).toBe(true);
+    files.delete(`file:///doc/${COMP.filename}`);
+    mark(DEF);
+    expect(await mm.requiredModelsPresent()).toBe(true);
+    files.delete(`file:///doc/${embedding.filename}`);
+    expect(await mm.requiredModelsPresent()).toBe(false);
   });
 });
