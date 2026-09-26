@@ -462,7 +462,9 @@
       "importCancelled": "Import cancelled",
       "cancelImportA11y": "Cancel importing {{name}}",
       "preparednessTitle": "Emergency & preparedness",
-      "preparednessFooter": "First aid, survival, disasters, evacuation and self-reliance, readable without internet."
+      "preparednessFooter": "First aid, survival, disasters, evacuation and self-reliance, readable without internet.",
+      "preparednessName": "Emergency and preparedness",
+      "sourcesLine": "Sources: {{sources}}"
     },
     "performance": {
       "provisional": "Speed ratings are provisional until they are measured on phones.",
@@ -531,7 +533,9 @@
       "copy": "Copy link",
       "copyHint": "Copies the repository address",
       "copied": "Link copied",
-      "fontsTitle": "Fonts"
+      "fontsTitle": "Fonts",
+      "preparednessSources": "Emergency and preparedness sources",
+      "preparednessFooter": "Each passage in answers links to its source and license."
     },
     "onboarding": {
       "tagline": "AI research that runs entirely on your phone, without internet.",

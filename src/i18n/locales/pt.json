@@ -462,7 +462,9 @@
       "importCancelled": "Importação cancelada",
       "cancelImportA11y": "Cancelar a importação de {{name}}",
       "preparednessTitle": "Emergência e preparação",
-      "preparednessFooter": "Primeiros socorros, sobrevivência, desastres, evacuação e autossuficiência, para ler sem internet."
+      "preparednessFooter": "Primeiros socorros, sobrevivência, desastres, evacuação e autossuficiência, para ler sem internet.",
+      "preparednessName": "Emergência e preparação",
+      "sourcesLine": "Fontes: {{sources}}"
     },
     "performance": {
       "provisional": "As faixas de velocidade são provisórias até serem medidas em celulares.",
@@ -531,7 +533,9 @@
       "copy": "Copiar link",
       "copyHint": "Copia o endereço do repositório",
       "copied": "Link copiado",
-      "fontsTitle": "Fontes tipográficas"
+      "fontsTitle": "Fontes tipográficas",
+      "preparednessSources": "Fontes de Emergência e preparação",
+      "preparednessFooter": "Cada trecho nas respostas indica a fonte e a licença."
     },
     "onboarding": {
       "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",

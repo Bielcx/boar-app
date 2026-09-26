@@ -80,7 +80,18 @@ export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): Ca
   return null;
 }
 
-/** The Emergency & Preparedness pack (boar-preparedness). Interim: none until it exists. */
+/** The Emergency & Preparedness pack (boar-preparedness). Interim: none until Bramble's export is integrated. */
 export function preparednessEntry(): CatalogModel | undefined {
+  return undefined;
+}
+
+export interface PackSource {
+  name: string;
+  license: string;
+  url?: string;
+}
+
+/** Document count and attributed sources of the preparedness pack. Interim: nothing until Bramble's export is integrated. */
+export function preparednessInfo(): { docCount: number; sources: PackSource[] } | undefined {
   return undefined;
 }
