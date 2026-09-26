@@ -101,6 +101,16 @@ export function defaultContextSize(): number {
   return total > 0 && total <= 4.5 * 1024 ** 3 ? 2048 : 4096;
 }
 
+/** Reasoning-block markers per model family, as llama.cpp's reasoning-budget sampler needs them. */
+export function thinkingTagsFor(arch: string | null): { start: string; end: string } {
+  // Gemma 4 opens its reasoning channel with "<|channel>thought" (see src/services/thinking.ts).
+  if (arch && /^gemma/i.test(arch)) return { start: "<|channel>thought", end: "<channel|>" };
+  return { start: "<think>", end: "</think>" };
+}
+
+/** Injected before the forced end tag when the budget runs out, so the model moves on to the answer. */
+const THINKING_BUDGET_MESSAGE = "\nI have thought enough; answering now.\n";
+
 export interface LoadResult {
   /** Memory estimate taken right before loading; null when the RAM readouts were unavailable. */
   fit: MemoryFit | null;
@@ -141,6 +151,9 @@ export class LlamaEngine {
   }
 
   private lastLoad: LoadResult = { fit: null, warning: null };
+  // general.architecture of the loaded model (from the GGUF header), for its thinking tags.
+  private arch: string | null = null;
+  private lastHeaderArch: string | null = null;
 
   load(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }): Promise<LoadResult> {
     let result: LoadResult = { fit: null, warning: null };
@@ -199,6 +212,7 @@ export class LlamaEngine {
         n_gpu_layers: 0, // CPU-only for broad device compatibility; adjust per-device
       });
       this.modelInfo = { filename: modelFilename, nCtx, nThreads };
+      this.arch = fit ? this.lastHeaderArch : await this.readArch(modelPath);
     } catch (e: any) {
       // The native error here (from llama.rn/llama.cpp) is often terse
       // ("Failed to initialize context" with no further detail) — append
@@ -214,6 +228,15 @@ export class LlamaEngine {
     }
     this.lastLoad = { fit, warning: fit ? describeFit(modelFilename, fit) : null };
     return this.lastLoad;
+  }
+
+  private async readArch(modelPath: string): Promise<string | null> {
+    try {
+      const meta = (await loadLlamaModelInfo(modelPath)) as Record<string, unknown>;
+      return typeof meta["general.architecture"] === "string" ? (meta["general.architecture"] as string) : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -243,7 +266,9 @@ export class LlamaEngine {
 
     let shape: GgufShape | null = null;
     try {
-      shape = parseGgufShape((await loadLlamaModelInfo(modelPath)) as Record<string, unknown>);
+      const meta = (await loadLlamaModelInfo(modelPath)) as Record<string, unknown>;
+      this.lastHeaderArch = typeof meta["general.architecture"] === "string" ? (meta["general.architecture"] as string) : null;
+      shape = parseGgufShape(meta);
     } catch {
       // Unreadable header: estimateMemoryFit falls back to file-size heuristics.
     }
@@ -271,6 +296,7 @@ export class LlamaEngine {
     this.context = null;
     this.modelInfo = null;
     this.lastLoad = { fit: null, warning: null };
+    this.arch = null;
     await context?.release();
   }
 
@@ -339,7 +365,16 @@ export class LlamaEngine {
           n_predict: nPredict + (enableThinking === false ? 0 : thinkingBudget ?? 0),
           temperature,
           stop: stop ?? [],
-          ...(thinkingBudget && enableThinking !== false ? { thinking_budget_tokens: thinkingBudget } : {}),
+          // llama.rn only enforces the budget when it knows the block's tags; when the budget
+          // runs out it forces the end tag and generation continues with the answer.
+          ...(thinkingBudget && enableThinking !== false
+            ? {
+                thinking_budget_tokens: thinkingBudget,
+                thinking_start_tag: thinkingTagsFor(this.arch).start,
+                thinking_end_tag: thinkingTagsFor(this.arch).end,
+                thinking_budget_message: THINKING_BUDGET_MESSAGE,
+              }
+            : {}),
           ...(enableThinking === false ? { enable_thinking: false } : {}),
         }
       : { prompt: prompt!, n_predict: nPredict, temperature, stop: stop ?? DEFAULT_STOP_SEQUENCES };
