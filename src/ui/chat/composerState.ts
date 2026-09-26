@@ -10,14 +10,18 @@ export function modelStatus(ready: boolean, loadError: string | null | undefined
   return ready ? "ready" : "loading";
 }
 
-/** i18n key of the line above the field (and the send button's hint), or null when sending works. */
-export function composerNoticeKey(status: ModelStatus): string | null {
+/**
+ * Why sending is off, as i18n keys: `line` is shown above the field, `hint`
+ * is the send button's accessibility hint. On error only the hint remains:
+ * the error card already says what happened and what to do (one message per state).
+ */
+export function composerNotice(status: ModelStatus): { line: string | null; hint: string | null } {
   switch (status) {
     case "loading":
-      return "chat.composer.notReady";
+      return { line: "chat.composer.notReady", hint: "chat.composer.notReady" };
     case "error":
-      return "chat.composer.modelError";
+      return { line: null, hint: "chat.composer.modelError" };
     default:
-      return null;
+      return { line: null, hint: null };
   }
 }

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { IconButton, Text, TextField } from "../components";
 import { useTokens } from "../theme";
 import { VoiceInputButton } from "../VoiceInputButton";
-import { composerNoticeKey, type ModelStatus } from "./composerState";
+import { composerNotice, type ModelStatus } from "./composerState";
 
 interface Props {
   value: string;
@@ -30,8 +30,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   const { t: tr } = useTranslation();
   const ready = status === "ready";
   const canSend = ready && !generating && value.trim().length > 0;
-  const noticeKey = composerNoticeKey(status);
-  const notice = noticeKey ? tr(noticeKey) : undefined;
+  const keys = composerNotice(status);
+  const line = keys.line ? tr(keys.line) : undefined;
+  const hint = keys.hint ? tr(keys.hint) : undefined;
   return (
     <View
       style={{
@@ -41,9 +42,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
         gap: t.space.xs,
       }}
     >
-      {notice && (
-        <Text variant="caption" color={status === "error" ? "danger" : "secondary"}>
-          {notice}
+      {line && (
+        <Text variant="caption" color="secondary">
+          {line}
         </Text>
       )}
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm }}>
@@ -77,8 +78,8 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             icon="arrow-up"
             variant="filled"
             label={tr("chat.composer.send")}
-            // Why sending is off, for screen readers (the line above says it visually).
-            accessibilityHint={notice}
+            // Why sending is off, for screen readers (visually: the line above, or the error card).
+            accessibilityHint={hint}
             disabled={!canSend}
             onPress={onSend}
           />
