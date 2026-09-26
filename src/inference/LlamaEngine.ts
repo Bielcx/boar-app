@@ -44,6 +44,14 @@ export interface GenerateOptions {
   timeoutMs?: number;
   /** Called once, right before the timeout triggers stop() — lets the caller distinguish a timeout from a natural finish or a user-initiated stop. */
   onTimeout?: () => void;
+  /**
+   * Cap on tokens inside a <think> block (models that reason first, e.g.
+   * LFM2.5, Qwen3). llama.cpp forces the block closed when it is spent, and
+   * nPredict is raised by the same amount, so reasoning never eats the
+   * answer's budget. Without it, LFM2.5 used all 200-512 tokens thinking and
+   * returned an empty answer. Only applies to the chat-template path.
+   */
+  thinkingBudget?: number;
   /** llama.cpp's own measurements for this completion (prompt = prefill). */
   onTimings?: (t: GenerationTimings) => void;
 }
@@ -298,6 +306,7 @@ export class LlamaEngine {
     timeoutMs,
     onTimeout,
     onTimings,
+    thinkingBudget,
   }: GenerateOptions): Promise<string> {
     if (!this.context) throw new Error("LlamaEngine: model not loaded");
     if (!prompt && !messages) {
@@ -321,7 +330,14 @@ export class LlamaEngine {
     // could truncate genuine content that happens to contain "User:"/
     // "Question:". Only applied when the caller passes explicit `stop`.
     const completionParams = messages
-      ? { messages, jinja: true, n_predict: nPredict, temperature, stop: stop ?? [] }
+      ? {
+          messages,
+          jinja: true,
+          n_predict: nPredict + (thinkingBudget ?? 0),
+          temperature,
+          stop: stop ?? [],
+          ...(thinkingBudget ? { thinking_budget_tokens: thinkingBudget } : {}),
+        }
       : { prompt: prompt!, n_predict: nPredict, temperature, stop: stop ?? DEFAULT_STOP_SEQUENCES };
 
     let full = "";

@@ -257,3 +257,20 @@ describe("default context size", () => {
     expect(defaultContextSize()).toBe(4096);
   });
 });
+
+describe("thinking budget", () => {
+  it("caps reasoning and adds its budget on top of the answer's tokens (chat-template path only)", async () => {
+    const engine = new LlamaEngine();
+    await engine.load("models/a.gguf");
+    const seen: any[] = [];
+    (created[0] as any).completion = (p: any) => {
+      seen.push(p);
+      return Promise.resolve({ text: "ok" });
+    };
+    await engine.generate({ messages: [{ role: "user", content: "q" }], nPredict: 300, thinkingBudget: 256 });
+    await engine.generate({ prompt: "q", nPredict: 300, thinkingBudget: 256 });
+    expect(seen[0]).toMatchObject({ n_predict: 556, thinking_budget_tokens: 256 });
+    expect(seen[1].n_predict).toBe(300);
+    expect(seen[1].thinking_budget_tokens).toBeUndefined();
+  });
+});

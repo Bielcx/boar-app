@@ -78,6 +78,10 @@ export interface AnswerDeps {
   contextSize?(): number;
 }
 
+/** Max <think> tokens before an answer (reasoning models only; see LlamaEngine thinkingBudget). */
+export const FAST_THINKING_BUDGET = 256;
+export const DEEP_THINKING_BUDGET = 1024;
+
 /** Room kept for the system prompt, history and template tokens around the sources. */
 const PROMPT_OVERHEAD_TOKENS = 512;
 
@@ -236,7 +240,10 @@ export function createAnswerer(deps: AnswerDeps) {
       const ctxSize = deps.contextSize?.() ?? 4096;
       const budget = Math.max(
         256,
-        Math.min(gen?.contextTokens ?? 1200, ctxSize - ctx.maxTokens - PROMPT_OVERHEAD_TOKENS)
+        Math.min(
+          gen?.contextTokens ?? 1200,
+          ctxSize - ctx.maxTokens - PROMPT_OVERHEAD_TOKENS - (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
+        )
       );
       const compressed = compressContext(req.query, raw, { tokenBudget: budget });
       let sources = compressed.chunks;
@@ -338,6 +345,8 @@ export function createAnswerer(deps: AnswerDeps) {
           const useTemplate = deps.engine.hasEmbeddedChatTemplate();
           const common = {
             nPredict: ctx.maxTokens,
+            // Reasoning models think before answering; bound it per tier.
+            thinkingBudget: genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET,
             onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };
@@ -385,6 +394,7 @@ export function createAnswerer(deps: AnswerDeps) {
                   deps.engine.hasEmbeddedChatTemplate()
                 ),
                 nPredict: 200,
+                thinkingBudget: 128,
                 temperature: 0.2,
               })
               .catch(() => "");
