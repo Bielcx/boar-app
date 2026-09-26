@@ -272,5 +272,8 @@ describe("thinking budget", () => {
     expect(seen[0]).toMatchObject({ n_predict: 556, thinking_budget_tokens: 256 });
     expect(seen[1].n_predict).toBe(300);
     expect(seen[1].thinking_budget_tokens).toBeUndefined();
+    await engine.generate({ messages: [{ role: "user", content: "q" }], nPredict: 200, thinkingBudget: 256, enableThinking: false });
+    expect(seen[2]).toMatchObject({ n_predict: 200, enable_thinking: false });
+    expect(seen[2].thinking_budget_tokens).toBeUndefined();
   });
 });

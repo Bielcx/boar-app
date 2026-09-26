@@ -59,6 +59,10 @@ export interface GenerationPlan {
   retrieveK: number;
   /** Token budget for the compressed context. */
   contextTokens: number;
+  /** Cap on the answer's length (the user's Max Output Tokens still applies when lower). */
+  maxTokens?: number;
+  /** Let a reasoning model think first (<think>). Off for the streaming MoE, where every token costs ~40 ms. */
+  thinking: boolean;
 }
 
 export interface AnswerPlan {
@@ -73,8 +77,15 @@ export interface AnswerPlan {
 
 export const FAST_RETRIEVE_K = 6;
 export const FAST_CONTEXT_TOKENS = 1200;
-export const DEEP_RETRIEVE_K = 10;
-export const DEEP_CONTEXT_TOKENS = 2400;
+/**
+ * Deep-model budget from the deep-tier contract (docs/adr/0001, measured on
+ * Qwen3.6-35B-A3B with expert streaming: prefill 28-41 tok/s on an M4,
+ * ~27 on a phone). TTFT <= 15 s and total <= 60 s need <= 400 context
+ * tokens, <= 200 answer tokens and no thinking block.
+ */
+export const DEEP_RETRIEVE_K = 6;
+export const DEEP_CONTEXT_TOKENS = 400;
+export const DEEP_MAX_TOKENS = 200;
 
 const usable = (m: DepthModel | null | undefined): m is DepthModel =>
   !!m && m.fit !== "insufficient" && m.fit !== "thrashing";
@@ -122,7 +133,15 @@ export function planAnswer(i: DepthInput): AnswerPlan {
 
   let generation: GenerationPlan | null = null;
   if (complete && usable(i.deepModel)) {
-    generation = { tier: "deep", modelId: i.deepModel.id, mode: "single", retrieveK: DEEP_RETRIEVE_K, contextTokens: DEEP_CONTEXT_TOKENS };
+    generation = {
+      tier: "deep",
+      modelId: i.deepModel.id,
+      mode: "single",
+      retrieveK: DEEP_RETRIEVE_K,
+      contextTokens: DEEP_CONTEXT_TOKENS,
+      maxTokens: DEEP_MAX_TOKENS,
+      thinking: false,
+    };
     reasonCodes.push(`generate:deep-model-${i.deepModel.id}`);
   } else if (complete && i.fastModel) {
     // No deep model: go deeper with the same model instead (several focused passes).
@@ -132,10 +151,11 @@ export function planAnswer(i: DepthInput): AnswerPlan {
       mode: retrievalIrrelevant ? "single" : "multipass",
       retrieveK: FAST_RETRIEVE_K,
       contextTokens: FAST_CONTEXT_TOKENS,
+      thinking: true,
     };
     reasonCodes.push(`generate:no-deep-model-${generation.mode}-on-${i.fastModel.id}`);
   } else if (i.fastModel) {
-    generation = { tier: "fast", modelId: i.fastModel.id, mode: "single", retrieveK: FAST_RETRIEVE_K, contextTokens: FAST_CONTEXT_TOKENS };
+    generation = { tier: "fast", modelId: i.fastModel.id, mode: "single", retrieveK: FAST_RETRIEVE_K, contextTokens: FAST_CONTEXT_TOKENS, thinking: true };
     reasonCodes.push(`generate:user-model-${i.fastModel.id}`);
   } else {
     reasonCodes.push("generate:no-model");

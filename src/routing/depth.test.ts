@@ -69,7 +69,8 @@ describe("planAnswer toggle matrix (answerQuickFirst / answerAlwaysComplete)", (
 describe("planAnswer deep tier", () => {
   it("uses the deep model in one pass over more context when one is usable", () => {
     const plan = planAnswer(base({ requestedTier: "deep", deepModel: moe30 }));
-    expect(plan.generation).toMatchObject({ tier: "deep", modelId: "qwen3-30b", mode: "single", retrieveK: 10, contextTokens: 2400 });
+    // Deep-tier contract (ADR 0001): TTFT <= 15 s on a streaming MoE.
+    expect(plan.generation).toMatchObject({ tier: "deep", modelId: "qwen3-30b", mode: "single", retrieveK: 6, contextTokens: 400, maxTokens: 200, thinking: false });
     expect(plan.instant).toBe("off");
   });
 

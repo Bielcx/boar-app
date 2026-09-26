@@ -6,7 +6,7 @@
 ## TL;DR
 
 - Routing picks **how deep** to answer, never **which model** writes a normal answer. The model the user picks ("Use") always answers; the old router ignored it for most questions.
-- Three tiers: **instant** (a source sentence, no LLM, <1 s) → **fast** (the user's model over ~1.2k tokens of compressed sources) → **deep** (a large MoE in one pass, or multi-pass on the user's model when no deep model fits), with verification by a distinct model.
+- Three tiers: **instant** (a source sentence, no LLM, <1 s) → **fast** (the user's model over ~1.2k tokens of compressed sources) → **deep** (a large MoE in one pass over ~400 tokens, or multi-pass on the user's model when no deep model fits), with verification by a distinct model.
 - The UI consumes one typed event stream (`AnswerEvent`, `src/routing/events.ts`) through `answer()` / `deepen()` (`src/routing/answerService.ts`).
 - The pre-load memory check understands mmap: only KV cache + compute buffers must fit; weights may stream from storage (`src/inference/memoryFit.ts`).
 
@@ -41,7 +41,8 @@ deepen(query, result.sources, (e) => dispatch(e), ctx); // "Deeper answer" butto
 classifyTask(query)                     # regex, deterministic (classify.ts)
   ├─ greeting/calculate/translate/code → no retrieval, no instant, fast only
   ├─ requestedTier = deep (deepen) or alwaysComplete → complete
-  │     ├─ deep model usable (fit ≠ thrashing/insufficient) → deep, single pass, 10 chunks → 2.4k tokens
+  │     ├─ deep model usable (fit ≠ thrashing/insufficient) → deep, single pass, 6 chunks → 400 tokens,
+  │     │    answer ≤ 200 tokens, no thinking block (deep-tier contract, docs/adr/0001: TTFT ≤ 15 s on a streaming MoE)
   │     └─ else → deep tier, multi-pass on the picked model (orchestrator.ts)
   │     └─ + verify when a distinct "verifier" model is installed
   └─ else → fast: picked model, 6 chunks → 1.2k tokens; instant first when quickFirst
@@ -87,13 +88,16 @@ searchPois({ center, diet, text, limit: 10 })       # pack ranks: diet tag only 
 
 ## Context compression (`src/routing/context.ts`)
 
-Prefill dominates time-to-first-token on phone CPUs (~70 tok/s for a 1.5B). Instead of whole chunks, the prompt gets the sentences that match the question (IDF-weighted term coverage), each chunk opening with its first sentence, in document order, within a token budget. Chunks with nothing relevant are dropped (the "Hall Primary School" problem).
+Prefill dominates time-to-first-token on phone CPUs (~70 tok/s for a 1.5B, ~27 tok/s for the streaming 35B MoE). Instead of whole chunks, the prompt gets the sentences that match the question (IDF-weighted term coverage), each chunk opening with its first sentence, in document order, within a token budget. Chunks with nothing relevant are dropped (the "Hall Primary School" problem).
 
 | Test scenario | Before | After |
 |---|---|---|
 | Lookup over 5 encyclopedia leads (`context.test.ts`) | 748 tok | 185 tok |
 | Comparison over the same 5 leads | 748 tok | 216 tok |
 | Full chat prompt, 3 chunks (`answer.test.ts`) | 454 tok | 316 tok |
+| "Which signature algorithms are quantum resistant?" over 6 real Wikipedia excerpts, RSA/ECDSA first | 1341 tok | 513 tok; [1] = the source naming Dilithium/Falcon/SPHINCS+, RSA dropped |
+
+Kept chunks are ordered by relevance (that order is the `[n]` numbering) and a chunk under half the best chunk's relevance is dropped. Soft line wraps in Wikipedia text are joined before splitting sentences; list items stay separate.
 
 Token counts are approximate (4 chars/token) in tests; on device `receipt.ctxTokens` is llama.cpp's own count.
 

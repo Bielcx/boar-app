@@ -52,6 +52,8 @@ export interface GenerateOptions {
    * returned an empty answer. Only applies to the chat-template path.
    */
   thinkingBudget?: number;
+  /** false asks the chat template to skip the thinking block (templates that support enable_thinking, e.g. Qwen3). */
+  enableThinking?: boolean;
   /** llama.cpp's own measurements for this completion (prompt = prefill). */
   onTimings?: (t: GenerationTimings) => void;
 }
@@ -307,6 +309,7 @@ export class LlamaEngine {
     onTimeout,
     onTimings,
     thinkingBudget,
+    enableThinking,
   }: GenerateOptions): Promise<string> {
     if (!this.context) throw new Error("LlamaEngine: model not loaded");
     if (!prompt && !messages) {
@@ -333,10 +336,11 @@ export class LlamaEngine {
       ? {
           messages,
           jinja: true,
-          n_predict: nPredict + (thinkingBudget ?? 0),
+          n_predict: nPredict + (enableThinking === false ? 0 : thinkingBudget ?? 0),
           temperature,
           stop: stop ?? [],
-          ...(thinkingBudget ? { thinking_budget_tokens: thinkingBudget } : {}),
+          ...(thinkingBudget && enableThinking !== false ? { thinking_budget_tokens: thinkingBudget } : {}),
+          ...(enableThinking === false ? { enable_thinking: false } : {}),
         }
       : { prompt: prompt!, n_predict: nPredict, temperature, stop: stop ?? DEFAULT_STOP_SEQUENCES };
 

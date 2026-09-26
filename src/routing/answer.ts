@@ -393,7 +393,10 @@ export function createAnswerer(deps: AnswerDeps) {
         256,
         Math.min(
           gen?.contextTokens ?? 1200,
-          ctxSize - ctx.maxTokens - PROMPT_OVERHEAD_TOKENS - (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
+          ctxSize -
+            Math.min(ctx.maxTokens, gen?.maxTokens ?? Infinity) -
+            PROMPT_OVERHEAD_TOKENS -
+            (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
       const compressed = compressContext(req.query, raw, { tokenBudget: budget });
@@ -495,9 +498,10 @@ export function createAnswerer(deps: AnswerDeps) {
           stage("prefill", genTier, genLlm.id);
           const useTemplate = deps.engine.hasEmbeddedChatTemplate();
           const common = {
-            nPredict: ctx.maxTokens,
-            // Reasoning models think before answering; bound it per tier.
-            thinkingBudget: genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET,
+            nPredict: Math.min(ctx.maxTokens, gen.maxTokens ?? Infinity),
+            // Reasoning models think before answering: bounded on the fast tier, off on the streaming MoE.
+            thinkingBudget: gen.thinking ? (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET) : undefined,
+            enableThinking: gen.thinking ? undefined : false,
             onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };

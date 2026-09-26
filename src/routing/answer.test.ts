@@ -237,6 +237,10 @@ describe("answer(): deep tier", () => {
     expect(types(events)).toContain("stage:verifying");
     expect(result.receipt.verification).toBe("passed");
     expect(f.loads).toEqual([moe.filename, qwen7.filename]);
+    // Deep-tier contract: short answer, no thinking block, small context.
+    const deepGen = f.generations.find((g) => g.enableThinking === false)!;
+    expect(deepGen.nPredict).toBe(200);
+    expect(deepGen.thinkingBudget).toBeUndefined();
     expect(types(events)).not.toContain("deep_available");
   });
 
