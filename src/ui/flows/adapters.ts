@@ -81,21 +81,33 @@ export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): Ca
   return null;
 }
 
-/** The Emergency & Preparedness pack (boar-preparedness). */
-export function preparednessEntry(): CatalogModel | undefined {
-  return bramblePreparednessEntry();
-}
-
 export interface PackSource {
   name: string;
   license: string;
   url?: string;
 }
 
-/** Document count and attributed sources of the preparedness pack. */
-export function preparednessInfo(): { docCount: number; sources: PackSource[] } | undefined {
-  return {
-    docCount: PREPAREDNESS_PACK.docCount,
-    sources: PREPAREDNESS_SOURCES.map(({ name, license, url }) => ({ name, license, url })),
-  };
+/** A topic pack (Bramble's src/rag/*Pack.ts): its catalog entry, localized name, size in documents and sources to attribute. */
+export interface TopicPack {
+  entry: CatalogModel;
+  name: { en: string; pt: string };
+  docCount: number;
+  sources: PackSource[];
+}
+
+/** Every topic pack in the app, for the Knowledge list and the About attributions. A new pack is one line here. */
+export function topicPacks(): TopicPack[] {
+  return [
+    {
+      entry: bramblePreparednessEntry(),
+      name: PREPAREDNESS_PACK.name,
+      docCount: PREPAREDNESS_PACK.docCount,
+      sources: PREPAREDNESS_SOURCES.map(({ name, license, url }) => ({ name, license, url })),
+    },
+  ];
+}
+
+/** The pack's name in the UI language (English for anything but Portuguese). */
+export function packName(pack: TopicPack, lang: string): string {
+  return lang.startsWith("pt") ? pack.name.pt : pack.name.en;
 }

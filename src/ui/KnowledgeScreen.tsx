@@ -24,7 +24,7 @@ import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
-import { placesInstall, poiCatalogEntry, poiRegions, preparednessEntry, preparednessInfo } from "./flows/adapters";
+import { packName, placesInstall, poiCatalogEntry, poiRegions, topicPacks } from "./flows/adapters";
 import { CitySearch } from "./flows/CitySearch";
 import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
@@ -42,8 +42,7 @@ export function KnowledgeScreen() {
   const catalog = useCatalog();
   const lang = i18n.language;
   const regions = poiRegions();
-  const preparedness = preparednessEntry();
-  const prepInfo = preparednessInfo();
+  const packs = topicPacks();
   const { refresh } = catalog;
   const [collections, setCollections] = useState<CustomCollection[] | null>(null);
   const [seed, setSeed] = useState<SeedProgress | null>(null);
@@ -174,23 +173,22 @@ export function KnowledgeScreen() {
         </View>
       )}
 
-      {preparedness && (
-        <Section title={t("flows.knowledge.preparednessTitle")} footer={t("flows.knowledge.preparednessFooter")}>
-          <CatalogRow
-            model={preparedness}
-            title={t("flows.knowledge.preparednessName")}
-            details={
-              prepInfo
-                ? [
-                    t("flows.knowledge.docs", { count: prepInfo.docCount, value: formatCount(prepInfo.docCount, lang) }),
-                    t("flows.knowledge.sourcesLine", { sources: prepInfo.sources.map((s) => `${s.name} (${s.license})`).join(", ") }),
-                  ]
-                : undefined
-            }
-            view={catalog.view(preparedness)}
-            onDownload={() => catalog.install([preparedness])}
-            onRemove={() => catalog.remove(preparedness)}
-          />
+      {packs.length > 0 && (
+        <Section title={t("flows.knowledge.topicPacksTitle")} footer={t("flows.knowledge.topicPacksFooter")}>
+          {packs.map((pack) => (
+            <CatalogRow
+              key={pack.entry.id}
+              model={pack.entry}
+              title={packName(pack, lang)}
+              details={[
+                t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) }),
+                t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") }),
+              ]}
+              view={catalog.view(pack.entry)}
+              onDownload={() => catalog.install([pack.entry])}
+              onRemove={() => catalog.remove(pack.entry)}
+            />
+          ))}
         </Section>
       )}
 

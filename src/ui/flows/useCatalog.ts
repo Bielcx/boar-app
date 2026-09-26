@@ -15,7 +15,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, IntegrityErrorKind, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
-import { fitFor, poiCatalogEntry, poiRegions, preparednessEntry, removePackIndex, worldPlacesEntry } from "./adapters";
+import { fitFor, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
@@ -91,8 +91,7 @@ export function useCatalog(): CatalogState {
 
   const refresh = useCallback(async () => {
     const found = await listDiscoveredModels();
-    const prep = preparednessEntry();
-    const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...(prep ? [prep] : [])];
+    const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...topicPacks().map((p) => p.entry)];
     const all = [...(await modelManager.statusAll()), ...(await Promise.all(extra.map((m) => modelManager.statusOf(m))))];
     setDiscovered(found);
     setStatuses(Object.fromEntries(all.map((s) => [s.asset.id, s])));
