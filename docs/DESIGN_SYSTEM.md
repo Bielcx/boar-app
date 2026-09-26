@@ -113,7 +113,7 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 ## 7. Icons
 
 One set: **Feather** via `@expo/vector-icons` (bundled font, works offline). `<Icon name="book-open" />`. Names: https://feathericons.com (the same list is typed in `IconName`).
-- Icons are decorative by default (hidden from screen readers). An icon-only control must be an `IconButton`, whose `label` is **required by the type**.
+- Icons are decorative by default and leave the accessibility tree on both platforms (`Icon` wraps the glyph in a View with `importantForAccessibility="no-hide-descendants"` + `accessibilityElementsHidden`; the font glyph would otherwise read as an empty text node). With `label`, the icon is one element with role `image`. An icon-only control must be an `IconButton`, whose `label` is **required by the type**. Only `components/Icon.tsx` may import `@expo/vector-icons` (`iconA11y.test.ts` enforces it, and that every `IconButton` has a label).
 - No emoji as UI icons. Personality or content emoji inside text is fine.
 
 Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `square` · mic `mic` · sources `book` · knowledge `book-open` · settings `sliders` · performance `activity` · about `info` · model `cpu` · download `download` · delete `trash-2` · copy `copy` · done `check` · offline `wifi-off` · verified `shield` · deep research `layers` · rate `thumbs-up` / `thumbs-down` · reasoning `message-circle`.
