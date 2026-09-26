@@ -31,6 +31,8 @@ export interface DepthModel {
   roles: ModelRole[];
   /** From estimateFit; undefined when unknown (treated as usable). */
   fit?: FitVerdict;
+  /** Median decode speed measured on this device (telemetry); undefined = never measured. */
+  tokPerSec?: number;
 }
 
 export interface DepthInput {
@@ -59,6 +61,10 @@ export interface GenerationPlan {
   retrieveK: number;
   /** Token budget for the compressed context. */
   contextTokens: number;
+  /** Cap on the answer's length (the user's Max Output Tokens still applies when lower). */
+  maxTokens?: number;
+  /** Let a reasoning model think first (<think>). Off for the streaming MoE, where every token costs ~40 ms. */
+  thinking: boolean;
 }
 
 export interface AnswerPlan {
@@ -73,17 +79,104 @@ export interface AnswerPlan {
 
 export const FAST_RETRIEVE_K = 6;
 export const FAST_CONTEXT_TOKENS = 1200;
-export const DEEP_RETRIEVE_K = 10;
-export const DEEP_CONTEXT_TOKENS = 2400;
+/**
+ * Deep-model budget from the deep-tier contract (docs/adr/0001, measured on
+ * Qwen3.6-35B-A3B with expert streaming: prefill 28-41 tok/s on an M4,
+ * ~27 on a phone). TTFT <= 15 s and total <= 60 s need <= 400 context
+ * tokens, <= 200 answer tokens and no thinking block.
+ */
+export const DEEP_RETRIEVE_K = 6;
+export const DEEP_CONTEXT_TOKENS = 400;
+export const DEEP_MAX_TOKENS = 200;
+
+/**
+ * Rule D6 (product roadmap v1.1): the automatic deep tier never picks a
+ * model measured below 5 tok/s on this device (Qwen2.5-7B ran at ~2.7 and
+ * timed out), and a model never measured is not eligible automatically.
+ * A deep model the user picked explicitly is still used.
+ */
+export const DEEP_AUTO_MIN_TOK_PER_SEC = 5;
+/** Measurements needed before a model's speed counts. */
+export const MIN_SPEED_SAMPLES = 2;
+/** Shorter generations are dominated by prefill and say little about decode speed. */
+const MIN_TOKENS_FOR_SPEED = 16;
+
+export interface SpeedSample {
+  modelId?: string;
+  tokPerSec?: number;
+  tokensGenerated?: number;
+  generationLatencyMs?: number;
+  outcome?: string;
+  createdAt?: number;
+}
+
+export interface ModelSpeed {
+  medianTokPerSec: number;
+  samples: number;
+  /** createdAt (ms) of the newest sample. */
+  lastAt?: number;
+}
+
+/**
+ * Decode speed per model measured on this device, from execution telemetry
+ * (listRecentExecutions). One source for both the router (rule D6) and the
+ * model picker, so the UI shows exactly what routing uses. Only successful
+ * generations of >= 16 tokens count; tok/s is the recorded value, else
+ * tokensGenerated / generationLatencyMs.
+ */
+export function modelSpeedStats(records: SpeedSample[]): Map<string, ModelSpeed> {
+  const by = new Map<string, { v: number[]; lastAt?: number }>();
+  for (const r of records) {
+    if (!r.modelId || (r.outcome && r.outcome !== "success")) continue;
+    if ((r.tokensGenerated ?? 0) < MIN_TOKENS_FOR_SPEED) continue;
+    const tps =
+      r.tokPerSec && r.tokPerSec > 0
+        ? r.tokPerSec
+        : r.generationLatencyMs && r.generationLatencyMs > 0
+          ? (r.tokensGenerated! / r.generationLatencyMs) * 1000
+          : undefined;
+    if (!tps || !Number.isFinite(tps)) continue;
+    const e = by.get(r.modelId) ?? { v: [] };
+    e.v.push(tps);
+    if (r.createdAt && (!e.lastAt || r.createdAt > e.lastAt)) e.lastAt = r.createdAt;
+    by.set(r.modelId, e);
+  }
+  const out = new Map<string, ModelSpeed>();
+  for (const [id, { v, lastAt }] of by) {
+    const s = [...v].sort((a, b) => a - b);
+    const median = s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+    out.set(id, { medianTokPerSec: median, samples: s.length, lastAt });
+  }
+  return out;
+}
+
+/** Median tok/s per model with enough samples to count (what the router reads). */
+export function measuredSpeeds(records: SpeedSample[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [id, sp] of modelSpeedStats(records)) if (sp.samples >= MIN_SPEED_SAMPLES) out.set(id, sp.medianTokPerSec);
+  return out;
+}
+
+/** Rule D6 for a picker: eligible for the automatic deep tier? No measurement (or too few samples) = not eligible. */
+export function deepAutoEligible(speed: ModelSpeed | null | undefined): boolean {
+  return !!speed && speed.samples >= MIN_SPEED_SAMPLES && speed.medianTokPerSec >= DEEP_AUTO_MIN_TOK_PER_SEC;
+}
+
+/** Why a model is not eligible as the automatic deep model (null = eligible). */
+export function deepAutoIneligibility(m: DepthModel): "unmeasured" | "too-slow" | null {
+  if (m.tokPerSec === undefined) return "unmeasured";
+  return m.tokPerSec < DEEP_AUTO_MIN_TOK_PER_SEC ? "too-slow" : null;
+}
 
 const usable = (m: DepthModel | null | undefined): m is DepthModel =>
   !!m && m.fit !== "insufficient" && m.fit !== "thrashing";
 
 /**
  * The deep model: the user's explicit choice when installed, else the largest
- * installed LLM curated for "reasoning" — in both cases only if it differs
- * from the fast model and fits (a dense model that would re-read its weights
- * from storage every token is not a usable deep tier). null = explicitly none.
+ * installed LLM curated for "reasoning" measured at >= 5 tok/s here (rule
+ * D6) — in both cases only if it differs from the fast model and fits (a
+ * dense model that would re-read its weights from storage every token is not
+ * a usable deep tier). null = explicitly none, or no eligible model.
  */
 export function resolveDeepModel(
   installed: DepthModel[],
@@ -95,7 +188,7 @@ export function resolveDeepModel(
   if (explicitId) return candidates.find((m) => m.id === explicitId) ?? null;
   return (
     candidates
-      .filter((m) => m.roles.includes("reasoning"))
+      .filter((m) => m.roles.includes("reasoning") && deepAutoIneligibility(m) === null)
       .sort((a, b) => b.sizeBytes - a.sizeBytes)[0] ?? null
   );
 }
@@ -122,7 +215,15 @@ export function planAnswer(i: DepthInput): AnswerPlan {
 
   let generation: GenerationPlan | null = null;
   if (complete && usable(i.deepModel)) {
-    generation = { tier: "deep", modelId: i.deepModel.id, mode: "single", retrieveK: DEEP_RETRIEVE_K, contextTokens: DEEP_CONTEXT_TOKENS };
+    generation = {
+      tier: "deep",
+      modelId: i.deepModel.id,
+      mode: "single",
+      retrieveK: DEEP_RETRIEVE_K,
+      contextTokens: DEEP_CONTEXT_TOKENS,
+      maxTokens: DEEP_MAX_TOKENS,
+      thinking: false,
+    };
     reasonCodes.push(`generate:deep-model-${i.deepModel.id}`);
   } else if (complete && i.fastModel) {
     // No deep model: go deeper with the same model instead (several focused passes).
@@ -132,10 +233,11 @@ export function planAnswer(i: DepthInput): AnswerPlan {
       mode: retrievalIrrelevant ? "single" : "multipass",
       retrieveK: FAST_RETRIEVE_K,
       contextTokens: FAST_CONTEXT_TOKENS,
+      thinking: true,
     };
     reasonCodes.push(`generate:no-deep-model-${generation.mode}-on-${i.fastModel.id}`);
   } else if (i.fastModel) {
-    generation = { tier: "fast", modelId: i.fastModel.id, mode: "single", retrieveK: FAST_RETRIEVE_K, contextTokens: FAST_CONTEXT_TOKENS };
+    generation = { tier: "fast", modelId: i.fastModel.id, mode: "single", retrieveK: FAST_RETRIEVE_K, contextTokens: FAST_CONTEXT_TOKENS, thinking: true };
     reasonCodes.push(`generate:user-model-${i.fastModel.id}`);
   } else {
     reasonCodes.push("generate:no-model");

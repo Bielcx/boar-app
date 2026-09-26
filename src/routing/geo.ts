@@ -256,8 +256,8 @@ export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radi
   if (listed.length) {
     lines.push(
       pt
-        ? `Dados do OpenStreetMap${osmDate ? ` (extrato de ${osmDate})` : ""}, mantidos por voluntários: etiquetas e horários podem estar errados; confira a fonte [n].`
-        : `Data from OpenStreetMap${osmDate ? ` (extract ${osmDate})` : ""}, maintained by volunteers: tags and hours can be wrong; check the source [n].`
+        ? `Dados do OpenStreetMap${osmDate ? ` (extrato de ${osmDate})` : ""}, mantidos por voluntários: etiquetas e horários podem estar errados; confira a fonte numerada.`
+        : `Data from OpenStreetMap${osmDate ? ` (extract ${osmDate})` : ""}, maintained by volunteers: tags and hours can be wrong; check the numbered source.`
     );
   }
   return lines.join("\n");

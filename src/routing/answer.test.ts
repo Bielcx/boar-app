@@ -229,6 +229,7 @@ describe("answer(): fast tier", () => {
 describe("answer(): deep tier", () => {
   it("always-complete uses the deep model, warns that it streams, and verifies with a distinct verifier", async () => {
     f.installed = [qwen15, qwen7, moe];
+    f.deps.getModelSpeeds = async () => new Map([["moe30", 5.8], ["qwen7", 6.1]]);
     f.settings.alwaysComplete = true;
     const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
     expect(result.tier).toBe("deep");
@@ -237,6 +238,10 @@ describe("answer(): deep tier", () => {
     expect(types(events)).toContain("stage:verifying");
     expect(result.receipt.verification).toBe("passed");
     expect(f.loads).toEqual([moe.filename, qwen7.filename]);
+    // Deep-tier contract: short answer, no thinking block, small context.
+    const deepGen = f.generations.find((g) => g.enableThinking === false)!;
+    expect(deepGen.nPredict).toBe(200);
+    expect(deepGen.thinkingBudget).toBeUndefined();
     expect(types(events)).not.toContain("deep_available");
   });
 
@@ -293,5 +298,26 @@ describe("answer(): unexpected failures", () => {
     const { events, result } = await collect("Tell me about Canberra");
     expect(result.outcome).toBe("error");
     expect(events.at(-1)).toMatchObject({ type: "done", outcome: "error", error: { code: "unknown", message: "settings file corrupted" } });
+  });
+});
+
+describe("answer(): rule D6", () => {
+  it("does not auto-pick a deep model measured below 5 tok/s; goes multi-pass on the picked model instead", async () => {
+    f.installed = [qwen15, qwen7];
+    f.settings.alwaysComplete = true;
+    f.deps.getModelSpeeds = async () => new Map([["qwen7", 2.7]]);
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).not.toContain(qwen7.filename);
+    expect(f.multipassCalls).toBe(1);
+    expect(result.receipt.reasonCodes).toContain("deep-auto:skip-qwen7-too-slow-2.7tps");
+  });
+
+  it("uses a slow deep model when the user picked it explicitly", async () => {
+    f.installed = [qwen15, qwen7];
+    f.settings.alwaysComplete = true;
+    f.settings.deepModelId = "qwen7";
+    f.deps.getModelSpeeds = async () => new Map([["qwen7", 2.7]]);
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.receipt.modelId).toBe("qwen7");
   });
 });

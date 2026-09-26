@@ -65,11 +65,11 @@ describe("assemblePrompt", () => {
 
   it("still appends the citation instruction with a custom system prompt, when there's context to cite", () => {
     const prompt = assemblePrompt("What is X?", chunks, "You are a pirate.");
-    expect(prompt).toContain("cite sources as [n]");
+    expect(prompt).toContain("cite a source you used by its number");
   });
 
   // Regression: an empty-but-present "Context:\n\n" section (with the
-  // "cite sources as [n]" instruction still attached) nudged a small model
+  // "cite a source you used by its number" instruction still attached) nudged a small model
   // toward inventing content to fill it instead of answering conversationally
   // — this is what let unrelated retrieved corpus chunks ("Pikachu",
   // "Deadmau5", "Weezer") leak into a "hey, what's up?" response even after
@@ -78,7 +78,7 @@ describe("assemblePrompt", () => {
   it("omits the entire context/citation section when there are no chunks", () => {
     const prompt = assemblePrompt("hey, what's up?", []);
     expect(prompt).not.toContain("Context:");
-    expect(prompt).not.toContain("cite sources as [n]");
+    expect(prompt).not.toContain("cite a source you used by its number");
   });
 
   it("falls back to the default instruction for an empty/whitespace system prompt", () => {
@@ -167,7 +167,7 @@ describe("assemblePrompt", () => {
     });
 
     expect(prompt).not.toContain("Context:");
-    expect(prompt).not.toContain("cite sources as [n]");
+    expect(prompt).not.toContain("cite a source you used by its number");
     expect(prompt).not.toContain("Doc One");
     expect(prompt).not.toContain("Body one.");
     // Conversation history is unaffected by the retrieval gate.
@@ -220,14 +220,14 @@ describe("assembleChatMessages", () => {
 
   it("includes retrieved context and the citation instruction in the system message when there are chunks", () => {
     const messages = assembleChatMessages("What is X?", chunks);
-    expect(messages[0].content).toContain("cite sources as [n]");
+    expect(messages[0].content).toContain("cite a source you used by its number");
     expect(messages[0].content).toContain("Doc One");
     expect(messages[0].content).toContain("Body one.");
   });
 
   it("omits the context/citation framing entirely when there are no chunks", () => {
     const messages = assembleChatMessages("hey!", []);
-    expect(messages[0].content).not.toContain("cite sources as [n]");
+    expect(messages[0].content).not.toContain("cite a source you used by its number");
     expect(messages[0].content).not.toContain("Context:");
   });
 
