@@ -143,7 +143,8 @@ export async function setHapticsEnabled(enabled: boolean): Promise<void> {
 /** Whether the chat shows the microphone button. */
 export async function getVoiceInputEnabled(): Promise<boolean> {
   const s = await readSettings();
-  return s.voiceInputEnabled ?? true;
+  // Off by default: the system recognizer may use the network on devices with Google services.
+  return s.voiceInputEnabled ?? false;
 }
 
 export async function setVoiceInputEnabled(enabled: boolean): Promise<void> {

@@ -6,7 +6,9 @@
     "back": "Back",
     "remove": "Remove",
     "retry": "Retry",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "yes": "Yes",
+    "no": "No"
   },
   "time": {
     "justNow": "just now",
@@ -18,19 +20,6 @@
     "subtitle": "Adaptive Local Intelligence",
     "newChat": "New Research Session",
     "recentSessions": "RECENT SESSIONS"
-  },
-  "modelCatalogScreen": {
-    "title": "MODEL CATALOG",
-    "subtitle": "Verified Local Offline Weights",
-    "filters": {
-      "all": "ALL",
-      "llm": "LLM",
-      "corpus": "CORPUS",
-      "community": "COMMUNITY"
-    },
-    "removedToast": "Removed \"{{label}}\"",
-    "activeModelToast": "Active {{kind}} model set to \"{{label}}\"",
-    "browserSectionTitle": "HUGGING FACE REPOSITORY SEARCH"
   },
   "modelBrowser": {
     "hint": "Search Hugging Face for other GGUF models. Not vetted by BOAR — check RAM fit and licensing yourself on the model's page before downloading.",
@@ -106,19 +95,6 @@
     "actionRequired": "ACTION REQUIRED",
     "settings": "Settings",
     "setupWizard": "Setup Wizard"
-  },
-  "usageStatsScreen": {
-    "back": "‹ BACK",
-    "title": "SYSTEM TELEMETRY",
-    "subtitle": "Hardware & Compliance Audit",
-    "live": "LIVE"
-  },
-  "systemMonitor": {
-    "title": "LIVE COMPLIANCE GAUGES",
-    "diskLabel": "Disk Storage (Cap: 50GB)",
-    "ramLabel": "Process RSS Memory (Cap: 12GB)",
-    "exceeded": "⚠️ EXCEEDED",
-    "noRssNote": "Process RSS readout requires Android native dev-client build."
   },
   "drawerFooterStats": {
     "ram": "RAM",
@@ -471,5 +447,55 @@
     "chatDeleted": "Conversation deleted",
     "activeSession": "current",
     "setup": "Setup"
+  },
+  "usageStats": {
+    "ramTitle": "Memory (RAM)",
+    "ramWithinLimit": "Within the {{limit}} limit",
+    "ramOverLimit": "Over the {{limit}} limit",
+    "appProcessRss": "App memory in use",
+    "cap": "{{limit}} limit",
+    "currentRss": "Memory in use now",
+    "peakRss": "Peak this session",
+    "deviceRam": "Device RAM",
+    "detecting": "Detecting…",
+    "ramMargin": "Headroom to the limit",
+    "storageTitle": "Storage used by the app",
+    "legendModels": "Models",
+    "legendCorpus": "Knowledge base",
+    "legendOther": "Embeddings and database",
+    "legendFree": "Free on device",
+    "lastQueryTitle": "Last answer",
+    "generationSpeed": "Writing speed",
+    "tokPerSecValue": "{{rate}} tokens/s",
+    "ttft": "Time to first word",
+    "tokensOutput": "Tokens written",
+    "tokensValue_one": "{{count}} token",
+    "tokensValue_other": "{{count}} tokens",
+    "totalDuration": "Total time",
+    "peakQueryMemory": "Peak memory during the answer",
+    "lastQueryEmpty": "Ask a question to see measurements here.",
+    "routingTitle": "Last routing decision",
+    "outcome": {
+      "success": "Success",
+      "failure": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "routingFailed": "Adaptive routing failed for the last message, so the selected model answered instead.",
+    "modelUsed": "Model used",
+    "taskType": "Task type",
+    "retrievalUsed": "Used sources",
+    "modelSwitches": "Model switches (this answer)",
+    "crossMessageSwitch": "Model changed since last message",
+    "generationLatency": "Generation time",
+    "reasonCodes": "Reason codes",
+    "engineTitle": "Loaded model",
+    "model": "Model",
+    "contextWindow": "Context window",
+    "threads": "CPU threads",
+    "threadsValue_one": "{{count}} thread",
+    "threadsValue_other": "{{count}} threads",
+    "license": "License",
+    "inference": "Inference engine",
+    "noModelLoaded": "No model is loaded."
   }
 }

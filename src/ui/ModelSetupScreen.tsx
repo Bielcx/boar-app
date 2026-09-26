@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { impact, notification, ImpactFeedbackStyle, NotificationFeedbackType, setHapticsEnabledCache } from "../services/haptics";
 import { useTranslation } from "react-i18next";
-import { MODEL_CATALOG, CatalogModel, AssetKind, CORPUS_CATALOG, REQUIRED_MODELS } from "../models/manifest";
+import { MODEL_CATALOG, CatalogModel, AssetKind, CORPUS_CATALOG } from "../models/manifest";
 import { llamaEngine } from "../inference/LlamaEngine";
 import { ModelManager } from "../models/ModelManager";
 import { getActiveModelId, setActiveModelId, getHapticsEnabled, setHapticsEnabled } from "../models/settings";
@@ -172,17 +172,16 @@ export function ModelSetupScreen(props: Props) {
         return;
       }
       // Load it here, so the chat is ready on return and a failure shows
-      // next to the model that caused it.
-      const previousId =
-        (await getActiveModelId("llm")) ?? REQUIRED_MODELS.find((m) => m.kind === "llm")!.id;
+      // next to the model that caused it. The id is saved only after the
+      // load succeeds: if the OS kills the app mid-load (OOM), the next
+      // launch must not retry the same model and die again.
       setActivatingId(model.id);
-      await setActiveModelId("llm", model.id);
       try {
         await llamaEngine.load(model.filename);
+        await setActiveModelId("llm", model.id);
         setToast(t("modelSetupScreen.toasts.activeSet", { kind: model.kind, name: model.label }));
       } catch (e: any) {
-        // Keep the previous model active; the chat reloads it on return.
-        await setActiveModelId("llm", previousId);
+        // The previous model stays active; the chat reloads it on return.
         setToast(t("modelSetupScreen.toasts.loadFailed", { name: model.label, error: e?.message ?? String(e) }));
       } finally {
         setActivatingId(null);

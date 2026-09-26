@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
@@ -48,6 +49,7 @@ interface StorageBreakdown {
  * - Live inference speed, TTFT, token metrics, and engine configuration.
  */
 export function UsageStatsContent() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<QueryStats | null>(getLastQueryStats());
   const [appRss, setAppRss] = useState(0);
   const [appPeakRss, setAppPeakRss] = useState(getAppPeakRssBytes());
@@ -151,7 +153,7 @@ export function UsageStatsContent() {
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleRow}>
             <Text style={styles.cardIcon}>🧠</Text>
-            <Text style={styles.cardTitle}>RAM & PROCESS MEMORY</Text>
+            <Text style={styles.cardTitle}>{t("usageStats.ramTitle")}</Text>
           </View>
           <View
             style={[
@@ -171,7 +173,9 @@ export function UsageStatsContent() {
                 withinRamLimit ? styles.statusTextEmerald : styles.statusTextCrimson,
               ]}
             >
-              {withinRamLimit ? "12GB BOUNTY COMPLIANT" : "OVER 12GB LIMIT"}
+              {withinRamLimit
+                ? t("usageStats.ramWithinLimit", { limit: formatGB(bountyRamBudget) })
+                : t("usageStats.ramOverLimit", { limit: formatGB(bountyRamBudget) })}
             </Text>
           </View>
         </View>
@@ -179,8 +183,8 @@ export function UsageStatsContent() {
         {/* Visual Memory Gauge against 12GB limit */}
         <View style={styles.gaugeContainer}>
           <View style={styles.gaugeHeader}>
-            <Text style={styles.gaugeLabel}>APP PROCESS RSS</Text>
-            <Text style={styles.gaugeValue}>{formatGB(appRss)} / 12.00 GB</Text>
+            <Text style={styles.gaugeLabel}>{t("usageStats.appProcessRss")}</Text>
+            <Text style={styles.gaugeValue}>{formatGB(appRss)} / {formatGB(bountyRamBudget)}</Text>
           </View>
           <View style={styles.gaugeTrack}>
             {/* Peak RSS Shadow */}
@@ -200,30 +204,30 @@ export function UsageStatsContent() {
             />
           </View>
           <View style={styles.gaugeScaleRow}>
-            <Text style={styles.gaugeScaleText}>0 GB</Text>
-            <Text style={styles.gaugeScaleText}>6 GB</Text>
-            <Text style={styles.gaugeScaleText}>12 GB CAP</Text>
+            <Text style={styles.gaugeScaleText}>{formatGB(0)}</Text>
+            <Text style={styles.gaugeScaleText}>{formatGB(bountyRamBudget / 2)}</Text>
+            <Text style={styles.gaugeScaleText}>{t("usageStats.cap", { limit: formatGB(bountyRamBudget) })}</Text>
           </View>
         </View>
 
         {/* Comparative Hardware Telemetry Rows */}
         <View style={styles.statsTable}>
           <TelemetryRow
-            label="Current Process RSS"
+            label={t("usageStats.currentRss")}
             value={formatGB(appRss)}
             highlight={colors.text.accentEmerald}
           />
           <TelemetryRow
-            label="Peak Session RSS"
+            label={t("usageStats.peakRss")}
             value={formatGB(appPeakRss)}
             highlight={withinRamLimit ? colors.text.accentCyan : colors.crimson[400]}
           />
           <TelemetryRow
-            label="Total Device RAM"
-            value={deviceTotalRam > 0 ? formatGB(deviceTotalRam) : "Detecting…"}
+            label={t("usageStats.deviceRam")}
+            value={deviceTotalRam > 0 ? formatGB(deviceTotalRam) : t("usageStats.detecting")}
           />
           <TelemetryRow
-            label="RAM Bounty Margin"
+            label={t("usageStats.ramMargin")}
             value={formatGB(Math.max(0, bountyRamBudget - appPeakRss))}
             highlight={colors.text.accentEmerald}
           />
@@ -235,7 +239,7 @@ export function UsageStatsContent() {
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleRow}>
             <Text style={styles.cardIcon}>💾</Text>
-            <Text style={styles.cardTitle}>APP STORAGE BREAKDOWN</Text>
+            <Text style={styles.cardTitle}>{t("usageStats.storageTitle")}</Text>
           </View>
           <View
             style={[
@@ -249,7 +253,7 @@ export function UsageStatsContent() {
                 withinStorageLimit ? styles.statusTextEmerald : styles.statusTextCrimson,
               ]}
             >
-              {formatGB(storage.totalAppBytes)} / 50 GB
+              {formatGB(storage.totalAppBytes)} / {formatGB(bountyStorageBudget)}
             </Text>
           </View>
         </View>
@@ -272,27 +276,27 @@ export function UsageStatsContent() {
         <View style={styles.legendContainer}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.emerald[400] }]} />
-            <Text style={styles.legendLabel}>GGUF Models</Text>
+            <Text style={styles.legendLabel}>{t("usageStats.legendModels")}</Text>
             <Text style={styles.legendValue}>{formatMB(storage.ggufBytes)}</Text>
           </View>
 
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.cyan[400] }]} />
-            <Text style={styles.legendLabel}>Corpus SQLite & FTS</Text>
+            <Text style={styles.legendLabel}>{t("usageStats.legendCorpus")}</Text>
             <Text style={styles.legendValue}>{formatMB(storage.corpusBytes)}</Text>
           </View>
 
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.frontier.glow }]} />
-            <Text style={styles.legendLabel}>Embeddings & DB</Text>
+            <Text style={styles.legendLabel}>{t("usageStats.legendOther")}</Text>
             <Text style={styles.legendValue}>{formatMB(storage.otherBytes)}</Text>
           </View>
 
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: colors.text.dim }]} />
-            <Text style={styles.legendLabel}>Device Free Space</Text>
+            <Text style={styles.legendLabel}>{t("usageStats.legendFree")}</Text>
             <Text style={styles.legendValue}>
-              {storage.freeDeviceBytes > 0 ? formatGB(storage.freeDeviceBytes) : "Available"}
+              {storage.freeDeviceBytes > 0 ? formatGB(storage.freeDeviceBytes) : "—"}
             </Text>
           </View>
         </View>
@@ -302,32 +306,30 @@ export function UsageStatsContent() {
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Text style={styles.cardIcon}>⚡</Text>
-          <Text style={styles.cardTitle}>LAST INFERENCE BENCHMARK</Text>
+          <Text style={styles.cardTitle}>{t("usageStats.lastQueryTitle")}</Text>
         </View>
 
         {stats ? (
           <View style={styles.statsTable}>
             <TelemetryRow
-              label="Generation Speed"
-              value={`${stats.tokPerSec.toFixed(1)} tok/s`}
+              label={t("usageStats.generationSpeed")}
+              value={t("usageStats.tokPerSecValue", { rate: stats.tokPerSec.toFixed(1) })}
               highlight={colors.text.accentCyan}
             />
             <TelemetryRow
-              label="Time to First Token (TTFT)"
+              label={t("usageStats.ttft")}
               value={formatMs(stats.ttftMs)}
               highlight={colors.text.accentEmerald}
             />
-            <TelemetryRow label="Tokens Output" value={`${stats.tokensGenerated} tokens`} />
-            <TelemetryRow label="Total Query Duration" value={formatMs(stats.durationMs)} />
+            <TelemetryRow label={t("usageStats.tokensOutput")} value={t("usageStats.tokensValue", { count: stats.tokensGenerated })} />
+            <TelemetryRow label={t("usageStats.totalDuration")} value={formatMs(stats.durationMs)} />
             <TelemetryRow
-              label="Peak Memory During Query"
+              label={t("usageStats.peakQueryMemory")}
               value={formatGB(stats.peakRssBytes)}
             />
           </View>
         ) : (
-          <Text style={styles.emptyNotice}>
-            Run an offline query to record telemetry benchmarks.
-          </Text>
+          <Text style={styles.emptyNotice}>{t("usageStats.lastQueryEmpty")}</Text>
         )}
       </View>
 
@@ -343,7 +345,7 @@ export function UsageStatsContent() {
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
               <Text style={styles.cardIcon}>🧭</Text>
-              <Text style={styles.cardTitle}>LAST ADAPTIVE ROUTING DECISION</Text>
+              <Text style={styles.cardTitle}>{t("usageStats.routingTitle")}</Text>
             </View>
             <View
               style={[
@@ -357,45 +359,42 @@ export function UsageStatsContent() {
                   stats.outcome === "failure" ? styles.statusTextCrimson : styles.statusTextEmerald,
                 ]}
               >
-                {(stats.outcome ?? "success").toUpperCase()}
+                {t(`usageStats.outcome.${stats.outcome ?? "success"}`)}
               </Text>
             </View>
           </View>
 
           {stats.outcome === "failure" ? (
-            <Text style={styles.emptyNotice}>
-              Adaptive routing failed for the last message — it fell back to the normal active
-              model automatically. See the console log for the specific reason.
-            </Text>
+            <Text style={styles.emptyNotice}>{t("usageStats.routingFailed")}</Text>
           ) : (
             <View style={styles.statsTable}>
               <TelemetryRow
-                label="Model Used"
+                label={t("usageStats.modelUsed")}
                 value={MODEL_CATALOG.find((m) => m.id === stats.modelId)?.label ?? stats.modelId ?? "—"}
                 highlight={colors.text.heading}
               />
-              <TelemetryRow label="Task Type" value={stats.taskType ?? "—"} />
+              <TelemetryRow label={t("usageStats.taskType")} value={stats.taskType ?? "—"} />
               <TelemetryRow
-                label="Retrieval Used"
-                value={stats.retrievalUsed ? "Yes" : "No"}
+                label={t("usageStats.retrievalUsed")}
+                value={stats.retrievalUsed ? t("common.yes") : t("common.no")}
               />
               <TelemetryRow
-                label="Model Switches (this plan)"
+                label={t("usageStats.modelSwitches")}
                 value={`${stats.modelSwitches ?? 0}`}
               />
               <TelemetryRow
-                label="Switched Since Last Message"
-                value={stats.crossMessageModelSwitch ? "Yes" : "No"}
+                label={t("usageStats.crossMessageSwitch")}
+                value={stats.crossMessageModelSwitch ? t("common.yes") : t("common.no")}
                 highlight={stats.crossMessageModelSwitch ? colors.text.accentCyan : undefined}
               />
               {stats.generationLatencyMs != null && (
                 <TelemetryRow
-                  label="Generation Latency"
+                  label={t("usageStats.generationLatency")}
                   value={formatMs(stats.generationLatencyMs)}
                 />
               )}
               {stats.reasonCodes && stats.reasonCodes.length > 0 && (
-                <TelemetryRow label="Reason Codes" value={stats.reasonCodes.join(", ")} />
+                <TelemetryRow label={t("usageStats.reasonCodes")} value={stats.reasonCodes.join(", ")} />
               )}
             </View>
           )}
@@ -406,25 +405,25 @@ export function UsageStatsContent() {
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Text style={styles.cardIcon}>⚙️</Text>
-          <Text style={styles.cardTitle}>ACTIVE ENGINE CONFIGURATION</Text>
+          <Text style={styles.cardTitle}>{t("usageStats.engineTitle")}</Text>
         </View>
 
         {modelInfo ? (
           <View style={styles.statsTable}>
             <TelemetryRow
-              label="Model"
+              label={t("usageStats.model")}
               value={modelCatalogEntry?.label ?? modelInfo.filename}
               highlight={colors.text.heading}
             />
-            <TelemetryRow label="Context Window (nCtx)" value={`${modelInfo.nCtx} tokens`} />
-            <TelemetryRow label="Compute Threads" value={`${modelInfo.nThreads} threads`} />
+            <TelemetryRow label={t("usageStats.contextWindow")} value={t("usageStats.tokensValue", { count: modelInfo.nCtx })} />
+            <TelemetryRow label={t("usageStats.threads")} value={t("usageStats.threadsValue", { count: modelInfo.nThreads })} />
             {modelCatalogEntry && (
-              <TelemetryRow label="Open Weights License" value={modelCatalogEntry.license} />
+              <TelemetryRow label={t("usageStats.license")} value={modelCatalogEntry.license} />
             )}
-            <TelemetryRow label="Inference" value="llama.cpp / llama.rn" />
+            <TelemetryRow label={t("usageStats.inference")} value="llama.cpp / llama.rn" />
           </View>
         ) : (
-          <Text style={styles.emptyNotice}>No GGUF model currently loaded.</Text>
+          <Text style={styles.emptyNotice}>{t("usageStats.noModelLoaded")}</Text>
         )}
       </View>
     </View>

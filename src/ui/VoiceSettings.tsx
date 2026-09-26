@@ -11,7 +11,7 @@ import { getVoiceInputEnabled, setVoiceInputEnabled } from "../models/settings";
 export function VoiceSettings() {
   const { t } = useTranslation();
   const [voiceAvailable, setVoiceAvailable] = useState<boolean | null>(null);
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     isVoiceInputAvailable().then(setVoiceAvailable).catch(() => setVoiceAvailable(false));

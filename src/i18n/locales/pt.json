@@ -6,7 +6,9 @@
     "back": "Voltar",
     "remove": "Remover",
     "retry": "Tentar novamente",
-    "dismiss": "Dispensar"
+    "dismiss": "Dispensar",
+    "yes": "Sim",
+    "no": "Não"
   },
   "time": {
     "justNow": "agora mesmo",
@@ -18,19 +20,6 @@
     "subtitle": "Inteligência Local Adaptativa",
     "newChat": "Nova Sessão de Pesquisa",
     "recentSessions": "SESSÕES RECENTES"
-  },
-  "modelCatalogScreen": {
-    "title": "CATÁLOGO DE MODELOS",
-    "subtitle": "Pesos Offline Locais Verificados",
-    "filters": {
-      "all": "TODOS",
-      "llm": "LLM",
-      "corpus": "CORPUS",
-      "community": "COMUNIDADE"
-    },
-    "removedToast": "\"{{label}}\" removido",
-    "activeModelToast": "Modelo {{kind}} ativo definido como \"{{label}}\"",
-    "browserSectionTitle": "BUSCA NO REPOSITÓRIO HUGGING FACE"
   },
   "modelBrowser": {
     "hint": "Busque outros modelos GGUF no Hugging Face. Não verificados pelo BOAR — confira o uso de RAM e a licença na página do modelo antes de baixar.",
@@ -106,19 +95,6 @@
     "actionRequired": "AÇÃO NECESSÁRIA",
     "settings": "Configurações",
     "setupWizard": "Assistente de Configuração"
-  },
-  "usageStatsScreen": {
-    "back": "‹ VOLTAR",
-    "title": "TELEMETRIA DO SISTEMA",
-    "subtitle": "Auditoria de Hardware e Conformidade",
-    "live": "AO VIVO"
-  },
-  "systemMonitor": {
-    "title": "MEDIDORES DE CONFORMIDADE",
-    "diskLabel": "Armazenamento em Disco (Limite: 50GB)",
-    "ramLabel": "Memória RSS do Processo (Limite: 12GB)",
-    "exceeded": "⚠️ EXCEDIDO",
-    "noRssNote": "A leitura de RSS do processo requer uma build nativa de desenvolvimento para Android."
   },
   "drawerFooterStats": {
     "ram": "RAM",
@@ -471,5 +447,55 @@
     "chatDeleted": "Conversa apagada",
     "activeSession": "atual",
     "setup": "Configuração"
+  },
+  "usageStats": {
+    "ramTitle": "Memória (RAM)",
+    "ramWithinLimit": "Dentro do limite de {{limit}}",
+    "ramOverLimit": "Acima do limite de {{limit}}",
+    "appProcessRss": "Memória usada pelo app",
+    "cap": "limite de {{limit}}",
+    "currentRss": "Memória em uso agora",
+    "peakRss": "Pico nesta sessão",
+    "deviceRam": "RAM do aparelho",
+    "detecting": "Detectando…",
+    "ramMargin": "Folga até o limite",
+    "storageTitle": "Espaço usado pelo app",
+    "legendModels": "Modelos",
+    "legendCorpus": "Base de conhecimento",
+    "legendOther": "Embeddings e banco de dados",
+    "legendFree": "Livre no aparelho",
+    "lastQueryTitle": "Última resposta",
+    "generationSpeed": "Velocidade de escrita",
+    "tokPerSecValue": "{{rate}} tokens/s",
+    "ttft": "Tempo até a primeira palavra",
+    "tokensOutput": "Tokens escritos",
+    "tokensValue_one": "{{count}} token",
+    "tokensValue_other": "{{count}} tokens",
+    "totalDuration": "Tempo total",
+    "peakQueryMemory": "Pico de memória na resposta",
+    "lastQueryEmpty": "Faça uma pergunta para ver as medidas aqui.",
+    "routingTitle": "Última decisão de roteamento",
+    "outcome": {
+      "success": "Sucesso",
+      "failure": "Falhou",
+      "cancelled": "Cancelada"
+    },
+    "routingFailed": "O roteamento adaptativo falhou na última mensagem, então o modelo escolhido respondeu.",
+    "modelUsed": "Modelo usado",
+    "taskType": "Tipo de tarefa",
+    "retrievalUsed": "Usou fontes",
+    "modelSwitches": "Trocas de modelo (nesta resposta)",
+    "crossMessageSwitch": "Modelo mudou desde a última mensagem",
+    "generationLatency": "Tempo de geração",
+    "reasonCodes": "Códigos de motivo",
+    "engineTitle": "Modelo carregado",
+    "model": "Modelo",
+    "contextWindow": "Janela de contexto",
+    "threads": "Threads de CPU",
+    "threadsValue_one": "{{count}} thread",
+    "threadsValue_other": "{{count}} threads",
+    "license": "Licença",
+    "inference": "Motor de inferência",
+    "noModelLoaded": "Nenhum modelo carregado."
   }
 }
