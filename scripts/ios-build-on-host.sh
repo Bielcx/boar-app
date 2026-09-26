@@ -16,6 +16,8 @@
 #   IOS_MODELS_DIR     models for sim-run (default ~/boar/shared-models)
 #   IOS_TEAM           Apple team id for device builds (required; never committed)
 #   IOS_DEVICE         device id for device-run (CoreDevice id or UDID, `xcrun devicectl list devices`)
+#   IOS_NO_QUEUE       1 = do not go through ~/boar/bin/heavy (on a Mac without the queue
+#                      it is skipped automatically)
 #   IOS_STRIP_ENTITLEMENTS  comma list of entitlement keys to drop before a device
 #                      build, e.g. com.apple.developer.kernel.increased-memory-limit
 #                      when the signing team cannot get that capability
@@ -28,14 +30,22 @@ CONFIG="${IOS_CONFIG:-Release}"
 BUNDLE_ID="$(node -p "require('./app.json').expo.ios.bundleIdentifier")"
 log() { printf '[ios-build-on-host %s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 
+# Heavy steps (npm ci, pod install, xcodebuild) wait for the build host's
+# one-job-at-a-time queue when it exists (~/boar/bin/heavy, log in ~/boar/heavy.log).
+HEAVY=()
+if [[ "${IOS_NO_QUEUE:-0}" != "1" && -x "$HOME/boar/bin/heavy" ]]; then
+  HEAVY=("$HOME/boar/bin/heavy" Harbor)
+fi
+heavy() { ${HEAVY[@]+"${HEAVY[@]}"} "$@"; }
+
 XCODE="${IOS_XCODE_APP:-$(ls -d /Applications/Xcode*.app | sort -V | tail -1)}"
 export DEVELOPER_DIR="$XCODE/Contents/Developer"
 log "using $(xcodebuild -version | head -1) at $XCODE"
 
 if [[ "${IOS_SKIP_DEPS:-0}" != "1" ]]; then
-  npm ci --no-audit --no-fund
+  heavy npm ci --no-audit --no-fund
   npx expo prebuild -p ios --no-install --clean
-  (cd ios && pod install)
+  (cd ios && heavy pod install)
 fi
 
 case "$MODE" in
@@ -59,7 +69,7 @@ case "$MODE" in
 esac
 
 log "xcodebuild $CONFIG $SDK"
-xcodebuild -workspace ios/BOAR.xcworkspace -scheme BOAR -configuration "$CONFIG" \
+heavy xcodebuild -workspace ios/BOAR.xcworkspace -scheme BOAR -configuration "$CONFIG" \
   -sdk "$SDK" -destination "$DEST" -derivedDataPath ios/build "${SIGN_ARGS[@]}" \
   > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -40; exit 65; }
 APP="$ROOT/ios/build/Build/Products/$CONFIG-$SDK/BOAR.app"

@@ -25,6 +25,10 @@ scripts/ios-remote-build.sh sim-run
 scripts/ios-remote-build.sh sim
 # On the build Mac itself (what the remote wrapper runs)
 scripts/ios-build-on-host.sh sim-run
+# On the mini, npm ci / pod install / xcodebuild wait for the shared heavy-job queue
+# (~/boar/bin/heavy, log in ~/boar/heavy.log). Inference in the simulator is interactive,
+# so hold the queue yourself for the session, e.g.:
+#   ssh r4toMacMini "bash -lc '~/boar/bin/heavy Harbor sleep 1200'" &
 
 # Real iPhone: signed Release built on the mini (see docs/IOS_DEVICE_SMOKE.md)
 IOS_TEAM=<team id> IOS_DEVICE=<devicectl id> scripts/ios-remote-build.sh device-local   # install from this Mac
