@@ -362,6 +362,7 @@ export interface SetupProgress {
   step: 1 | 2 | 3;
   packageId: string;
   travelRegionId?: string;
+  answerTier?: "default" | "compact";
 }
 
 export async function getSetupProgress(): Promise<SetupProgress | null> {

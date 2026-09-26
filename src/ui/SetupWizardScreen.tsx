@@ -10,7 +10,7 @@ import { Badge, Button, EmptyState, Icon, IconName, ListRow, Progress, Screen, S
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
-import { getSetupProgress, LanguageId, setSetupProgress } from "../models/settings";
+import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
 import { CatalogModel, MODEL_CATALOG, TIERS } from "../models/manifest";
 import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
@@ -28,6 +28,7 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
+import { answerModelChoices, AnswerTier, suggestCompact } from "./flows/packages";
 import { placesInstall, poiRegions } from "./flows/adapters";
 import { canDownload } from "./flows/useCatalog";
 import { CitySearch } from "./flows/CitySearch";
@@ -61,6 +62,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const [backOpen, setBackOpen] = useState(false);
   const [travel, setTravel] = useState<PoiRegion | null>(null);
   const [trip, setTrip] = useState<{ label: string; assets: CatalogModel[] } | null>(null);
+  const choices = useMemo(() => answerModelChoices(MODEL_CATALOG), []);
+  const [answerTier, setAnswerTier] = useState<AnswerTier>("default");
+  const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   const [restored, setRestored] = useState(false);
 
   // Resume where setup was: a font-size change recreates the Android Activity,
@@ -69,6 +73,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
     getSetupProgress().then((p) => {
       if (p) {
         if (PACKAGES.some((x) => x.id === p.packageId)) setPackageId(p.packageId as PackageId);
+        if (p.answerTier) setAnswerTier(p.answerTier);
         const region = p.travelRegionId ? poiRegions().find((r) => r.id === p.travelRegionId) : undefined;
         if (region) setTravel(region);
         setStep(p.step);
@@ -77,8 +82,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
     });
   }, []);
   useEffect(() => {
-    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id });
-  }, [restored, step, packageId, travel]);
+    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id, answerTier });
+  }, [restored, step, packageId, travel, answerTier]);
   const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
@@ -91,10 +96,10 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
 
   const tier = TIERS.find((x) => x.id === PACKAGES.find((p) => p.id === packageId)!.tier)!;
   const assets = useMemo(() => {
-    const all = [...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
+    const all = [...packageAssets(tier, MODEL_CATALOG, answerModel), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
     // The gazetteer can come from both the region and the trip: install it once.
     return all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i);
-  }, [tier, travel, trip]);
+  }, [tier, travel, trip, answerModel]);
   const present = useMemo(
     () => Object.fromEntries(Object.values(catalog.statuses).map((s) => [s.asset.id, s.present])),
     [catalog.statuses]
@@ -152,6 +157,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           trip={trip}
           onTrip={setTrip}
           catalog={catalog}
+          choices={choices}
+          answerTier={answerTier}
+          onAnswerTier={setAnswerTier}
           onBack={() => setStep(1)}
           onInstall={startInstall}
         />
@@ -165,7 +173,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           lang={lang}
           onBack={() => setBackOpen(true)}
           onChoosePackage={() => setStep(2)}
-          onReady={() => {
+          onReady={async () => {
+            // The chosen answer model (default or compact) writes the answers from now on.
+            if (answerModel) await setActiveModelId("llm", answerModel.id);
             setSetupProgress(null);
             onReady();
           }}
@@ -322,6 +332,9 @@ function PackageStep({
   trip,
   onTrip,
   catalog,
+  choices,
+  answerTier,
+  onAnswerTier,
   onBack,
   onInstall,
 }: {
@@ -338,15 +351,29 @@ function PackageStep({
   trip: { label: string; assets: CatalogModel[] } | null;
   onTrip: (trip: { label: string; assets: CatalogModel[] } | null) => void;
   catalog: ReturnType<typeof useCatalog>;
+  choices: Partial<Record<AnswerTier, CatalogModel>>;
+  answerTier: AnswerTier;
+  onAnswerTier: (tier: AnswerTier) => void;
   onBack: () => void;
   onInstall: () => void;
 }) {
+  const defaultFit = choices.default ? fitFor(choices.default)?.verdict : undefined;
+  const compactSuggested = !!choices.compact && suggestCompact(defaultFit);
+  // Pre-select the compact model once, when the estimate says the default won't run well here.
+  const suggestedOnce = useRef(false);
+  useEffect(() => {
+    if (compactSuggested && !suggestedOnce.current) {
+      suggestedOnce.current = true;
+      onAnswerTier("compact");
+    }
+  }, [compactSuggested, onAnswerTier]);
+  const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   const { t } = useTranslation();
   const tokens = useTokens();
   const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
-    const all = [...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
+    const all = [...packageAssets(tier, MODEL_CATALOG, answerModel), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
     const plan = planPackage(all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i), present);
     const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
@@ -449,6 +476,29 @@ function PackageStep({
           );
         })}
       </View>
+      {choices.compact && choices.default && (
+        <Section title={t("flows.onboarding.answerModelTitle")} footer={compactSuggested ? t("flows.onboarding.compactWhy") : t("flows.onboarding.answerModelFooter")}>
+          <View accessibilityRole="radiogroup">
+            {(["default", "compact"] as const).map((tierId) => {
+              const m = choices[tierId]!;
+              return (
+                <RadioRow
+                  key={tierId}
+                  title={t(`flows.onboarding.answerTier.${tierId}`, { name: m.label })}
+                  subtitle={[
+                    formatBytes(m.sizeBytes, lang),
+                    tierId === "compact" && compactSuggested ? t("flows.onboarding.suggestedHere") : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  selected={answerTier === tierId}
+                  onPress={() => onAnswerTier(tierId)}
+                />
+              );
+            })}
+          </View>
+        </Section>
+      )}
       <TravelCard selected={travel} onChange={onTravel} lang={lang} trip={trip} onTrip={onTrip} catalog={catalog} />
       <Text variant="footnote" color="tertiary">
         {t("flows.onboarding.laterNote")}

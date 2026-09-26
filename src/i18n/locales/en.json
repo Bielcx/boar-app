@@ -600,7 +600,15 @@
       "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
       "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
       "toImport": "Not imported yet",
-      "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file)."
+      "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file).",
+      "answerModelTitle": "Answer model",
+      "answerModelFooter": "The standard model answers hard questions better; the compact one is faster and needs less memory. You can switch later in Models.",
+      "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
+      "answerTier": {
+        "default": "Standard: {{name}}",
+        "compact": "Compact: {{name}}"
+      },
+      "suggestedHere": "suggested for this phone"
     },
     "places": {
       "title": "Places (offline)",

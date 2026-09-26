@@ -600,7 +600,15 @@
       "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
       "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",
       "toImport": "Ainda não importado",
-      "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo)."
+      "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo).",
+      "answerModelTitle": "Modelo de respostas",
+      "answerModelFooter": "O padrão responde melhor perguntas difíceis; o compacto é mais rápido e usa menos memória. Dá para trocar depois em Modelos.",
+      "compactWhy": "A estimativa de memória indica que o padrão pode não rodar bem neste celular, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
+      "answerTier": {
+        "default": "Padrão: {{name}}",
+        "compact": "Compacto: {{name}}"
+      },
+      "suggestedHere": "sugerido para este celular"
     },
     "places": {
       "title": "Lugares (offline)",
