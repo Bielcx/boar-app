@@ -197,6 +197,33 @@ export async function insertChunk(
   });
 }
 
+/** Deletes seed-corpus chunks (never user-imported ones) by id; ids that aren't there are ignored. */
+export async function deleteSeedChunks(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const marks = ids.map(() => "?").join(", ");
+  const seedRows = `SELECT chunk_id FROM chunks WHERE collection_id IS NULL AND chunk_id IN (${marks})`;
+  await writeTransaction(async (txn) => {
+    await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id IN (${seedRows})`, ids);
+    await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id IN (${seedRows})`, ids);
+    await txn.runAsync(seedRows.replace("SELECT chunk_id FROM", "DELETE FROM"), ids);
+  });
+}
+
+/** Deletes seed-corpus chunks whose id starts with `prefix`; returns how many. */
+export async function deleteSeedChunksWithPrefix(prefix: string): Promise<number> {
+  // GLOB, not LIKE: case-sensitive, and "_" in an id isn't a wildcard.
+  const pattern = `${prefix.replace(/[*?[\]]/g, "")}*`;
+  const seedRows = `SELECT chunk_id FROM chunks WHERE collection_id IS NULL AND chunk_id GLOB ?`;
+  let removed = 0;
+  await writeTransaction(async (txn) => {
+    await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id IN (${seedRows})`, [pattern]);
+    await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id IN (${seedRows})`, [pattern]);
+    const r = await txn.runAsync(seedRows.replace("SELECT chunk_id FROM", "DELETE FROM"), [pattern]);
+    removed = r.changes;
+  });
+  return removed;
+}
+
 export interface CustomCollection {
   id: string;
   name: string;
