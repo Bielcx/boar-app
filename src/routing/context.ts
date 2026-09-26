@@ -108,9 +108,21 @@ export function scoreSentences(query: string, chunks: RetrievedChunk[]): ScoredS
   }
   const totalWeight = qTerms.reduce((acc, t) => acc + idf.get(t)!, 0);
 
+  // An article the question names ("EIP-4844: Shard Blob Transactions" for
+  // "What is EIP-4844?") rarely repeats its name in the body: a title
+  // segment whose words are all in the question counts for every sentence.
+  const named = chunks.map((c) => {
+    const terms = new Set<string>();
+    for (const seg of c.title.split(/:\s+/)) {
+      const st = tokenizeTerms(seg);
+      if (st.length && st.every((t) => qTerms.includes(t))) st.forEach((t) => terms.add(t));
+    }
+    return terms;
+  });
+
   return all.map((s) => {
     let covered = 0;
-    for (const t of qTerms) if (s.terms.has(t)) covered += idf.get(t)!;
+    for (const t of qTerms) if (s.terms.has(t) || named[s.chunkIndex].has(t)) covered += idf.get(t)!;
     // A sentence that also names the article title is on-topic even when it
     // uses a pronoun for the subject: small bonus, capped at 1.
     const titleTerms = tokenizeTerms(chunks[s.chunkIndex].title);

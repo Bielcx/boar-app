@@ -221,3 +221,19 @@ describe("instantFinalBlock", () => {
     expect(instantFinalBlock("When was Canberra founded?", "Canberra was founded in 1913.")).toBeNull();
   });
 });
+
+describe("named articles", () => {
+  // Crypto pack E2E: the EIP-4844 spec never repeats "EIP-4844" in its body,
+  // so it lost to secondary pages that mention it and was dropped.
+  it("keeps the article the question names even when its body doesn't repeat the name", () => {
+    const spec = chunk("e1", "Ethereum EIPs/ERCs: EIP-4844: Shard Blob Transactions", "Shard Blob Transactions scale data-availability of Ethereum in a simple, forwards-compatible manner. Status: Final.");
+    const mention = chunk("e2", "ethereum.org: Blockchain Data Storage Strategies", "Starting with the Dencun hardfork the Ethereum blockchain includes EIP-4844, which adds to Ethereum data blobs with a limited lifetime.");
+    const c = compressContext("What is EIP-4844 and what does it add to Ethereum?", [spec, mention]);
+    expect(c.chunks.map((x) => x.chunkId)).toContain("e1");
+  });
+
+  it("doesn't treat a title as named when only some of its words are in the question", () => {
+    const qc = chunk("q1", "Quantum cryptography", "Photons carry the key between the two parties.");
+    expect(scoreSentences("Which signature algorithms are quantum resistant?", [qc])[0].score).toBe(0);
+  });
+});
