@@ -3,7 +3,7 @@ import * as BundledAssets from "bundled-assets";
 import { networkAllowed } from "../config/variant";
 import { checkStorageForDownload } from "./storageBudget";
 import { copyWithSha256, sha256OfFile, HashProgress } from "./fileHash";
-import { AssetIntegrityError, candidatesBySize, digestsEqual, matchByDigest } from "./integrity";
+import { AssetIntegrityError, candidatesBySize, digestsEqual, matchByDigest, throwIfAborted } from "./integrity";
 import {
   CatalogModel,
   MODEL_CATALOG,
@@ -224,13 +224,17 @@ export class ModelManager {
    * with no network. The file is identified by content, not name: its size
    * narrows the catalog, then its sha256 (computed while copying, in one
    * pass) must match exactly one entry. Anything else is deleted and
-   * rejected. Returns the catalog entry that was installed.
+   * rejected. Aborting `signal` stops the copy/hash, deletes the partial copy
+   * and rejects with ImportAbortedError (name "AbortError"). Returns the
+   * catalog entry that was installed.
    */
   async importFromFile(
     srcUri: string,
     onProgress?: HashProgress,
+    signal?: AbortSignal,
     catalog: CatalogModel[] = this.catalog
   ): Promise<CatalogModel> {
+    throwIfAborted(signal);
     const src = await FileSystem.getInfoAsync(srcUri);
     if (!src.exists || src.isDirectory) {
       throw new AssetIntegrityError("unknown-file", "The selected file could not be read.", true);
@@ -260,7 +264,8 @@ export class ModelManager {
     await FileSystem.makeDirectoryAsync(tmpDir, { intermediates: true }).catch(() => {});
     const tmpPath = `${tmpDir}import-${Date.now()}.part`;
     try {
-      const { sha256, bytes } = await copyWithSha256(srcUri, tmpPath, onProgress);
+      const { sha256, bytes } = await copyWithSha256(srcUri, tmpPath, onProgress, signal);
+      throwIfAborted(signal);
       const match = matchByDigest(candidates, bytes, sha256);
       if (!match) {
         throw new AssetIntegrityError(
