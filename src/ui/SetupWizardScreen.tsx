@@ -151,7 +151,8 @@ function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefOb
   const { t } = useTranslation();
   const tokens = useTokens();
   return (
-    <View style={{ gap: tokens.space.xs }}>
+    <View style={{ gap: tokens.space.sm }}>
+      <Stepper step={step} />
       <Text variant="label" color="tertiary">
         {t("flows.onboarding.stepOf", { step, total: 3 })}
       </Text>
@@ -163,6 +164,26 @@ function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefOb
           {subtitle}
         </Text>
       )}
+    </View>
+  );
+}
+
+/** Three bars, filled up to the current step (the mockup's stepper). The "Step n of 3" label carries the meaning for readers. */
+function Stepper({ step }: { step: Step }) {
+  const tokens = useTokens();
+  return (
+    <View style={{ flexDirection: "row", gap: tokens.space.xs }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      {[1, 2, 3].map((n) => (
+        <View
+          key={n}
+          style={{
+            flex: 1,
+            height: 4,
+            borderRadius: tokens.radius.full,
+            backgroundColor: n <= step ? tokens.color.accent.solid : tokens.color.bg.sunken,
+          }}
+        />
+      ))}
     </View>
   );
 }
@@ -190,6 +211,7 @@ function Welcome({
   ];
   return (
     <Screen
+      ambient
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>

@@ -237,7 +237,10 @@
       "saveFailed": "Couldn't save that change. Try again.",
       "resetFailed": "Couldn't erase the data: {{error}}",
       "quickFirstHint": "Shows a passage from your sources in under a second.",
-      "alwaysCompleteHint": "Researches each part of the question. Slower."
+      "alwaysCompleteHint": "Researches each part of the question. Slower.",
+      "palette": "Colors",
+      "paletteFogueira": "Campfire",
+      "paletteLuar": "Moonlight"
     },
     "tone": {
       "footer": "Changes how answers are written, starting with the next question.",
@@ -301,7 +304,8 @@
         "size-mismatch": "The file is incomplete. Download it again.",
         "offline-variant": "This version has no internet access. Import the file instead.",
         "load": "Couldn't load this model.",
-        "unknown": "Something went wrong."
+        "unknown": "Something went wrong.",
+        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item."
       },
       "download": "Download {{size}}",
       "retry": "Try again",
@@ -312,7 +316,17 @@
       "removeBody": "Frees {{size}} on this phone. You can download it again later.",
       "removed": "{{name}} removed",
       "wontFitTitle": "{{name}} won't fit on this phone",
-      "downloadAnyway": "Download anyway ({{size}})"
+      "downloadAnyway": "Download anyway ({{size}})",
+      "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate.",
+      "importFile": "Import file ({{size}})",
+      "importAnyway": "Import anyway ({{size}})",
+      "notOnDisk": "Not on disk",
+      "fitShort": {
+        "resident": "Fits in memory",
+        "streaming": "Reads from storage",
+        "thrashing": "May be slow",
+        "insufficient": "Won't fit"
+      }
     },
     "models": {
       "storage": "BOAR uses {{used}} · {{free}} free on this phone",
@@ -380,7 +394,10 @@
       "filesPicked_one": "{{count}} file selected",
       "filesPicked_other": "{{count}} files selected",
       "nameLabel": "Collection name",
-      "import": "Import"
+      "import": "Import",
+      "indexed": "Indexed",
+      "indexError": "Indexing failed: {{error}}",
+      "importCancelled": "Import cancelled"
     },
     "performance": {
       "provisional": "Speed ratings are provisional until they are measured on phones.",
@@ -511,7 +528,12 @@
       "doneAnnounce": "Setup finished. BOAR is ready.",
       "open": "Open BOAR",
       "languageAnnounce": "Language: English",
-      "smallerPackage": "Choose a smaller package"
+      "smallerPackage": "Choose a smaller package",
+      "importSize": "Files to import: {{size}}",
+      "importTitle": "Import the files",
+      "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
+      "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
+      "toImport": "Not imported yet"
     },
     "places": {
       "title": "Places (offline)",
@@ -534,6 +556,14 @@
       "rationaleBody": "BOAR reads your position from the phone's GPS, which works without internet, to suggest places near you. It never leaves the phone.",
       "notNow": "Not now",
       "continue": "Continue"
+    },
+    "import": {
+      "title": "Import files",
+      "footer": "Each file is checked by size and SHA-256 against the catalog. The file name doesn't matter.",
+      "pick": "Choose files",
+      "checking": "Checking {{name}}",
+      "checkingValue": "Checking, {{pct}}%",
+      "verified": "Verified: {{item}}"
     }
   }
 }
