@@ -91,7 +91,7 @@ function makeFake(): Fake {
         f.maxConcurrent = Math.max(f.maxConcurrent, f.concurrent);
         stopped = false;
         await new Promise((r) => setTimeout(r, 5));
-        if (opts.prompt?.includes("Verdict:")) {
+        if (opts.messages?.[0]?.content.startsWith("You are checking whether an answer")) {
           f.concurrent--;
           return f.verdict;
         }

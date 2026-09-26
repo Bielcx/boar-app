@@ -17,6 +17,7 @@ vi.mock("../inference/LlamaEngine", () => ({
   llamaEngine: {
     load: (filename: string) => loadMock(filename),
     generate: (opts: any) => generateMock(opts),
+    hasEmbeddedChatTemplate: () => true,
     getModelInfo: () =>
       mockResidentFilename ? { filename: mockResidentFilename, nCtx: 4096, nThreads: 4 } : null,
   },
@@ -195,5 +196,15 @@ describe("runAdaptiveChat", () => {
     const onToken = vi.fn();
     await runAdaptiveChat({ query: "hey!" }, 512, { onToken, onStepStart });
     expect(onStepStart).toHaveBeenCalled();
+  });
+});
+
+describe("runAdaptiveChat prompt format", () => {
+  it("sends role messages (the GGUF's own chat template) for every model, not just the flagged one", async () => {
+    statusAllMock.mockResolvedValue([statusOf(PHI, true), statusOf(QWEN_FAST, true)]);
+    await runAdaptiveChat({ query: "tell me a fun fact" }, 512);
+    const opts = generateMock.mock.calls.at(-1)![0];
+    expect(Array.isArray(opts.messages)).toBe(true);
+    expect(opts.prompt).toBeUndefined();
   });
 });

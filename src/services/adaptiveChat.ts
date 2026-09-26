@@ -99,7 +99,8 @@ export async function runAdaptiveChat(
       .filter((a) => a.present)
       .map((a) => [
         a.model.id,
-        { id: a.model.id, filename: a.model.filename, usesChatTemplate: a.model.capabilities?.usesChatTemplate },
+        // Every model uses its own GGUF chat template when it ships one (same rule as the fixed path and answer.ts).
+        { id: a.model.id, filename: a.model.filename, usesChatTemplate: "if-embedded" as const },
       ])
   );
   const resolveModel = (modelId: string) => modelById.get(modelId);

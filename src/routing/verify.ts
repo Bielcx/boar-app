@@ -8,15 +8,20 @@ import type { VerificationStatus } from "./types";
  * claims are actually supported by the retrieved evidence, a narrower and
  * more checkable question than open-ended correctness.
  */
-export function buildVerificationPrompt(query: string, answer: string, citations: RetrievedChunk[]): string {
+export const VERIFICATION_INSTRUCTION =
+  `You are checking whether an answer is actually supported by the evidence below — ` +
+  `not whether it's well-written, not whether you personally agree with it. ` +
+  `Respond with exactly one word first: SUPPORTED, PARTIAL, or UNSUPPORTED, then a ` +
+  `single sentence explaining why.`;
+
+export function buildVerificationInput(query: string, answer: string, citations: RetrievedChunk[]): string {
   const evidence = citations.map((c, i) => `[${i + 1}] ${c.title}\n${c.body}`).join("\n\n");
-  return (
-    `You are checking whether an answer is actually supported by the evidence below — ` +
-    `not whether it's well-written, not whether you personally agree with it. ` +
-    `Respond with exactly one word first: SUPPORTED, PARTIAL, or UNSUPPORTED, then a ` +
-    `single sentence explaining why.\n\n` +
-    `Question: ${query}\n\nEvidence:\n${evidence}\n\nAnswer to check:\n${answer}\n\nVerdict:`
-  );
+  return `Question: ${query}\n\nEvidence:\n${evidence}\n\nAnswer to check:\n${answer}`;
+}
+
+/** Plain-prompt form (models without a chat template); see taskRequest in src/inference/format.ts. */
+export function buildVerificationPrompt(query: string, answer: string, citations: RetrievedChunk[]): string {
+  return `${VERIFICATION_INSTRUCTION}\n\n${buildVerificationInput(query, answer, citations)}\n\nVerdict:`;
 }
 
 export function parseVerificationVerdict(text: string): { status: VerificationStatus; note?: string } {

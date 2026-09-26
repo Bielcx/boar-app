@@ -23,7 +23,8 @@ import { retrieve } from "../rag/retrieve";
 import { assemblePrompt, assembleChatMessages, ConversationHistory, ANSWER_CONTEXT_CHUNKS } from "../rag/pure";
 import type { RetrievedChunk } from "../rag/retrieve.types";
 import { RoutingPlan, RoutingStep } from "./router";
-import { buildVerificationPrompt, parseVerificationVerdict } from "./verify";
+import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
+import { taskRequest } from "../inference/format";
 import { VerificationStatus } from "./types";
 
 /**
@@ -294,9 +295,13 @@ export async function executeRoutingPlan(
           verification = { status: "not_applicable" };
           break;
         }
-        const verifyPrompt = buildVerificationPrompt(input.query, answer, citations);
         const verdictText = await llamaEngine.generate({
-          prompt: verifyPrompt,
+          ...taskRequest(
+            VERIFICATION_INSTRUCTION,
+            buildVerificationInput(input.query, answer, citations),
+            "Verdict:",
+            llamaEngine.hasEmbeddedChatTemplate()
+          ),
           nPredict: step.maxTokens ?? 200,
           temperature: 0.2,
           timeoutMs: step.timeoutMs ?? STEP_TIMEOUT_MS,
