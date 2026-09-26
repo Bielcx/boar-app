@@ -6,7 +6,8 @@
 //   node scripts/verify-manifest-pins.mjs [--strict] [file.ts ...]
 //
 // Default files: src/models/manifest.ts, plus src/rag/poiRegions.ts (places
-// packs, world gazetteer) and src/rag/preparedness.ts when they exist. Entries with an empty
+// packs, world gazetteer), src/rag/preparedness.ts and src/rag/cryptoPack.ts
+// when they exist. Entries with an empty
 // sourceUrl are import-only; they are listed, and fail only with --strict
 // (use it once the packs are hosted).
 import { existsSync, readFileSync } from "node:fs";
@@ -14,7 +15,7 @@ import { createHash } from "node:crypto";
 
 const args = process.argv.slice(2);
 const strict = args.includes("--strict");
-const DEFAULT_FILES = ["src/models/manifest.ts", "src/rag/poiRegions.ts", "src/rag/preparedness.ts"];
+const DEFAULT_FILES = ["src/models/manifest.ts", "src/rag/poiRegions.ts", "src/rag/preparedness.ts", "src/rag/cryptoPack.ts"];
 const files = args.filter((a) => a !== "--strict");
 const root = new URL("../", import.meta.url);
 const targets = files.length ? files : DEFAULT_FILES.filter((f) => existsSync(new URL(f, root)));
