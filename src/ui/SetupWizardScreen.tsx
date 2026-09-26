@@ -412,6 +412,8 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
   const [manual, setManual] = useState<PoiRegion | null>(null);
   const announce = useAnnounce();
   const explainAnswer = useRef<((ok: boolean) => void) | null>(null);
+  const locateRef = useRef<View>(null);
+  const otherRef = useRef<View>(null);
 
   if (regions.length === 0) return null;
   const auto = suggestRegion(regions, { timeZone: deviceTimeZone(), point });
@@ -472,7 +474,7 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
       )}
       {suggestion?.reason !== "location" && (
         <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
-          <Button size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
+          <Button ref={locateRef} size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
           {locationNote && (
             <Text variant="footnote" color="secondary">
               {locationNote}
@@ -482,9 +484,11 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
         </View>
       )}
       {regions.length > 1 && (
-        <ListRow icon="map" title={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
+        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+          <Button ref={otherRef} size="sm" variant="ghost" icon="map" label={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
+        </View>
       )}
-      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title={t("flows.places.otherRegion")}>
+      <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title={t("flows.places.otherRegion")} returnFocusRef={otherRef}>
         <View accessibilityRole="radiogroup">
           {regions.map((r) => (
             <RadioRow
@@ -493,8 +497,9 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
               subtitle={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
               selected={suggestion?.region.id === r.id}
               onPress={() => {
+                // Picking a region means wanting it: include it right away.
                 setManual(r);
-                if (selected && selected.id !== r.id) onChange(null);
+                onChange(r);
                 setPickerOpen(false);
               }}
             />
@@ -503,6 +508,7 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
       </Sheet>
       <Sheet
         visible={explainOpen}
+        returnFocusRef={locateRef}
         onClose={() => answerExplain(false)}
         title={t("flows.places.rationaleTitle")}
         description={t("flows.places.rationaleBody")}
