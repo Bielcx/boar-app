@@ -217,6 +217,19 @@ Settings > App also has:
   state is either the SQLite knowledge base or small JSON files under the
   app's document directory, and this is what actually gets cleared.
 
+## iOS
+
+The same app builds for iOS (simulator needs Xcode only; a device needs an Apple ID). Full guide, native module mapping, Apple account needs and the Android/iOS parity table: [docs/IOS.md](docs/IOS.md).
+
+```bash
+npx expo prebuild -p ios --no-install && (cd ios && pod install)
+npx expo run:ios                                   # simulator, Debug + Metro
+scripts/ios-remote-build.sh sim-run                # build + run on a remote Mac with the newer Xcode
+eas build -p ios --profile preview-simulator       # cloud simulator build, no Apple credentials
+```
+
+Toolchain: with Xcode 26.1 (Swift 6.2.1) the `expo-modules-jsi` pod of Expo SDK 57 does not compile (`weak let`); use the newer Xcode Expo SDK 57 is built with (the package changelog targets Xcode 27; exact minimum `UNKNOWN`). See docs/IOS.md.
+
 ## Development
 
 ```bash
