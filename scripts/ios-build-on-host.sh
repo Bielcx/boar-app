@@ -62,7 +62,16 @@ fi
 
 case "$MODE" in
   sim|sim-run)
-    SDK=iphonesimulator; DEST="generic/platform=iOS Simulator"
+    # A concrete simulator, not "generic/platform=iOS Simulator": the generic
+    # destination wants the runtime matching the SDK (e.g. iOS 27 for Xcode 27),
+    # while any installed runtime >= the deployment target (16.4) works here.
+    SDK=iphonesimulator
+    DEV="${IOS_SIM_DEVICE:-}"
+    if [[ -z "$DEV" ]]; then
+      DEV=$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
+      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}')
+    fi
+    DEST="platform=iOS Simulator,id=$DEV"
     SIGN_ARGS=(ARCHS=arm64 ONLY_ACTIVE_ARCH=YES)
     ;;
   device|device-run)
@@ -101,11 +110,6 @@ fi
 
 case "$MODE" in
   sim-run)
-    DEV="${IOS_SIM_DEVICE:-}"
-    if [[ -z "$DEV" ]]; then
-      DEV=$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
-      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}')
-    fi
     xcrun simctl boot "$DEV" 2>/dev/null || true
     xcrun simctl bootstatus "$DEV" -b >/dev/null
     xcrun simctl install "$DEV" "$APP"
