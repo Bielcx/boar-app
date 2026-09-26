@@ -24,6 +24,11 @@ const rows = [
     aliases: ["BIP-32", "BIP32"],
     text: `# BIP 32: Hierarchical Deterministic Wallets\n\nDescribes deriving a tree of keypairs from a single seed. ${filler("Wallet")}`,
   },
+  // Neighbours that mention ERC-20, approve and transfer more often than the standard itself (as vault ERCs do).
+  ...[4626, 7535, 5143, 7575].map((n) => ({
+    page_id: 5e9 + n, title: `ERC-${n}: Vault extension ${n}`, source: "eips", url: `https://ercs.ethereum.org/ERCS/erc-${n}`, license: "CC0-1.0",
+    text: `# ERC-${n}: Vault extension ${n}\n\n${"Vaults hold ERC-20 tokens; users approve the vault, which calls transfer and transferFrom on the ERC-20 token. ".repeat(4)}`,
+  })),
 ];
 
 let pack: WikiPack;
@@ -53,6 +58,11 @@ describe("topic-pack sources", () => {
     expect(a.source).toBe("bips");
     expect(a.url).toBe("https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki");
     expect(a.license).toBe("BSD-2-Clause");
+  });
+
+  it("puts a primary source a question names first, even when neighbours match more of its words", async () => {
+    const hits = await pack.search("How do vaults approve and transferFrom ERC-20 tokens?");
+    expect(hits[0]?.title).toBe("ERC-20: Token Standard");
   });
 
   it("puts the document a question names by its alias first", async () => {

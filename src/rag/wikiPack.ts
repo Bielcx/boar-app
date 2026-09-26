@@ -506,18 +506,19 @@ export class WikiPack {
       const single = !cand.includes(" ");
       // A lone word only counts when it's capitalized in the question or rare in the index.
       if (single && !/^\p{Lu}/u.test(cand) && !(await this.isRare(lower, rare))) continue;
-      const ids: number[] = [];
+      const ids: Array<{ id: number; primary: boolean }> = [];
       for (const source of sources) {
         const id =
           (await this.resolveTitle(cand, { fuzzy: false, source })) ??
           (singularTitle(cand) ? await this.resolveTitle(singularTitle(cand)!, { fuzzy: false, source }) : null);
-        if (id !== null && !found.some((f) => f.id === id)) ids.push(id);
+        if (id !== null && !found.some((f) => f.id === id)) ids.push({ id, primary: this.topicSources.includes(source) });
       }
       if (!ids.length) continue;
       const own = await this.stems(cand);
       // A name none of whose words are in the index (an alias like "ERC20") matched a title exactly: it's the subject.
       const share = own.length ? own.reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total : 1;
-      for (const id of ids) found.push({ id, share });
+      // So is an exact title or alias of a primary source in a topic pack ("ERC-20", "BIP 32"), however common its words are there.
+      for (const { id, primary } of ids) found.push({ id, share: primary ? 1 : share });
       used.push(lower);
     }
     return found;
