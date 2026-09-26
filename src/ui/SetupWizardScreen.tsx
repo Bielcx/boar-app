@@ -30,6 +30,7 @@ import {
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
 import { placesInstall, poiRegions } from "./flows/adapters";
 import { canDownload } from "./flows/useCatalog";
+import { CitySearch } from "./flows/CitySearch";
 import { citySummary, deviceTimeZone, PoiRegion, suggestRegion } from "./flows/poi";
 import { locateForUser } from "../services/location";
 import { networkAllowed } from "../config/variant";
@@ -59,6 +60,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const [packageId, setPackageId] = useState<PackageId>("essential");
   const [backOpen, setBackOpen] = useState(false);
   const [travel, setTravel] = useState<PoiRegion | null>(null);
+  const [trip, setTrip] = useState<{ label: string; assets: CatalogModel[] } | null>(null);
   const [restored, setRestored] = useState(false);
 
   // Resume where setup was: a font-size change recreates the Android Activity,
@@ -88,7 +90,11 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   }, [step]);
 
   const tier = TIERS.find((x) => x.id === PACKAGES.find((p) => p.id === packageId)!.tier)!;
-  const assets = useMemo(() => [...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : [])], [tier, travel]);
+  const assets = useMemo(() => {
+    const all = [...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
+    // The gazetteer can come from both the region and the trip: install it once.
+    return all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i);
+  }, [tier, travel, trip]);
   const present = useMemo(
     () => Object.fromEntries(Object.values(catalog.statuses).map((s) => [s.asset.id, s.present])),
     [catalog.statuses]
@@ -143,6 +149,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           lang={lang}
           travel={travel}
           onTravel={setTravel}
+          trip={trip}
+          onTrip={setTrip}
+          catalog={catalog}
           onBack={() => setStep(1)}
           onInstall={startInstall}
         />
@@ -310,6 +319,9 @@ function PackageStep({
   lang,
   travel,
   onTravel,
+  trip,
+  onTrip,
+  catalog,
   onBack,
   onInstall,
 }: {
@@ -323,6 +335,9 @@ function PackageStep({
   lang: string;
   travel: PoiRegion | null;
   onTravel: (region: PoiRegion | null) => void;
+  trip: { label: string; assets: CatalogModel[] } | null;
+  onTrip: (trip: { label: string; assets: CatalogModel[] } | null) => void;
+  catalog: ReturnType<typeof useCatalog>;
   onBack: () => void;
   onInstall: () => void;
 }) {
@@ -331,7 +346,8 @@ function PackageStep({
   const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
-    const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : [])], present);
+    const all = [...packageAssets(tier, MODEL_CATALOG), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
+    const plan = planPackage(all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i), present);
     const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
@@ -433,7 +449,7 @@ function PackageStep({
           );
         })}
       </View>
-      <TravelCard selected={travel} onChange={onTravel} lang={lang} />
+      <TravelCard selected={travel} onChange={onTravel} lang={lang} trip={trip} onTrip={onTrip} catalog={catalog} />
       <Text variant="footnote" color="tertiary">
         {t("flows.onboarding.laterNote")}
       </Text>
@@ -442,7 +458,21 @@ function PackageStep({
 }
 
 /** Optional offline places for the user's region (P1). Hidden when the build has no region packs. */
-function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; onChange: (r: PoiRegion | null) => void; lang: string }) {
+function TravelCard({
+  selected,
+  onChange,
+  lang,
+  trip,
+  onTrip,
+  catalog,
+}: {
+  selected: PoiRegion | null;
+  onChange: (r: PoiRegion | null) => void;
+  lang: string;
+  trip: { label: string; assets: CatalogModel[] } | null;
+  onTrip: (trip: { label: string; assets: CatalogModel[] } | null) => void;
+  catalog: ReturnType<typeof useCatalog>;
+}) {
   const { t } = useTranslation();
   const tokens = useTokens();
   const regions = useMemo(() => poiRegions(), []);
@@ -453,6 +483,8 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
   const [declined, setDeclined] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [manual, setManual] = useState<PoiRegion | null>(null);
+  const [tripOpen, setTripOpen] = useState(false);
+  const tripRef = useRef<View>(null);
   const announce = useAnnounce();
   const explainAnswer = useRef<((ok: boolean) => void) | null>(null);
   const locateRef = useRef<View>(null);
@@ -531,6 +563,27 @@ function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; 
           <Button ref={otherRef} size="sm" variant="ghost" icon="map" label={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
         </View>
       )}
+      {trip ? (
+        <ListRow
+          icon="navigation"
+          title={t("flows.travel.tripChosen", { label: trip.label })}
+          value={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
+          switch={{ value: true, onValueChange: (v) => !v && onTrip(null) }}
+        />
+      ) : (
+        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+          <Button ref={tripRef} size="sm" variant="outline" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
+        </View>
+      )}
+      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingTo")} returnFocusRef={tripRef}>
+        <CitySearch
+          catalog={catalog}
+          onChoose={(choice) => {
+            onTrip(choice);
+            setTripOpen(false);
+          }}
+        />
+      </Sheet>
       <Sheet visible={pickerOpen} onClose={() => setPickerOpen(false)} title={t("flows.places.otherRegion")} returnFocusRef={otherRef}>
         <View accessibilityRole="radiogroup">
           {regions.map((r) => (

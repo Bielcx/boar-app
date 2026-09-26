@@ -24,7 +24,8 @@ import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
-import { placesInstall, poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { placesInstall, poiCatalogEntry, poiRegions, preparednessEntry } from "./flows/adapters";
+import { CitySearch } from "./flows/CitySearch";
 import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
 
@@ -41,6 +42,7 @@ export function KnowledgeScreen() {
   const catalog = useCatalog();
   const lang = i18n.language;
   const regions = poiRegions();
+  const preparedness = preparednessEntry();
   const { refresh } = catalog;
   const [collections, setCollections] = useState<CustomCollection[] | null>(null);
   const [seed, setSeed] = useState<SeedProgress | null>(null);
@@ -171,6 +173,17 @@ export function KnowledgeScreen() {
         </View>
       )}
 
+      {preparedness && (
+        <Section title={t("flows.knowledge.preparednessTitle")} footer={t("flows.knowledge.preparednessFooter")}>
+          <CatalogRow
+            model={preparedness}
+            view={catalog.view(preparedness)}
+            onDownload={() => catalog.install([preparedness])}
+            onRemove={() => catalog.remove(preparedness)}
+          />
+        </Section>
+      )}
+
       <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
         <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
         {CORPUS_CATALOG.map((pack) => (
@@ -194,6 +207,9 @@ export function KnowledgeScreen() {
       )}
 
       <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
+        <View style={{ padding: tokens.space.base }}>
+          <CitySearch catalog={catalog} />
+        </View>
         {regions.length === 0 ? (
           <View style={{ padding: tokens.space.base }}>
             <Text variant="callout" color="secondary">

@@ -17,6 +17,7 @@ const FLOW_FILES = [
   "AboutScreen.tsx",
   "flows/CatalogRow.tsx",
   "flows/ImportList.tsx",
+  "flows/CitySearch.tsx",
   "navigation/RootNavigator.tsx",
 ].map((f) => join(__dirname, "..", "ui", f));
 

@@ -15,6 +15,8 @@ import { defaultContextSize } from "../../inference/LlamaEngine";
 import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
 import type { PoiRegion } from "./poi";
+import type { City } from "./travel";
+import { resolvePlace } from "../../rag/pois";
 import { POI_REGIONS, poiCatalogEntries, WORLD_PLACES } from "../../rag/poiRegions";
 import type { NativePosition } from "../../services/location.pure";
 import * as OfflineLocation from "offline-location";
@@ -81,4 +83,26 @@ export interface DeviceLocationModule {
 /** The GPS-only native module (modules/offline-location), or null in a build without it. */
 export function deviceLocation(): DeviceLocationModule | null {
   return OfflineLocation.isOfflineLocationSupported() ? OfflineLocation : null;
+}
+
+/**
+ * Cities matching what the user typed, from the offline gazetteer.
+ * Interim: exact-name resolvePlace (one match) until Bramble's prefix
+ * searchPlaces is integrated.
+ */
+export async function searchCities(query: string, limit = 8): Promise<City[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const match = await resolvePlace(q);
+  return match ? [match].slice(0, limit) : [];
+}
+
+/** Map tiles covering a city (Bramble's tilesFor). Interim: null until the tile catalog is decided and built. */
+export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): CatalogModel[] | null {
+  return null;
+}
+
+/** The Emergency & Preparedness pack (boar-preparedness). Interim: none until it exists. */
+export function preparednessEntry(): CatalogModel | undefined {
+  return undefined;
 }

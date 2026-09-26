@@ -448,7 +448,9 @@
       "indexed": "Indexada",
       "indexError": "A indexação falhou: {{error}}",
       "importCancelled": "Importação cancelada",
-      "cancelImportA11y": "Cancelar a importação de {{name}}"
+      "cancelImportA11y": "Cancelar a importação de {{name}}",
+      "preparednessTitle": "Emergência e preparação",
+      "preparednessFooter": "Primeiros socorros, sobrevivência, desastres, evacuação e autossuficiência, para ler sem internet."
     },
     "performance": {
       "provisional": "As faixas de velocidade são provisórias até serem medidas em celulares.",
@@ -623,6 +625,24 @@
       "verified": "Verificado: {{item}}",
       "checkingAnnounce": "{{name}}: {{pct}}% conferido",
       "cancelA11y": "Cancelar a importação de {{name}}"
+    },
+    "travel": {
+      "searchLabel": "Vou viajar para…",
+      "searchPlaceholder": "Nome da cidade",
+      "resultsAnnounce_one": "{{count}} cidade encontrada",
+      "resultsAnnounce_other": "{{count}} cidades encontradas",
+      "noCity": "Nenhuma cidade com esse nome no índice offline.",
+      "population": "{{value}} habitantes",
+      "needGazetteer": "Para buscar cidades offline, instale o índice de lugares do mundo ({{size}}).",
+      "areaOf": "Área de {{city}} (~{{km}} km)",
+      "regionOf": "Região inteira: {{region}}",
+      "noPack": "Ainda não há pacote de lugares para esta cidade.",
+      "installed": "Instalado",
+      "byFile": "Instalado por arquivo",
+      "addHint": "Adiciona ao que a configuração instala",
+      "otherCity": "Buscar outra cidade",
+      "goingTo": "Vai viajar?",
+      "tripChosen": "Incluir {{label}}"
     }
   },
   "chat": {

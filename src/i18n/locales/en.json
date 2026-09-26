@@ -448,7 +448,9 @@
       "indexed": "Indexed",
       "indexError": "Indexing failed: {{error}}",
       "importCancelled": "Import cancelled",
-      "cancelImportA11y": "Cancel importing {{name}}"
+      "cancelImportA11y": "Cancel importing {{name}}",
+      "preparednessTitle": "Emergency & preparedness",
+      "preparednessFooter": "First aid, survival, disasters, evacuation and self-reliance, readable without internet."
     },
     "performance": {
       "provisional": "Speed ratings are provisional until they are measured on phones.",
@@ -623,6 +625,24 @@
       "verified": "Verified: {{item}}",
       "checkingAnnounce": "{{name}}: {{pct}}% checked",
       "cancelA11y": "Cancel importing {{name}}"
+    },
+    "travel": {
+      "searchLabel": "Travelling to…",
+      "searchPlaceholder": "City name",
+      "resultsAnnounce_one": "{{count}} city found",
+      "resultsAnnounce_other": "{{count}} cities found",
+      "noCity": "No city with that name in the offline index.",
+      "population": "{{value}} people",
+      "needGazetteer": "To search cities offline, install the world places index ({{size}}).",
+      "areaOf": "{{city}} area (~{{km}} km)",
+      "regionOf": "Whole region: {{region}}",
+      "noPack": "No places pack covers this city yet.",
+      "installed": "Installed",
+      "byFile": "Installed from a file",
+      "addHint": "Adds it to what setup installs",
+      "otherCity": "Search another city",
+      "goingTo": "Travelling somewhere?",
+      "tripChosen": "Include {{label}}"
     }
   },
   "chat": {
