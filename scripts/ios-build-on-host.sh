@@ -15,7 +15,8 @@
 #   IOS_SIM_DEVICE     simulator UDID for sim-run (default: an available iPhone 17 Pro, else any iPhone)
 #   IOS_MODELS_DIR     models for sim-run (default ~/boar/shared-models, else /Users/r4to/Script/boar/shared-models)
 #   IOS_OUT_DIR        copy the built BOAR.app to $IOS_OUT_DIR/<sdk>/ and delete ios/build
-#                      entirely (disk rule on the main Mac); unset = keep ios/build/Build/Products
+#                      except the pod-install codegen in ios/build/generated (disk rule on the
+#                      main Mac); unset = keep ios/build/Build/Products
 #   IOS_TEAM           Apple team id for device builds (required; never committed)
 #   IOS_DEVICE         device id for device-run (CoreDevice id or UDID, `xcrun devicectl list devices`)
 #   IOS_NO_QUEUE       1 = do not go through ~/boar/bin/heavy (on a Mac without the queue
@@ -101,8 +102,10 @@ if [[ -n "${IOS_OUT_DIR:-}" ]]; then
   rm -rf "$IOS_OUT_DIR/$SDK/BOAR.app"
   cp -R "$APP" "$IOS_OUT_DIR/$SDK/"
   APP="$IOS_OUT_DIR/$SDK/BOAR.app"
-  rm -rf ios/build
-  log "kept only $APP"
+  # ios/build/generated holds the codegen written by pod install; keep it so
+  # an IOS_SKIP_DEPS=1 rebuild still finds it.
+  find ios/build -mindepth 1 -maxdepth 1 ! -name generated -exec rm -rf {} +
+  log "kept only $APP (+ ios/build/generated)"
 else
   # Keep the product, drop the heavy intermediates.
   rm -rf ios/build/Build/Intermediates.noindex ios/build/Index.noindex
