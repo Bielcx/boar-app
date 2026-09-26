@@ -106,15 +106,21 @@ export async function searchPlaces(query: string, limit = 10): Promise<PlaceSugg
 export async function loadTileCatalog(): Promise<Map<string, PoiTile>> {
   if (tileIndex) return tileIndex;
   const db = await gazetteer();
+  type Row = { id: string; size_bytes: number; sha256: string; pois: number; vegan: number; osm_date: string; url?: string | null };
+  const cols = "id, size_bytes, sha256, pois, vegan, osm_date";
+  // Gazetteers built before the tiles were hosted have no url column.
   const rows = db
     ? await db
-        .getAllAsync<{ id: string; size_bytes: number; sha256: string; pois: number; vegan: number; osm_date: string }>(
-          "SELECT id, size_bytes, sha256, pois, vegan, osm_date FROM tiles",
-          []
-        )
-        .catch(() => [])
+        .getAllAsync<Row>(`SELECT ${cols}, url FROM tiles`, [])
+        .catch(() => db.getAllAsync<Row>(`SELECT ${cols} FROM tiles`, []))
+        .catch(() => [] as Row[])
     : [];
-  tileIndex = new Map(rows.map((r) => [r.id, { id: r.id, sizeBytes: r.size_bytes, sha256: r.sha256, pois: r.pois, vegan: r.vegan, osmDate: r.osm_date }]));
+  tileIndex = new Map(
+    rows.map((r) => [
+      r.id,
+      { id: r.id, sizeBytes: r.size_bytes, sha256: r.sha256, pois: r.pois, vegan: r.vegan, osmDate: r.osm_date, ...(r.url ? { url: r.url } : {}) },
+    ])
+  );
   const entries = [...tileIndex.values()].map(tileEntry);
   registerAssetProvider("poi-tiles", () => entries);
   return tileIndex;

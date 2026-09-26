@@ -518,6 +518,8 @@ export interface PoiTile {
   pois: number;
   vegan: number;
   osmDate: string;
+  /** Hosted file, pinned to its upload commit; absent while the tile isn't hosted. */
+  url?: string;
 }
 
 /** "t-N41E012" for the tile containing a point (south-west corner 41°N 12°E). */
@@ -559,7 +561,7 @@ export function tileEntry(t: PoiTile): CatalogModel {
     filename: `poi/${t.id}.sqlite`,
     sizeBytes: t.sizeBytes,
     sha256: t.sha256,
-    sourceUrl: "",
+    sourceUrl: t.url ?? "",
     license: POI_LICENSE,
     description: `${t.pois.toLocaleString("en-US")} places to eat and drink (${t.vegan} tagged vegan), OpenStreetMap ${t.osmDate.slice(0, 10)}`,
     required: false,

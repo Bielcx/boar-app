@@ -165,11 +165,17 @@ async function tiles() {
   rmSync(BANDS, { recursive: true, force: true });
 }
 
+const TILE_URL_BASE = process.env.TILE_URL_BASE?.replace(/\/$/, "");
+
 function index() {
   const rows = readdirSync(TILES)
     .filter((f) => f.endsWith(".sqlite.json"))
     .map((f) => JSON.parse(readFileSync(join(TILES, f), "utf8")))
-    .map((s) => ({ id: s.id, sizeBytes: s.sizeBytes, sha256: s.sha256, pois: s.osm + s.voyage, vegan: s.vegan, osmDate: s.osmDate }))
+    .map((s) => ({
+      id: s.id, sizeBytes: s.sizeBytes, sha256: s.sha256, pois: s.osm + s.voyage, vegan: s.vegan, osmDate: s.osmDate,
+      // TILE_URL_BASE: the hosted tiles, pinned to their upload commit (…/resolve/<sha>/places/tiles).
+      ...(TILE_URL_BASE ? { url: `${TILE_URL_BASE}/${s.id}.sqlite` } : {}),
+    }))
     .sort((a, b) => a.id.localeCompare(b.id));
   writeFileSync(join(TILES, "index.json"), `${JSON.stringify(rows)}\n`);
   const total = rows.reduce((s, r) => s + r.sizeBytes, 0);
