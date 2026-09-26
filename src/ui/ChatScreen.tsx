@@ -55,7 +55,7 @@ import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
 import { answerPhase, answerReducer, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
-import { historyTurns, itemsFromRecords, updateAnswer, type ChatItem } from "./chat/chatItems";
+import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type ChatItem } from "./chat/chatItems";
 import { phaseAnnouncement } from "./chat/presentation";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { AssistantMessage } from "./chat/AssistantMessage";
@@ -185,9 +185,19 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       setPersonalityIdState(await getPersonalityId());
       memorySettingsRef.current = await getMemorySettings();
       setVoiceInputEnabledState(await getVoiceInputEnabled());
-      await refreshSessions();
+      const list = await listSessions();
+      setSessions(list);
+      // Coming back soon after leaving (or after the system killed the app) continues the conversation.
+      const resume = sessionToResume(list, Date.now());
+      if (resume && itemsRef.current.length === 0 && !activeRef.current) {
+        const records = await getSessionMessages(resume.id);
+        if (itemsRef.current.length > 0 || activeRef.current) return;
+        setItems(itemsFromRecords(records));
+        setActiveSessionId(resume.id);
+        sessionSummaryRef.current = resume.summary;
+      }
     })();
-  }, [refreshSessions]);
+  }, []);
 
   const initModels = useCallback(async () => {
     try {

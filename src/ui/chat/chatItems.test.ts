@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ChatMessageRecord } from "../../services/chatHistory";
-import { historyTurns, itemsFromRecords, updateAnswer, type ChatItem } from "./chatItems";
+import { historyTurns, itemsFromRecords, RESUME_WINDOW_MS, sessionToResume, updateAnswer, type ChatItem } from "./chatItems";
 
 const rec = (id: string, role: "user" | "assistant", text: string, meta: string | null = null): ChatMessageRecord => ({
   id,
@@ -53,5 +53,15 @@ describe("updateAnswer", () => {
     const next = updateAnswer(items, "2", (a) => ({ ...a, streamsFromStorage: true }));
     expect(next[0]).toBe(items[0]);
     expect(next[1].kind === "assistant" && next[1].answer.streamsFromStorage).toBe(true);
+  });
+});
+
+describe("sessionToResume", () => {
+  const session = (id: string, updatedAt: number) => ({ id, title: id, summary: null, createdAt: 0, updatedAt });
+  it("reopens the latest session only within the window", () => {
+    const now = 10 * RESUME_WINDOW_MS;
+    expect(sessionToResume([session("old", now - 2 * RESUME_WINDOW_MS), session("new", now - 1000)], now)?.id).toBe("new");
+    expect(sessionToResume([session("stale", now - RESUME_WINDOW_MS - 1)], now)).toBeNull();
+    expect(sessionToResume([], now)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import type { ConversationTurn } from "../../rag/retrieve";
-import type { ChatMessageRecord } from "../../services/chatHistory";
+import type { ChatMessageRecord, ChatSession } from "../../services/chatHistory";
 import { stripThinking } from "../../services/thinking";
 import type { AnswerState } from "./answerReducer";
 import { answerTextForHistory, fromStoredAnswer } from "./answerRecord";
@@ -40,4 +40,13 @@ export function historyTurns(items: ChatItem[], count: number): ConversationTurn
 /** Applies `update` to the answer of message `id`, leaving every other item untouched. */
 export function updateAnswer(items: ChatItem[], id: string, update: (a: AnswerState) => AnswerState): ChatItem[] {
   return items.map((m) => (m.kind === "assistant" && m.id === id ? { ...m, answer: update(m.answer) } : m));
+}
+
+/** Reopening the app within this long picks up the last conversation (e.g. after the system killed it). */
+export const RESUME_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/** The most recently used session if it was used within the window, else null (start a new chat). */
+export function sessionToResume(sessions: ChatSession[], now: number, windowMs = RESUME_WINDOW_MS): ChatSession | null {
+  const latest = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  return latest && now - latest.updatedAt <= windowMs ? latest : null;
 }
