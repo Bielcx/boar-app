@@ -9,7 +9,7 @@ import { checkImportSize, formatBytes, importKindOfAsset, MAX_ASSET_IMPORT_BYTES
 import {
   CatalogModel,
   MODEL_CATALOG,
-  REQUIRED_MODELS,
+  ANSWER_MODELS,
   STORAGE_BUDGET_BYTES,
 } from "./manifest";
 
@@ -692,15 +692,17 @@ export class ModelManager {
   }
 
   /**
-   * Whether the default (required) LLM + embedding models are already on
-   * disk. Gates first-run navigation: if false, the app shows the mandatory
-   * setup screen instead of the chat UI. This is the only place the app's
-   * flow depends on network having been used at some point — once true, no
-   * further network access is needed.
+   * Whether setup is complete: every required asset (the embedding model)
+   * plus at least ONE answer model (any LLM with an answerTier: the default
+   * 4B or the compact 1.5B) is on disk with the right size. Gates first-run
+   * navigation: if false, the app shows the setup screen instead of the chat.
    */
   async requiredModelsPresent(): Promise<boolean> {
-    const statuses = await Promise.all(REQUIRED_MODELS.map((a) => this.statusOf(a)));
-    return statuses.every((s) => s.present && s.sizeOnDiskBytes === s.asset.sizeBytes);
+    const ok = (s: AssetStatus) => s.present && s.sizeOnDiskBytes === s.asset.sizeBytes;
+    const required = await Promise.all(MODEL_CATALOG.filter((a) => a.required).map((a) => this.statusOf(a)));
+    if (!required.every(ok)) return false;
+    const answer = await Promise.all(ANSWER_MODELS.map((a) => this.statusOf(a)));
+    return answer.some(ok);
   }
 }
 

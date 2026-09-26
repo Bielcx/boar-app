@@ -35,8 +35,17 @@ export interface CatalogModel {
   sourceUrl: string;
   license: string;
   description: string;
-  /** Must be downloaded before the app can be used; the default model for its kind. */
+  /**
+   * Must be installed before the app can be used (the embedding model). The
+   * answer model is chosen instead: any one entry with an `answerTier`.
+   */
   required: boolean;
+  /**
+   * LLMs that can be the app's answer model at setup. "default" is what the
+   * setup installs unless the phone is short on RAM or the user picks
+   * "compact". Setup is complete with the required assets plus ONE of these.
+   */
+  answerTier?: "default" | "compact";
   /**
    * Ships inside the app build itself (see plugins/withBundledModels.js).
    * Not used by default — see module doc comment — but kept available.
@@ -103,6 +112,23 @@ export const MODEL_CATALOG: CatalogModel[] = [
     capabilities: { roles: ["embedding"] },
   },
   {
+    id: "qwen3-4b-instruct-2507-q4km",
+    kind: "llm",
+    label: "Qwen3-4B-Instruct-2507 (Q4_K_M)",
+    filename: "models/qwen3-4b-instruct-2507-q4km.gguf",
+    // The exact file the frontier evaluation measured (unsloth build; sha256
+    // checked against a local copy on 2026-09-26).
+    sizeBytes: 2497281120,
+    sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597",
+    sourceUrl:
+      "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+    license: "Apache-2.0",
+    description: "4B dense, non-thinking instruct model. The default answer model: much better explanations and comparisons than the 1.5B. ~2.5GB.",
+    required: false,
+    answerTier: "default",
+    capabilities: { roles: ["general", "fast"], usesChatTemplate: true },
+  },
+  {
     id: "qwen2.5-1.5b-instruct-q4km",
     kind: "llm",
     label: "Qwen2.5-1.5B-Instruct (Q4_K_M)",
@@ -112,8 +138,9 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sourceUrl:
       "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/9eadc66189c7641e1ddd226b8267a9119b2ce2d4/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
     license: "Apache-2.0",
-    description: "1.5B dense, fast (~11-18 tok/s) and light. ~1.0GB. Default: downloaded at first-run setup.",
-    required: true,
+    description: "1.5B dense, fast (~11-18 tok/s) and light. ~1.0GB. Compact answer model for phones with little RAM.",
+    required: false,
+    answerTier: "compact",
     // Real-device Phase 9 test ("whats up?" -> a long, rambling,
     // free-associated multi-question response) traced to the app's
     // hand-built "Question: ...\n\nAnswer:" prompt shape being outside
@@ -210,7 +237,20 @@ export const MODEL_CATALOG: CatalogModel[] = [
   // appear in the Settings screen as optional downloads.
 ];
 
-export const REQUIRED_MODELS = MODEL_CATALOG.filter((m) => m.required);
+/** LLMs that can be the answer model, default first. */
+export const ANSWER_MODELS = MODEL_CATALOG.filter((m) => m.kind === "llm" && m.answerTier).sort(
+  (a, b) => (a.answerTier === "default" ? -1 : 1) - (b.answerTier === "default" ? -1 : 1)
+);
+export const DEFAULT_ANSWER_MODEL = ANSWER_MODELS.find((m) => m.answerTier === "default")!;
+export const COMPACT_ANSWER_MODEL = ANSWER_MODELS.find((m) => m.answerTier === "compact")!;
+
+/**
+ * The default setup set: every required asset (the embedding model) plus the
+ * default answer model. Setup is COMPLETE with the required assets plus any
+ * one answer model (ModelManager.requiredModelsPresent), so a phone that
+ * installed the compact one instead is set up too.
+ */
+export const REQUIRED_MODELS = [...MODEL_CATALOG.filter((m) => m.required), DEFAULT_ANSWER_MODEL];
 export const CORPUS_CATALOG = MODEL_CATALOG.filter((m) => m.kind === "corpus");
 
 export interface TierDefinition {

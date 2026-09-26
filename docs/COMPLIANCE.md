@@ -56,8 +56,10 @@ Last reviewed: 2026-09-26 (items 5, 10 and 14); 2026-09-25 for the rest. Test de
   (`LlamaEngine.estimateFit`).
 
 ### 3. 50 GB storage — PASS
-- Default install: about 1 GB of models (Qwen2.5-1.5B 0.99 GB, bge-small
-  0.04 GB) plus a few MB of knowledge base.
+- Default install from v1.1: about 2.5 GB of models (Qwen3-4B-Instruct-2507
+  2.50 GB, bge-small 0.04 GB), or about 1 GB with the compact answer model
+  (Qwen2.5-1.5B 0.99 GB), plus a few MB of knowledge base. v1.0.0 installed
+  the 1.5B.
 - Every optional catalog model (Phi-3.5-mini, Qwen2.5-7B, LFM2.5-8B-A1B,
   Gemma 4 E4B) adds about 17.4 GB, and the Wikipedia Vital Articles knowledge
   pack 0.16 GB, for about 18.6 GB in total.

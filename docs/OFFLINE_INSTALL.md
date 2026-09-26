@@ -1,13 +1,15 @@
 # Installing models without network (offline build)
 
-TL;DR: download the files below on a computer, check their SHA-256, copy them to
-the phone, and import them in BOAR. The app identifies each file by its size and
+TL;DR: you need the embedding model plus one answer model (the 4B by default,
+the 1.5B on phones with little RAM). Download them, check their SHA-256, get
+them onto the phone, and import them in BOAR. The app identifies each file by its size and
 SHA-256, not its name, and rejects anything that doesn't match.
 
 ```bash
-# On the computer: fetch the two required files and check them
+# On the computer: the embedding model plus ONE answer model (default 4B shown;
+# use the compact 1.5B instead on phones with 4 GB of RAM)
 curl -LO https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/d32f8c040ea3b516330eeb75b72bcc2d3a780ab7/bge-small-en-v1.5-q8_0.gguf
-curl -LO https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/9eadc66189c7641e1ddd226b8267a9119b2ce2d4/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
+curl -LO https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
 shasum -a 256 *.gguf     # compare with the table below (Linux: sha256sum)
 
 # Copy to the phone (or use a USB stick / SD card / file transfer)
@@ -40,7 +42,8 @@ re-checks every entry against its host.
 | Asset | Size | Download | SHA-256 |
 |---|---|---|---|
 | bge-small-en-v1.5 (Q8_0) **(required)** | 36.8 MB | [link](https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/d32f8c040ea3b516330eeb75b72bcc2d3a780ab7/bge-small-en-v1.5-q8_0.gguf) | `ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514` |
-| Qwen2.5-1.5B-Instruct (Q4_K_M) **(required)** | 986.0 MB | [link](https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/9eadc66189c7641e1ddd226b8267a9119b2ce2d4/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf) | `1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370` |
+| Qwen3-4B-Instruct-2507 (Q4_K_M) **(answer model, default)** | 2497.3 MB | [link](https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf) | `3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597` |
+| Qwen2.5-1.5B-Instruct (Q4_K_M) **(answer model, compact: instead of the 4B)** | 986.0 MB | [link](https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/9eadc66189c7641e1ddd226b8267a9119b2ce2d4/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf) | `1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370` |
 | Phi-3.5-mini-instruct (Q4_K_M) | 2393.2 MB | [link](https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/6d70da17e749a471ccb62ade694486011a75cda3/Phi-3.5-mini-instruct-Q4_K_M.gguf) | `e4165e3a71af97f1b4820da61079826d8752a2088e313af0c7d346796c38eff5` |
 | Qwen2.5-7B-Instruct (Q4_K_M) | 4683.1 MB | [link](https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/8911e8a47f92bac19d6f5c64a2e2095bd2f7d031/Qwen2.5-7B-Instruct-Q4_K_M.gguf) | `65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423` |
 | LFM2.5-8B-A1B (Q4_K_M) | 5155.6 MB | [link](https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/49c14831707011e64d70b2ebd8462ba08d608434/LFM2.5-8B-A1B-Q4_K_M.gguf) | `4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0` |

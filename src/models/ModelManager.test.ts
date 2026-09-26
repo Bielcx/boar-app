@@ -102,6 +102,7 @@ vi.mock("./fileHash", () => ({
 
 import { ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
 import { registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
+import * as manifestModule from "./manifest";
 import { AssetIntegrityError } from "./integrity";
 import type { CatalogModel } from "./manifest";
 
@@ -379,5 +380,27 @@ describe("asset registry integration", () => {
     const e = await rejection(new ModelManager([a]).downloadCatalogModel(a));
     expect(e).toMatchObject({ kind: "no-source", permanent: true });
     expect(e.message).toMatch(/Import the file/);
+  });
+});
+
+describe("requiredModelsPresent (setup complete)", () => {
+  const { MODEL_CATALOG: CAT, DEFAULT_ANSWER_MODEL: DEF, COMPACT_ANSWER_MODEL: COMP } = manifestModule;
+  const embedding = CAT.find((m) => m.kind === "embedding" && m.required)!;
+
+  it("needs the embedding model plus ONE answer model, default or compact", async () => {
+    // Real sizes would allocate GBs; shrink the catalog entries' files with fakeSizes instead.
+    for (const a of [embedding, DEF, COMP]) fakeSizes.set(`file:///doc/${a.filename}`, a.sizeBytes);
+    const mm = new ModelManager();
+    const mark = (a: { filename: string }) => put(`file:///doc/${a.filename}`, Buffer.alloc(1));
+    expect(await mm.requiredModelsPresent()).toBe(false);
+    mark(embedding);
+    expect(await mm.requiredModelsPresent()).toBe(false);
+    mark(COMP);
+    expect(await mm.requiredModelsPresent()).toBe(true);
+    files.delete(`file:///doc/${COMP.filename}`);
+    mark(DEF);
+    expect(await mm.requiredModelsPresent()).toBe(true);
+    files.delete(`file:///doc/${embedding.filename}`);
+    expect(await mm.requiredModelsPresent()).toBe(false);
   });
 });
