@@ -287,7 +287,10 @@
       "saveFailed": "Couldn't save that change. Try again.",
       "resetFailed": "Couldn't erase the data: {{error}}",
       "quickFirstHint": "Shows a passage from your sources in under a second.",
-      "alwaysCompleteHint": "Researches each part of the question. Slower."
+      "alwaysCompleteHint": "Researches each part of the question. Slower.",
+      "palette": "Colors",
+      "paletteFogueira": "Campfire",
+      "paletteLuar": "Moonlight"
     },
     "tone": {
       "footer": "Changes how answers are written, starting with the next question.",
@@ -366,7 +369,14 @@
       "downloadAnyway": "Download anyway ({{size}})",
       "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate.",
       "importFile": "Import file ({{size}})",
-      "importAnyway": "Import anyway ({{size}})"
+      "importAnyway": "Import anyway ({{size}})",
+      "notOnDisk": "Not on disk",
+      "fitShort": {
+        "resident": "Fits in memory",
+        "streaming": "Reads from storage",
+        "thrashing": "May be slow",
+        "insufficient": "Won't fit"
+      }
     },
     "models": {
       "storage": "BOAR uses {{used}} · {{free}} free on this phone",
@@ -505,7 +515,8 @@
       "sourceFooter": "Code, model list and build scripts are public.",
       "copy": "Copy link",
       "copyHint": "Copies the repository address",
-      "copied": "Link copied"
+      "copied": "Link copied",
+      "fontsTitle": "Fonts"
     },
     "onboarding": {
       "tagline": "AI research that runs entirely on your phone, without internet.",

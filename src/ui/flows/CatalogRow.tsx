@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
+import { Badge, Button, IconName, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
@@ -29,26 +29,31 @@ interface Props {
   fit?: MemoryFit;
 }
 
-function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | null {
+type Seal = { label: string; tone: Tone; emphasis: "solid" | "soft" | "outline"; icon?: IconName };
+
+/** Status seal per state (Fogueira & Luar): ACTIVE solid, CACHED soft, DOWNLOADING outline with loader, NOT ON DISK outline. */
+function seal(state: RowState, t: TFunction): Seal {
   switch (state.kind) {
     case "not-installed":
-      return null;
+      return { label: t("flows.row.notOnDisk"), tone: "neutral", emphasis: "outline" };
     case "downloading":
-      return { label: t(state.phase === "copying" ? "flows.row.copying" : "flows.row.downloading"), tone: "info" };
+      return { label: t(state.phase === "copying" ? "flows.row.copying" : "flows.row.downloading"), tone: "field", emphasis: "outline", icon: "loader" };
     case "verifying":
-      return { label: t("flows.row.verifying"), tone: "info" };
+      return { label: t("flows.row.verifying"), tone: "field", emphasis: "outline", icon: "loader" };
     case "loading":
-      return { label: t("flows.row.loading"), tone: "info" };
+      return { label: t("flows.row.loading"), tone: "field", emphasis: "outline", icon: "loader" };
     case "failed":
-      return { label: t("flows.row.failed"), tone: "danger" };
+      return { label: t("flows.row.failed"), tone: "danger", emphasis: "soft" };
     case "in-use":
-      return { label: state.roles.map((r) => t(`flows.row.role.${r}`)).join(" · "), tone: "success" };
+      return { label: state.roles.map((r) => t(`flows.row.role.${r}`)).join(" · "), tone: "accent", emphasis: "solid" };
     case "installed":
       return state.verified
-        ? { label: t("flows.row.verified"), tone: "field" }
-        : { label: t("flows.row.unverified"), tone: "warning" };
+        ? { label: t("flows.row.verified"), tone: "field", emphasis: "soft" }
+        : { label: t("flows.row.unverified"), tone: "warning", emphasis: "soft" };
   }
 }
+
+const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
 export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit }: Props) {
   const { t, i18n } = useTranslation();
@@ -59,7 +64,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const [explainOpen, setExplainOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
   const { state } = view;
-  const b = badge(state, t);
+  const b = seal(state, t);
   const size = formatBytes(model.sizeBytes, i18n.language);
   const offline = !networkAllowed();
   const getLabel = offline ? t("flows.row.importFile", { size }) : t("flows.row.download", { size });
@@ -92,7 +97,12 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           </Text>
         ))}
       </View>
-      {b && <Badge label={b.label} tone={b.tone} />}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
+        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+        {view.fitWarning && (
+          <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
+        )}
+      </View>
 
       {(state.kind === "downloading" || state.kind === "verifying") && (
         <Progress

@@ -17,6 +17,7 @@ import {
   getPersonalityId,
   getVoiceInputEnabled,
   LanguageId,
+  PaletteChoice,
   setAdaptiveRoutingEnabled,
   setDeepResearchMode,
   setHapticsEnabled,
@@ -49,7 +50,7 @@ export function SettingsScreen() {
   const navigation = useNavigation<Nav>();
   const toast = useToast();
   const announce = useAnnounce();
-  const { appearance, setAppearance, fontScale, setFontScale } = useTheme();
+  const { appearance, setAppearance, fontScale, setFontScale, palette, setPalette } = useTheme();
   const { languageId, setLanguage } = useLanguage();
   const [values, setValues] = useState<Values | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
@@ -155,6 +156,18 @@ export function SettingsScreen() {
               { value: "system", label: t("flows.settings.themeSystem") },
               { value: "light", label: t("flows.settings.themeLight") },
               { value: "dark", label: t("flows.settings.themeDark") },
+            ]}
+          />
+          <Text variant="subhead" color="secondary">
+            {t("flows.settings.palette")}
+          </Text>
+          <SegmentedControl<PaletteChoice>
+            label={t("flows.settings.palette")}
+            value={palette}
+            onChange={setPalette}
+            options={[
+              { value: "fogueira", label: t("flows.settings.paletteFogueira") },
+              { value: "luar", label: t("flows.settings.paletteLuar") },
             ]}
           />
           <Text variant="subhead" color="secondary">

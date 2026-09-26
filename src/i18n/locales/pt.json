@@ -287,7 +287,10 @@
       "saveFailed": "Não foi possível salvar essa mudança. Tente de novo.",
       "resetFailed": "Não foi possível apagar os dados: {{error}}",
       "quickFirstHint": "Mostra um trecho das suas fontes em menos de um segundo.",
-      "alwaysCompleteHint": "Pesquisa cada parte da pergunta. Mais lento."
+      "alwaysCompleteHint": "Pesquisa cada parte da pergunta. Mais lento.",
+      "palette": "Cores",
+      "paletteFogueira": "Fogueira",
+      "paletteLuar": "Luar"
     },
     "tone": {
       "footer": "Muda o jeito de escrever as respostas a partir da próxima pergunta.",
@@ -366,7 +369,14 @@
       "downloadAnyway": "Baixar mesmo assim ({{size}})",
       "fitDetail": "Ele precisa de cerca de {{need}} de memória de trabalho que não dá para ler do armazenamento; há cerca de {{free}} livres de {{total}}. Estimativa.",
       "importFile": "Importar arquivo ({{size}})",
-      "importAnyway": "Importar mesmo assim ({{size}})"
+      "importAnyway": "Importar mesmo assim ({{size}})",
+      "notOnDisk": "Não baixado",
+      "fitShort": {
+        "resident": "Cabe na memória",
+        "streaming": "Lê do armazenamento",
+        "thrashing": "Pode ficar lento",
+        "insufficient": "Não cabe"
+      }
     },
     "models": {
       "storage": "O BOAR usa {{used}} · {{free}} livres no celular",
@@ -505,7 +515,8 @@
       "sourceFooter": "Código, lista de modelos e scripts de build são públicos.",
       "copy": "Copiar link",
       "copyHint": "Copia o endereço do repositório",
-      "copied": "Link copiado"
+      "copied": "Link copiado",
+      "fontsTitle": "Fontes tipográficas"
     },
     "onboarding": {
       "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",

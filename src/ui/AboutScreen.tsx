@@ -12,6 +12,12 @@ import appConfig from "../../app.json";
 
 const REPO_URL = "github.com/rferrari/boar-app";
 
+/** Fonts bundled in the app (src/ui/theme/fontFiles.ts); licenses from each package's LICENSE_FONT. */
+const BUNDLED_FONTS = [
+  { name: "Baloo 2", license: "SIL Open Font License 1.1" },
+  { name: "Lexend", license: "SIL Open Font License 1.1" },
+];
+
 export function AboutScreen() {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
@@ -66,6 +72,12 @@ export function AboutScreen() {
             <ListRow key={m.id} title={m.label} value={formatBytes(m.sizeBytes, i18n.language)} subtitle={m.license} />
           ))
         )}
+      </Section>
+
+      <Section title={t("flows.about.fontsTitle")}>
+        {BUNDLED_FONTS.map((f) => (
+          <ListRow key={f.name} title={f.name} subtitle={f.license} />
+        ))}
       </Section>
 
       <Section title={t("flows.about.sourceTitle")} footer={t("flows.about.sourceFooter")}>
