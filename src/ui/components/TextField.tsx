@@ -40,8 +40,9 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           alignItems: autoGrow ? "flex-end" : "center",
           gap: t.space.sm,
           minHeight: t.size.touch,
-          paddingHorizontal: t.space.md,
-          borderRadius: t.radius.md,
+          paddingHorizontal: t.space.base,
+          // Pill like the mockup's question field; a softer radius once it can grow past one line.
+          borderRadius: autoGrow || rest.multiline ? 24 : t.radius.full,
           borderWidth: focused || error ? t.size.focusRing : t.size.border,
           borderColor,
           backgroundColor: t.color.bg.surface,

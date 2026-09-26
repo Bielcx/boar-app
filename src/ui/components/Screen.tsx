@@ -3,6 +3,7 @@ import { StyleProp, View, ViewStyle } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Edge, SafeAreaView } from "react-native-safe-area-context";
 import { useTokens } from "../theme";
+import { Ambient } from "./Ambient";
 
 export interface ScreenProps {
   children: React.ReactNode;
@@ -18,10 +19,12 @@ export interface ScreenProps {
   contentStyle?: StyleProp<ViewStyle>;
   /** Sticky content at the bottom (primary action), above the home indicator. */
   footer?: React.ReactNode;
+  /** Draw the identity's light pattern (ember / moon) behind the content. Hero screens: chat, onboarding. */
+  ambient?: boolean;
 }
 
 /** Screen scaffold: canvas background, safe area, keyboard handling, content rhythm. */
-export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer }: ScreenProps) {
+export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient }: ScreenProps) {
   const t = useTokens();
   const inner: ViewStyle = {
     paddingHorizontal: padded ? t.space.base : 0,
@@ -30,6 +33,7 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
   };
   return (
     <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: t.color.bg.canvas }}>
+      {ambient && <Ambient />}
       {scroll ? (
         <KeyboardAwareScrollView
           keyboardShouldPersistTaps="handled"
@@ -50,9 +54,9 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
             paddingTop: t.space.md,
             paddingBottom: t.space.sm,
             gap: t.space.sm,
-            borderTopWidth: t.size.hairline,
+            borderTopWidth: ambient ? 0 : t.size.hairline,
             borderTopColor: t.color.line.hairline,
-            backgroundColor: t.color.bg.canvas,
+            backgroundColor: ambient ? "transparent" : t.color.bg.canvas,
           }}
         >
           {footer}

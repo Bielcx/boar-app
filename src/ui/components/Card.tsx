@@ -20,7 +20,8 @@ export function Card({ level = 1, padding = "md", onPress, onLongPress, style, c
   const base: ViewStyle = {
     backgroundColor: level === 2 ? t.color.bg.raised : t.color.bg.surface,
     borderRadius: t.radius.lg,
-    borderWidth: t.size.hairline,
+    // Dark: planes read by lightness alone (mockup). Light: a hairline keeps cards on paper.
+    borderWidth: t.scheme === "light" ? t.size.hairline : 0,
     borderColor: t.color.line.hairline,
     padding: padding === "none" ? 0 : padding === "sm" ? t.space.md : t.space.base,
     ...(t.elevation[level] as ViewStyle),

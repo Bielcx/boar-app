@@ -2,6 +2,7 @@
  * BOAR UI primitives. Import from "src/ui/components" only; see docs/DESIGN_SYSTEM.md.
  * Feature components (MarkdownMessage, SourceFootnotes, ...) live alongside but are not re-exported here.
  */
+export { Ambient } from "./Ambient";
 export { AnnouncerProvider, useAnnounce } from "./Announcer";
 export { Badge } from "./Badge";
 export type { BadgeProps } from "./Badge";
@@ -21,6 +22,8 @@ export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
 export { ListRow } from "./ListRow";
 export type { ListRowProps } from "./ListRow";
+export { OfflineSeal } from "./OfflineSeal";
+export type { OfflineSealProps } from "./OfflineSeal";
 export { Progress } from "./Progress";
 export type { ProgressProps } from "./Progress";
 export { Screen } from "./Screen";

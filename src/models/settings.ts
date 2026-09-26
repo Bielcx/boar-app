@@ -6,6 +6,7 @@ import { ModelRole, RoutingPreset } from "../routing/types";
 export type ThemeId = "midnight" | "amber" | "frontier";
 export type FontScale = "compact" | "standard" | "large";
 export type Appearance = "system" | "light" | "dark";
+export type PaletteChoice = "fogueira" | "luar";
 export type LanguageId = "en" | "pt";
 
 interface Settings {
@@ -23,6 +24,7 @@ interface Settings {
   deepResearchMode?: boolean;
   themeId?: ThemeId;
   appearance?: Appearance;
+  palette?: PaletteChoice;
   fontScale?: FontScale;
   languageId?: LanguageId;
   routingPreset?: RoutingPreset;
@@ -203,6 +205,17 @@ export async function getAppearance(): Promise<Appearance> {
 export async function setAppearance(appearance: Appearance): Promise<void> {
   const s = await readSettings();
   s.appearance = appearance;
+  await writeSettings(s);
+}
+
+export async function getPaletteChoice(): Promise<PaletteChoice> {
+  const s = await readSettings();
+  return s.palette ?? "fogueira";
+}
+
+export async function setPaletteChoice(palette: PaletteChoice): Promise<void> {
+  const s = await readSettings();
+  s.palette = palette;
   await writeSettings(s);
 }
 
