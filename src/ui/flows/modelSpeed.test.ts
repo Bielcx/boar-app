@@ -28,3 +28,11 @@ describe("speedsByModel", () => {
     expect(speeds).toEqual({});
   });
 });
+
+describe("measurement filters", () => {
+  it("skips answers under 16 tokens and prefers the recorded tokens/s", () => {
+    const short = rec("a", 10, 1000, 1);
+    const recorded = { ...rec("a", 100, 10_000, 2), tokPerSec: 12 };
+    expect(speedsByModel([short, recorded]).a).toEqual({ medianTokPerSec: 12, samples: 1, lastAt: 2 });
+  });
+});

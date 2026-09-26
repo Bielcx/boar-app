@@ -407,14 +407,15 @@
       "addFailed": "Couldn't add it: {{error}}",
       "nowAnswering": "{{name}} now writes your answers",
       "deepTitle": "Model for full answers",
-      "deepFooter": "Full answers use this model. Automatic mode never picks a model measured below {{min}} tokens/s on this phone.",
+      "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at {{min}} tokens/s or more.",
       "deepAuto": "Automatic",
       "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
       "deepNone": "None: always use the answer model",
       "notMeasured": "Not measured on this phone yet",
       "measured_one": "{{rate}} tokens/s · {{count}} answer · measured on this phone on {{date}}",
       "measured_other": "{{rate}} tokens/s · median of {{count}} answers · measured on this phone on {{date}}",
-      "tooSlow": "Not available in automatic mode: too slow on this phone."
+      "tooSlow": "Not available in automatic mode: too slow on this phone.",
+      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",

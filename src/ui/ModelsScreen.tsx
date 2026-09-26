@@ -11,7 +11,7 @@ import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel
 import { CatalogRow } from "./flows/CatalogRow";
 import { RadioRow } from "./flows/RadioRow";
 import { speedsByModel, ModelSpeed } from "./flows/modelSpeed";
-import { deepAutoEligible, MIN_DEEP_TOK_PER_SEC } from "./flows/adapters";
+import { deepAutoEligible, MIN_DEEP_TOK_PER_SEC, MIN_SPEED_SAMPLES } from "./flows/adapters";
 import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
 import { listRecentExecutions } from "../services/executionTelemetry";
 import { ImportList } from "./flows/ImportList";
@@ -139,7 +139,11 @@ export function ModelsScreen() {
                   title={m.label}
                   subtitle={[
                     speedLine(m.id),
-                    !deepAutoEligible(speeds[m.id]) ? t("flows.models.tooSlow") : undefined,
+                    deepAutoEligible(speeds[m.id])
+                      ? undefined
+                      : (speeds[m.id]?.samples ?? 0) < MIN_SPEED_SAMPLES
+                        ? t("flows.models.notEnoughSamples", { min: MIN_SPEED_SAMPLES })
+                        : t("flows.models.tooSlow"),
                   ]
                     .filter(Boolean)
                     .join("\n")}

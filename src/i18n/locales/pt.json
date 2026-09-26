@@ -407,14 +407,15 @@
       "addFailed": "Não foi possível adicionar: {{error}}",
       "nowAnswering": "{{name}} agora escreve as respostas",
       "deepTitle": "Modelo para respostas completas",
-      "deepFooter": "As respostas completas usam este modelo. O automático nunca escolhe um modelo medido abaixo de {{min}} tokens/s neste celular.",
+      "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a {{min}} tokens/s ou mais.",
       "deepAuto": "Automático",
       "deepAutoSub": "O maior modelo instalado que cabe e roda a {{min}} tokens/s ou mais aqui.",
       "deepNone": "Nenhum: sempre o modelo de respostas",
       "notMeasured": "Ainda não medido neste celular",
       "measured_one": "{{rate}} tokens/s · {{count}} resposta · medido neste celular em {{date}}",
       "measured_other": "{{rate}} tokens/s · mediana de {{count}} respostas · medido neste celular em {{date}}",
-      "tooSlow": "Não disponível no automático: muito lento neste celular."
+      "tooSlow": "Não disponível no automático: muito lento neste celular.",
+      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },
     "knowledge": {
       "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",

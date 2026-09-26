@@ -109,12 +109,13 @@ export function preparednessEntry(): CatalogModel | undefined {
 }
 
 /**
- * Whether automatic deep answers may use a model, from its measured speed.
- * Interim copy of the routing rule (v1.1: never below 5 tok/s measured on
- * this phone; unmeasured models stay eligible until measured) until Tusk
- * exposes it from src/routing.
+ * Whether automatic full answers may use a model, from its measured speed.
+ * Interim copy of Tusk's rule (src/routing/depth.ts on feat/engine-routing:
+ * DEEP_AUTO_MIN_TOK_PER_SEC = 5, MIN_SPEED_SAMPLES = 2; no measurement or
+ * too few samples means not eligible) until it is integrated.
  */
 export const MIN_DEEP_TOK_PER_SEC = 5;
+export const MIN_SPEED_SAMPLES = 2;
 export function deepAutoEligible(speed: ModelSpeed | undefined): boolean {
-  return !speed || speed.medianTokPerSec >= MIN_DEEP_TOK_PER_SEC;
+  return !!speed && speed.samples >= MIN_SPEED_SAMPLES && speed.medianTokPerSec >= MIN_DEEP_TOK_PER_SEC;
 }
