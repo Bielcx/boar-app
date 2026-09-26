@@ -539,6 +539,19 @@
     },
     "onboarding": {
       "tagline": "AI research that runs entirely on your phone, without internet.",
+      "brandSub": "Offline research assistant",
+      "introLabel": "How it works",
+      "phoneLabel": "This phone",
+      "phoneMemory": "Memory",
+      "phoneFree": "Free space",
+      "sizeLabel": {
+        "download": "to download",
+        "import": "to import"
+      },
+      "meta": {
+        "onDisk": "{{size}} on disk",
+        "time": "~{{minutes}} min at {{speed}}/s"
+      },
       "point1": "Works offline once it is set up.",
       "point2": "Your questions never leave the phone.",
       "point3": "Shows the sources behind each answer.",
@@ -564,10 +577,7 @@
         }
       },
       "recommended": "Recommended",
-      "download": "Download: {{size}}",
       "alreadyDownloaded": "Already downloaded",
-      "diskAfter": "Space after install: {{size}}",
-      "time": "About {{minutes}} min at {{speed}}/s (estimate)",
       "noSpace": "Not enough space: {{size}} more is needed.",
       "install": "Download {{size}}",
       "continue": "Continue",
@@ -599,7 +609,6 @@
       "open": "Open BOAR",
       "languageAnnounce": "Language: English",
       "smallerPackage": "Choose a smaller package",
-      "importSize": "Files to import: {{size}}",
       "importTitle": "Import the files",
       "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
       "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
