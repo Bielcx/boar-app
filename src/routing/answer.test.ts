@@ -284,3 +284,14 @@ describe("answer(): context budget", () => {
     expect(sourceTokens).toBeLessThanOrEqual(2048 - 1024 - 512);
   });
 });
+
+describe("answer(): unexpected failures", () => {
+  it("still ends with a done event when something throws before generation", async () => {
+    f.deps.getSettings = async () => {
+      throw new Error("settings file corrupted");
+    };
+    const { events, result } = await collect("Tell me about Canberra");
+    expect(result.outcome).toBe("error");
+    expect(events.at(-1)).toMatchObject({ type: "done", outcome: "error", error: { code: "unknown", message: "settings file corrupted" } });
+  });
+});

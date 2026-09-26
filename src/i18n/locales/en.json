@@ -555,5 +555,159 @@
       "doneAnnounce": "Setup finished. BOAR is ready.",
       "open": "Open BOAR"
     }
+  },
+  "chat": {
+    "composer": {
+      "label": "Question",
+      "placeholder": "Ask something",
+      "send": "Send",
+      "stop": "Stop answer",
+      "stopping": "Stopping",
+      "notReady": "Loading model… you can type meanwhile"
+    },
+    "stage": {
+      "searching": "Searching sources…",
+      "loadingModel": "Loading the model…",
+      "reading": "Reading {{count}} sources…",
+      "thinking": "Thinking…",
+      "verifying": "Checking the answer…",
+      "synthesizing": "Putting it together…",
+      "part": "Researching part {{index}} of {{count}}…",
+      "stopping": "Stopping…"
+    },
+    "announce": {
+      "searching": "Searching sources",
+      "answering": "Answering",
+      "ready_one": "Answer ready, {{count}} source",
+      "ready_other": "Answer ready, {{count}} sources",
+      "stopped": "Stopped",
+      "listening": "Listening",
+      "stoppedListening": "Stopped listening"
+    },
+    "snippet": {
+      "fromSource": "From the source",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "openSource": "Open source {{n}}: {{title}}"
+    },
+    "sources": {
+      "title": "Sources ({{count}})",
+      "chip": "Source {{n}}: {{title}}",
+      "cite": "Source {{n}}: {{title}}",
+      "corpus": "Offline library",
+      "myDocuments": "My documents",
+      "copyPassage": "Copy passage",
+      "passageCopied": "Passage copied",
+      "sheetTitle": "Source {{n}}"
+    },
+    "receipt": {
+      "sourcePassage": "Source passage",
+      "localModel": "Local model",
+      "started": "started in {{time}}",
+      "offline": "offline",
+      "details": "Performance details",
+      "load": "Model load",
+      "search": "Search",
+      "prefill": "Reading sources",
+      "context": "Context",
+      "firstToken": "First token",
+      "tokens": "Tokens",
+      "total": "Total",
+      "verification": "Verification",
+      "copy": "Copy receipt",
+      "copied": "Receipt copied",
+      "verified": {
+        "passed": "passed",
+        "failed": "failed",
+        "uncertain": "uncertain"
+      }
+    },
+    "actions": {
+      "copy": "Copy answer",
+      "copied": "Answer copied",
+      "share": "Share answer",
+      "helpful": "Helpful answer",
+      "unhelpful": "Unhelpful answer",
+      "deepen": "Deeper answer",
+      "deepenEst": "Deeper answer · ~{{time}}",
+      "askModel": "Answer with the model",
+      "retry": "Try again",
+      "copyQuestion": "Copy question",
+      "editQuestion": "Edit and resend",
+      "questionCopied": "Question copied"
+    },
+    "deep": {
+      "title": "Deeper answer",
+      "quick": "Quick answer"
+    },
+    "reasoning": {
+      "thinking": "Thinking · {{seconds}} s",
+      "show": "Show reasoning",
+      "hide": "Hide reasoning",
+      "unfinished": "The reasoning did not finish before the answer ended."
+    },
+    "notice": {
+      "stopped": "Stopped by you",
+      "stoppedSnippet": "Stopped — showing the source passage",
+      "timeout": "A step took too long and was cut short",
+      "interrupted": "Interrupted when the app went to the background",
+      "streamsFromStorage": "This model reads its weights from storage, so answers are slower."
+    },
+    "error": {
+      "generic": "Couldn't generate the answer.",
+      "oom": "Not enough memory for this model. Pick a smaller one in Settings.",
+      "no_model": "No model is installed.",
+      "load_failed": "The model failed to load.",
+      "generation_failed": "Couldn't generate the answer.",
+      "unknown": "Something went wrong."
+    },
+    "model": {
+      "loading": "Loading {{label}}…",
+      "indexing": "Indexing knowledge {{done}} / {{total}}",
+      "noModelTitle": "No model installed",
+      "noModelBody": "Download or import a model to start asking questions.",
+      "setup": "Set up a model",
+      "loadErrorTitle": "The model didn't load"
+    },
+    "empty": {
+      "title": "Ask anything",
+      "body": "Answers come from the model and library on this phone, with sources.",
+      "suggestionsLabel": "Try asking",
+      "ask": "Ask: {{question}}",
+      "fill": "Put in the input to edit"
+    },
+    "suggestions": {
+      "q1": "How do vaccines train the immune system?",
+      "q2": "Compare a virus and a bacterium",
+      "q3": "Why do we have seasons on Earth?",
+      "q4": "How do I treat a minor burn?"
+    },
+    "header": {
+      "menu": "Open menu",
+      "newChat": "New chat",
+      "offline": "Offline · private",
+      "offlineShort": "Offline and private, details",
+      "offlineTitle": "Offline and private",
+      "offlineBody": "Questions, search and answers run on this phone. Nothing you ask leaves the device.",
+      "offlineBodyDownloader": "Questions, search and answers run on this phone. This build can download models when you ask it to; answering never uses the network.",
+      "modelLoaded": "Model: {{label}}",
+      "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
+      "tone": "Change tone"
+    },
+    "jumpToLatest": "Jump to the latest answer",
+    "share": {
+      "sources": "Sources",
+      "answeredOffline": "Answered offline by BOAR",
+      "sourcePassage": "Source passage",
+      "myDocuments": "My documents"
+    },
+    "voice": {
+      "start": "Voice input",
+      "stop": "Stop listening",
+      "unavailable": "Voice input is not available on this device.",
+      "caveatTitle": "About voice input",
+      "caveatBody": "Voice uses the system speech recognizer, which may send audio to its provider and may not work offline.",
+      "caveatOk": "Got it"
+    }
   }
 }

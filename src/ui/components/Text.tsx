@@ -1,4 +1,4 @@
-import React from "react";
+import React, { forwardRef } from "react";
 import { Text as RNText, TextProps as RNTextProps } from "react-native";
 import { useTokens } from "../theme";
 import type { TextVariant } from "../theme";
@@ -19,8 +19,11 @@ export interface TextProps extends RNTextProps {
 const WEIGHTS = { regular: "400", medium: "500", semibold: "600", bold: "700" } as const;
 const HEADER_VARIANTS: TextVariant[] = ["display", "title1", "title2", "title3"];
 
-/** The only way to draw text. Respects the OS font scale and the in-app size preference. */
-export function Text({
+/**
+ * The only way to draw text. Respects the OS font scale and the in-app size preference.
+ * Forwards its ref, e.g. to move screen-reader focus to a title.
+ */
+export const Text = forwardRef<RNText, TextProps>(function Text({
   variant = "body",
   color = "primary",
   numeric,
@@ -29,7 +32,7 @@ export function Text({
   header,
   style,
   ...rest
-}: TextProps) {
+}, ref) {
   const t = useTokens();
   const { maxFontSizeMultiplier, ...typeStyle } = t.type[variant];
   const colorValue = {
@@ -46,6 +49,7 @@ export function Text({
   const isHeader = header ?? HEADER_VARIANTS.includes(variant);
   return (
     <RNText
+      ref={ref}
       accessibilityRole={isHeader ? "header" : rest.accessibilityRole}
       maxFontSizeMultiplier={rest.maxFontSizeMultiplier ?? maxFontSizeMultiplier}
       style={[
@@ -59,4 +63,4 @@ export function Text({
       {...rest}
     />
   );
-}
+});

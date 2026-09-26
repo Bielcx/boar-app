@@ -118,7 +118,15 @@ export function createAnswerer(deps: AnswerDeps) {
         await previous.stop();
         await previous.done.catch(() => {});
       }
-      return run();
+      try {
+        return await run();
+      } catch (e: any) {
+        // The contract promises a final done event, whatever failed.
+        const message = e?.message ?? String(e);
+        const receipt: AnswerReceipt = { modelId: "none", modelLabel: "", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 0, reasonCodes: ["error:unexpected"] };
+        emit({ type: "done", answerId, tier: "fast", outcome: "error", receipt, error: { code: "unknown", message } });
+        return { answerId, tier: "fast", outcome: "error", text: "", sources: [], receipt };
+      }
     })();
 
     const handle: AnswerHandle = {
@@ -130,9 +138,11 @@ export function createAnswerer(deps: AnswerDeps) {
       done,
     };
     current = handle;
-    done.finally(() => {
-      if (current === handle) current = null;
-    });
+    done
+      .finally(() => {
+        if (current === handle) current = null;
+      })
+      .catch(() => {});
     return handle;
 
     async function run(): Promise<AnswerResult> {

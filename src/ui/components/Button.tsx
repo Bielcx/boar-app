@@ -1,4 +1,4 @@
-import React from "react";
+import React, { forwardRef } from "react";
 import { ActivityIndicator, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
 import { useTokens } from "../theme";
@@ -22,7 +22,7 @@ export interface ButtonProps extends Omit<PressableProps, "children" | "style"> 
  * Text button. Height is always >= the platform touch minimum; `sm` only
  * reduces padding and type, the hit area stays 44/48 via hitSlop.
  */
-export function Button({
+export const Button = forwardRef<View, ButtonProps>(function Button({
   label,
   variant = "primary",
   size = "md",
@@ -34,7 +34,7 @@ export function Button({
   style,
   onPress,
   ...rest
-}: ButtonProps) {
+}, ref) {
   const t = useTokens();
   const c = t.color;
   const inactive = disabled || loading;
@@ -49,6 +49,7 @@ export function Button({
 
   return (
     <Pressable
+      ref={ref}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
@@ -86,7 +87,7 @@ export function Button({
       )}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   base: { alignItems: "center", justifyContent: "center", paddingVertical: 8 },

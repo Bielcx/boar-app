@@ -16,6 +16,28 @@ export interface ChatMessageRecord {
   createdAt: number;
   /** null = no rating given. Present so reopening a past session restores previously-given thumbs. */
   feedback: "up" | "down" | null;
+  /** JSON the chat stores with an answer (sources, receipt, outcome); null for older messages and user turns. */
+  meta: string | null;
+}
+
+// Sources and receipt of each answer, kept apart from chat_messages so the
+// shared schema in src/rag/db.ts stays untouched. Created on first use.
+let metaTableReady: Promise<void> | null = null;
+function ensureMetaTable(): Promise<void> {
+  metaTableReady ??= getDb()
+    .then((db) =>
+      db.execAsync(
+        `CREATE TABLE IF NOT EXISTS chat_message_meta (
+           message_id TEXT PRIMARY KEY REFERENCES chat_messages(id),
+           meta TEXT NOT NULL
+         )`
+      )
+    )
+    .catch((e) => {
+      metaTableReady = null;
+      throw e;
+    });
+  return metaTableReady;
 }
 
 function newId(): string {
@@ -52,6 +74,7 @@ export async function listSessions(): Promise<ChatSession[]> {
 }
 
 export async function getMessages(sessionId: string): Promise<ChatMessageRecord[]> {
+  await ensureMetaTable();
   const db = await getDb();
   const rows = await db.getAllAsync<{
     id: string;
@@ -60,10 +83,12 @@ export async function getMessages(sessionId: string): Promise<ChatMessageRecord[
     text: string;
     created_at: number;
     rating: "up" | "down" | null;
+    meta: string | null;
   }>(
-    `SELECT m.id, m.session_id, m.role, m.text, m.created_at, f.rating
+    `SELECT m.id, m.session_id, m.role, m.text, m.created_at, f.rating, x.meta
      FROM chat_messages m
      LEFT JOIN answer_feedback f ON f.message_id = m.id
+     LEFT JOIN chat_message_meta x ON x.message_id = m.id
      WHERE m.session_id = ? ORDER BY m.created_at ASC`,
     [sessionId]
   );
@@ -74,7 +99,15 @@ export async function getMessages(sessionId: string): Promise<ChatMessageRecord[
     text: r.text,
     createdAt: r.created_at,
     feedback: r.rating,
+    meta: r.meta ?? null,
   }));
+}
+
+/** Stores (or replaces) the chat's JSON for an answer. */
+export async function setMessageMeta(messageId: string, meta: string): Promise<void> {
+  await ensureMetaTable();
+  const db = await getDb();
+  await db.runAsync(`INSERT OR REPLACE INTO chat_message_meta (message_id, meta) VALUES (?, ?)`, [messageId, meta]);
 }
 
 /**
@@ -123,7 +156,12 @@ export async function setSessionSummary(sessionId: string, summary: string): Pro
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
+  await ensureMetaTable();
   await writeTransaction(async (txn) => {
+    await txn.runAsync(
+      `DELETE FROM chat_message_meta WHERE message_id IN (SELECT id FROM chat_messages WHERE session_id = ?)`,
+      [sessionId]
+    );
     await txn.runAsync(
       `DELETE FROM answer_feedback WHERE message_id IN (SELECT id FROM chat_messages WHERE session_id = ?)`,
       [sessionId]
@@ -134,7 +172,9 @@ export async function deleteSession(sessionId: string): Promise<void> {
 }
 
 export async function clearAllHistory(): Promise<void> {
+  await ensureMetaTable();
   await writeTransaction(async (txn) => {
+    await txn.runAsync(`DELETE FROM chat_message_meta`);
     await txn.runAsync(`DELETE FROM answer_feedback`);
     await txn.runAsync(`DELETE FROM chat_messages`);
     await txn.runAsync(`DELETE FROM chat_sessions`);

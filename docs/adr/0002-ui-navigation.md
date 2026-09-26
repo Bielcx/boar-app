@@ -33,8 +33,8 @@ Details:
 
 - `App.tsx` picks the initial route (`Main` or `Setup`) and renders `RootNavigator`. The wizard is called directly, no longer through `ModelSetupScreen mode="required"`.
 - After setup, `navigation.reset` to `Main` (the chat mounts fresh, as before). Relaunching the wizard from Settings pushes `Setup` with `onSkip` = go back.
-- Drawer: new chat, recent sessions (delete asks for confirmation in a Sheet; the retention limit is shown), then Knowledge, Settings, Performance, About (Catalog in `__DEV__`). Android back closes an open drawer before anything else (built into the drawer navigator).
-- `ChatScreen` keeps owning sessions and the engine. It publishes sessions and handlers through `src/ui/navigation/chatBridge.ts` (a small external store) so the drawer, which now lives outside the chat, can use them. Returning from Settings re-syncs deep research, voice input and the active model on refocus, so the back gesture behaves like "Done".
+- Drawer: new chat, recent sessions (delete asks for confirmation in a Sheet; the retention limit is shown), then Knowledge, Settings and Performance (Catalog in `__DEV__`; About is reached from Settings). Android back closes an open drawer before anything else (built into the drawer navigator).
+- `ChatScreen` keeps owning sessions and the engine. It re-syncs settings (deep research, voice, active model) every time it regains focus after a pushed screen, whichever way that screen was opened. It publishes sessions and handlers through `src/ui/navigation/chatBridge.ts` (a small external store) so the drawer, which now lives outside the chat, can use them. Returning from Settings re-syncs deep research, voice input and the active model on refocus, so the back gesture behaves like "Done".
 - Screens not yet migrated keep their own header and close button; the stack runs with `headerShown: false` for them and wraps them in a safe-area view (`Legacy` in `RootNavigator.tsx`). As Loom moves each screen to `<Screen>`, it turns the native header on for that route and removes the in-screen header.
 
 ## Alternatives considered

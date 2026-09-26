@@ -555,5 +555,159 @@
       "doneAnnounce": "Configuração concluída. O BOAR está pronto.",
       "open": "Abrir o BOAR"
     }
+  },
+  "chat": {
+    "composer": {
+      "label": "Pergunta",
+      "placeholder": "Pergunte algo",
+      "send": "Enviar",
+      "stop": "Parar resposta",
+      "stopping": "Parando",
+      "notReady": "Carregando o modelo… você já pode digitar"
+    },
+    "stage": {
+      "searching": "Buscando nas fontes…",
+      "loadingModel": "Carregando o modelo…",
+      "reading": "Lendo {{count}} fontes…",
+      "thinking": "Pensando…",
+      "verifying": "Conferindo a resposta…",
+      "synthesizing": "Juntando tudo…",
+      "part": "Pesquisando parte {{index}} de {{count}}…",
+      "stopping": "Parando…"
+    },
+    "announce": {
+      "searching": "Buscando nas fontes",
+      "answering": "Respondendo",
+      "ready_one": "Resposta pronta, {{count}} fonte",
+      "ready_other": "Resposta pronta, {{count}} fontes",
+      "stopped": "Parado",
+      "listening": "Ouvindo",
+      "stoppedListening": "Parou de ouvir"
+    },
+    "snippet": {
+      "fromSource": "Da fonte",
+      "showMore": "Ver mais",
+      "showLess": "Ver menos",
+      "openSource": "Abrir fonte {{n}}: {{title}}"
+    },
+    "sources": {
+      "title": "Fontes ({{count}})",
+      "chip": "Fonte {{n}}: {{title}}",
+      "cite": "Fonte {{n}}: {{title}}",
+      "corpus": "Biblioteca offline",
+      "myDocuments": "Meus documentos",
+      "copyPassage": "Copiar trecho",
+      "passageCopied": "Trecho copiado",
+      "sheetTitle": "Fonte {{n}}"
+    },
+    "receipt": {
+      "sourcePassage": "Trecho da fonte",
+      "localModel": "Modelo local",
+      "started": "começou em {{time}}",
+      "offline": "offline",
+      "details": "Detalhes de desempenho",
+      "load": "Carregar modelo",
+      "search": "Busca",
+      "prefill": "Leitura das fontes",
+      "context": "Contexto",
+      "firstToken": "Primeiro token",
+      "tokens": "Tokens",
+      "total": "Total",
+      "verification": "Verificação",
+      "copy": "Copiar recibo",
+      "copied": "Recibo copiado",
+      "verified": {
+        "passed": "aprovada",
+        "failed": "reprovada",
+        "uncertain": "incerta"
+      }
+    },
+    "actions": {
+      "copy": "Copiar resposta",
+      "copied": "Resposta copiada",
+      "share": "Compartilhar resposta",
+      "helpful": "Resposta útil",
+      "unhelpful": "Resposta não útil",
+      "deepen": "Aprofundar",
+      "deepenEst": "Aprofundar · ~{{time}}",
+      "askModel": "Responder com o modelo",
+      "retry": "Tentar de novo",
+      "copyQuestion": "Copiar pergunta",
+      "editQuestion": "Editar e reenviar",
+      "questionCopied": "Pergunta copiada"
+    },
+    "deep": {
+      "title": "Resposta aprofundada",
+      "quick": "Resposta rápida"
+    },
+    "reasoning": {
+      "thinking": "Pensando · {{seconds}} s",
+      "show": "Mostrar raciocínio",
+      "hide": "Ocultar raciocínio",
+      "unfinished": "O raciocínio não terminou antes do fim da resposta."
+    },
+    "notice": {
+      "stopped": "Parado por você",
+      "stoppedSnippet": "Parado — mostrando o trecho da fonte",
+      "timeout": "Uma etapa demorou demais e foi interrompida",
+      "interrupted": "Interrompido quando o app foi para segundo plano",
+      "streamsFromStorage": "Este modelo lê os pesos do armazenamento, então as respostas ficam mais lentas."
+    },
+    "error": {
+      "generic": "Não consegui gerar a resposta.",
+      "oom": "Memória insuficiente para este modelo. Escolha um menor em Ajustes.",
+      "no_model": "Nenhum modelo instalado.",
+      "load_failed": "O modelo não carregou.",
+      "generation_failed": "Não consegui gerar a resposta.",
+      "unknown": "Algo deu errado."
+    },
+    "model": {
+      "loading": "Carregando {{label}}…",
+      "indexing": "Indexando conhecimento {{done}} / {{total}}",
+      "noModelTitle": "Nenhum modelo instalado",
+      "noModelBody": "Baixe ou importe um modelo para começar a perguntar.",
+      "setup": "Configurar modelo",
+      "loadErrorTitle": "O modelo não carregou"
+    },
+    "empty": {
+      "title": "Pergunte qualquer coisa",
+      "body": "As respostas vêm do modelo e da biblioteca deste celular, com fontes.",
+      "suggestionsLabel": "Experimente perguntar",
+      "ask": "Perguntar: {{question}}",
+      "fill": "Colocar no campo para editar"
+    },
+    "suggestions": {
+      "q1": "Como as vacinas treinam o sistema imunológico?",
+      "q2": "Compare um vírus e uma bactéria",
+      "q3": "Por que existem estações do ano na Terra?",
+      "q4": "Como tratar uma queimadura leve?"
+    },
+    "header": {
+      "menu": "Abrir menu",
+      "newChat": "Nova conversa",
+      "offline": "Offline · privado",
+      "offlineShort": "Offline e privado, detalhes",
+      "offlineTitle": "Offline e privado",
+      "offlineBody": "Perguntas, busca e respostas rodam neste celular. Nada do que você pergunta sai do aparelho.",
+      "offlineBodyDownloader": "Perguntas, busca e respostas rodam neste celular. Esta versão pode baixar modelos quando você pede; responder nunca usa a rede.",
+      "modelLoaded": "Modelo: {{label}}",
+      "voiceCaveat": "A entrada por voz usa o reconhecedor do sistema, que pode não ser offline.",
+      "tone": "Mudar tom"
+    },
+    "jumpToLatest": "Ir para a resposta mais recente",
+    "share": {
+      "sources": "Fontes",
+      "answeredOffline": "Respondido offline pelo BOAR",
+      "sourcePassage": "Trecho da fonte",
+      "myDocuments": "Meus documentos"
+    },
+    "voice": {
+      "start": "Entrada por voz",
+      "stop": "Parar de ouvir",
+      "unavailable": "Entrada por voz indisponível neste aparelho.",
+      "caveatTitle": "Sobre a entrada por voz",
+      "caveatBody": "A voz usa o reconhecedor de fala do sistema, que pode enviar o áudio ao provedor e pode não funcionar offline.",
+      "caveatOk": "Entendi"
+    }
   }
 }

@@ -32,6 +32,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
   const [maxSessions, setMaxSessions] = useState<number | null>(null);
   const trashRefs = useRef(new Map<string, View | null>());
   const returnFocusRef = useRef<View | null>(null);
+  const newChatRef = useRef<View | null>(null);
 
   useEffect(() => {
     if (status !== "open") return;
@@ -47,7 +48,6 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
     { route: "Knowledge", icon: "book-open", label: tr("nav.knowledge") },
     { route: "Settings", icon: "sliders", label: tr("nav.settings") },
     { route: "Performance", icon: "activity", label: tr("nav.performance") },
-    { route: "About", icon: "info", label: tr("nav.about") },
   ];
   if (__DEV__) destinations.push({ route: "Catalog", icon: "grid", label: tr("nav.catalog") });
 
@@ -74,7 +74,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
       </View>
 
       <View style={{ paddingHorizontal: t.space.base, paddingBottom: t.space.md }}>
-        <Button label={tr("nav.newChat")} icon="edit-3" variant="secondary" fullWidth onPress={() => go(chat.newChat)} />
+        <Button ref={newChatRef} label={tr("nav.newChat")} icon="edit-3" variant="secondary" fullWidth onPress={() => go(chat.newChat)} />
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: t.space.base }}>
@@ -172,6 +172,8 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
               fullWidth
               onPress={() => {
                 if (pendingDelete) chat.deleteSession(pendingDelete.id);
+                // The trash button goes away with the row; land focus on "New chat" instead.
+                returnFocusRef.current = newChatRef.current;
                 setPendingDelete(null);
                 toast({ message: tr("nav.chatDeleted"), icon: "trash-2" });
               }}

@@ -169,7 +169,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Progress` | Determinate (`value` 0..1, `valueText`) or indeterminate | role progressbar with `accessibilityValue`; `busy` |
 | `Skeleton` | Loading placeholder | Hidden; the screen announces loading once |
 | `EmptyState` | Empty (`neutral`) and error (`tone="error"`) states with one primary action | Title is a header |
-| `useAnnounce()` | `announce(msg, { assertive })` for state changes (answer ready, download failed) | iOS `announceForAccessibilityWithOptions`; Android < 16 `announceForAccessibility`; Android 16+ a 1×1 live-region node in the viewport (UNKNOWN until verified on device, Prism A1) |
+| `useAnnounce()` | `announce(msg, { assertive })` for state changes (answer ready, download failed) | iOS `announceForAccessibilityWithOptions`; Android < 16 `announceForAccessibility` (no priority there: `assertive` is ignored); Android 16+ a 1×1 live-region node in the viewport (UNKNOWN until verified on device, Prism A1) |
 
 Patterns:
 - **Destructive = confirm or undo.** Irreversible (delete model, erase data, delete chat): `Sheet` with a `destructive` Button and a ghost Cancel. Reversible: act immediately and offer Undo in a toast.

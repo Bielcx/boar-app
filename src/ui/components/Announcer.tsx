@@ -14,6 +14,7 @@ export function AnnouncerProvider({ children }: { children: React.ReactNode }) {
   const [polite, setPolite] = useState("");
   const [assertive, setAssertive] = useState("");
   const toggle = useRef(false);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const announce = useCallback<Announce>((message, options) => {
     if (!message) return;
@@ -29,7 +30,12 @@ export function AnnouncerProvider({ children }: { children: React.ReactNode }) {
     // Alternate a zero-width suffix so repeating the same message still changes the node.
     toggle.current = !toggle.current;
     const text = toggle.current ? message : `${message}​`;
-    (options?.assertive ? setAssertive : setPolite)(text);
+    // Note: below API 36 `assertive` is not honored (announceForAccessibility has no priority).
+    const set = options?.assertive ? setAssertive : setPolite;
+    set(text);
+    // Clear it so linear navigation doesn't land on a stale invisible node.
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    clearTimer.current = setTimeout(() => set(""), 2000);
   }, []);
 
   return (
