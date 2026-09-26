@@ -151,9 +151,10 @@ export function SettingsScreen() {
             value={appearance}
             onChange={setAppearance}
             options={[
-              { value: "system", label: t("flows.settings.themeSystem") },
-              { value: "light", label: t("flows.settings.themeLight") },
+              // Dark (Fogueira) is the default, so it comes first.
               { value: "dark", label: t("flows.settings.themeDark") },
+              { value: "light", label: t("flows.settings.themeLight") },
+              { value: "system", label: t("flows.settings.themeSystem") },
             ]}
           />
           <Text variant="subhead" color="secondary">

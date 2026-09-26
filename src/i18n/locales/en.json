@@ -544,10 +544,6 @@
       "phoneLabel": "This phone",
       "phoneMemory": "Memory",
       "phoneFree": "Free space",
-      "sizeLabel": {
-        "download": "to download",
-        "import": "to import"
-      },
       "meta": {
         "onDisk": "{{size}} on disk",
         "time": "~{{minutes}} min at {{speed}}/s"
@@ -557,7 +553,6 @@
       "point3": "Shows the sources behind each answer.",
       "start": "Get started",
       "backToApp": "Back to the app",
-      "stepOf": "Step {{step}} of {{total}}",
       "stepAnnounce": "Step {{step}} of 3, {{title}}",
       "step2Title": "Choose what to install",
       "step2Sub": "Everything is downloaded once and then works offline.",
@@ -591,6 +586,13 @@
       "totalValue": "{{done}} of {{total}}",
       "percentAnnounce": "{{pct}}% downloaded",
       "queued": "Waiting",
+      "stage": {
+        "start": "Start",
+        "choose": "Choose",
+        "install": "Install",
+        "index": "Index"
+      },
+      "stageOf": "Step {{n}} of {{total}}: {{name}}",
       "checking": "Checking",
       "failedShort": "Failed",
       "downloadingLine": "{{pct}}% · {{done}} of {{total}}",
