@@ -13,6 +13,7 @@
 import { classifyTask } from "./classify";
 import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./context";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
+import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
@@ -54,6 +55,8 @@ export interface InstalledLlm {
   roles: ModelRole[];
   /** The app's default model (fallback when no active model is set or it vanished). */
   isDefault?: boolean;
+  /** Catalog tier for the device-dependent default (see defaultModel.ts). */
+  answerTier?: "default" | "compact";
 }
 
 export interface AnswerEngine {
@@ -87,6 +90,8 @@ export interface AnswerDeps {
   now(): number;
   /** Context window the model will be loaded with (LlamaEngine defaultContextSize). */
   contextSize?(): number;
+  /** Total device RAM (0 = unknown), for the device-dependent default model. */
+  deviceRamBytes?(): number;
   /** Median measured tok/s per model id on this device (execution telemetry), for rule D6. */
   getModelSpeeds?(): Promise<Map<string, number>>;
   /** Offline places (POI pack + device location); null when not installed/registered. */
@@ -319,7 +324,24 @@ export function createAnswerer(deps: AnswerDeps) {
         deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
       ]);
       const byId = new Map(installed.map((m) => [m.id, m]));
-      const fastLlm = (activeId ? byId.get(activeId) : undefined) ?? installed.find((m) => m.isDefault) ?? installed[0];
+      // The user's pick; without one (or if it was deleted), the device-dependent default:
+      // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
+      let fastLlm = activeId ? byId.get(activeId) : undefined;
+      if (!fastLlm && installed.length) {
+        const tiered = installed.filter((m) => m.answerTier);
+        if (tiered.length) {
+          const withFit = await Promise.all(
+            tiered.map(async (m) => ({
+              id: m.id,
+              answerTier: m.answerTier,
+              fit: m.answerTier === "default" ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+            }))
+          );
+          const pick = pickDefaultAnswerModel(withFit, deps.deviceRamBytes?.() ?? 0);
+          fastLlm = pick ? byId.get(pick.id) : undefined;
+        }
+        fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
+      }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
         id: m.id,
         label: m.label,
