@@ -49,7 +49,7 @@ import { takePendingEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { ChatHeader } from "./ChatHeader";
 import { ModelLoadErrorCard } from "./components/ModelLoadErrorCard";
-import { Banner, IconButton, Progress, Screen, useAnnounce, useToast } from "./components";
+import { Banner, Button, IconButton, Progress, Screen, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
 import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./chat/answerApi";
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
@@ -61,6 +61,8 @@ import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFor
 import { AssistantMessage } from "./chat/AssistantMessage";
 import { ChatEmptyState, SourceSheet, UserMessage } from "./chat/ChatPieces";
 import { Composer } from "./chat/Composer";
+import { placesForCopy, sourceName } from "./chat/placesFormat";
+import { locate } from "./chat/locationApi";
 
 const VERBATIM_MESSAGE_COUNT = 6;
 
@@ -400,18 +402,29 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [activeSessionId, ready, cancelBackgroundTask, runInto, refreshSessions, scrollToBottom, finish]
   );
 
-  /** A follow-up pass on an existing answer: Deepen, or the model after an extractive answer. */
+  /**
+   * A follow-up pass on an existing answer: Deepen, the model after an
+   * extractive answer, or the same question again for a typed city / after
+   * the location permission (that one replaces the answer in place).
+   */
   const followUp = useCallback(
-    async (messageId: string, kind: "deep" | "fast") => {
+    async (messageId: string, kind: "deep" | "fast" | { place?: string }) => {
       const item = itemsRef.current.find((m) => m.id === messageId);
       if (!item || item.kind !== "assistant" || activeRef.current || !ready) return;
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
+      if (typeof kind === "object") {
+        const fresh = (items: ChatItem[]) => updateAnswer(items, messageId, () => ({ answerIds: [], sources: [] }));
+        itemsRef.current = fresh(itemsRef.current);
+        setItems(fresh);
+      }
       try {
         const { final } = await runInto(messageId, (onEvent, ctx) =>
           kind === "deep"
             ? runDeepen(item.question, item.answer.sources, onEvent, ctx)
-            : runAnswer({ query: item.question, tier: "fast" }, onEvent, ctx)
+            : kind === "fast"
+              ? runAnswer({ query: item.question, tier: "fast" }, onEvent, ctx)
+              : runAnswer({ query: item.question, place: kind.place }, onEvent, ctx)
         );
         await setMessageMeta(messageId, toStoredAnswer(final));
       } catch (e: any) {
@@ -421,6 +434,18 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       }
     },
     [ready, runInto, finish]
+  );
+
+  // "Use my location": explain in context first (only while the permission is undetermined).
+  const [locationExplain, setLocationExplain] = useState<((ok: boolean) => void) | null>(null);
+  const locateAndAsk = useCallback(
+    async (messageId: string) => {
+      if (!locate) return;
+      const result = await locate(() => new Promise<boolean>((resolve) => setLocationExplain(() => resolve)));
+      setLocationExplain(null);
+      if (result.status === "ok") followUp(messageId, {});
+    },
+    [followUp]
   );
 
   // Backgrounding stops the answer (same path as Stop) and marks it interrupted.
@@ -564,7 +589,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         );
       }
       const a = item.answer;
-      const receipt = a.deep?.receipt ?? a.fast?.receipt ?? a.extractiveReceipt;
+      const copyBody = () =>
+        a.places?.places.length
+          ? [
+              placesForCopy(a.places.places, a.places.area.kind === "near" ? new Date() : null, locale, t),
+              a.places.attribution.map((x) => `${sourceName(x.source, t)} (${x.license})`).join(" · "),
+            ].join("\n\n")
+          : null;
+      const receipt = a.deep?.receipt ?? a.fast?.receipt ?? a.instantDone?.receipt;
       return (
         <AssistantMessage
           answer={a}
@@ -578,15 +610,25 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           onAskModel={() => followUp(item.id, "fast")}
           onRetry={() => ask(item.question)}
           onRate={(r) => rate(item.id, r)}
-          onCopy={() => copyText(formatForCopy(answerForCopy(a), a.sources, shareLabels), t("chat.actions.copied"))}
-          onShare={() =>
-            Share.share({ message: formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale) })
+          onCopy={() =>
+            copyText(copyBody() ?? formatForCopy(answerForCopy(a), a.sources, shareLabels), t("chat.actions.copied"))
           }
+          onShare={() => {
+            const places = copyBody();
+            Share.share({
+              message: places
+                ? formatForShare(item.question, places, [], receipt, shareLabels, locale)
+                : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
+            });
+          }}
+          onCity={(city) => followUp(item.id, { place: city })}
+          onUseLocation={locate ? () => locateAndAsk(item.id) : undefined}
+          onGetMap={openSettings}
           onCopyReceipt={(text) => copyText(text, t("chat.receipt.copied"))}
         />
       );
     },
-    [active, stopping, locale, followUp, ask, rate, copyText, shareLabels, t]
+    [active, stopping, locale, followUp, ask, rate, copyText, shareLabels, t, locateAndAsk, openSettings]
   );
 
   if (deviceEvalRequest) {
@@ -597,7 +639,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const source = sourceItem?.kind === "assistant" ? sourceItem.answer.sources[openSource!.index] ?? null : null;
 
   return (
-    <Screen scroll={false} padded={false} edges={["top", "bottom", "left", "right"]}>
+    <Screen scroll={false} padded={false} ambient edges={["top", "bottom", "left", "right"]}>
       <ChatHeader
         activeModelLabel={activeModel?.label}
         voiceEnabled={voiceInputEnabled}
@@ -680,6 +722,20 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           voiceEnabled={voiceInputEnabled}
         />
       </KeyboardAvoidingView>
+
+      <Sheet
+        visible={!!locationExplain}
+        onClose={() => locationExplain?.(false)}
+        title={t("chat.places.locationWhyTitle")}
+        footer={
+          <View style={{ gap: tk.space.sm }}>
+            <Button label={t("chat.places.locationAllow")} fullWidth onPress={() => locationExplain?.(true)} />
+            <Button label={t("chat.places.typeCity")} variant="secondary" fullWidth onPress={() => locationExplain?.(false)} />
+          </View>
+        }
+      >
+        <Text color="secondary">{t("chat.places.locationWhyBody")}</Text>
+      </Sheet>
 
       <SourceSheet source={source} index={openSource?.index ?? 0} onClose={() => setOpenSource(null)} />
     </Screen>

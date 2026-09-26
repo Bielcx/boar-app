@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, Card, Chip, IconButton, Progress, Text } from "../components";
+import { Banner, Button, Card, Icon, IconButton, Progress, Text } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
@@ -10,6 +10,7 @@ import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, type AnswerState, type TierState } from "./answerReducer";
 import { receiptDetails, receiptLine, stageLine } from "./presentation";
 import { formatSeconds } from "./shareFormat";
+import { PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 
 export interface AssistantMessageProps {
@@ -29,6 +30,10 @@ export interface AssistantMessageProps {
   onCopy: () => void;
   onShare: () => void;
   onCopyReceipt: (text: string) => void;
+  /** Places answers: re-ask for a typed city, or with the device position. */
+  onCity: (city: string) => void;
+  onUseLocation?: () => void;
+  onGetMap?: () => void;
 }
 
 function useElapsedSeconds(running: boolean): number {
@@ -42,13 +47,45 @@ function useElapsedSeconds(running: boolean): number {
   return seconds;
 }
 
-function Stage({ label }: { label: string }) {
+/**
+ * What the answer is doing: earlier steps checked off above the current one,
+ * with the seconds since it started (visual only; the reader hears stage changes).
+ */
+function Stage({ label, locale }: { label: string; locale: string }) {
   const t = useTokens();
+  const seconds = useElapsedSeconds(true);
+  const trail = useRef<string[]>([]);
+  if (trail.current[trail.current.length - 1] !== label) trail.current = [...trail.current.filter((l) => l !== label), label];
+  const done = trail.current.slice(0, -1);
   return (
-    <View style={{ gap: t.space.sm, paddingVertical: t.space.xs }}>
-      <Text variant="callout" color="secondary">
-        {label}
-      </Text>
+    <View style={{ gap: t.space.xs, paddingVertical: t.space.xs }}>
+      {done.map((l) => (
+        <View
+          key={l}
+          style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          <Icon name="check" size={14} color={t.color.text.field} />
+          <Text variant="footnote" color="tertiary">
+            {l}
+          </Text>
+        </View>
+      ))}
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.sm }}>
+        <Text variant="callout" color="secondary" style={{ flex: 1 }}>
+          {label}
+        </Text>
+        <Text
+          variant="footnote"
+          color="tertiary"
+          numeric
+          importantForAccessibility="no-hide-descendants"
+          accessibilityElementsHidden
+        >
+          {formatSeconds(seconds * 1000, locale)}
+        </Text>
+      </View>
       <Progress label={label} tone="field" height={3} />
     </View>
   );
@@ -178,26 +215,62 @@ function Receipt({
   );
 }
 
-function SourceStrip({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
+/** The answer's sources as numbered rows; each opens the passage it came from. */
+function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   return (
     <View style={{ gap: t.space.xs }}>
-      <Text variant="label" color="field">
+      <Text variant="label" color="field" header>
         {tr("chat.sources.title", { count: answer.sources.length })}
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: t.space.sm }}>
+      <Card padding="none" style={{ overflow: "hidden" }}>
         {answer.sources.map((s, i) => (
-          <Chip
+          <Pressable
             key={s.chunkId}
-            label={`${i + 1}  ${s.title}`}
-            icon={s.collectionId ? "file-text" : "book"}
-            tone="field"
             onPress={() => onOpenSource(i)}
+            accessibilityRole="button"
             accessibilityLabel={tr("chat.sources.chip", { n: i + 1, title: s.title })}
-          />
+            accessibilityHint={tr("chat.sources.openHint")}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              gap: t.space.md,
+              minHeight: t.size.touch,
+              paddingHorizontal: t.space.md,
+              paddingVertical: t.space.sm,
+              borderTopWidth: i === 0 ? 0 : t.size.hairline,
+              borderTopColor: t.color.line.hairline,
+              backgroundColor: pressed ? t.color.bg.sunken : undefined,
+            })}
+          >
+            <View
+              style={{
+                minWidth: t.size.iconLg,
+                minHeight: t.size.iconLg,
+                paddingHorizontal: t.space.xs,
+                borderRadius: t.radius.full,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: t.color.field.soft,
+              }}
+            >
+              <Text variant="caption" color="field" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
+                {i + 1}
+              </Text>
+            </View>
+            <View style={{ flex: 1, gap: t.space.xxs }}>
+              <Text variant="subhead" numberOfLines={2}>
+                {s.title}
+              </Text>
+              <Text variant="caption" color="tertiary" numberOfLines={1}>
+                {s.collectionId ? tr("chat.sources.myDocuments") : s.source || tr("chat.sources.corpus")}
+              </Text>
+            </View>
+            <Icon name="chevron-right" size="sm" color={t.color.text.tertiary} />
+          </Pressable>
         ))}
-      </ScrollView>
+      </Card>
     </View>
   );
 }
@@ -283,28 +356,54 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const { t: tr } = useTranslation();
   const phase = answerPhase(answer);
   const sourceTitles = answer.sources.map((s) => s.title);
-  const extractiveOnly = !!answer.extractiveReceipt && !answer.fast;
+  const placesOnly = !!answer.places && !answer.fast;
+  const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
+  const instantOnly = !!answer.instantDone && !answer.fast;
   const lastTier = answer.deep ?? answer.fast;
-  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant);
-  const done = !active && (lastTier?.outcome || extractiveOnly);
+  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.places?.places.length);
+  const done = !active && (lastTier?.outcome || instantOnly);
   const stage = active ? (stopping ? tr("chat.stage.stopping") : stageLine(answer, tr)) : null;
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
+  const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
   return (
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
+      <View style={{ gap: t.space.xxs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+          <Image
+            source={require("../../../assets/boar.png")}
+            style={{ width: 22, height: 22 }}
+            accessibilityIgnoresInvertColors
+            importantForAccessibility="no"
+          />
+          <Text variant="headline" color="accent">
+            {tr("chat.assistantName")}
+          </Text>
+        </View>
+        {topReceipt && <Receipt receipt={topReceipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />}
+      </View>
+
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
+
+      {answer.places && (
+        <PlacesCard
+          answer={answer}
+          locale={locale}
+          onOpenSource={onOpenSource}
+          onCity={props.onCity}
+          onUseLocation={props.onUseLocation}
+          onGetMap={props.onGetMap}
+        />
+      )}
 
       {answer.instant && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
 
       {answer.fast && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}
-      {!answer.deep && stage && <Stage label={stage} />}
+      {!answer.deep && stage && <Stage label={stage} locale={locale} />}
       <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
-      {answer.fast?.receipt && (
-        <Receipt receipt={answer.fast.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
-      )}
 
       {answer.deep && (
         <View style={{ gap: t.space.sm, paddingTop: t.space.md, borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
@@ -312,7 +411,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.deep.title")}
           </Text>
           <TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
-          {stage && <Stage label={stage} />}
+          {stage && <Stage label={stage} locale={locale} />}
           <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
           {answer.deep.receipt && (
             <Receipt receipt={answer.deep.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
@@ -320,11 +419,21 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         </View>
       )}
 
-      {extractiveOnly && answer.extractiveReceipt && (
-        <Receipt receipt={answer.extractiveReceipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
+      {instantOnly && answer.instantDone && answer.instantDone.outcome !== "success" && (
+        <Banner
+          tone={answer.instantDone.outcome === "error" ? "danger" : "info"}
+          message={
+            answer.instantDone.outcome === "error"
+              ? tr(`chat.error.${answer.instantDone.error?.code ?? "generic"}`)
+              : tr(`chat.notice.${answer.instantDone.outcome}`)
+          }
+          actionLabel={answer.instantDone.outcome === "stopped" ? undefined : tr("chat.actions.retry")}
+          onAction={props.onRetry}
+        />
       )}
 
-      {answer.sources.length > 0 && <SourceStrip answer={answer} onOpenSource={onOpenSource} />}
+
+      {answer.sources.length > 0 && !placesOnly && <SourceList answer={answer} onOpenSource={onOpenSource} />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginLeft: -t.space.sm }}>

@@ -1,6 +1,5 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import {
-  EXTRACTIVE_MODEL_ID,
   type AnswerErrorCode,
   type AnswerEvent,
   type AnswerOutcome as Outcome,
@@ -8,6 +7,10 @@ import {
   type AnswerStageName as Stage,
   type StageDetail,
 } from "./answerEvents";
+
+type PlacesEvent = Extract<AnswerEvent, { type: "places" }>;
+export type PlacesResult = Omit<PlacesEvent, "type" | "answerId" | "tier">;
+export type LocationStatus = Extract<AnswerEvent, { type: "location" }>["status"];
 
 /** One model pass (fast or deep) inside an answer. */
 export interface TierState {
@@ -28,8 +31,15 @@ export interface AnswerState {
   instant?: { text: string; sourceIndex: number; confidence: number };
   fast?: TierState;
   deep?: TierState;
-  /** Set when the passage alone was the answer (no model ran). */
-  extractiveReceipt?: Receipt;
+  /**
+   * The instant tier finished: the source passage (receipt.modelId
+   * "extractive") or the places list ("places") was the whole answer, no model ran.
+   */
+  instantDone?: { outcome: Outcome; receipt: Receipt; error?: { code: AnswerErrorCode; message: string } };
+  /** A places answer: the list and how it was chosen, exactly as the engine sent it. */
+  places?: PlacesResult;
+  /** Device location lookup for a "near me" question. */
+  location?: { status: LocationStatus; accuracyM?: number; ageS?: number };
   deepAvailable?: { estSeconds?: number; reason?: string };
   /** The model's weights stream from storage: answers will be slower than usual. */
   streamsFromStorage?: boolean;
@@ -73,6 +83,14 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
     case "deep_available":
       return { ...state, deepAvailable: { estSeconds: event.estSeconds, reason: event.reason } };
 
+    case "places": {
+      const { type: _type, answerId: _id, tier: _tier, ...result } = event;
+      return { ...state, places: result };
+    }
+
+    case "location":
+      return { ...state, location: { status: event.status, accuracyM: event.accuracyM, ageS: event.ageS } };
+
     case "warning":
       return event.code === "model_streams_from_storage" ? { ...state, streamsFromStorage: true } : state;
 
@@ -86,7 +104,8 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
 
     case "done":
       if (event.tier === "instant") {
-        return event.receipt.modelId === EXTRACTIVE_MODEL_ID ? { ...state, extractiveReceipt: event.receipt } : state;
+        if (state.instantDone) return state;
+        return { ...state, instantDone: { outcome: event.outcome, receipt: event.receipt, error: event.error } };
       }
       if (state[event.tier]?.outcome) return state;
       return updateTier(state, event.tier, (t) => ({
@@ -131,7 +150,7 @@ function tierPhase(t: TierState): AnswerPhase {
 export function answerPhase(state: AnswerState): AnswerPhase {
   if (state.deep) return tierPhase(state.deep);
   if (state.fast) return tierPhase(state.fast);
-  if (state.extractiveReceipt) return "done";
+  if (state.instantDone) return state.instantDone.outcome === "success" ? "done" : state.instantDone.outcome;
   return "searching";
 }
 

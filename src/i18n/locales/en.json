@@ -643,7 +643,10 @@
       "ready_other": "Answer ready, {{count}} sources",
       "stopped": "Stopped",
       "listening": "Listening",
-      "stoppedListening": "Stopped listening"
+      "stoppedListening": "Stopped listening",
+      "placesFound_one": "{{count}} place found",
+      "placesFound_other": "{{count}} places found",
+      "placesFound_zero": "No places found"
     },
     "snippet": {
       "fromSource": "From the source",
@@ -659,7 +662,8 @@
       "myDocuments": "My documents",
       "copyPassage": "Copy passage",
       "passageCopied": "Passage copied",
-      "sheetTitle": "Source {{n}}"
+      "sheetTitle": "Source {{n}}",
+      "openHint": "Opens the passage"
     },
     "receipt": {
       "sourcePassage": "Source passage",
@@ -681,7 +685,9 @@
         "passed": "passed",
         "failed": "failed",
         "uncertain": "uncertain"
-      }
+      },
+      "answeredIn": "Answered in {{time}}",
+      "offlineMap": "Offline map"
     },
     "actions": {
       "copy": "Copy answer",
@@ -753,7 +759,9 @@
       "offlineBodyDownloader": "Questions, search and answers run on this phone. This build can download models when you ask it to; answering never uses the network.",
       "modelLoaded": "Model: {{label}}",
       "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
-      "tone": "Change tone"
+      "tone": "Change tone",
+      "offlineSeal": "Offline",
+      "offlineAnswersSeal": "Answers offline"
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {
@@ -769,7 +777,99 @@
       "caveatTitle": "About voice input",
       "caveatBody": "Voice uses the system speech recognizer, which may send audio to its provider and may not work offline.",
       "caveatOk": "Got it"
-    }
+    },
+    "places": {
+      "title_one": "{{count}} place",
+      "title_other": "{{count}} places",
+      "titleFiltered_one": "{{filter}} · {{count}} place",
+      "titleFiltered_other": "{{filter}} · {{count}} places",
+      "filter": {
+        "vegan": "Vegan",
+        "vegetarian": "Vegetarian",
+        "gluten_free": "Gluten-free",
+        "halal": "Halal",
+        "kosher": "Kosher"
+      },
+      "within": "Within {{distance}} of you",
+      "nearYou": "Near you",
+      "inCity": "In {{city}}",
+      "byDistance": "Sorted by distance",
+      "byDiet": "Sorted by diet tag, then distance",
+      "staleLocation": "Using your location from {{minutes}} min ago",
+      "m": "{{value}} metres",
+      "km": "{{value}} kilometres",
+      "diet": {
+        "vegan": {
+          "only": "Vegan",
+          "yes": "Vegan options",
+          "limited": "Some vegan options"
+        },
+        "vegetarian": {
+          "only": "Vegetarian",
+          "yes": "Vegetarian options",
+          "limited": "Some vegetarian options"
+        },
+        "gluten_free": {
+          "only": "Gluten-free",
+          "yes": "Gluten-free options",
+          "limited": "Some gluten-free options"
+        },
+        "halal": {
+          "only": "Halal",
+          "yes": "Halal options",
+          "limited": "Some halal options"
+        },
+        "kosher": {
+          "only": "Kosher",
+          "yes": "Kosher options",
+          "limited": "Some kosher options"
+        }
+      },
+      "open": "Open",
+      "openUntil": "Open until {{time}}",
+      "closed": "Closed",
+      "closedOpensAt": "Closed · opens {{time}}",
+      "sourceOsm": "OpenStreetMap",
+      "sourceWikivoyage": "Wikivoyage",
+      "fromSource": "source {{source}}",
+      "creditOsm": "© OpenStreetMap contributors",
+      "creditWikivoyage": "Wikivoyage",
+      "attributionLabel": "Data sources and licenses",
+      "licenseLine": "{{source}}: {{license}}",
+      "showMore_one": "Show {{count}} more",
+      "showMore_other": "Show {{count}} more",
+      "truncated": "More places match; ask a narrower question to see them.",
+      "openInMaps": "Open in a maps app",
+      "noMapsApp": "No maps app can open this place.",
+      "copyCoordinates": "Copy coordinates",
+      "coordinatesCopied": "Coordinates copied",
+      "address": "Address",
+      "hours": "Opening hours",
+      "phone": "Phone",
+      "website": "Website",
+      "description": "From the travel guide",
+      "coordinates": "Coordinates",
+      "viewPassage": "View the guide passage",
+      "whichCity": "Which city?",
+      "cityLabel": "City",
+      "search": "Search",
+      "useLocation": "Use my location",
+      "typeCity": "Type the city",
+      "locationDenied": "Location is off. Type the city instead.",
+      "locationUnavailable": "Couldn't get a GPS fix. Type the city instead.",
+      "locationWhyTitle": "Find places near you",
+      "locationWhyBody": "BOAR uses the phone's GPS, offline, to sort places by distance. Your position stays on the device.",
+      "locationAllow": "Continue",
+      "noPackTitle": "Offline map not installed",
+      "noPackBody": "Install a region's offline map to look up restaurants and places without internet.",
+      "getMap": "Get the offline map",
+      "noneInCity": "No places in the offline map for {{city}}",
+      "noneInCityFiltered": "No {{filter}} places in the offline map for {{city}}",
+      "noneNear": "No places in the offline map near you",
+      "noneNearFiltered": "No {{filter}} places in the offline map near you",
+      "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region."
+    },
+    "assistantName": "boar"
   },
   "location": {
     "rationaleTitle": "Use your location?",
