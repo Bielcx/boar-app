@@ -9,6 +9,7 @@ import {
   TIERS,
   STORAGE_BUDGET_BYTES,
   totalManifestBytes,
+  isPinnedSourceUrl,
 } from "./manifest";
 
 describe("totalManifestBytes", () => {
@@ -89,18 +90,28 @@ describe("TIERS", () => {
 });
 
 describe("sourceUrl pinning", () => {
-  // A branch URL (resolve/main, raw/.../main/) can change under us: the file
-  // would then fail its sha256 check and block every new install at setup.
-  const IMMUTABLE = [
-    /^https:\/\/huggingface\.co\/[^/]+\/[^/]+\/resolve\/[0-9a-f]{40}\/[^/]+$/,
-    /^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[0-9a-f]{40}\//,
-    // Release assets are addressed by tag; the sha256 check still guards them.
-    /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/]+\/[^/]+$/,
-  ];
-
   it("every catalog entry points at a commit or release, never a branch", () => {
     for (const m of MODEL_CATALOG) {
-      expect(IMMUTABLE.some((re) => re.test(m.sourceUrl)), `${m.id}: ${m.sourceUrl}`).toBe(true);
+      expect(isPinnedSourceUrl(m.sourceUrl), `${m.id}: ${m.sourceUrl}`).toBe(true);
+    }
+  });
+
+  it("accepts packs in a dataset repo at a commit, in subfolders", () => {
+    const sha = "0123456789abcdef0123456789abcdef01234567";
+    expect(isPinnedSourceUrl(`https://huggingface.co/datasets/r4topunk/boar-packs/resolve/${sha}/poi/berlin.sqlite`)).toBe(true);
+    expect(isPinnedSourceUrl(`https://huggingface.co/r4topunk/m/resolve/${sha}/m.gguf`)).toBe(true);
+  });
+
+  it("rejects branches, short revisions and path tricks", () => {
+    const sha = "0123456789abcdef0123456789abcdef01234567";
+    for (const url of [
+      "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/main/poi/berlin.sqlite",
+      "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/0123abc/poi/berlin.sqlite",
+      `https://huggingface.co/datasets/r4topunk/boar-packs/resolve/${sha}/../main/x`,
+      `http://huggingface.co/r4topunk/m/resolve/${sha}/m.gguf`,
+      "",
+    ]) {
+      expect(isPinnedSourceUrl(url), url).toBe(false);
     }
   });
 });
