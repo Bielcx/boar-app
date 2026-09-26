@@ -64,19 +64,23 @@ They are hosted in the dataset
 [r4topunk/boar-packs](https://huggingface.co/datasets/r4topunk/boar-packs)
 (sources and licenses per pack in its README: ODbL © OpenStreetMap
 contributors, CC BY-SA 4.0 wiki text, CC BY 4.0 GeoNames, public domain US
-government works), every link pinned to the
-upload commit `6a65cc2`. Source of truth: `src/rag/poiRegions.ts` and
+government works), every link pinned to a dataset commit. Source of truth: `src/rag/poiRegions.ts` and
 `src/rag/preparedness.ts`; `npm run manifest:verify` re-checks them.
 
-| Asset | Size | Download | SHA-256 |
-|---|---|---|---|
-| World gazetteer (GeoNames, 34,149 places) **(needed for any places pack)** | 20.8 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/world-places.sqlite) | `fdb302aa2a2813ad36487b4f0ffa629ba21faec700ee5fcb5c4bf9c3448e9746` |
-| Places: São Paulo | 1.4 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/sao-paulo.sqlite) | `42e6caf31e9018ad76e282f26114812dbdf0ab23c2aaf269199b9126bbe935d3` |
-| Places: Singapore | 1.9 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/singapore.sqlite) | `bd7c1afcb59f4438bb2a9b0fbde2360720194ea05ac5081ee9dc4fed0c094506` |
-| Places: Taipei | 3.4 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/taipei.sqlite) | `0831d93f747e4fa002d850523fc4098bc58ee262058b8b54b6a0b3cc60f5f480` |
-| Places: Buenos Aires | 1.5 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/buenos-aires.sqlite) | `dedc896e659e112e16811005d038bd9cff6ead678b8d63b566565eec67ca8b73` |
-| Places: Berlin | 3.3 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/berlin.sqlite) | `9216b3b0e55eb435390c79fc9460b99bc60d4396520091a8e37c22155e3c7ba3` |
-| Emergency and preparedness (topic pack) | 19.6 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/topics/boar-preparedness.sqlite) | `65dff5d9988a6fe2bffe17a4d3ab096a1a8f580d20b1ab18d0ada41bbbc0b4e8` |
+| Asset | Size | Places (OSM + Wikivoyage) | Download | SHA-256 |
+|---|---|---|---|---|
+| World gazetteer (GeoNames, 34,149 places) **(needed for any places pack)** | 20.8 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/world-places.sqlite) | `fdb302aa2a2813ad36487b4f0ffa629ba21faec700ee5fcb5c4bf9c3448e9746` |
+| Places: São Paulo | 1.4 MB | 7,013 (126 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/sao-paulo.sqlite) | `42e6caf31e9018ad76e282f26114812dbdf0ab23c2aaf269199b9126bbe935d3` |
+| Places: Singapore | 1.9 MB | 10,188 (97 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/singapore.sqlite) | `bd7c1afcb59f4438bb2a9b0fbde2360720194ea05ac5081ee9dc4fed0c094506` |
+| Places: Taipei | 3.4 MB | 18,857 (156 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/taipei.sqlite) | `0831d93f747e4fa002d850523fc4098bc58ee262058b8b54b6a0b3cc60f5f480` |
+| Places: Buenos Aires | 1.5 MB | 8,049 (78 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/buenos-aires.sqlite) | `dedc896e659e112e16811005d038bd9cff6ead678b8d63b566565eec67ca8b73` |
+| Places: Berlin | 3.3 MB | 15,278 (1,979 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/berlin.sqlite) | `9216b3b0e55eb435390c79fc9460b99bc60d4396520091a8e37c22155e3c7ba3` |
+| Places: Edmonton | 0.6 MB | 2,520 (12 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/edmonton.sqlite) | `76ad021e7048813c4eab394689c97c78123ea5e1bfed73e7b95cc162a6f8cb4c` |
+| Places: Qujing | 37 kB | 3 (Wikivoyage only, 0 in OSM) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/qujing.sqlite) | `17a462c6eba34d34a7011295799e3e7372b7a3e44fadf5f9fe7152298e126443` |
+| Places: Queens | 4.3 MB | 20,011 (665 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/queens.sqlite) | `00e0239a7f0aa7e9671607adb8c2893f84eeef94ad1e5e453b65db7b7c9c3f0a` |
+| Places: Biên Hòa | 0.6 MB | 3,206 (266 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/bien-hoa.sqlite) | `d9ce786f500286ac56584b06c4ba01c1d092254ded8d0e78c475d861540318d3` |
+| Places: Ciudad Nezahualcoyotl | 1.0 MB | 6,098 (60 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/ciudad-nezahualcoyotl.sqlite) | `7c0818b511f504a4bd824dd069b54d32445ddcf36200d1bc5dff54dbf08f2a6a` |
+| Emergency and preparedness (topic pack) | 19.6 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/topics/boar-preparedness.sqlite) | `65dff5d9988a6fe2bffe17a4d3ab096a1a8f580d20b1ab18d0ada41bbbc0b4e8` |
 
 ```bash
 # Example: Berlin, from a computer
@@ -88,8 +92,16 @@ adb push world-places.sqlite berlin.sqlite /sdcard/Download/
 ```
 
 The file names don't matter: the app recognises each file by size and SHA-256.
-These five cities are the sample build. Places for the rest of the world
-(1°×1° tiles) will be added here when they are published.
+
+Which cities: São Paulo, Singapore, Taipei, Buenos Aires and Berlin are the
+first sample build. The other five were **drawn at random**, reproducibly:
+GeoNames `cities15000` with population ≥ 1M (568 cities), minus those five,
+sorted by geonameid, shuffled with Fisher-Yates (mulberry32, seed `20261003`),
+first five taken (`scripts/draw-poi-cities.mjs`; the draw is in the dataset as
+`places/cities/draw-20261003.jsonl`). One of them, Qujing, has no food places in
+OpenStreetMap, so there the app has to say it has no restaurant data. Places
+for the rest of the world (1°×1° tiles) will be added here when they are
+published.
 
 ## Size limits
 
