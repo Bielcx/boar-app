@@ -9,7 +9,10 @@ import {
   MemoryFit,
   parseGgufShape,
   toGb,
+  contextSizeForRam,
 } from "./memoryFit";
+
+export { contextSizeForRam };
 
 export interface ChatMessageInput {
   role: string;
@@ -86,11 +89,6 @@ export interface LoadedModelInfo {
   nThreads: number;
 }
 
-/**
- * Context window when the caller does not pick one. 4GB phones (e.g. iPhone
- * 13) get 2048: the KV cache is the one allocation mmap cannot page out, and
- * with 4096 the worst case sits too close to the iOS jetsam limit (docs/IOS.md).
- */
 export function defaultContextSize(): number {
   let total = 0;
   try {
@@ -98,7 +96,7 @@ export function defaultContextSize(): number {
   } catch {
     total = 0;
   }
-  return total > 0 && total <= 4.5 * 1024 ** 3 ? 2048 : 4096;
+  return contextSizeForRam(total);
 }
 
 /** Reasoning-block markers per model family, as llama.cpp's reasoning-budget sampler needs them. */
