@@ -13,6 +13,7 @@ import {
   CustomCollection,
 } from "../rag/db";
 import { clearCollectionIndexStatus, setCollectionIndexStatus } from "../rag/indexStatus";
+import { checkImportSize, importKindOfDocument } from "../models/importLimits";
 
 /**
  * User-supplied document import for the local knowledge base (Settings >
@@ -108,6 +109,9 @@ async function parseFileContent(
 ): Promise<ParsedDoc[]> {
   const filename = file.name;
   const ext = filename.toLowerCase().split(".").pop();
+  // Documents are read whole into memory: refuse oversized ones before reading.
+  const size = checkImportSize(importKindOfDocument(filename), file.size ?? 0);
+  if (!size.ok) throw new Error(size.message);
 
   if (ext === "pdf") {
     const text = await extractPdf(file.uri, filename);

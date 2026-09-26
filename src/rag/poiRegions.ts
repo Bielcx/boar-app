@@ -8,6 +8,7 @@
  * (release assets); until then they're installed with `npm run pack:push`.
  */
 import type { CatalogModel } from "../models/manifest";
+import { registerAssetProvider } from "../models/assetRegistry";
 
 export interface PoiRegion {
   id: string;
@@ -501,3 +502,6 @@ export function worldPlacesEntry(): CatalogModel {
     required: false,
   };
 }
+
+// Places packs and the gazetteer are installable (download or file import) wherever the catalog is read.
+registerAssetProvider("poi", () => [...poiCatalogEntries(), worldPlacesEntry()]);
