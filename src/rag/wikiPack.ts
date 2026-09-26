@@ -229,7 +229,7 @@ export interface PackTuning {
 }
 
 // Chosen on the dev half of eval/retrieval/questions.v1 (2026-09-26): AndroidLM's title
-// weight 8 and prior 2 cost 9 points of test recall@1 on these questions.
+// weight 8 and prior 2 cost 6 points of test recall@1 on these questions.
 export const DEFAULT_TUNING: PackTuning = { weights: [2, 1, 1], prior: 0.5, namedMinShare: NAMED_MIN_SHARE, pool: 80 };
 
 export class WikiPack {

@@ -243,8 +243,9 @@ What the measurement changed:
   travel-intent change): a same-named Wikipedia article or town competes with
   the guide. Titles now resolve in both sources, the guide first when the
   question reads like travel.
-- Reading article text only for the candidates that make the result cut p50
-  from ~640 ms to ~100 ms.
+- Article text is read only for the candidates that make the result (it used
+  to be read for all ~80 BM25 candidates); p50 went from ~640 ms to ~100 ms,
+  though the two runs were under different machine load.
 
 Not measured yet: semantic re-ranking with lead embeddings (the embeddings are
 built on the Mac mini; `embed-queries.mjs` + `BOAR_EVAL_QVECS` add that
