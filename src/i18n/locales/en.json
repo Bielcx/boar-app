@@ -510,6 +510,28 @@
       "open": "Open BOAR",
       "languageAnnounce": "Language: English",
       "smallerPackage": "Choose a smaller package"
+    },
+    "places": {
+      "title": "Places (offline)",
+      "footer": "Restaurants and places from OpenStreetMap (ODbL) and travel tips from Wikivoyage (CC BY-SA). Searched on the phone, no internet.",
+      "none": "Place packs are not available in this version yet.",
+      "meta": "{{places}} places · {{size}}",
+      "citiesMore_one": "{{cities}} and {{count}} more city",
+      "citiesMore_other": "{{cities}} and {{count}} more cities",
+      "travelTitle": "Travel",
+      "include": "Include places for {{region}}",
+      "reason": {
+        "timezone": "Suggested from your phone's time zone.",
+        "location": "Suggested from your location."
+      },
+      "noRegionHere": "No places pack covers your region yet.",
+      "useLocation": "Use my location",
+      "locationDeclined": "Location not allowed. The suggestion uses your time zone.",
+      "locationUnavailable": "Couldn't get a location fix. Try again outdoors.",
+      "rationaleTitle": "Use your location?",
+      "rationaleBody": "BOAR reads your position from the phone's GPS, which works without internet, to suggest places near you. It never leaves the phone.",
+      "notNow": "Not now",
+      "continue": "Continue"
     }
   }
 }

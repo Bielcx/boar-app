@@ -51,6 +51,7 @@ const DYNAMIC_KEYS = [
   ...expand("flows.onboarding.package.", ["essential.name", "essential.body", "encyclopedia.name", "encyclopedia.body"]),
   ...expand("flows.onboarding.step", ["2Title", "3Title"]),
   "flows.onboarding.languageAnnounce",
+  ...expand("flows.places.reason.", ["timezone", "location"]),
   ...expand("flows.performance.band.", ["fast", "ok", "slow"]),
   ...expand("flows.performance.outcome.", ["success", "failure", "cancelled"]),
   ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "offline-variant", "load", "unknown"]),

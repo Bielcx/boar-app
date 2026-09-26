@@ -17,6 +17,12 @@ interface Props {
   onRemove: () => Promise<void>;
   /** Another model is loading: Use waits. */
   busy?: boolean;
+  /** Overrides the catalog label (e.g. a translated region name). */
+  title?: string;
+  /** Replaces the kind · size · license line. */
+  meta?: string;
+  /** Extra lines under the meta line (e.g. cities covered). */
+  details?: string[];
 }
 
 function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | null {
@@ -40,7 +46,7 @@ function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | n
   }
 }
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -69,10 +75,15 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy }: P
   return (
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
       <View style={{ gap: tokens.space.xxs }}>
-        <Text variant="headline">{model.label}</Text>
+        <Text variant="headline">{title ?? model.label}</Text>
         <Text variant="footnote" color="secondary">
-          {[t(`flows.row.kind.${model.kind}`), size, model.license].join(" · ")}
+          {meta ?? [t(`flows.row.kind.${model.kind}`), size, model.license].join(" · ")}
         </Text>
+        {details?.map((d) => (
+          <Text key={d} variant="footnote" color="tertiary">
+            {d}
+          </Text>
+        ))}
       </View>
       {b && <Badge label={b.label} tone={b.tone} />}
 

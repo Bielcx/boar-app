@@ -20,6 +20,8 @@ import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/s
 import { CatalogRow } from "./flows/CatalogRow";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
+import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { citySummary } from "./flows/poi";
 
 function importPercent(p: ImportProgress): number | undefined {
   if (p.stage !== "embedding" || !p.chunkCount) return undefined;
@@ -32,6 +34,8 @@ export function KnowledgeScreen() {
   const toast = useToast();
   const announce = useAnnounce();
   const catalog = useCatalog();
+  const lang = i18n.language;
+  const regions = poiRegions();
   const { refresh } = catalog;
   const [collections, setCollections] = useState<CustomCollection[] | null>(null);
   const [seed, setSeed] = useState<SeedProgress | null>(null);
@@ -151,6 +155,38 @@ export function KnowledgeScreen() {
             onRemove={() => catalog.remove(pack)}
           />
         ))}
+      </Section>
+
+      <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
+        {regions.length === 0 ? (
+          <View style={{ padding: tokens.space.base }}>
+            <Text variant="callout" color="secondary">
+              {t("flows.places.none")}
+            </Text>
+          </View>
+        ) : (
+          regions.map((r) => {
+            const entry = poiCatalogEntry(r);
+            const cities = citySummary(r);
+            const name = lang.startsWith("pt") ? r.name.pt : r.name.en;
+            return (
+              <CatalogRow
+                key={r.id}
+                model={entry}
+                title={name}
+                meta={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
+                details={[
+                  cities.more > 0
+                    ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more })
+                    : cities.names.join(", "),
+                ].filter(Boolean)}
+                view={catalog.view(entry)}
+                onDownload={() => catalog.download(entry)}
+                onRemove={() => catalog.remove(entry)}
+              />
+            );
+          })
+        )}
       </Section>
 
       <Section title={t("flows.knowledge.yourCollections")}>

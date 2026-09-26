@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Pressable, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, EmptyState, Icon, IconName, Progress, Screen, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
+import { Badge, Button, EmptyState, Icon, IconName, ListRow, Progress, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -28,6 +28,9 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
+import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { citySummary, deviceTimeZone, PoiRegion, suggestRegion } from "./flows/poi";
+import { locateForUser } from "../services/location";
 
 interface Props {
   onReady: () => void;
@@ -51,6 +54,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [packageId, setPackageId] = useState<PackageId>("essential");
   const [backOpen, setBackOpen] = useState(false);
+  const [travel, setTravel] = useState<PoiRegion | null>(null);
   const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
@@ -62,7 +66,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   }, [step]);
 
   const tier = TIERS.find((x) => x.id === PACKAGES.find((p) => p.id === packageId)!.tier)!;
-  const assets = useMemo(() => packageAssets(tier, MODEL_CATALOG), [tier]);
+  const assets = useMemo(() => [...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], [tier, travel]);
   const present = useMemo(
     () => Object.fromEntries(Object.values(catalog.statuses).map((s) => [s.asset.id, s.present])),
     [catalog.statuses]
@@ -101,6 +105,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           deviceRamBytes={catalog.deviceRamBytes}
           loaded={catalog.loaded}
           lang={lang}
+          travel={travel}
+          onTravel={setTravel}
           onBack={() => setStep(1)}
           onInstall={startInstall}
         />
@@ -241,6 +247,8 @@ function PackageStep({
   deviceRamBytes,
   loaded,
   lang,
+  travel,
+  onTravel,
   onBack,
   onInstall,
 }: {
@@ -252,6 +260,8 @@ function PackageStep({
   deviceRamBytes: number;
   loaded: boolean;
   lang: string;
+  travel: PoiRegion | null;
+  onTravel: (region: PoiRegion | null) => void;
   onBack: () => void;
   onInstall: () => void;
 }) {
@@ -259,7 +269,7 @@ function PackageStep({
   const tokens = useTokens();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
-    const plan = planPackage(packageAssets(tier, MODEL_CATALOG), present);
+    const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], present);
     const fit = plan.largestLlm ? fitFor(plan.largestLlm, deviceRamBytes) : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
@@ -357,10 +367,97 @@ function PackageStep({
           );
         })}
       </View>
+      <TravelCard selected={travel} onChange={onTravel} lang={lang} />
       <Text variant="footnote" color="tertiary">
         {t("flows.onboarding.laterNote")}
       </Text>
     </Screen>
+  );
+}
+
+/** Optional offline places for the user's region (P1). Hidden when the build has no region packs. */
+function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; onChange: (r: PoiRegion | null) => void; lang: string }) {
+  const { t } = useTranslation();
+  const tokens = useTokens();
+  const regions = useMemo(() => poiRegions(), []);
+  const [point, setPoint] = useState<{ lat: number; lon: number } | undefined>();
+  const [locating, setLocating] = useState(false);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
+  const [explainOpen, setExplainOpen] = useState(false);
+  const explainAnswer = useRef<((ok: boolean) => void) | null>(null);
+
+  if (regions.length === 0) return null;
+  const suggestion = suggestRegion(regions, { timeZone: deviceTimeZone(), point });
+
+  const explain = () =>
+    new Promise<boolean>((resolve) => {
+      explainAnswer.current = resolve;
+      setExplainOpen(true);
+    });
+  const answerExplain = (ok: boolean) => {
+    setExplainOpen(false);
+    explainAnswer.current?.(ok);
+    explainAnswer.current = null;
+  };
+
+  const useLocation = async () => {
+    setLocating(true);
+    setLocationNote(null);
+    const result = await locateForUser(explain);
+    setLocating(false);
+    if (result.status === "ok") {
+      setPoint({ lat: result.lat, lon: result.lon });
+      // A different region now wins: don't keep including the old one silently.
+      if (selected) onChange(null);
+    } else {
+      setLocationNote(t(result.status === "declined" ? "flows.places.locationDeclined" : "flows.places.locationUnavailable"));
+    }
+  };
+
+  const region = suggestion?.region;
+  const name = region ? (lang.startsWith("pt") ? region.name.pt : region.name.en) : "";
+  const cities = region ? citySummary(region) : null;
+
+  return (
+    <Section title={t("flows.places.travelTitle")} footer={t("flows.places.footer")}>
+      {region && cities ? (
+        <>
+          <ListRow
+            title={t("flows.places.include", { region: name })}
+            subtitle={[
+              t("flows.places.meta", { places: formatCount(region.poiCount, lang), size: formatBytes(region.sizeBytes, lang) }),
+              cities.more > 0 ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more }) : cities.names.join(", "),
+              t(`flows.places.reason.${suggestion!.reason}`),
+            ].join("\n")}
+            switch={{ value: selected?.id === region.id, onValueChange: (v) => onChange(v ? region : null) }}
+          />
+        </>
+      ) : (
+        <ListRow title={t("flows.places.noRegionHere")} />
+      )}
+      {suggestion?.reason !== "location" && (
+        <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
+          <Button size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
+          {locationNote && (
+            <Text variant="footnote" color="secondary">
+              {locationNote}
+            </Text>
+          )}
+        </View>
+      )}
+      <Sheet
+        visible={explainOpen}
+        onClose={() => answerExplain(false)}
+        title={t("flows.places.rationaleTitle")}
+        description={t("flows.places.rationaleBody")}
+        footer={
+          <>
+            <Button label={t("flows.places.notNow")} variant="secondary" fullWidth onPress={() => answerExplain(false)} />
+            <Button label={t("flows.places.continue")} fullWidth onPress={() => answerExplain(true)} />
+          </>
+        }
+      />
+    </Section>
   );
 }
 
