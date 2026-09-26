@@ -1,9 +1,9 @@
 import React, { forwardRef } from "react";
 import { Text as RNText, TextProps as RNTextProps } from "react-native";
-import { useTokens } from "../theme";
+import { fontFamilyFor, useTokens, variantFace } from "../theme";
 import type { TextVariant } from "../theme";
 
-export type TextColor = "primary" | "secondary" | "tertiary" | "accent" | "field" | "onAccent" | "danger" | "success" | "warning";
+export type TextColor = "primary" | "secondary" | "tertiary" | "accent" | "field" | "onAccent" | "danger" | "success" | "warning" | "info";
 
 export interface TextProps extends RNTextProps {
   variant?: TextVariant;
@@ -16,7 +16,7 @@ export interface TextProps extends RNTextProps {
   header?: boolean;
 }
 
-const WEIGHTS = { regular: "400", medium: "500", semibold: "600", bold: "700" } as const;
+const WEIGHTS = { regular: 400, medium: 500, semibold: 600, bold: 700 } as const;
 const HEADER_VARIANTS: TextVariant[] = ["display", "title1", "title2", "title3"];
 
 /**
@@ -45,6 +45,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
     danger: t.color.status.danger.solid,
     success: t.color.status.success.solid,
     warning: t.color.status.warning.solid,
+    info: t.color.status.info.solid,
   }[color];
   const isHeader = header ?? HEADER_VARIANTS.includes(variant);
   return (
@@ -56,7 +57,8 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
         typeStyle,
         { color: colorValue },
         numeric && { fontVariant: ["tabular-nums"] },
-        weight && { fontWeight: WEIGHTS[weight] },
+        // Custom fonts: switch family per weight instead of setting fontWeight.
+        weight && { fontFamily: fontFamilyFor(variantFace(variant), WEIGHTS[weight]) },
         align && { textAlign: align },
         style,
       ]}

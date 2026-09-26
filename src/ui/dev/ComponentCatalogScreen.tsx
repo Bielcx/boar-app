@@ -5,7 +5,7 @@
  */
 import React, { useState } from "react";
 import { View } from "react-native";
-import type { Appearance, FontScale } from "../../models/settings";
+import type { Appearance, FontScale, PaletteChoice } from "../../models/settings";
 import {
   Badge,
   Banner,
@@ -16,6 +16,7 @@ import {
   Icon,
   IconButton,
   ListRow,
+  OfflineSeal,
   Progress,
   Screen,
   Section,
@@ -28,10 +29,10 @@ import {
   useAnnounce,
   useToast,
 } from "../components";
-import { lightPalette, darkPalette, useTheme } from "../theme";
+import { getPalette, useTheme } from "../theme";
 import type { TextVariant } from "../theme";
 
-const VARIANTS: TextVariant[] = ["display", "title1", "title2", "title3", "headline", "body", "callout", "subhead", "footnote", "caption", "label", "mono"];
+const VARIANTS: TextVariant[] = ["display", "title1", "title2", "title3", "headline", "button", "body", "callout", "subhead", "footnote", "caption", "label", "mono", "code"];
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   const { tokens: t } = useTheme();
@@ -46,24 +47,25 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function Swatches() {
-  const { tokens: t, scheme } = useTheme();
-  const palette = scheme === "dark" ? darkPalette : lightPalette;
+  const { tokens: t, scheme, palette: paletteId } = useTheme();
+  const palette = getPalette(paletteId, scheme);
+  const entries = Object.entries(palette).filter((e): e is [string, string] => typeof e[1] === "string");
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-      {Object.entries(palette).map(([name, entry]) => (
+      {entries.map(([name, hex]) => (
         <View key={name} style={{ width: 96, gap: 2 }}>
           <View
             style={{
               height: 40,
               borderRadius: t.radius.sm,
-              backgroundColor: entry.hex,
+              backgroundColor: hex,
               borderWidth: t.size.hairline,
               borderColor: t.color.line.hairline,
             }}
           />
           <Text variant="caption">{name}</Text>
           <Text variant="caption" color="tertiary" numeric>
-            {entry.hex}
+            {hex}
           </Text>
         </View>
       ))}
@@ -72,7 +74,7 @@ function Swatches() {
 }
 
 export function ComponentCatalogScreen() {
-  const { tokens: t, appearance, setAppearance, fontScale, setFontScale } = useTheme();
+  const { tokens: t, appearance, setAppearance, fontScale, setFontScale, palette, setPalette } = useTheme();
   const toast = useToast();
   const announce = useAnnounce();
   const [on, setOn] = useState(true);
@@ -82,8 +84,17 @@ export function ComponentCatalogScreen() {
   const [chip, setChip] = useState(true);
 
   return (
-    <Screen>
+    <Screen ambient>
       <Group title="Theme">
+        <SegmentedControl<PaletteChoice>
+          label="Palette"
+          value={palette}
+          onChange={setPalette}
+          options={[
+            { value: "fogueira", label: "Fogueira", icon: "sun" },
+            { value: "luar", label: "Luar", icon: "moon" },
+          ]}
+        />
         <SegmentedControl<Appearance>
           label="Appearance"
           value={appearance}
@@ -133,6 +144,7 @@ export function ComponentCatalogScreen() {
       <Group title="Buttons">
         <Button label="Primary action" onPress={() => {}} />
         <Button label="Secondary" variant="secondary" icon="download" onPress={() => {}} />
+        <Button label="Outline" variant="outline" onPress={() => {}} />
         <Button label="Ghost" variant="ghost" onPress={() => {}} />
         <Button label="Delete model" variant="destructive" icon="trash-2" onPress={() => {}} />
         <Button label="Loading" loading onPress={() => {}} />
@@ -168,6 +180,23 @@ export function ComponentCatalogScreen() {
           <Badge label="In use" tone="accent" emphasis="solid" />
           <Badge label="Neutral" />
         </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+          <Badge label="Active" tone="accent" emphasis="solid" icon="check" />
+          <Badge label="Cached" tone="field" icon="database" />
+          <Badge label="Downloading" tone="field" emphasis="outline" icon="loader" />
+          <Badge label="Not on disk" emphasis="outline" />
+        </View>
+        <View style={{ gap: t.space.sm }}>
+          <Badge label="Fits this device (measured)" tone="success" dot caps={false} />
+          <Badge label="Needs 12 GB, device has 8 GB" tone="warning" dot caps={false} />
+          <Badge label="Exceeds device RAM" tone="danger" dot caps={false} />
+        </View>
+      </Group>
+
+      <Group title="Offline seal">
+        <OfflineSeal label="Offline" />
+        <OfflineSeal label="Offline" variant="moon" />
+        <OfflineSeal label="Offline" sublabel="Local model" variant="card" />
       </Group>
 
       <Group title="Banners">

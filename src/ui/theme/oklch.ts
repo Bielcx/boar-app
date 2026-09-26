@@ -67,3 +67,58 @@ export function contrastRatio(fg: string, bg: string): number {
   const [hi, lo] = a > b ? [a, b] : [b, a];
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/** sRGB hex -> OKLCH (inverse of oklchToHex). */
+export function hexToOklch(hex: string): [number, number, number] {
+  const [r, g, b] = hexToRgb(hex).map((v) => srgbToLinear(v / 255));
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  const C = Math.sqrt(A * A + B * B);
+  let H = (Math.atan2(B, A) * 180) / Math.PI;
+  if (H < 0) H += 360;
+  return [L, C, H];
+}
+
+/**
+ * Returns `fg` unchanged if it already reaches `min` contrast against every
+ * background; otherwise moves only its OKLCH lightness (hue and chroma kept)
+ * away from the backgrounds, in 0.005 steps, until it does. Deterministic, so
+ * the shipped palette is reproducible from the designer's values.
+ */
+export function ensureContrast(fg: string, backgrounds: string[], min: number): string {
+  const worst = (hex: string) => Math.min(...backgrounds.map((bg) => contrastRatio(hex, bg)));
+  if (worst(fg) >= min) return fg.toUpperCase();
+  const [l, c, h] = hexToOklch(fg);
+  const bgLum = backgrounds.reduce((sum, bg) => sum + relativeLuminance(bg), 0) / backgrounds.length;
+  const direction = relativeLuminance(fg) > bgLum ? 1 : -1;
+  for (let step = 1; step <= 200; step++) {
+    const nl = Math.min(1, Math.max(0, l + direction * step * 0.005));
+    const candidate = oklchToHex([nl, c, h]);
+    if (worst(candidate) >= min) return candidate;
+  }
+  return direction > 0 ? "#FFFFFF" : "#000000";
+}
+
+/** Solid hex of `fg` at `alpha` over `bg` (to test and ship tinted fills as opaque colors). */
+export function mixHex(fg: string, bg: string, alpha: number): string {
+  const f = hexToRgb(fg);
+  const b = hexToRgb(bg);
+  return (
+    "#" +
+    f
+      .map((v, i) => Math.round(v * alpha + b[i] * (1 - alpha)))
+      .map((v) => v.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase()
+  );
+}
+
+/** Nudges a color's OKLCH lightness by `delta` (for derived surfaces). */
+export function shiftLightness(hex: string, delta: number): string {
+  const [l, c, h] = hexToOklch(hex);
+  return oklchToHex([Math.min(1, Math.max(0, l + delta)), c, h]);
+}

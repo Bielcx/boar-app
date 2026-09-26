@@ -48,7 +48,7 @@ export function Chip({ label, icon, tone = "neutral", selected, onPress, size = 
     minHeight: height,
     paddingHorizontal: size === "inline" ? t.space.xs + 2 : t.space.md,
     borderRadius: size === "inline" ? t.radius.xs : t.radius.full,
-    backgroundColor: tc.bg,
+    backgroundColor: tone === "neutral" && !selected ? t.color.bg.raised : tc.bg,
     borderWidth: selected ? t.size.border : 0,
     borderColor: t.color.accent.solid,
   };
