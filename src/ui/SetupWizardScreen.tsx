@@ -28,7 +28,7 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
-import { answerModelChoices, AnswerTier } from "./flows/packages";
+import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
 import { canDownload } from "./flows/useCatalog";
@@ -65,6 +65,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const [trip, setTrip] = useState<{ label: string; assets: CatalogModel[] } | null>(null);
   const choices = useMemo(() => answerModelChoices(MODEL_CATALOG), []);
   const [answerTier, setAnswerTier] = useState<AnswerTier>("default");
+  // Set once the user picked (or progress was restored): automatic recommendations never override it.
+  const [packageChosen, setPackageChosen] = useState(false);
+  const [answerChosen, setAnswerChosen] = useState(false);
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   const [restored, setRestored] = useState(false);
 
@@ -75,6 +78,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
       if (p) {
         if (PACKAGES.some((x) => x.id === p.packageId)) setPackageId(p.packageId as PackageId);
         if (p.answerTier) setAnswerTier(p.answerTier);
+        setPackageChosen(true);
+        setAnswerChosen(true);
         const region = p.travelRegionId ? poiRegions().find((r) => r.id === p.travelRegionId) : undefined;
         if (region) setTravel(region);
         setStep(p.step);
@@ -161,6 +166,17 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           choices={choices}
           answerTier={answerTier}
           onAnswerTier={setAnswerTier}
+          packageChosen={packageChosen}
+          answerChosen={answerChosen}
+          onUserPackage={(id) => {
+            setPackageChosen(true);
+            setPackageId(id);
+          }}
+          onUserAnswer={(tierId) => {
+            setAnswerChosen(true);
+            setAnswerTier(tierId);
+          }}
+          restored={restored}
           onBack={() => setStep(1)}
           onInstall={startInstall}
         />
@@ -336,6 +352,11 @@ function PackageStep({
   choices,
   answerTier,
   onAnswerTier,
+  packageChosen,
+  answerChosen,
+  onUserPackage,
+  onUserAnswer,
+  restored,
   onBack,
   onInstall,
 }: {
@@ -355,6 +376,11 @@ function PackageStep({
   choices: Partial<Record<AnswerTier, CatalogModel>>;
   answerTier: AnswerTier;
   onAnswerTier: (tier: AnswerTier) => void;
+  packageChosen: boolean;
+  answerChosen: boolean;
+  onUserPackage: (id: PackageId) => void;
+  onUserAnswer: (tier: AnswerTier) => void;
+  restored: boolean;
   onBack: () => void;
   onInstall: () => void;
 }) {
@@ -367,14 +393,11 @@ function PackageStep({
     deviceRamBytes
   );
   const compactSuggested = !!choices.compact && pick?.id === choices.compact.id;
-  // Pre-select the compact model once, when the estimate says the default won't run well here.
-  const suggestedOnce = useRef(false);
+  const recommendedTier: AnswerTier | undefined = pick ? (pick.id === choices.compact?.id ? "compact" : "default") : undefined;
+  // Recommended = pre-selected: follow the routing rule until the user picks.
   useEffect(() => {
-    if (compactSuggested && !suggestedOnce.current) {
-      suggestedOnce.current = true;
-      onAnswerTier("compact");
-    }
-  }, [compactSuggested, onAnswerTier]);
+    if (restored && loaded && !answerChosen && recommendedTier) onAnswerTier(recommendedTier);
+  }, [restored, loaded, answerChosen, recommendedTier, onAnswerTier]);
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   const { t } = useTranslation();
   const tokens = useTokens();
@@ -389,6 +412,11 @@ function PackageStep({
     return { ...p, plan, fit, shortfall, seconds };
   });
   const chosen = plans.find((p) => p.id === selected)!;
+  const recommended = recommendPackage(plans);
+  // Recommended = pre-selected, once free space is known, until the user picks.
+  useEffect(() => {
+    if (restored && loaded && !packageChosen && selected !== recommended) onSelect(recommended);
+  }, [restored, loaded, packageChosen, recommended, selected, onSelect]);
 
   return (
     <Screen
@@ -451,7 +479,7 @@ function PackageStep({
               accessibilityLabel={[name, t(`flows.onboarding.package.${p.id}.body`), ...facts, warning].filter(Boolean).join(", ")}
               onPress={() => {
                 impact(ImpactFeedbackStyle.Light);
-                onSelect(p.id);
+                onUserPackage(p.id);
               }}
               style={{
                 padding: tokens.space.base,
@@ -465,7 +493,7 @@ function PackageStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, flexWrap: "wrap" }}>
                 <Icon name={isSelected ? "check-circle" : "circle"} color={isSelected ? tokens.color.accent.text : tokens.color.text.tertiary} />
                 <Text variant="headline">{name}</Text>
-                {p.id === "encyclopedia" && p.shortfall === 0 && <Badge label={t("flows.onboarding.recommended")} tone="accent" />}
+                {p.id === recommended && <Badge label={t("flows.onboarding.recommended")} tone="accent" />}
               </View>
               <Text variant="callout" color="secondary">
                 {t(`flows.onboarding.package.${p.id}.body`)}
@@ -501,12 +529,12 @@ function PackageStep({
                   title={t(`flows.onboarding.answerTier.${tierId}`, { name: m.label })}
                   subtitle={[
                     formatBytes(m.sizeBytes, lang),
-                    tierId === "compact" && compactSuggested ? t("flows.onboarding.suggestedHere") : undefined,
+                    tierId === recommendedTier ? t("flows.onboarding.suggestedHere") : undefined,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
                   selected={answerTier === tierId}
-                  onPress={() => onAnswerTier(tierId)}
+                  onPress={() => onUserAnswer(tierId)}
                 />
               );
             })}
