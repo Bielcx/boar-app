@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MODEL_CATALOG, TIERS } from "../../models/manifest";
+import { COMPACT_ANSWER_MODEL, DEFAULT_ANSWER_MODEL, MODEL_CATALOG, TIERS } from "../../models/manifest";
 import { answerModelChoices, PACKAGES, packageAssets, planPackage, storageShortfall, suggestCompact, transferSeconds } from "./packages";
 
 const tier = (id: string) => TIERS.find((t) => t.id === id)!;
@@ -11,11 +11,11 @@ describe("PACKAGES", () => {
 });
 
 describe("packageAssets", () => {
-  it("always includes the required models plus the tier's packs", () => {
+  it("installs the search model, one answer model (the standard one by default) and the tier's packs", () => {
     const assets = packageAssets(tier("encyclopedia"), MODEL_CATALOG);
-    for (const m of MODEL_CATALOG.filter((m) => m.required)) expect(assets).toContain(m);
+    for (const m of MODEL_CATALOG.filter((m) => m.required && m.kind !== "llm")) expect(assets).toContain(m);
     expect(assets.map((a) => a.id)).toEqual(expect.arrayContaining(tier("encyclopedia").corpusPackIds));
-    expect(assets.filter((a) => a.kind === "llm" && !a.required)).toHaveLength(0);
+    expect(assets.filter((a) => a.kind === "llm").map((a) => a.id)).toEqual([DEFAULT_ANSWER_MODEL.id]);
   });
 });
 
@@ -72,9 +72,16 @@ describe("answer model choice", () => {
     expect(choices.compact?.id).toBe("qwen2.5-1.5b");
   });
 
-  it("falls back to the required language model and no compact option", () => {
+  it("reads the manifest's standard and compact answer models", () => {
     const choices = answerModelChoices(MODEL_CATALOG);
-    expect(choices.default?.id).toBe(MODEL_CATALOG.find((m) => m.kind === "llm" && m.required)!.id);
+    expect(choices.default?.id).toBe(DEFAULT_ANSWER_MODEL.id);
+    expect(choices.compact?.id).toBe(COMPACT_ANSWER_MODEL.id);
+  });
+
+  it("falls back to the required language model when no answerTier is set", () => {
+    const legacy = [embedding, { ...big, answerTier: undefined, required: true }];
+    const choices = answerModelChoices(legacy);
+    expect(choices.default?.id).toBe("qwen3-4b");
     expect(choices.compact).toBeUndefined();
   });
 
