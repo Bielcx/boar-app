@@ -1,0 +1,786 @@
+{
+  "pack": "boar-wiki-sample.sqlite",
+  "packMeta": {
+    "format": "boar-knowledge-pack",
+    "formatVersion": "2",
+    "dims": "384",
+    "embeddingModelSha256": "",
+    "sources": "{\"enwiki\":{\"dataset\":\"HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)\",\"shards\":[\"000_00007.parquet\"],\"articles\":403973},\"enwikivoyage\":{\"dump\":\"enwikivoyage-latest-pages-articles.xml.bz2\",\"articles\":34002},\"redirects\":\"enwiki-latest-redirect.sql.gz\"}",
+    "license": "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    "articles": "437975",
+    "chunks": "2462151",
+    "indexedChunks": "2130224",
+    "dfMin": "2000",
+    "params": "{\"fullTop\":1000000,\"leadChars\":2500,\"chunkChars\":1000,\"blockKb\":64,\"zlevel\":12,\"limit\":0}",
+    "builtAt": "2026-09-26T19:07:53.543Z"
+  },
+  "questions": "eval/retrieval/questions.v1.jsonl",
+  "n": 160,
+  "measuredAt": "2026-09-26T19:53:47.651Z",
+  "results": {
+    "grid w1,1,1 p0": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.825,
+        "recall@3": 0.95,
+        "recall@6": 0.975,
+        "mrr10": 0.891,
+        "p50ms": 1871.7,
+        "p95ms": 4819.5
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.855,
+        "recall@3": 0.961,
+        "recall@6": 0.974,
+        "mrr10": 0.911,
+        "p50ms": 2052.2,
+        "p95ms": 3884.5
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.798,
+        "recall@3": 0.94,
+        "recall@6": 0.976,
+        "mrr10": 0.873,
+        "p50ms": 1802,
+        "p95ms": 6241.4
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 2662.3,
+          "p95ms": 7173.3
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.917,
+          "p50ms": 2460.9,
+          "p95ms": 6311.4
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 2339.6,
+          "p95ms": 7767.6
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 3468,
+          "p95ms": 6900.4
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.9,
+          "recall@6": 1,
+          "mrr10": 0.875,
+          "p50ms": 1448.5,
+          "p95ms": 2742.8
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.938,
+          "p50ms": 1338.2,
+          "p95ms": 2256.2
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.917,
+          "p50ms": 1455.3,
+          "p95ms": 3692.8
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.65,
+          "recall@3": 0.9,
+          "recall@6": 0.95,
+          "mrr10": 0.775,
+          "p50ms": 1684.7,
+          "p95ms": 4218.8
+        }
+      },
+      "misses": [
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    },
+    "grid w2,1,1 p0": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.831,
+        "recall@3": 0.975,
+        "recall@6": 0.975,
+        "mrr10": 0.9,
+        "p50ms": 1060.2,
+        "p95ms": 2104.1
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.855,
+        "recall@3": 0.974,
+        "recall@6": 0.974,
+        "mrr10": 0.914,
+        "p50ms": 1061.8,
+        "p95ms": 2088.6
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.81,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.887,
+        "p50ms": 1046.8,
+        "p95ms": 2104.1
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 1606.3,
+          "p95ms": 2286.1
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.917,
+          "p50ms": 1102.1,
+          "p95ms": 2597.9
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 1072.9,
+          "p95ms": 2300
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 1345.7,
+          "p95ms": 2856.6
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 813.9,
+          "p95ms": 1660.9
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 1067.7,
+          "p95ms": 2558.4
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 618.3,
+          "p95ms": 2504.8
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.65,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.783,
+          "p50ms": 958.1,
+          "p95ms": 2051
+        }
+      },
+      "misses": [
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    },
+    "grid w2,1,1 p0.5": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.838,
+        "recall@3": 0.975,
+        "recall@6": 0.975,
+        "mrr10": 0.903,
+        "p50ms": 268.9,
+        "p95ms": 869.6
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.868,
+        "recall@3": 0.974,
+        "recall@6": 0.974,
+        "mrr10": 0.921,
+        "p50ms": 261.3,
+        "p95ms": 703
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.81,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.887,
+        "p50ms": 271.6,
+        "p95ms": 1036.2
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 680.3,
+          "p95ms": 1446.5
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 285.2,
+          "p95ms": 679.1
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 261.3,
+          "p95ms": 1592.3
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 230.8,
+          "p95ms": 537.9
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 377.3,
+          "p95ms": 1473.1
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 168.7,
+          "p95ms": 703
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 139.1,
+          "p95ms": 445.7
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.65,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.783,
+          "p50ms": 214.9,
+          "p95ms": 600.1
+        }
+      },
+      "misses": [
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    },
+    "grid w4,2,1 p0.5": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.838,
+        "recall@3": 0.975,
+        "recall@6": 0.975,
+        "mrr10": 0.903,
+        "p50ms": 203.4,
+        "p95ms": 538
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.868,
+        "recall@3": 0.974,
+        "recall@6": 0.974,
+        "mrr10": 0.921,
+        "p50ms": 200.6,
+        "p95ms": 538
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.81,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.887,
+        "p50ms": 204.5,
+        "p95ms": 419.4
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 283.5,
+          "p95ms": 573.1
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 222,
+          "p95ms": 538
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.917,
+          "p50ms": 234.5,
+          "p95ms": 370.9
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 164.1,
+          "p95ms": 240.5
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 207.5,
+          "p95ms": 609.4
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 189.2,
+          "p95ms": 1192.4
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 136.6,
+          "p95ms": 315.2
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.65,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.792,
+          "p50ms": 279.3,
+          "p95ms": 1250.6
+        }
+      },
+      "misses": [
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    },
+    "grid w8,3,1 p2": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.8,
+        "recall@3": 0.944,
+        "recall@6": 0.969,
+        "mrr10": 0.874,
+        "p50ms": 275,
+        "p95ms": 1141.1
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.855,
+        "recall@3": 0.961,
+        "recall@6": 0.961,
+        "mrr10": 0.907,
+        "p50ms": 257.2,
+        "p95ms": 1277.1
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.75,
+        "recall@3": 0.929,
+        "recall@6": 0.976,
+        "mrr10": 0.843,
+        "p50ms": 299.1,
+        "p95ms": 873.2
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 222.8,
+          "p95ms": 2050.2
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.938,
+          "p50ms": 246.5,
+          "p95ms": 2222.2
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.7,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.818,
+          "p50ms": 352.3,
+          "p95ms": 797.1
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.6,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.723,
+          "p50ms": 350.7,
+          "p95ms": 913
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 520.4,
+          "p95ms": 2190
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 360.4,
+          "p95ms": 1277.1
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.9,
+          "recall@6": 0.95,
+          "mrr10": 0.86,
+          "p50ms": 221.4,
+          "p95ms": 873.2
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.65,
+          "recall@3": 0.9,
+          "recall@6": 0.95,
+          "mrr10": 0.775,
+          "p50ms": 328.1,
+          "p95ms": 712.4
+        }
+      },
+      "misses": [
+        "ret-unviewed-named-00048069",
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    },
+    "grid w2,1,1 p0.5 share0.5": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.863,
+        "recall@3": 0.969,
+        "recall@6": 0.975,
+        "mrr10": 0.915,
+        "p50ms": 142.1,
+        "p95ms": 511.6
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.882,
+        "recall@3": 0.961,
+        "recall@6": 0.974,
+        "mrr10": 0.925,
+        "p50ms": 142.5,
+        "p95ms": 459.3
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.845,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.907,
+        "p50ms": 138.8,
+        "p95ms": 651.7
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 334.6,
+          "p95ms": 792.1
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 143.5,
+          "p95ms": 344.4
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 157.6,
+          "p95ms": 1082.2
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 126.8,
+          "p95ms": 260.6
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 248.4,
+          "p95ms": 1174.7
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 114.3,
+          "p95ms": 205.7
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 93.4,
+          "p95ms": 176.9
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.7,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.825,
+          "p50ms": 121.4,
+          "p95ms": 205.2
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692"
+      ]
+    },
+    "grid w2,1,1 p0.5 pool200": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.838,
+        "recall@3": 0.975,
+        "recall@6": 0.975,
+        "mrr10": 0.903,
+        "p50ms": 242.5,
+        "p95ms": 702.7
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.868,
+        "recall@3": 0.974,
+        "recall@6": 0.974,
+        "mrr10": 0.921,
+        "p50ms": 233,
+        "p95ms": 849.3
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.81,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.887,
+        "p50ms": 278.3,
+        "p95ms": 672.6
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 218.4,
+          "p95ms": 395.4
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 237.4,
+          "p95ms": 702.7
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 231.5,
+          "p95ms": 533.5
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 526.2,
+          "p95ms": 947.9
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 206.4,
+          "p95ms": 909.9
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 153.3,
+          "p95ms": 287
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 369.5,
+          "p95ms": 469.4
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.65,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.783,
+          "p50ms": 393.1,
+          "p95ms": 862.4
+        }
+      },
+      "misses": [
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    }
+  }
+}

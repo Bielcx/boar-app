@@ -49,11 +49,20 @@ describe("WikiPack", () => {
     expect(a.text.startsWith("# Black hole\n\nA black hole is a region")).toBe(true);
   });
 
-  it("puts the article the question names first (title boost), not a keyword neighbour", async () => {
+  it("puts the article the question is about first (title boost), not a keyword neighbour", async () => {
+    // "black hole" carries most of the question: its lead goes first as a named article.
+    expect((await pack.search("What is a black hole?"))[0]).toMatchObject({ title: "Black hole", via: "title", lead: true });
+    // Here "form" is rarer than the name, so the name is a partial subject: BM25 decides, and still picks the right article.
     const hits = await pack.search("What is a black hole and how does one form?");
-    expect(hits[0]).toMatchObject({ title: "Black hole", via: "title", lead: true });
+    expect(hits[0].title).toBe("Black hole");
     expect(hits.some((h) => h.title === "Black hole" && h.section === "Formation")).toBe(true);
     expect(hits.findIndex((h) => h.title === "Black Sea")).not.toBe(0);
+  });
+
+  it("doesn't put a side mention first", async () => {
+    // "Black Sea" is named, but the question is about the countries' economy: it carries under half of the weight.
+    const named = await pack.titlesInQuestion("Which financial crisis and debt problems led to the revolution, not the Black Sea trade?", await pack.stems("Which financial crisis and debt problems led to the revolution, not the Black Sea trade?"));
+    expect(named.every((n) => n.share < 0.5)).toBe(true);
   });
 
   it("covers both sides of a comparison", async () => {

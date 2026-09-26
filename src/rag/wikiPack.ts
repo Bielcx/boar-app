@@ -91,7 +91,7 @@ export interface PackSearchOptions {
 const SOURCES: PackSource[] = ["enwiki", "enwikivoyage"];
 
 /** Share of the question's term weight a name in it must carry to be treated as the question's subject. */
-export const NAMED_MIN_SHARE = 0.35;
+export const NAMED_MIN_SHARE = 0.5;
 
 /** Questions that read like travel planning: a same-named Wikivoyage guide goes before the encyclopedia article. */
 const TRAVEL_INTENT = /\b(visit|visiting|things to (see|do)|what (can|should) (i|we) (see|do)|see and do|travel|trip|get (to|there|around)|getting (to|around)|stay|hotel|hostel|eat|restaurants?|sights?|tourists?|itinerary|by (train|bus|car|ferry)|airport)\b/i;
@@ -228,7 +228,9 @@ export interface PackTuning {
   pool: number;
 }
 
-export const DEFAULT_TUNING: PackTuning = { weights: [8, 3, 1], prior: 2, namedMinShare: NAMED_MIN_SHARE, pool: 80 };
+// Chosen on the dev half of eval/retrieval/questions.v1 (2026-09-26): AndroidLM's title
+// weight 8 and prior 2 cost 9 points of test recall@1 on these questions.
+export const DEFAULT_TUNING: PackTuning = { weights: [2, 1, 1], prior: 0.5, namedMinShare: NAMED_MIN_SHARE, pool: 80 };
 
 export class WikiPack {
   tuning: PackTuning = { ...DEFAULT_TUNING };
