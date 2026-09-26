@@ -126,3 +126,4 @@ Only the default pair fits: Qwen2.5-1.5B Q4_K_M (0.92 GiB) + bge-small (35 MiB).
 | RAM fit check (`LlamaEngine.estimateFit`) uses device RAM − RSS | Wrong on iOS: the jetsam limit is far below device RAM. Should use `getAvailableRamBytes()` |
 | Voice via system recognizer (may go online on Android) | On-device only; locales without an on-device model report unavailable |
 | GrapheneOS | Not applicable |
+| Deep MoE tier (expert streaming, ADR 0001) | Not on iOS for now: Caldera measured a peak footprint of 5.95 GiB (19-token prompt) to 10.7 GiB (1,310 tokens) on macOS, because prefill holds the union of experts; far above an iPhone's per-app limit. Revisit after the prefill fix |
