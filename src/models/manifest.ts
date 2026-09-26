@@ -59,7 +59,7 @@ export interface CatalogModel {
    * (scripts/build-knowledge-pack.mjs) with its own search index and
    * embeddings, opened directly (src/rag/packs.ts).
    */
-  format?: "json" | "sqlite-pack";
+  format?: "json" | "sqlite-pack" | "poi-pack";
 }
 
 export const STORAGE_BUDGET_BYTES = 50 * 1024 * 1024 * 1024; // 50GB
