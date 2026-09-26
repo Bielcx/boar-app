@@ -77,7 +77,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
                       ? tokens.color.status.success.solid
                       : f.status === "failed"
                         ? tokens.color.status.danger.solid
-                        : tokens.color.text.tertiary
+                        : tokens.color.text.secondary
                   }
                 />
               </View>
@@ -103,7 +103,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
                   {t(`flows.row.error.${f.errorKind ?? "unknown"}`)}
                 </Text>
                 {f.message && (
-                  <Text variant="caption" color="tertiary" selectable>
+                  <Text variant="caption" color="secondary" selectable>
                     {f.message}
                   </Text>
                 )}

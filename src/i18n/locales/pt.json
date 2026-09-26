@@ -381,7 +381,6 @@
       }
     },
     "models": {
-      "storage": "O BOAR usa {{used}} · {{free}} livres no celular",
       "inUse": "Em uso",
       "inUseFooter": "O modelo de respostas escreve as respostas; o de busca encontra trechos no seu conhecimento.",
       "installed": "Instalados",
@@ -412,8 +411,11 @@
       "deepAutoSub": "O maior modelo instalado que cabe e roda a {{min}} tokens/s ou mais aqui.",
       "deepNone": "Nenhum: sempre o modelo de respostas",
       "notMeasured": "Ainda não medido neste celular",
-      "measured_one": "{{rate}} tokens/s · {{count}} resposta · medido neste celular em {{date}}",
-      "measured_other": "{{rate}} tokens/s · mediana de {{count}} respostas · medido neste celular em {{date}}",
+      "rate": "{{rate}} tok/s",
+      "samples_one": "{{count}} resposta medida aqui · {{date}}",
+      "samples_other": "Mediana de {{count}} respostas medidas aqui · {{date}}",
+      "usedLabel": "Usado pelo BOAR",
+      "freeLabel": "Livre no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
       "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },

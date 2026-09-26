@@ -130,7 +130,7 @@ export function PerformanceScreen() {
   return (
     <Screen>
       {PERF_BANDS_PROVISIONAL && (
-        <Text variant="footnote" color="tertiary">
+        <Text variant="footnote" color="secondary">
           {t("flows.performance.provisional")}
         </Text>
       )}
@@ -150,7 +150,7 @@ export function PerformanceScreen() {
                 />
               )}
               {last.totalLatencyMs != null && <Metric label={t("flows.performance.total")} value={formatSeconds(last.totalLatencyMs, lang)} />}
-              <Text variant="footnote" color="tertiary">
+              <Text variant="footnote" color="secondary">
                 {[modelLabel(last.modelId), last.retrievalUsed ? t("flows.performance.usedSources") : t("flows.performance.noSources")]
                   .filter(Boolean)
                   .join(" · ")}
