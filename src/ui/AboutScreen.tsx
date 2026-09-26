@@ -1,9 +1,9 @@
 import React, { useCallback } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Button, ListRow, Screen, Section, Text, useToast } from "./components";
+import { Button, ListRow, Mascot, Screen, Section, Text, useToast } from "./components";
 import { useTokens } from "./theme";
 import { useCatalog } from "./flows/useCatalog";
 import { packName, topicPacks } from "./flows/adapters";
@@ -39,12 +39,7 @@ export function AboutScreen() {
   return (
     <Screen>
       <View style={{ alignItems: "center", gap: tokens.space.sm }}>
-        <Image
-          source={require("../../assets/boar.png")}
-          style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
-          accessibilityIgnoresInvertColors
-          accessible={false}
-        />
+        <Mascot size="brand" />
         <Text variant="title2" align="center">
           BOAR
         </Text>

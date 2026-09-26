@@ -4,9 +4,9 @@
  * manifest (flows-spec §4.1); nothing is typed in by hand.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Linking, Text as RNText, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Text, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Text, useAnnounce } from "./components";
 import type { TextColor } from "./components/Text";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -323,11 +323,7 @@ function Welcome({
     >
       <SetupStepper stage={0} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
-        <Image
-          source={require("../../assets/boar.png")}
-          style={{ width: tokens.size.mascotSm, height: tokens.size.mascotSm, borderRadius: tokens.radius.full }}
-          accessible={false}
-        />
+        <Mascot size="brand" />
         <View style={{ flex: 1, gap: tokens.space.xxs }}>
           <Text ref={titleRef} variant="title1" header>
             BOAR
@@ -1006,11 +1002,7 @@ function InstallStep({
         <Card style={{ gap: tokens.space.md }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
             <Stat size="lg" label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
-            <Image
-              source={require("../../assets/boar.png")}
-              style={{ width: tokens.size.mascotSm, height: tokens.size.mascotSm, borderRadius: tokens.radius.full }}
-              accessible={false}
-            />
+            <Mascot size="brand" />
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
           <MetaLine items={hero.meta} />
