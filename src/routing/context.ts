@@ -51,10 +51,25 @@ function stem(t: string): string {
 }
 
 /**
+ * Joins soft line wraps ("commonly known \nas Dilithium") while keeping real
+ * line breaks: blank lines, list items ("RSA\nDSA\nECDSA") and markdown
+ * headings. A single newline is a wrap when the next line starts in lower
+ * case or the previous one ends mid-phrase (space, comma, hyphen, "(").
+ */
+function unwrapLines(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/([^\n])\n(?!\n)(?=[a-z(])|([ ,(\-–])\n(?!\n)/g, (_m, a, b) => `${a ?? b}${a ? " " : ""}`)
+    .replace(/ {2,}/g, " ");
+}
+
+/**
  * Splits on sentence ends while keeping abbreviations and decimals intact
- * ("U.S.", "3.5", "e.g.") — good enough for encyclopedia prose.
+ * ("U.S.", "3.5", "e.g.") — good enough for encyclopedia prose. Remaining
+ * newlines (list items, headings) are boundaries too.
  */
 export function splitSentences(text: string): string[] {
+  text = unwrapLines(text);
   const out: string[] = [];
   // Candidate boundary: terminal punctuation (optionally closing quote/paren),
   // whitespace, then something that can open a sentence. Newlines always split.
@@ -143,6 +158,9 @@ export function selectInstant(query: string, chunks: RetrievedChunk[]): InstantS
   return { text, sourceIndex: best.chunkIndex, confidence: best.score };
 }
 
+/** A chunk whose best sentence scores under this share of the best chunk's is dropped. */
+export const RELATIVE_RELEVANCE_FLOOR = 0.5;
+
 export interface CompressOptions {
   /** Token budget for all selected sentences together. Default 1200. */
   tokenBudget?: number;
@@ -152,7 +170,12 @@ export interface CompressOptions {
 }
 
 export interface CompressedContext {
-  /** Same chunks (same order, so [n] numbering is preserved) with bodies cut to the selected sentences; chunks with nothing relevant are dropped. */
+  /**
+   * The kept chunks, most relevant first (the order defines [n] numbering,
+   * so the model reads and cites the best source as [1]), bodies cut to the
+   * selected sentences. Chunks with nothing relevant, or far less relevant
+   * than the best one, are dropped.
+   */
   chunks: RetrievedChunk[];
   /** Index into the input array for each output chunk. */
   keptIndices: number[];
@@ -176,9 +199,15 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
 
   const scored = scoreSentences(query, chunks);
   const anyMatch = scored.some((s) => s.score > 0);
+  // Per-chunk relevance = its best sentence. A chunk under half the best
+  // chunk's relevance is a distractor ("RSA" for a post-quantum question):
+  // dropped so the budget goes to the sources that answer.
+  const chunkBest = chunks.map((_, ci) => Math.max(0, ...scored.filter((s) => s.chunkIndex === ci).map((s) => s.score)));
+  const topBest = Math.max(0, ...chunkBest);
+  const relevant = (ci: number) => !anyMatch || chunkBest[ci] >= RELATIVE_RELEVANCE_FLOOR * topBest;
   // Rank: matching sentences by score (ties → retrieval rank, then position);
   // with no match at all, fall back to each chunk's opening sentence.
-  const ranked = (anyMatch ? scored.filter((s) => s.score > 0) : scored.filter((s) => s.position === 0)).sort(
+  const ranked = (anyMatch ? scored.filter((s) => s.score > 0 && relevant(s.chunkIndex)) : scored.filter((s) => s.position === 0)).sort(
     (a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex || a.position - b.position
   );
 
@@ -213,7 +242,7 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
     tryAdd(s);
   }
 
-  const keptIndices = [...picked.keys()].sort((a, b) => a - b);
+  const keptIndices = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b);
   const out = keptIndices.map((ci) => {
     const positions = [...picked.get(ci)!].sort((a, b) => a - b);
     const body = positions
