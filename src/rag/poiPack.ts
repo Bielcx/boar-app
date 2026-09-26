@@ -15,6 +15,9 @@ export const CELL_DEG = 0.01;
 const CELLS_PER_ROW = 36000;
 const RADII_M = [3000, 10000, 25000];
 const MIN_RESULTS = 3;
+/** diet_check bands (Boar, 2026-09-26): below 0.35 the tag is doubtful, 0.35-0.65 uncertain. */
+export const DIET_DOUBTFUL = 0.35;
+export const DIET_CONFIDENT = 0.65;
 const EARTH_M = 6371000;
 
 export const FOOD_CATEGORIES = [
@@ -66,6 +69,7 @@ type Row = {
   vegan: DietLevel | null; vegetarian: DietLevel | null; gluten_free: DietLevel | null; halal: DietLevel | null; kosher: DietLevel | null;
   address: string | null; opening_hours: string | null; phone: string | null; website: string | null;
   description: string | null; approx: number; source: number; source_title: string | null;
+  diet_check?: number | null; diet_check_for?: Diet | null;
 };
 
 const DIETS: Diet[] = ["vegan", "vegetarian", "gluten_free", "halal", "kosher"];
@@ -89,6 +93,7 @@ function toPoi(r: Row, meta: PoiPackMeta): Poi {
     ...(r.website ? { website: r.website } : {}),
     ...(r.description ? { description: r.description } : {}),
     ...(r.approx ? { approx: true } : {}),
+    ...(r.diet_check != null ? { dietCheck: r.diet_check, dietCheckFor: r.diet_check_for ?? undefined } : {}),
     osmDate: osm ? meta.osmDate : meta.voyageDump,
     source: osm
       ? { kind: "osm", url: `https://www.openstreetmap.org/${r.ref.slice(4)}` }
@@ -185,7 +190,7 @@ export async function searchPoiPacks(packs: PoiPack[], q: PoiQuery): Promise<Poi
     .filter((x) => x.cov !== "none")
     .sort((a, b) => (a.cov === "full" ? 0 : 1) - (b.cov === "full" ? 0 : 1));
   const criterion = diets.length
-    ? `diet tag strength (${diets.join("/")}: only > yes > limited), then distance; popularity isn't known offline`
+    ? `diet tag strength (${diets.join("/")}: only > yes > limited), then distance; places whose tag looks doubtful are listed last; popularity isn't known offline`
     : "distance; popularity isn't known offline";
   if (!covering.length) return { pois: [], radiusUsedM: start, coverage: "none", criterion, timingsMs: { search: Date.now() - t0 } };
 
@@ -194,17 +199,24 @@ export async function searchPoiPacks(packs: PoiPack[], q: PoiQuery): Promise<Poi
   for (const r of radii) {
     radiusUsedM = r;
     found = (await Promise.all(covering.map((c) => c.p.within(q, r)))).flat();
-    if (found.filter((p) => !p.approx).length >= MIN_RESULTS) break;
+    if (found.filter((p) => !p.approx && !(p.dietCheck != null && p.dietCheck < DIET_DOUBTFUL)).length >= MIN_RESULTS) break;
   }
   const seen = new Set<string>();
   found = found.filter((p) => !seen.has(p.id) && seen.add(p.id));
+  // Build-time plausibility of the diet tag (never changes the record): doubtful claims go last, marked.
+  for (const p of found) {
+    if (p.dietCheck == null || !p.dietCheckFor || !diets.includes(p.dietCheckFor)) continue;
+    if (p.dietCheck < DIET_DOUBTFUL) p.dietFlag = "verify";
+    else if (p.dietCheck < DIET_CONFIDENT) p.dietFlag = "uncertain";
+  }
   const exact = found
-    .filter((p) => !p.approx)
+    .filter((p) => !p.approx && p.dietFlag !== "verify")
     .sort((a, b) => (diets.length ? strength(b, diets) - strength(a, diets) : 0) || a.distanceM - b.distanceM);
+  const doubtful = found.filter((p) => !p.approx && p.dietFlag === "verify").sort((a, b) => a.distanceM - b.distanceM);
   const approx = found.filter((p) => p.approx).sort((a, b) => a.distanceM - b.distanceM);
   const main = covering[0];
   return {
-    pois: [...exact, ...approx].slice(0, limit),
+    pois: [...exact, ...approx, ...doubtful].slice(0, limit),
     radiusUsedM,
     coverage: covering.some((c) => c.cov === "full") ? "full" : "partial",
     region: main.p.meta.id,

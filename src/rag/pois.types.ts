@@ -33,6 +33,19 @@ export interface Poi {
   description?: string;
   /** Coordinates are the article's, not the place's: don't show a distance. */
   approx?: boolean;
+  /**
+   * Plausibility (0..1) of the record's diet claim, from a build-time check
+   * (scripts/audit-poi-diet.mjs), for the diet in `dietCheckFor`. The record
+   * itself is unchanged.
+   */
+  dietCheck?: number;
+  dietCheckFor?: Diet;
+  /**
+   * For the diet asked: "verify" = the OSM tag looks doubtful (check < 0.35;
+   * listed last, show "OSM tag to verify"); "uncertain" = 0.35-0.65 (normal
+   * order, but no strong diet badge). Absent = no doubt found or not checked.
+   */
+  dietFlag?: "verify" | "uncertain";
   /** When the source data was extracted (OSM replication timestamp or dump date), for attribution. */
   osmDate?: string;
   source: { kind: "osm" | "wikivoyage"; url: string; title?: string };

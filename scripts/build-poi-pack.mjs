@@ -29,6 +29,7 @@ const { values: o } = parseArgs({
     voyage: { type: "string" },
     "voyage-title": { type: "string", multiple: true, default: [] },
     places: { type: "string" },
+    "diet-check": { type: "string" },
     out: { type: "string" },
   },
 });
@@ -50,15 +51,18 @@ db.exec(`
     name TEXT NOT NULL, category TEXT NOT NULL, cuisine TEXT,
     vegan TEXT, vegetarian TEXT, gluten_free TEXT, halal TEXT, kosher TEXT,
     address TEXT, opening_hours TEXT, phone TEXT, website TEXT, description TEXT,
-    approx INTEGER NOT NULL DEFAULT 0, source INTEGER NOT NULL, source_title TEXT
+    approx INTEGER NOT NULL DEFAULT 0, source INTEGER NOT NULL, source_title TEXT,
+    -- scripts/audit-poi-diet.mjs: how plausible the record's diet claim is (0..1), and which diet it checked.
+    diet_check REAL, diet_check_for TEXT
   );
   CREATE VIRTUAL TABLE pois_fts USING fts5(name, cuisine, category, description, content='pois', content_rowid='id',
                                            tokenize='unicode61 remove_diacritics 2');
 `);
 const ins = db.prepare(`INSERT INTO pois (ref, lat, lon, cell, name, category, cuisine, vegan, vegetarian, gluten_free, halal, kosher,
-  address, opening_hours, phone, website, description, approx, source, source_title) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  address, opening_hours, phone, website, description, approx, source, source_title, diet_check, diet_check_for) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+const dietChecks = o["diet-check"] ? JSON.parse(readFileSync(o["diet-check"], "utf8")) : {};
 
-const stats = { osm: 0, osmSkippedUnnamed: 0, voyage: 0, voyageApprox: 0, vegan: 0, vegetarian: 0 };
+const stats = { osm: 0, osmSkippedUnnamed: 0, voyage: 0, voyageApprox: 0, vegan: 0, vegetarian: 0, dietChecked: 0 };
 const osmDates = [];
 db.exec("BEGIN");
 for (const file of o.osm) {
@@ -85,7 +89,8 @@ for (const file of o.osm) {
     ins.run(ref, lat, lon, cellOf(lat, lon), t.name, categoryOf(t), cuisinesOf(t).join(";") || null,
       diet.vegan ?? null, diet.vegetarian ?? null, diet.gluten_free ?? null, diet.halal ?? null, diet.kosher ?? null,
       addressOf(t), t.opening_hours ?? null, t.phone ?? t["contact:phone"] ?? null, t.website ?? t["contact:website"] ?? null,
-      null, 0, 0, null);
+      null, 0, 0, null, dietChecks[ref]?.p ?? null, dietChecks[ref]?.diet ?? null);
+    if (dietChecks[ref]) stats.dietChecked++;
     stats.osm++;
   }
 }
@@ -117,7 +122,7 @@ if (o.voyage && o["voyage-title"].length) {
         if (lat == null || lat < bbox[0] || lat > bbox[2] || lon < bbox[1] || lon > bbox[3]) continue;
         const description = [l.content, l.price && `Price: ${l.price}`].filter(Boolean).join(" ");
         ins.run(`wikivoyage:${title}#${n}`, lat, lon, cellOf(lat, lon), l.name, "listing", l.section.toLowerCase(),
-          null, null, null, null, null, l.address, l.hours, l.phone, l.url, description || null, exact ? 0 : 1, 1, `${title} (${l.section})`);
+          null, null, null, null, null, l.address, l.hours, l.phone, l.url, description || null, exact ? 0 : 1, 1, `${title} (${l.section})`, null, null);
         stats.voyage++;
         if (!exact) stats.voyageApprox++;
       }

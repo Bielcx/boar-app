@@ -36,8 +36,19 @@ beforeAll(() => {
       node(2000, { amenity: "restaurant", name: "Noodle Bar", cuisine: "ramen;japanese" }),
       { type: "way", id: 77, center: north(150), tags: { shop: "bakery", name: "Corner Bakery" } },
       node(120, { amenity: "parking", name: "Car Park" }),
+      node(400, { amenity: "fast_food", name: "Burger Chain", brand: "Burger Chain", "diet:vegan": "only" }),
+      node(700, { amenity: "restaurant", name: "Unclear Vegan", "diet:vegan": "only" }),
     ],
   };
+  const refOf = (name: string) => {
+    const e = osm.elements.find((x: any) => x.tags.name === name)!;
+    return `osm:${e.type}/${e.id}`;
+  };
+  writeFileSync(join(dir, "diet-check.json"), JSON.stringify({
+    [refOf("Burger Chain")]: { p: 0.2, diet: "vegan", level: "only" },
+    [refOf("Unclear Vegan")]: { p: 0.5, diet: "vegan", level: "only" },
+    [refOf("Only Vegan")]: { p: 0.93, diet: "vegan", level: "only" },
+  }));
   writeFileSync(join(dir, "osm.json"), JSON.stringify(osm));
   const xml = `<mediawiki><page><title>Testville</title><ns>0</ns><id>5</id><revision><text>{{geo|10|10}}
 ==Eat==
@@ -54,7 +65,7 @@ beforeAll(() => {
   execFileSync(process.execPath, [
     "scripts/build-poi-pack.mjs", "--id", "testville", "--name-en", "Testville", "--bbox=9.8,9.8,10.2,10.2", "--tz", "Etc/UTC",
     "--osm", join(dir, "osm.json"), "--voyage", join(dir, "voyage.xml.bz2"), "--voyage-title", "Testville",
-    "--places", join(dir, "places.sqlite"), "--out", join(dir, "testville.sqlite"),
+    "--places", join(dir, "places.sqlite"), "--diet-check", join(dir, "diet-check.json"), "--out", join(dir, "testville.sqlite"),
   ], { stdio: "pipe" });
   places = nodeSqliteDatabase(join(dir, "places.sqlite"));
   return PoiPack.open(nodeSqliteDatabase(join(dir, "testville.sqlite"))).then((p) => void (pack = p));
@@ -73,7 +84,8 @@ describe("searchPoiPacks", () => {
   it("orders vegan places by tag strength, then distance, and never lists untagged or 'no' places", async () => {
     const r = await searchPoiPacks([pack], { center: C, diet: ["vegan"] });
     const names = r.pois.map((p) => p.name);
-    expect(names.slice(0, 3)).toEqual(["Only Vegan", "Vegan Friendly Cafe", "Some Vegan Options"]);
+    // "Unclear Vegan" (700 m) and "Only Vegan" (1 km) are both "only": distance decides.
+    expect(names.slice(0, 4)).toEqual(["Unclear Vegan", "Only Vegan", "Vegan Friendly Cafe", "Some Vegan Options"]);
     expect(names).not.toContain("Steak House");
     expect(names).not.toContain("No Vegan Here");
     expect(r).toMatchObject({ coverage: "full", region: "testville", radiusUsedM: 3000 });
@@ -101,11 +113,13 @@ describe("searchPoiPacks", () => {
     expect(r.pois.map((p) => p.name)).toContain("Far Vegan");
   });
 
-  it("lists guide listings without their own coordinates last, marked approximate", async () => {
+  it("lists guide listings without their own coordinates after the exact places, marked approximate", async () => {
     const r = await searchPoiPacks([pack], { center: C, diet: ["vegan"] });
     const guide = r.pois.find((p) => p.name === "Leafy Guide Pick")!;
     expect(guide).toMatchObject({ approx: true, source: { kind: "wikivoyage", title: "Testville (Eat)" } });
-    expect(r.pois.indexOf(guide)).toBe(r.pois.length - 1);
+    // Only places with a doubtful diet tag come after the guide.
+    expect(r.pois.slice(r.pois.indexOf(guide) + 1).every((p) => p.dietFlag === "verify")).toBe(true);
+    expect(r.pois.slice(0, r.pois.indexOf(guide)).every((p) => !p.approx)).toBe(true);
     expect(r.pois.map((p) => p.name)).not.toContain("Guide Steak");
   });
 
@@ -144,5 +158,20 @@ describe("searchPlacesIn", () => {
     expect((await searchPlacesIn(places, "tvil")).map((p) => p.name)).toEqual(["Testville"]);
     expect(await searchPlacesIn(places, "zzz")).toEqual([]);
     expect(await searchPlacesIn(places, "  ")).toEqual([]);
+  });
+});
+
+describe("diet tag audit", () => {
+  it("lists a doubtful diet tag last with a verify flag, keeps an uncertain one in order without the strong badge", async () => {
+    const r = await searchPoiPacks([pack], { center: C, diet: ["vegan"] });
+    const last = r.pois[r.pois.length - 1];
+    expect(last).toMatchObject({ name: "Burger Chain", dietFlag: "verify", dietCheck: 0.2, diet: { vegan: "only" } });
+    expect(r.pois.find((p) => p.name === "Unclear Vegan")).toMatchObject({ dietFlag: "uncertain" });
+    expect(r.pois.find((p) => p.name === "Only Vegan")!.dietFlag).toBeUndefined();
+    expect(r.criterion).toMatch(/doubtful are listed last/);
+  });
+  it("doesn't flag anything when the diet asked isn't the one checked", async () => {
+    const r = await searchPoiPacks([pack], { center: C });
+    expect(r.pois.every((p) => !p.dietFlag)).toBe(true);
   });
 });
