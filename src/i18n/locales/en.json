@@ -481,7 +481,8 @@
       "send": "Send",
       "stop": "Stop answer",
       "stopping": "Stopping",
-      "notReady": "Loading model… you can type meanwhile"
+      "notReady": "Loading model… you can type meanwhile",
+      "modelError": "The model didn't load. Fix it above to send."
     },
     "stage": {
       "searching": "Searching sources…",
