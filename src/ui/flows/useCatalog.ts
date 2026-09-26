@@ -14,7 +14,8 @@ import { getDownloadState, importAssetFile, startDownload, subscribeDownloads } 
 import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, IntegrityErrorKind, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
-import { fitFor, poiCatalogEntry, poiRegions, removePackIndex } from "./adapters";
+import { networkAllowed } from "../../config/variant";
+import { fitFor, poiCatalogEntry, poiRegions, preparednessEntry, removePackIndex, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
 
@@ -29,6 +30,11 @@ export interface FileImport {
   assetId?: string;
   errorKind?: IntegrityErrorKind;
   message?: string;
+}
+
+/** Downloadable only with network and a published URL; everything else comes in as a file. */
+export function canDownload(model: Pick<CatalogModel, "sourceUrl">): boolean {
+  return networkAllowed() && !!model.sourceUrl;
 }
 
 export interface CatalogState {
@@ -52,6 +58,8 @@ export interface CatalogState {
   imports: FileImport[];
   /** Opens the system file picker and imports each chosen file. A cancelled picker does nothing. */
   importFiles: () => Promise<void>;
+  /** Downloads what can be downloaded; opens the file picker when any item must be imported. */
+  install: (models: CatalogModel[]) => Promise<void>;
   /** Stops the import in progress; the cancelled file leaves the list without an error. */
   cancelImports: () => void;
 }
@@ -80,7 +88,8 @@ export function useCatalog(): CatalogState {
 
   const refresh = useCallback(async () => {
     const found = await listDiscoveredModels();
-    const extra = [...found, ...poiRegions().map(poiCatalogEntry)];
+    const prep = preparednessEntry();
+    const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...(prep ? [prep] : [])];
     const all = [...(await modelManager.statusAll()), ...(await Promise.all(extra.map((m) => modelManager.statusOf(m))))];
     setDiscovered(found);
     setStatuses(Object.fromEntries(all.map((s) => [s.asset.id, s])));
@@ -209,6 +218,16 @@ export function useCatalog(): CatalogState {
     await refresh();
   }, [refresh]);
 
+  const install = useCallback(
+    async (models: CatalogModel[]) => {
+      const missing = models.filter((m) => !statuses[m.id]?.present);
+      const toImport = missing.filter((m) => !canDownload(m));
+      await Promise.all(missing.filter(canDownload).map((m) => download(m)));
+      if (toImport.length > 0) await importFiles();
+    },
+    [statuses, download, importFiles]
+  );
+
   const usedBytes = Object.values(statuses).reduce((sum, s) => sum + (s.present ? s.sizeOnDiskBytes : 0), 0);
 
   return {
@@ -230,6 +249,7 @@ export function useCatalog(): CatalogState {
     use,
     imports,
     importFiles,
+    install,
     cancelImports,
   };
 }

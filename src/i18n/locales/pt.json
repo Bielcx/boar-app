@@ -355,7 +355,9 @@
         "offline-variant": "Esta versão não acessa a internet. Importe o arquivo.",
         "load": "Não foi possível carregar este modelo.",
         "unknown": "Algo deu errado.",
-        "unknown-file": "Este arquivo não é um que o BOAR conhece. Escolha o arquivo indicado para este item."
+        "unknown-file": "Este arquivo não é um que o BOAR conhece. Escolha o arquivo indicado para este item.",
+        "too-large": "Este arquivo é maior do que o BOAR aceita para este tipo de item.",
+        "no-source": "Este item ainda não está publicado para download. Importe o arquivo."
       },
       "download": "Baixar {{size}}",
       "retry": "Tentar de novo",
@@ -403,7 +405,17 @@
       "addToList": "Adicionar aos modelos",
       "added": "{{name}} adicionado aos modelos",
       "addFailed": "Não foi possível adicionar: {{error}}",
-      "nowAnswering": "{{name}} agora escreve as respostas"
+      "nowAnswering": "{{name}} agora escreve as respostas",
+      "deepTitle": "Modelo para respostas completas",
+      "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a {{min}} tokens/s ou mais.",
+      "deepAuto": "Automático",
+      "deepAutoSub": "O maior modelo instalado que cabe e roda a {{min}} tokens/s ou mais aqui.",
+      "deepNone": "Nenhum: sempre o modelo de respostas",
+      "notMeasured": "Ainda não medido neste celular",
+      "measured_one": "{{rate}} tokens/s · {{count}} resposta · medido neste celular em {{date}}",
+      "measured_other": "{{rate}} tokens/s · mediana de {{count}} respostas · medido neste celular em {{date}}",
+      "tooSlow": "Não disponível no automático: muito lento neste celular.",
+      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },
     "knowledge": {
       "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",
@@ -448,7 +460,9 @@
       "indexed": "Indexada",
       "indexError": "A indexação falhou: {{error}}",
       "importCancelled": "Importação cancelada",
-      "cancelImportA11y": "Cancelar a importação de {{name}}"
+      "cancelImportA11y": "Cancelar a importação de {{name}}",
+      "preparednessTitle": "Emergência e preparação",
+      "preparednessFooter": "Primeiros socorros, sobrevivência, desastres, evacuação e autossuficiência, para ler sem internet."
     },
     "performance": {
       "provisional": "As faixas de velocidade são provisórias até serem medidas em celulares.",
@@ -585,7 +599,16 @@
       "importTitle": "Importe os arquivos",
       "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
       "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",
-      "toImport": "Ainda não importado"
+      "toImport": "Ainda não importado",
+      "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo).",
+      "answerModelTitle": "Modelo de respostas",
+      "answerModelFooter": "O padrão responde melhor perguntas difíceis; o compacto é mais rápido e usa menos memória. Dá para trocar depois em Modelos.",
+      "compactWhy": "A estimativa de memória indica que o padrão pode não rodar bem neste celular, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
+      "answerTier": {
+        "default": "Padrão: {{name}}",
+        "compact": "Compacto: {{name}}"
+      },
+      "suggestedHere": "sugerido para este celular"
     },
     "places": {
       "title": "Lugares (offline)",
@@ -610,7 +633,8 @@
       "notNow": "Agora não",
       "continue": "Continuar",
       "openSettings": "Abrir ajustes do app",
-      "otherRegion": "Escolher outra região"
+      "otherRegion": "Escolher outra região",
+      "vegan": "{{vegan}} com opção vegana · {{vegetarian}} vegetarianos"
     },
     "import": {
       "title": "Importar arquivos",
@@ -621,6 +645,24 @@
       "verified": "Verificado: {{item}}",
       "checkingAnnounce": "{{name}}: {{pct}}% conferido",
       "cancelA11y": "Cancelar a importação de {{name}}"
+    },
+    "travel": {
+      "searchLabel": "Vou viajar para…",
+      "searchPlaceholder": "Nome da cidade",
+      "resultsAnnounce_one": "{{count}} cidade encontrada",
+      "resultsAnnounce_other": "{{count}} cidades encontradas",
+      "noCity": "Nenhuma cidade com esse nome no índice offline.",
+      "population": "{{value}} habitantes",
+      "needGazetteer": "Para buscar cidades offline, instale o índice de lugares do mundo ({{size}}).",
+      "areaOf": "Área de {{city}} (~{{km}} km)",
+      "regionOf": "Região inteira: {{region}}",
+      "noPack": "Ainda não há pacote de lugares para esta cidade.",
+      "installed": "Instalado",
+      "byFile": "Instalado por arquivo",
+      "addHint": "Adiciona ao que a configuração instala",
+      "otherCity": "Buscar outra cidade",
+      "goingTo": "Vai viajar?",
+      "tripChosen": "Incluir {{label}}"
     }
   },
   "chat": {

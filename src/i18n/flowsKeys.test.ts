@@ -17,6 +17,7 @@ const FLOW_FILES = [
   "AboutScreen.tsx",
   "flows/CatalogRow.tsx",
   "flows/ImportList.tsx",
+  "flows/CitySearch.tsx",
   "navigation/RootNavigator.tsx",
 ].map((f) => join(__dirname, "..", "ui", f));
 
@@ -52,10 +53,11 @@ const DYNAMIC_KEYS = [
   ...expand("flows.onboarding.package.", ["essential.name", "essential.body", "encyclopedia.name", "encyclopedia.body"]),
   ...expand("flows.onboarding.step", ["2Title", "3Title"]),
   "flows.onboarding.languageAnnounce",
+  ...expand("flows.onboarding.answerTier.", ["default", "compact"]),
   ...expand("flows.places.reason.", ["timezone", "location", "manual"]),
   ...expand("flows.performance.band.", ["fast", "ok", "slow"]),
   ...expand("flows.performance.outcome.", ["success", "failure", "cancelled"]),
-  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "unknown-file", "offline-variant", "load", "unknown"]),
+  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "unknown-file", "too-large", "no-source", "offline-variant", "load", "unknown"]),
   ...expand("flows.row.fit.", ["streaming", "thrashing", "insufficient"]),
   ...expand("flows.row.fitShort.", ["streaming", "thrashing", "insufficient"]),
   ...expand("flows.row.kind.", ["llm", "embedding", "corpus"]),

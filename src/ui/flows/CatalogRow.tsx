@@ -9,7 +9,7 @@ import type { CatalogModel } from "../../models/manifest";
 import { formatBytes } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
-import { networkAllowed } from "../../config/variant";
+import { canDownload } from "./useCatalog";
 
 interface Props {
   model: CatalogModel;
@@ -66,7 +66,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const { state } = view;
   const b = seal(state, t);
   const size = formatBytes(model.sizeBytes, i18n.language);
-  const offline = !networkAllowed();
+  // No network in this build, or no published URL yet: the item comes in as a file.
+  const offline = !canDownload(model);
   const getLabel = offline ? t("flows.row.importFile", { size }) : t("flows.row.download", { size });
   const getIcon = offline ? ("file-plus" as const) : ("download" as const);
   const installed = state.kind === "installed" || state.kind === "in-use" || (state.kind === "failed" && state.errorKind === "load");

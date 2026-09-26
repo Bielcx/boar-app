@@ -24,7 +24,9 @@ import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
-import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { placesInstall, poiCatalogEntry, poiRegions, preparednessEntry } from "./flows/adapters";
+import { CitySearch } from "./flows/CitySearch";
+import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
 
 function importPercent(p: ImportProgress): number | undefined {
@@ -40,6 +42,7 @@ export function KnowledgeScreen() {
   const catalog = useCatalog();
   const lang = i18n.language;
   const regions = poiRegions();
+  const preparedness = preparednessEntry();
   const { refresh } = catalog;
   const [collections, setCollections] = useState<CustomCollection[] | null>(null);
   const [seed, setSeed] = useState<SeedProgress | null>(null);
@@ -170,6 +173,17 @@ export function KnowledgeScreen() {
         </View>
       )}
 
+      {preparedness && (
+        <Section title={t("flows.knowledge.preparednessTitle")} footer={t("flows.knowledge.preparednessFooter")}>
+          <CatalogRow
+            model={preparedness}
+            view={catalog.view(preparedness)}
+            onDownload={() => catalog.install([preparedness])}
+            onRemove={() => catalog.remove(preparedness)}
+          />
+        </Section>
+      )}
+
       <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
         <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
         {CORPUS_CATALOG.map((pack) => (
@@ -178,13 +192,13 @@ export function KnowledgeScreen() {
             model={pack}
             details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
-            onDownload={() => (networkAllowed() ? downloadPack(pack) : catalog.importFiles())}
+            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.importFiles())}
             onRemove={() => catalog.remove(pack)}
           />
         ))}
       </Section>
 
-      {catalog.imports.length > 0 && (
+      {(catalog.imports.length > 0 || regions.some((r) => !canDownload(poiCatalogEntry(r)) && !catalog.statuses[poiCatalogEntry(r).id]?.present)) && (
         <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
           <View style={{ padding: tokens.space.base }}>
             <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
@@ -193,6 +207,9 @@ export function KnowledgeScreen() {
       )}
 
       <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
+        <View style={{ padding: tokens.space.base }}>
+          <CitySearch catalog={catalog} />
+        </View>
         {regions.length === 0 ? (
           <View style={{ padding: tokens.space.base }}>
             <Text variant="callout" color="secondary">
@@ -211,12 +228,13 @@ export function KnowledgeScreen() {
                 title={name}
                 meta={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
                 details={[
+                  t("flows.places.vegan", { vegan: formatCount(r.veganCount, lang), vegetarian: formatCount(r.vegetarianCount, lang) }),
                   cities.more > 0
                     ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more })
                     : cities.names.join(", "),
                 ].filter(Boolean)}
                 view={catalog.view(entry)}
-                onDownload={() => (networkAllowed() ? catalog.download(entry) : catalog.importFiles())}
+                onDownload={() => catalog.install(placesInstall(r))}
                 onRemove={() => catalog.remove(entry)}
               />
             );

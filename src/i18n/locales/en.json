@@ -355,7 +355,9 @@
         "offline-variant": "This version has no internet access. Import the file instead.",
         "load": "Couldn't load this model.",
         "unknown": "Something went wrong.",
-        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item."
+        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item.",
+        "too-large": "This file is larger than BOAR accepts for this kind of item.",
+        "no-source": "This item isn't published for download yet. Import its file instead."
       },
       "download": "Download {{size}}",
       "retry": "Try again",
@@ -403,7 +405,17 @@
       "addToList": "Add to Models",
       "added": "{{name}} added to Models",
       "addFailed": "Couldn't add it: {{error}}",
-      "nowAnswering": "{{name}} now writes your answers"
+      "nowAnswering": "{{name}} now writes your answers",
+      "deepTitle": "Model for full answers",
+      "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at {{min}} tokens/s or more.",
+      "deepAuto": "Automatic",
+      "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
+      "deepNone": "None: always use the answer model",
+      "notMeasured": "Not measured on this phone yet",
+      "measured_one": "{{rate}} tokens/s · {{count}} answer · measured on this phone on {{date}}",
+      "measured_other": "{{rate}} tokens/s · median of {{count}} answers · measured on this phone on {{date}}",
+      "tooSlow": "Not available in automatic mode: too slow on this phone.",
+      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",
@@ -448,7 +460,9 @@
       "indexed": "Indexed",
       "indexError": "Indexing failed: {{error}}",
       "importCancelled": "Import cancelled",
-      "cancelImportA11y": "Cancel importing {{name}}"
+      "cancelImportA11y": "Cancel importing {{name}}",
+      "preparednessTitle": "Emergency & preparedness",
+      "preparednessFooter": "First aid, survival, disasters, evacuation and self-reliance, readable without internet."
     },
     "performance": {
       "provisional": "Speed ratings are provisional until they are measured on phones.",
@@ -585,7 +599,16 @@
       "importTitle": "Import the files",
       "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
       "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
-      "toImport": "Not imported yet"
+      "toImport": "Not imported yet",
+      "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file).",
+      "answerModelTitle": "Answer model",
+      "answerModelFooter": "The standard model answers hard questions better; the compact one is faster and needs less memory. You can switch later in Models.",
+      "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
+      "answerTier": {
+        "default": "Standard: {{name}}",
+        "compact": "Compact: {{name}}"
+      },
+      "suggestedHere": "suggested for this phone"
     },
     "places": {
       "title": "Places (offline)",
@@ -610,7 +633,8 @@
       "notNow": "Not now",
       "continue": "Continue",
       "openSettings": "Open app settings",
-      "otherRegion": "Choose another region"
+      "otherRegion": "Choose another region",
+      "vegan": "{{vegan}} with vegan options · {{vegetarian}} vegetarian"
     },
     "import": {
       "title": "Import files",
@@ -621,6 +645,24 @@
       "verified": "Verified: {{item}}",
       "checkingAnnounce": "{{name}}: {{pct}}% checked",
       "cancelA11y": "Cancel importing {{name}}"
+    },
+    "travel": {
+      "searchLabel": "Travelling to…",
+      "searchPlaceholder": "City name",
+      "resultsAnnounce_one": "{{count}} city found",
+      "resultsAnnounce_other": "{{count}} cities found",
+      "noCity": "No city with that name in the offline index.",
+      "population": "{{value}} people",
+      "needGazetteer": "To search cities offline, install the world places index ({{size}}).",
+      "areaOf": "{{city}} area (~{{km}} km)",
+      "regionOf": "Whole region: {{region}}",
+      "noPack": "No places pack covers this city yet.",
+      "installed": "Installed",
+      "byFile": "Installed from a file",
+      "addHint": "Adds it to what setup installs",
+      "otherCity": "Search another city",
+      "goingTo": "Travelling somewhere?",
+      "tripChosen": "Include {{label}}"
     }
   },
   "chat": {
