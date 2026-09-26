@@ -133,6 +133,10 @@ const SOURCE_LABEL: Record<PackHit["source"], string> = {
   enwikibooks: "Wikibooks",
   appropedia: "Appropedia",
   usgov: "US government",
+  eips: "Ethereum EIPs/ERCs",
+  ethspecs: "Ethereum specs",
+  ethereumorg: "ethereum.org",
+  bips: "Bitcoin BIPs",
 };
 
 /** URL of a pack article: its recorded URL, else the Wikipedia/Wikivoyage/Wikibooks page for its title. */

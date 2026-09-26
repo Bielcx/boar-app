@@ -3,7 +3,7 @@
  * native imports so pure code and tests can use the types.
  */
 
-export type PassageSourceKind = "enwiki" | "enwikivoyage" | "enwikibooks" | "appropedia" | "usgov" | "builtin" | "user";
+export type PassageSourceKind = "enwiki" | "enwikivoyage" | "enwikibooks" | "appropedia" | "usgov" | "eips" | "ethspecs" | "ethereumorg" | "bips" | "builtin" | "user";
 
 export interface PassageSentence {
   text: string;
