@@ -1,6 +1,7 @@
 import { llamaEngine } from "../inference/LlamaEngine";
 import { retrieve, RetrievedChunk, ConversationHistory } from "../rag/retrieve";
 import { compressContext, mergeSources } from "../routing/context";
+import { taskRequest } from "../inference/format";
 
 /**
  * "Deep Research Mode" — a sequential multi-pass pipeline over the SAME
@@ -59,9 +60,7 @@ export interface ResearchOptions {
  * one (plain completion prompts make instruct models ramble), else plain.
  */
 function generateStage(system: string, user: string, opts: Omit<Parameters<typeof llamaEngine.generate>[0], "prompt" | "messages">) {
-  return llamaEngine.hasEmbeddedChatTemplate()
-    ? llamaEngine.generate({ ...opts, messages: [{ role: "system", content: system }, { role: "user", content: user }] })
-    : llamaEngine.generate({ ...opts, prompt: `${system}\n\n${user}\n\nAnswer:` });
+  return llamaEngine.generate({ ...opts, ...taskRequest(system, user, "Answer:", llamaEngine.hasEmbeddedChatTemplate()) });
 }
 
 /** Context block numbered with GLOBAL source numbers. */

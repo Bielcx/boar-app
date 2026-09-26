@@ -18,6 +18,19 @@ import { listDiscoveredModels } from "../models/discoveredModels";
 import { getActiveModelId, getAnswerSettings } from "../models/settings";
 import { runDeepResearch } from "../services/orchestrator";
 import { createAnswerer, InstalledLlm } from "./answer";
+import type { GeoProviders } from "./geo";
+
+let geoProviders: GeoProviders | null = null;
+
+/**
+ * Plugs in offline places: the POI pack (src/rag/pois.ts: resolvePlace,
+ * searchPois) and device location (src/services/location.ts, which must not
+ * prompt for permission). Called once by the app shell when both exist;
+ * until then places questions answer "places pack not installed".
+ */
+export function registerGeoProviders(p: GeoProviders | null): void {
+  geoProviders = p;
+}
 
 async function listInstalledLlms(): Promise<InstalledLlm[]> {
   // Models picked from the Hugging Face browser live in discoveredModels, not MODEL_CATALOG.
@@ -46,4 +59,5 @@ export const { answer, deepen } = createAnswerer({
   assembleChatMessages,
   now: () => performance.now(),
   contextSize: defaultContextSize,
+  getGeoProviders: () => geoProviders,
 });
