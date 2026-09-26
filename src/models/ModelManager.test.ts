@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 
 // In-memory stand-in for expo-file-system/legacy: path -> bytes.
 const files = new Map<string, Buffer>();
+// Pretend sizes for huge files we don't want to allocate.
+const fakeSizes = new Map<string, number>();
 let mtime = 1;
 const mtimes = new Map<string, number>();
 const put = (path: string, data: Buffer) => {
@@ -21,7 +23,7 @@ vi.mock("expo-file-system/legacy", () => ({
   documentDirectory: "file:///doc/",
   getInfoAsync: async (path: string) =>
     files.has(path)
-      ? { exists: true, isDirectory: false, size: files.get(path)!.length, modificationTime: mtimes.get(path) }
+      ? { exists: true, isDirectory: false, size: fakeSizes.get(path) ?? files.get(path)!.length, modificationTime: mtimes.get(path) }
       : { exists: false },
   deleteAsync: async (path: string) => {
     files.delete(path);
@@ -99,6 +101,7 @@ vi.mock("./fileHash", () => ({
 }));
 
 import { ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
+import { registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
 import { AssetIntegrityError } from "./integrity";
 import type { CatalogModel } from "./manifest";
 
@@ -130,6 +133,7 @@ beforeEach(() => {
   dropConnectionAt = null;
   ignoreRange = false;
   requestedOffsets.length = 0;
+  fakeSizes.clear();
 });
 
 async function rejection(p: Promise<unknown>): Promise<AssetIntegrityError> {
@@ -336,5 +340,44 @@ describe("importFromFile with an extended catalog (place packs, gazetteer)", () 
     expect((await rejection(new ModelManager([asset()]).importFromFile(SRC))).kind).toBe("unknown-file");
     const noHash = { ...poi, sha256: "" };
     expect((await rejection(new ModelManager([]).importFromFile(SRC, undefined, undefined, [noHash]))).kind).toBe("unknown-file");
+  });
+});
+
+describe("import size limits", () => {
+  const SRC = "content://picker/doc/4";
+
+  it("rejects a file bigger than anything installable before copying or hashing it", async () => {
+    put(SRC, body);
+    fakeSizes.set(SRC, 40 * 1024 ** 3);
+    const e = await rejection(new ModelManager([asset()]).importFromFile(SRC));
+    expect(e).toMatchObject({ kind: "too-large", permanent: true });
+    expect(e.message).toMatch(/This file is 40\.0 GB; nothing BOAR can install is larger than 30\.0 GB/);
+    expect([...files.keys()]).toEqual([SRC]);
+  });
+});
+
+describe("asset registry integration", () => {
+  const SRC = "content://picker/doc/5";
+  const gazetteer = Buffer.from("GeoNames cities15000, as SQLite");
+
+  it("a default ModelManager imports any registered asset, e.g. the gazetteer, with no download URL", async () => {
+    registerAssetProvider("poi", () => [
+      asset({ id: "poi-world-places", kind: "corpus", format: "poi-pack", filename: "poi/world-places.sqlite", sourceUrl: "", sizeBytes: gazetteer.length, sha256: sha(gazetteer) }),
+    ]);
+    try {
+      put(SRC, gazetteer);
+      const got = await new ModelManager().importFromFile(SRC);
+      expect(got.id).toBe("poi-world-places");
+      expect(files.get("file:///doc/poi/world-places.sqlite")).toEqual(gazetteer);
+    } finally {
+      unregisterAssetProvider("poi");
+    }
+  });
+
+  it("refuses to download an asset that has no source URL yet, pointing to import", async () => {
+    const a = asset({ sourceUrl: "" });
+    const e = await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    expect(e).toMatchObject({ kind: "no-source", permanent: true });
+    expect(e.message).toMatch(/Import the file/);
   });
 });

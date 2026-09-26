@@ -4,6 +4,8 @@ import { networkAllowed } from "../config/variant";
 import { checkStorageForDownload } from "./storageBudget";
 import { copyWithSha256, sha256OfFile, HashProgress } from "./fileHash";
 import { AssetIntegrityError, candidatesBySize, digestsEqual, matchByDigest, throwIfAborted } from "./integrity";
+import { allAssets } from "./assetRegistry";
+import { checkImportSize, formatBytes, importKindOfAsset, MAX_ASSET_IMPORT_BYTES } from "./importLimits";
 import {
   CatalogModel,
   MODEL_CATALOG,
@@ -55,7 +57,7 @@ const downloadsOwningFile = new Map<string, CatalogModel>();
 const progressHooks = new Map<string, (data: FileSystem.DownloadProgressData) => void>();
 
 // Everything BOAR stores that counts toward the 50GB budget.
-const STORAGE_DIRS = ["models/", "corpus/", "SQLite/"];
+const STORAGE_DIRS = ["models/", "corpus/", "poi/", "SQLite/"];
 
 /** Bytes used by BOAR's offline assets, not counting the partial files of the given paths. */
 async function measureUsedBytes(excludePaths: Set<string>): Promise<number> {
@@ -145,7 +147,20 @@ export function resetVerifiedCacheForTests(): void {
  *    build) but available as an alternate build path — see manifest.ts.
  */
 export class ModelManager {
-  constructor(private catalog: CatalogModel[] = MODEL_CATALOG) {}
+  /**
+   * `catalog` is what statusAll() reports on. File imports match against
+   * the whole asset registry (catalog + places packs + gazetteer + ...)
+   * unless this instance was given an explicit catalog (tests, tools).
+   */
+  constructor(private catalog: CatalogModel[] = MODEL_CATALOG) {
+    this.explicitCatalog = catalog !== MODEL_CATALOG;
+  }
+
+  private explicitCatalog: boolean;
+
+  private importCatalog(): CatalogModel[] {
+    return this.explicitCatalog ? this.catalog : allAssets();
+  }
 
   /**
    * Paused-but-resumable downloads, keyed by asset id. expo-file-system's
@@ -237,7 +252,7 @@ export class ModelManager {
     srcUri: string,
     onProgress?: HashProgress,
     signal?: AbortSignal,
-    catalog: CatalogModel[] = this.catalog
+    catalog: CatalogModel[] = this.importCatalog()
   ): Promise<CatalogModel> {
     // Entries without a known hash can't be identified by content.
     catalog = catalog.filter((a) => /^[0-9a-f]{64}$/i.test(a.sha256));
@@ -247,7 +262,15 @@ export class ModelManager {
       throw new AssetIntegrityError("unknown-file", "The selected file could not be read.", true);
     }
     const size = src.size ?? 0;
-    const candidates = candidatesBySize(catalog, size);
+    // Before anything is copied: nothing installable is this big.
+    if (size > MAX_ASSET_IMPORT_BYTES) {
+      throw new AssetIntegrityError(
+        "too-large",
+        `This file is ${formatBytes(size)}; nothing BOAR can install is larger than ${formatBytes(MAX_ASSET_IMPORT_BYTES)}.`,
+        true
+      );
+    }
+    const candidates = candidatesBySize(catalog, size).filter((a) => checkImportSize(importKindOfAsset(a), size).ok);
     if (candidates.length === 0) {
       throw new AssetIntegrityError(
         "unknown-file",
@@ -370,6 +393,13 @@ export class ModelManager {
     asset: CatalogModel,
     onProgress?: (p: DownloadProgress) => void
   ): Promise<void> {
+    if (!asset.sourceUrl) {
+      throw new AssetIntegrityError(
+        "no-source",
+        `${asset.label} isn't available for download yet. Import the file instead (docs/OFFLINE_INSTALL.md).`,
+        true
+      );
+    }
     if (!networkAllowed()) {
       throw new AssetIntegrityError(
         "offline-variant",

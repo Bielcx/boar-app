@@ -14,6 +14,19 @@ shasum -a 256 *.gguf     # compare with the table below (Linux: sha256sum)
 adb push *.gguf /sdcard/Download/
 ```
 
+### Phone only (no computer, no adb)
+
+The offline build has no network permission, but the phone's browser does:
+
+1. On the phone, open this page in the browser and tap each link in the table
+   below. The files land in **Downloads**.
+2. In BOAR Offline: setup → **Import from file**, and select all of them at
+   once (the picker allows several).
+3. Each file is copied into the app and checked; the browser copy in Downloads
+   can be deleted afterwards.
+
+### With a computer
+
 Then in BOAR: setup → **Import from file**, pick the files. Each one is copied
 into the app and hashed while copying; a match shows it as verified, anything
 else is deleted with the reason. Import works in both builds.
@@ -35,6 +48,35 @@ re-checks every entry against its host.
 | Standard knowledge base (+1,000 topics) | 0.6 MB | [link](https://raw.githubusercontent.com/rferrari/boar-app/9e46dc4d8f9a95bc7716194b94117f769504c0e0/assets/corpus/corpus-standard.json) | `2aeff76db48098851e1304fb37dc8013d9facf9214395897e7e05f276f85d2ff` |
 | Full knowledge base (+4,000 topics) | 2.5 MB | [link](https://raw.githubusercontent.com/rferrari/boar-app/9e46dc4d8f9a95bc7716194b94117f769504c0e0/assets/corpus/corpus-full.json) | `6d602003bb9da59200e3e55b75b9e15bb073a4b9b1357da2c2d47b2803c570be` |
 | Wikipedia Vital Articles (+50,000 articles) | 163.6 MB | [link](https://github.com/rferrari/boar-app/releases/download/knowledge-pack-v1/wiki-vital5.sqlite) | `d3b87d562baba3489f6878bf99783f50d504db94c347029771e53f6d1aecc666` |
+
+## Places (restaurants near you)
+
+Answering "vegan restaurants in the city I'm in" needs two files: the world
+gazetteer `world-places.sqlite` (city names → coordinates, GeoNames, 20.8 MB,
+always needed) and a places pack for the region (OpenStreetMap food places plus
+Wikivoyage Eat/Drink). Their sizes and SHA-256 are listed in
+`src/rag/poiRegions.ts`, and they install by file import like any model. Their
+download links will be added to the table above once they're published as
+release assets.
+
+## Size limits
+
+Files are checked before anything is copied:
+
+| Kind | Max |
+|---|---|
+| Language model (GGUF) | 24 GB |
+| Embedding model | 2 GB |
+| Knowledge pack (SQLite) | 30 GB |
+| Places pack | 4 GB |
+| Topic list (JSON) | 64 MB |
+| Your notes and documents (.txt, .md, .csv, .json) | 25 MB each |
+| Your PDFs | 100 MB each |
+
+Models and packs are streamed from disk (never loaded whole into memory), so
+their limits only reject files that can't be right. Notes and documents are
+read into memory to be split and indexed, which is why theirs are small.
+Source: `src/models/importLimits.ts`.
 
 ## What the app checks
 
