@@ -16,6 +16,10 @@ IOS_TEAM=<team id> IOS_DEVICE=3498052E-FE1D-5F23-A4F0-F2ABB29B8221 \
 # Free Apple ID and signing fails on the memory entitlement:
 IOS_STRIP_ENTITLEMENTS=com.apple.developer.kernel.increased-memory-limit ...
 
+# Models without network: copy them into the app container (after the first install).
+# compact = bge + Qwen2.5-1.5B, 4b = bge + Qwen3-4B-Instruct-2507, all = both LLMs
+IOS_DEVICE=3498052E-FE1D-5F23-A4F0-F2ABB29B8221 scripts/ios-device-seed-models.sh /Users/r4to/Script/boar/shared-models all
+
 # Memory trace: relaunch attached to the console, keep it running during the test
 xcrun devicectl device process launch --console --terminate-existing \
   --device 3498052E-FE1D-5F23-A4F0-F2ABB29B8221 team.sopa.aoair | tee smoke-mem.log
@@ -34,6 +38,19 @@ The team id is in Xcode > Settings > Accounts on the build Mac. It stays in the 
 | 5 | Turn on airplane mode (Wi-Fi and cellular off), kill and relaunch the app, ask a second question, e.g. "How do black holes form?" | Same quality of answer, no network error anywhere | TTFT, tok/s, memory |
 | 6 | Voice button (if shown) | Works only if iOS has an on-device model for the locale; otherwise the button reports unavailable, never silently uses the network | Result |
 | 7 | Background the app for 1 min during an answer, return | App is still alive (not jetsam-killed), answer finished or cleanly stopped | Survived yes/no |
+
+## 1.5B vs 4B on the 4GB iPhone (v1.1 default decision)
+
+The v1.1 default is Qwen3-4B-Instruct-2507 Q4_K_M. It stays the default on this phone only if, with n_ctx 2048, it (a) loads and answers without a jetsam kill and (b) decodes at ≥ ~6 tok/s. Otherwise the 4GB iPhone defaults to the Compact model (Qwen2.5-1.5B) via `defaultLlmIdFor(totalRamBytes)` in `src/models/manifest.ts`, and the engine owner is told.
+
+Run steps 4 and 5 once per model (switch in Settings), same two questions, and fill:
+
+| Model | Load (s) | TTFT (s) | Decode tok/s | Peak footprint (MB) | Min available (MB) | Jetsam? |
+|---|---|---|---|---|---|---|
+| Qwen2.5-1.5B Q4_K_M (0.94 GB) | | | | | | |
+| Qwen3-4B-Instruct-2507 Q4_K_M (2.5 GB) | | | | | | |
+
+Also record `getDeviceTotalRamBytes()` on this phone (expected ~3.7–4 GB, below the 4.5 GB threshold, so the rule picks Compact today).
 
 ## Memory to record
 
