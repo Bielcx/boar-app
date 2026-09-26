@@ -5,6 +5,7 @@
   "license": "MIT",
   "main": "index.ts",
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "adb": "^0.2.0",
     "bundled-assets": "file:./modules/bundled-assets",
     "download-wake-lock": "file:./modules/download-wake-lock",
@@ -21,6 +22,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
+    "file-hash": "file:./modules/file-hash",
     "i18next": "^26.4.2",
     "llama.rn": "^0.13.0-rc.4",
     "ram-monitor": "file:./modules/ram-monitor",
@@ -46,7 +48,8 @@
     "eval:device": "node scripts/eval-device.mjs",
     "eval:summary": "node scripts/eval-summary.mjs",
     "pack:build": "node scripts/build-knowledge-pack.mjs",
-    "pack:push": "node scripts/push-knowledge-pack.mjs"
+    "pack:push": "node scripts/push-knowledge-pack.mjs",
+    "manifest:verify": "node scripts/verify-manifest-pins.mjs"
   },
   "private": true
 }

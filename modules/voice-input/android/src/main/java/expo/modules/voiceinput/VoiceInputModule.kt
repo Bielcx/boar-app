@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,8 +18,18 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 /**
- * Offline speech-to-text via Android's built-in SpeechRecognizer with
- * EXTRA_PREFER_OFFLINE. This depends on a system-provided recognition
+ * Speech-to-text via Android's SpeechRecognizer, in one of two modes
+ * (getRecognitionMode):
+ *
+ * - "on-device": Android 12+ createOnDeviceSpeechRecognizer. Audio is
+ *   processed on the phone; this is the only mode BOAR uses by default.
+ * - "system": the regular system recognition service with
+ *   EXTRA_PREFER_OFFLINE, which is only a hint — Google's service (or an
+ *   OEM's) may send audio to its servers. The JS side only allows it after
+ *   the user explicitly accepts that (src/voice/voicePolicy.ts), and never
+ *   in the offline build.
+ *
+ * Both depend on a system-provided recognition
  * service (Google's, or an OEM's) being installed — commonly true on stock
  * Android/most OEM builds, commonly FALSE on GrapheneOS or other
  * de-Googled builds with no such service. isAvailable() reflects this
@@ -49,7 +60,24 @@ class VoiceInputModule : Module() {
       }
     }
 
-    AsyncFunction("startListening") { promise: Promise ->
+    AsyncFunction("getRecognitionMode") { promise: Promise ->
+      val context = appContext.reactContext
+      if (context == null) {
+        promise.resolve("unavailable")
+        return@AsyncFunction
+      }
+      mainHandler.post {
+        promise.resolve(
+          when {
+            onDeviceAvailable(context) -> "on-device"
+            SpeechRecognizer.isRecognitionAvailable(context) -> "system"
+            else -> "unavailable"
+          }
+        )
+      }
+    }
+
+    AsyncFunction("startListening") { requireOnDevice: Boolean, promise: Promise ->
       val context = appContext.reactContext
       if (context == null) {
         promise.reject("E_NO_CONTEXT", "No React context available", null)
@@ -61,8 +89,13 @@ class VoiceInputModule : Module() {
         Manifest.permission.RECORD_AUDIO
       ) == PackageManager.PERMISSION_GRANTED
 
+      if (requireOnDevice && !onDeviceAvailable(context)) {
+        promise.reject("E_ON_DEVICE_UNAVAILABLE", "On-device speech recognition is not available on this phone", null)
+        return@AsyncFunction
+      }
+
       if (hasPermission) {
-        beginListening(context, promise)
+        beginListening(context, requireOnDevice, promise)
         return@AsyncFunction
       }
 
@@ -74,7 +107,7 @@ class VoiceInputModule : Module() {
       permissions.askForPermissions({ result ->
         val granted = result[Manifest.permission.RECORD_AUDIO]?.status == PermissionsStatus.GRANTED
         if (granted) {
-          beginListening(context, promise)
+          beginListening(context, requireOnDevice, promise)
         } else {
           promise.reject("E_PERMISSION_DENIED", "Microphone permission denied", null)
         }
@@ -96,11 +129,20 @@ class VoiceInputModule : Module() {
     }
   }
 
-  private fun beginListening(context: Context, promise: Promise) {
+  private fun onDeviceAvailable(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+      SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+
+  private fun beginListening(context: Context, requireOnDevice: Boolean, promise: Promise) {
     mainHandler.post {
       try {
         recognizer?.destroy()
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+        val created = if (requireOnDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+        } else {
+          SpeechRecognizer.createSpeechRecognizer(context)
+        }
+        recognizer = created.apply {
           setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {}
 

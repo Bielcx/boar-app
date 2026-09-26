@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   typecheck-and-test:
@@ -17,3 +18,60 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  # Fast gate on every PR: generate the offline variant's native project and
+  # let Gradle merge every library's manifest, then fail if anything brought
+  # INTERNET (or another network permission) back. No native compilation.
+  offline-manifest-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+      - name: Prebuild offline variant
+        run: npx expo prebuild -p android --clean --no-install
+        env:
+          EXPO_PUBLIC_BOAR_VARIANT: offline
+      - name: Merge release manifest
+        working-directory: android
+        run: ./gradlew --no-daemon :app:processReleaseMainManifest
+      - name: Audit merged manifest
+        run: |
+          manifest=$(find android/app/build/intermediates -path '*merged_manifest*release*' -name AndroidManifest.xml | head -1)
+          test -n "$manifest" || { echo "merged manifest not found"; exit 1; }
+          echo "auditing $manifest"
+          scripts/audit-offline-apk.sh "$manifest"
+
+  # Full build of the offline APK plus a dex/manifest audit of the result
+  # (permissions, network/cloud libraries). Slow (native llama.cpp build), so
+  # it runs on main and on demand, and uploads the APK with its sha256.
+  offline-apk:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: npm ci
+      - name: Build and audit offline APK
+        run: scripts/build-variant.sh offline
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boar-offline-apk
+          path: dist/
+          if-no-files-found: error

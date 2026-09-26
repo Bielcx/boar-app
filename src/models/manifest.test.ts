@@ -72,3 +72,20 @@ describe("TIERS", () => {
     for (const id of byId.full) expect(byId.encyclopedia.has(id)).toBe(true);
   });
 });
+
+describe("sourceUrl pinning", () => {
+  // A branch URL (resolve/main, raw/.../main/) can change under us: the file
+  // would then fail its sha256 check and block every new install at setup.
+  const IMMUTABLE = [
+    /^https:\/\/huggingface\.co\/[^/]+\/[^/]+\/resolve\/[0-9a-f]{40}\/[^/]+$/,
+    /^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[0-9a-f]{40}\//,
+    // Release assets are addressed by tag; the sha256 check still guards them.
+    /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/]+\/[^/]+$/,
+  ];
+
+  it("every catalog entry points at a commit or release, never a branch", () => {
+    for (const m of MODEL_CATALOG) {
+      expect(IMMUTABLE.some((re) => re.test(m.sourceUrl)), `${m.id}: ${m.sourceUrl}`).toBe(true);
+    }
+  });
+});

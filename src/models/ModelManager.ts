@@ -1,7 +1,9 @@
 import * as FileSystem from "expo-file-system/legacy";
-import * as Crypto from "expo-crypto";
-import { copyBundledAssetToFile } from "bundled-assets";
+import * as BundledAssets from "bundled-assets";
+import { networkAllowed } from "../config/variant";
 import { checkStorageForDownload } from "./storageBudget";
+import { copyWithSha256, sha256OfFile, HashProgress } from "./fileHash";
+import { AssetIntegrityError, candidatesBySize, digestsEqual, matchByDigest } from "./integrity";
 import {
   CatalogModel,
   MODEL_CATALOG,
@@ -13,10 +15,13 @@ export interface AssetStatus {
   asset: CatalogModel;
   present: boolean;
   sizeOnDiskBytes: number;
-  checksumOk: boolean | null; // null = not verified yet (expensive on large files)
+  /** true = sha256 checked for this exact file; null = present, not hashed yet. */
+  checksumOk: boolean | null;
 }
 
 export interface DownloadProgress {
+  /** "verifying" = sha256 of the finished file; bytes then count bytes hashed. */
+  phase?: "downloading" | "verifying";
   totalBytesWritten: number;
   totalBytesExpectedToWrite: number;
 }
@@ -45,6 +50,7 @@ function dlog(assetId: string, message: string): void {
 // it keeps writing to the unlinked inode, resolves 200, and the path is
 // simply gone at verification time.)
 const downloadsOwningFile = new Map<string, CatalogModel>();
+const progressHooks = new Map<string, (data: FileSystem.DownloadProgressData) => void>();
 
 // Everything BOAR stores that counts toward the 50GB budget.
 const STORAGE_DIRS = ["models/", "corpus/", "SQLite/"];
@@ -67,6 +73,59 @@ async function measureUsedBytes(excludePaths: Set<string>): Promise<number> {
 
 function assetPath(asset: Pick<CatalogModel, "filename">): string {
   return `${FileSystem.documentDirectory}${asset.filename}`;
+}
+
+/**
+ * Files whose sha256 was checked on this device, keyed by filename, with the
+ * size and mtime they had then. A file that changed since doesn't count.
+ * Lets the UI show "verified" without re-hashing gigabytes on every launch.
+ */
+type VerifiedRecord = { size: number; mtime: number; sha256: string };
+const VERIFIED_PATH = () => `${FileSystem.documentDirectory}integrity.json`;
+let verifiedCache: Record<string, VerifiedRecord> | null = null;
+
+async function loadVerified(): Promise<Record<string, VerifiedRecord>> {
+  if (verifiedCache) return verifiedCache;
+  try {
+    verifiedCache = JSON.parse(await FileSystem.readAsStringAsync(VERIFIED_PATH())) ?? {};
+  } catch {
+    verifiedCache = {};
+  }
+  return verifiedCache!;
+}
+
+async function recordVerified(asset: CatalogModel): Promise<void> {
+  const info = await FileSystem.getInfoAsync(assetPath(asset));
+  if (!info.exists) return;
+  const records = await loadVerified();
+  records[asset.filename] = { size: info.size ?? 0, mtime: info.modificationTime ?? 0, sha256: asset.sha256 };
+  await FileSystem.writeAsStringAsync(VERIFIED_PATH(), JSON.stringify(records)).catch(() => {});
+}
+
+/**
+ * Multi-GB models must not go to iCloud/device backup (App Store rule).
+ * excludeFromBackup lands in bundled-assets with the iOS work; until then,
+ * and on Android where it's a no-op, this does nothing.
+ */
+async function excludeFromBackup(path: string): Promise<void> {
+  const fn = (BundledAssets as { excludeFromBackup?: (p: string) => unknown }).excludeFromBackup;
+  try {
+    await fn?.(path);
+  } catch (e: any) {
+    console.warn("[ModelManager] excludeFromBackup failed:", e?.message ?? e);
+  }
+}
+
+async function forgetVerified(asset: Pick<CatalogModel, "filename">): Promise<void> {
+  const records = await loadVerified();
+  if (!(asset.filename in records)) return;
+  delete records[asset.filename];
+  await FileSystem.writeAsStringAsync(VERIFIED_PATH(), JSON.stringify(records)).catch(() => {});
+}
+
+/** For tests: drop the in-memory copy of integrity.json. */
+export function resetVerifiedCacheForTests(): void {
+  verifiedCache = null;
 }
 
 /**
@@ -124,11 +183,17 @@ export class ModelManager {
       await FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {});
       return { asset, present: false, sizeOnDiskBytes: 0, checksumOk: null };
     }
+    const record = (await loadVerified())[asset.filename];
+    const verified =
+      !!record &&
+      record.size === sizeOnDisk &&
+      record.mtime === (info.modificationTime ?? 0) &&
+      digestsEqual(record.sha256, asset.sha256);
     return {
       asset,
       present: true,
       sizeOnDiskBytes: sizeOnDisk,
-      checksumOk: null,
+      checksumOk: verified ? true : null,
     };
   }
 
@@ -137,23 +202,84 @@ export class ModelManager {
   }
 
   /**
-   * Streams the file and computes sha256. Cheap for the embedding model
-   * (tens of MB); for a multi-GB LLM this reads the whole file as a base64
-   * string in JS, which is memory-heavy — used sparingly (dev/setup-time
-   * verification), not on every app launch. See downloadCatalogModel for
-   * the cheaper size-only check used after an on-device download.
+   * Streaming sha256 of the installed file (native, chunked: memory stays
+   * flat even for multi-GB models) compared against the catalog. A match is
+   * remembered in integrity.json so statusOf() reports checksumOk: true.
    */
-  async verifyChecksum(asset: Pick<CatalogModel, "filename" | "sha256">): Promise<boolean> {
+  async verifyChecksum(asset: CatalogModel, onProgress?: HashProgress): Promise<boolean> {
+    // Hugging Face search results without LFS metadata have no known hash:
+    // size is all we can check, and deleting them here would make them
+    // impossible to install.
     if (!asset.sha256) return true;
-    const path = assetPath(asset);
-    const digest = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      await FileSystem.readAsStringAsync(path, {
-        encoding: FileSystem.EncodingType.Base64,
-      }),
-      { encoding: Crypto.CryptoEncoding.HEX }
-    );
-    return digest.toLowerCase() === asset.sha256.toLowerCase();
+    const digest = await sha256OfFile(assetPath(asset), onProgress);
+    const ok = digestsEqual(asset.sha256, digest);
+    if (ok) await recordVerified(asset);
+    else await forgetVerified(asset);
+    dlog(asset.id, `sha256 ${ok ? "ok" : `MISMATCH: got ${digest}, expected ${asset.sha256}`}`);
+    return ok;
+  }
+
+  /**
+   * Installs an asset from a file the user picked (SAF / document picker),
+   * with no network. The file is identified by content, not name: its size
+   * narrows the catalog, then its sha256 (computed while copying, in one
+   * pass) must match exactly one entry. Anything else is deleted and
+   * rejected. Returns the catalog entry that was installed.
+   */
+  async importFromFile(
+    srcUri: string,
+    onProgress?: HashProgress,
+    catalog: CatalogModel[] = this.catalog
+  ): Promise<CatalogModel> {
+    const src = await FileSystem.getInfoAsync(srcUri);
+    if (!src.exists || src.isDirectory) {
+      throw new AssetIntegrityError("unknown-file", "The selected file could not be read.", true);
+    }
+    const size = src.size ?? 0;
+    const candidates = candidatesBySize(catalog, size);
+    if (candidates.length === 0) {
+      throw new AssetIntegrityError(
+        "unknown-file",
+        `This file (${size} bytes) is not a model or pack BOAR knows. Check that it is the exact file listed in docs/OFFLINE_INSTALL.md.`,
+        true
+      );
+    }
+
+    const others = [...downloadsOwningFile.values()];
+    const storage = checkStorageForDownload({
+      usedBytes: await measureUsedBytes(new Set(others.map(assetPath))),
+      reservedBytes: others.reduce((sum, m) => sum + m.sizeBytes, 0),
+      downloadBytes: size,
+      alreadyDownloadedBytes: 0,
+      freeDiskBytes: await FileSystem.getFreeDiskStorageAsync().catch(() => null),
+      budgetBytes: STORAGE_BUDGET_BYTES,
+    });
+    if (!storage.ok) throw new AssetIntegrityError("storage", storage.message, true);
+
+    const tmpDir = `${FileSystem.documentDirectory}imports/`;
+    await FileSystem.makeDirectoryAsync(tmpDir, { intermediates: true }).catch(() => {});
+    const tmpPath = `${tmpDir}import-${Date.now()}.part`;
+    try {
+      const { sha256, bytes } = await copyWithSha256(srcUri, tmpPath, onProgress);
+      const match = matchByDigest(candidates, bytes, sha256);
+      if (!match) {
+        throw new AssetIntegrityError(
+          "hash-mismatch",
+          `The file's SHA-256 (${sha256}) does not match any catalog entry of that size. It may be corrupt or a different build of the model.`,
+          true
+        );
+      }
+      const dest = assetPath(match);
+      await FileSystem.makeDirectoryAsync(dest.substring(0, dest.lastIndexOf("/")), { intermediates: true }).catch(() => {});
+      await FileSystem.deleteAsync(dest, { idempotent: true });
+      await FileSystem.moveAsync({ from: tmpPath, to: dest });
+      await recordVerified(match);
+      await excludeFromBackup(dest);
+      dlog(match.id, `imported from ${srcUri}, sha256 ok`);
+      return match;
+    } finally {
+      await FileSystem.deleteAsync(tmpPath, { idempotent: true }).catch(() => {});
+    }
   }
 
   /**
@@ -167,7 +293,7 @@ export class ModelManager {
 
     const assetSubPath = `models/${asset.filename.split("/").pop()}`;
     const destPath = assetPath(asset);
-    const writtenBytes = await copyBundledAssetToFile(assetSubPath, destPath);
+    const writtenBytes = await BundledAssets.copyBundledAssetToFile(assetSubPath, destPath);
 
     if (writtenBytes !== asset.sizeBytes) {
       throw new Error(
@@ -232,6 +358,13 @@ export class ModelManager {
     asset: CatalogModel,
     onProgress?: (p: DownloadProgress) => void
   ): Promise<void> {
+    if (!networkAllowed()) {
+      throw new AssetIntegrityError(
+        "offline-variant",
+        "This build of BOAR has no network permission. Import the file instead (docs/OFFLINE_INSTALL.md).",
+        true
+      );
+    }
     const destPath = assetPath(asset);
     const destDir = destPath.substring(0, destPath.lastIndexOf("/"));
     await FileSystem.makeDirectoryAsync(destDir, { intermediates: true }).catch(() => {});
@@ -248,7 +381,7 @@ export class ModelManager {
       budgetBytes: STORAGE_BUDGET_BYTES,
     });
     dlog(asset.id, `storage check: ${storage.ok ? "ok" : storage.reason}, projected ${storage.projectedBytes} of ${STORAGE_BUDGET_BYTES} bytes`);
-    if (!storage.ok) throw new Error(storage.message);
+    if (!storage.ok) throw new AssetIntegrityError("storage", storage.message, true);
 
     downloadsOwningFile.set(asset.id, asset);
 
@@ -272,6 +405,10 @@ export class ModelManager {
     // reuses the paused resumable and continues from where it left off
     // instead of restarting a multi-GB download from 0%.
     let timedOut = false;
+    // Set when the server announces a different size than the catalog: the
+    // pinned file is gone or replaced, so downloading it would only fail
+    // verification minutes (or gigabytes) later. Stop at the first callback.
+    let serverSize: number | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let downloadResumable: FileSystem.DownloadResumable;
     let lastProgressLogAt = 0;
@@ -287,24 +424,46 @@ export class ModelManager {
 
     const resuming = this.pausedDownloads.get(asset.id);
     dlog(asset.id, resuming ? "resuming from a previously paused DownloadResumable" : "starting a fresh downloadAsync()");
+    // The native progress callback is bound once, when the resumable is
+    // created, but each call (fresh or resume) has its own inactivity timer
+    // and onProgress. Route through progressHooks so a resumed transfer
+    // resets THIS call's timer instead of the finished call's one (which
+    // left the resumed call pausing itself every 60s despite progress).
+    const onData = (data: FileSystem.DownloadProgressData) => {
+      resetInactivityTimer();
+      // Only the first callback of a fresh transfer: after a resume the
+      // expected total may count just the remaining range.
+      if (
+        !resuming &&
+        serverSize === null &&
+        progressCallbackCount === 0 &&
+        data.totalBytesExpectedToWrite > 0 &&
+        data.totalBytesExpectedToWrite !== asset.sizeBytes
+      ) {
+        serverSize = data.totalBytesExpectedToWrite;
+        dlog(asset.id, `server reports ${serverSize} bytes, catalog says ${asset.sizeBytes} — aborting`);
+        downloadResumable.pauseAsync().catch(() => {});
+        return;
+      }
+      progressCallbackCount++;
+      const now = Date.now();
+      if (now - lastProgressLogAt >= DOWNLOAD_PROGRESS_LOG_INTERVAL_MS) {
+        lastProgressLogAt = now;
+        const pct = data.totalBytesExpectedToWrite > 0
+          ? ((data.totalBytesWritten / data.totalBytesExpectedToWrite) * 100).toFixed(1)
+          : "?";
+        dlog(asset.id, `progress: ${data.totalBytesWritten}/${data.totalBytesExpectedToWrite} bytes (${pct}%), callback #${progressCallbackCount}`);
+      }
+      onProgress?.({
+        phase: "downloading",
+        totalBytesWritten: data.totalBytesWritten,
+        totalBytesExpectedToWrite: data.totalBytesExpectedToWrite,
+      });
+    };
+    progressHooks.set(asset.id, onData);
     downloadResumable =
       resuming ??
-      FileSystem.createDownloadResumable(asset.sourceUrl, destPath, {}, (data) => {
-        resetInactivityTimer();
-        progressCallbackCount++;
-        const now = Date.now();
-        if (now - lastProgressLogAt >= DOWNLOAD_PROGRESS_LOG_INTERVAL_MS) {
-          lastProgressLogAt = now;
-          const pct = data.totalBytesExpectedToWrite > 0
-            ? ((data.totalBytesWritten / data.totalBytesExpectedToWrite) * 100).toFixed(1)
-            : "?";
-          dlog(asset.id, `progress: ${data.totalBytesWritten}/${data.totalBytesExpectedToWrite} bytes (${pct}%), callback #${progressCallbackCount}`);
-        }
-        onProgress?.({
-          totalBytesWritten: data.totalBytesWritten,
-          totalBytesExpectedToWrite: data.totalBytesExpectedToWrite,
-        });
-      });
+      FileSystem.createDownloadResumable(asset.sourceUrl, destPath, {}, (data) => progressHooks.get(asset.id)?.(data));
     this.pausedDownloads.set(asset.id, downloadResumable);
     resetInactivityTimer();
 
@@ -320,6 +479,8 @@ export class ModelManager {
     } catch (e: any) {
       clearTimeout(timer);
       dlog(asset.id, `${resuming ? "resumeAsync" : "downloadAsync"}() THREW: ${e?.message ?? e} (timedOut=${timedOut})`);
+      if (serverSize !== null) await this.abandonDownload(asset);
+      if (serverSize !== null) throw sizeChangedError(asset, serverSize);
       if (timedOut) {
         // Paused, not deleted — stays in pausedDownloads for the next call
         // to pick up. Only genuinely-failed (non-timeout) downloads below
@@ -336,6 +497,11 @@ export class ModelManager {
       clearTimeout(timer);
     }
 
+    if (!result && serverSize !== null) {
+      await this.abandonDownload(asset);
+      throw sizeChangedError(asset, serverSize);
+    }
+
     if (!result) {
       // resolves to undefined on pause too, not just cancel — same
       // stalled/paused case as the throw path above, just via the resolve
@@ -346,6 +512,7 @@ export class ModelManager {
       );
     }
 
+    progressHooks.delete(asset.id);
     this.pausedDownloads.delete(asset.id);
     downloadsOwningFile.delete(asset.id);
 
@@ -378,14 +545,39 @@ export class ModelManager {
         }
       }
       await FileSystem.deleteAsync(destPath, { idempotent: true });
-      throw new Error(
-        `Download of ${asset.label} failed verification — got ${actualSize} bytes, expected ${asset.sizeBytes}.${snippet}`
+      throw new AssetIntegrityError(
+        "size-mismatch",
+        `Download of ${asset.label} failed verification — got ${actualSize} bytes, expected ${asset.sizeBytes}.${snippet}`,
+        false
+      );
+    }
+
+    await excludeFromBackup(destPath);
+    if (!asset.sha256) return;
+    onProgress?.({ phase: "verifying", totalBytesWritten: 0, totalBytesExpectedToWrite: asset.sizeBytes });
+    const ok = await this.verifyChecksum(asset, (done, total) =>
+      onProgress?.({ phase: "verifying", totalBytesWritten: done, totalBytesExpectedToWrite: total > 0 ? total : asset.sizeBytes })
+    );
+    if (!ok) {
+      await FileSystem.deleteAsync(destPath, { idempotent: true });
+      throw new AssetIntegrityError(
+        "hash-mismatch",
+        `Download of ${asset.label} has the right size but the wrong SHA-256, so it was deleted. The source may have been tampered with; import a verified copy instead.`,
+        true
       );
     }
   }
 
+  private async abandonDownload(asset: CatalogModel): Promise<void> {
+    progressHooks.delete(asset.id);
+    this.pausedDownloads.delete(asset.id);
+    downloadsOwningFile.delete(asset.id);
+    await FileSystem.deleteAsync(assetPath(asset), { idempotent: true }).catch(() => {});
+  }
+
   async deleteModel(asset: CatalogModel): Promise<void> {
     await FileSystem.deleteAsync(assetPath(asset), { idempotent: true });
+    await forgetVerified(asset);
   }
 
   async currentStorageUsageBytes(): Promise<number> {
@@ -409,4 +601,12 @@ export class ModelManager {
     const statuses = await Promise.all(REQUIRED_MODELS.map((a) => this.statusOf(a)));
     return statuses.every((s) => s.present && s.sizeOnDiskBytes === s.asset.sizeBytes);
   }
+}
+
+function sizeChangedError(asset: CatalogModel, serverSize: number): AssetIntegrityError {
+  return new AssetIntegrityError(
+    "size-mismatch",
+    `The download server now serves ${serverSize} bytes for ${asset.label}, not the ${asset.sizeBytes} this version of BOAR expects. Skip it for now, import the file, or update the app.`,
+    true
+  );
 }

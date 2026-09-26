@@ -67,10 +67,11 @@ export const RAM_BUDGET_BYTES = 12 * 1024 * 1024 * 1024; // 12GB
 
 /**
  * See docs/MODELS.md for the rationale behind each pick (licensing,
- * size/RAM tradeoffs). Model checksums verified against the files fetched
- * by scripts/setup-models.sh; corpus pack checksums verified against files
- * built by scripts/build-corpus-tier.mjs and committed to this repo (hosted
- * for download via raw.githubusercontent.com — no separate server needed).
+ * size/RAM tradeoffs). Every sourceUrl is pinned to an immutable revision
+ * (a Hugging Face commit, a repo commit for raw.githubusercontent.com, or a
+ * release asset) so the bytes behind a URL can't change; `sha256` is checked
+ * on the phone after every download and import (ModelManager). Run
+ * `npm run manifest:verify` to re-check sizes and hashes against the hosts.
  */
 export const MODEL_CATALOG: CatalogModel[] = [
   {
@@ -81,7 +82,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sizeBytes: 2393232672,
     sha256: "e4165e3a71af97f1b4820da61079826d8752a2088e313af0c7d346796c38eff5",
     sourceUrl:
-      "https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/main/Phi-3.5-mini-instruct-Q4_K_M.gguf",
+      "https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF/resolve/6d70da17e749a471ccb62ade694486011a75cda3/Phi-3.5-mini-instruct-Q4_K_M.gguf",
     license: "MIT",
     description: "3.8B dense. Most complete comparisons and syntheses in our device benchmark, but slow (~4 tok/s). ~2.4GB.",
     required: false,
@@ -95,7 +96,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sizeBytes: 36806944,
     sha256: "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
     sourceUrl:
-      "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf",
+      "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/d32f8c040ea3b516330eeb75b72bcc2d3a780ab7/bge-small-en-v1.5-q8_0.gguf",
     license: "MIT",
     description: "33M, sentence embeddings for the local vector index. Default.",
     required: true,
@@ -109,7 +110,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sizeBytes: 986048768,
     sha256: "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370",
     sourceUrl:
-      "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+      "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/9eadc66189c7641e1ddd226b8267a9119b2ce2d4/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
     license: "Apache-2.0",
     description: "1.5B dense, fast (~11-18 tok/s) and light. ~1.0GB. Default: downloaded at first-run setup.",
     required: true,
@@ -128,7 +129,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sizeBytes: 4683074240,
     sha256: "65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423",
     sourceUrl:
-      "https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+      "https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/8911e8a47f92bac19d6f5c64a2e2095bd2f7d031/Qwen2.5-7B-Instruct-Q4_K_M.gguf",
     license: "Apache-2.0",
     description: "7B dense, stronger reasoning, more RAM/storage/time. ~4.7GB.",
     required: false,
@@ -145,7 +146,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     filename: "models/hf-liquidai-lfm2-5-8b-a1b-gguf-lfm2-5-8b-a1b-q4-k-m-gguf.gguf",
     sizeBytes: 5155564768,
     sha256: "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0",
-    sourceUrl: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/main/LFM2.5-8B-A1B-Q4_K_M.gguf",
+    sourceUrl: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/49c14831707011e64d70b2ebd8462ba08d608434/LFM2.5-8B-A1B-Q4_K_M.gguf",
     license: "LFM Open License v1.0",
     description:
       "Mixture of experts: 8B total, ~1.5B active per token. Fastest in our benchmark (~15 tok/s) and the best reasoning, but it thinks before answering, so give it a bigger answer budget. ~5.2GB.",
@@ -158,7 +159,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     filename: "models/hf-google-gemma-4-e4b-it-qat-q4-0-gguf-gemma-4-e4b-q4-0-it-gguf.gguf",
     sizeBytes: 5154941280,
     sha256: "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
-    sourceUrl: "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf",
+    sourceUrl: "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf",
     license: "Apache-2.0",
     description: "Google's on-device model, ~4B effective parameters, quantization-aware Q4_0. ~5.2GB.",
     required: false,
@@ -171,7 +172,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sizeBytes: 614084,
     sha256: "2aeff76db48098851e1304fb37dc8013d9facf9214395897e7e05f276f85d2ff",
     sourceUrl:
-      "https://raw.githubusercontent.com/rferrari/boar-app/main/assets/corpus/corpus-standard.json",
+      "https://raw.githubusercontent.com/rferrari/boar-app/9e46dc4d8f9a95bc7716194b94117f769504c0e0/assets/corpus/corpus-standard.json",
     license: "CC BY-SA 4.0 (Wikipedia)",
     description: "1,000 additional Wikipedia-derived topics for local RAG. ~600KB.",
     required: false,
@@ -184,7 +185,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sizeBytes: 2530725,
     sha256: "6d602003bb9da59200e3e55b75b9e15bb073a4b9b1357da2c2d47b2803c570be",
     sourceUrl:
-      "https://raw.githubusercontent.com/rferrari/boar-app/main/assets/corpus/corpus-full.json",
+      "https://raw.githubusercontent.com/rferrari/boar-app/9e46dc4d8f9a95bc7716194b94117f769504c0e0/assets/corpus/corpus-full.json",
     license: "CC BY-SA 4.0 (Wikipedia)",
     description: "4,000 more Wikipedia-derived topics for local RAG. ~2.4MB.",
     required: false,

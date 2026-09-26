@@ -1,5 +1,7 @@
 import { ModelManager, DownloadProgress } from "../models/ModelManager";
 import { CatalogModel } from "../models/manifest";
+import { errorKindOf, IntegrityErrorKind } from "../models/integrity";
+import type { HashProgress } from "../models/fileHash";
 import { holdWakeLockForDownload } from "./downloadWakeLock";
 
 /**
@@ -21,9 +23,20 @@ import { holdWakeLockForDownload } from "./downloadWakeLock";
  */
 
 export interface DownloadState {
+  /** True while bytes are moving or being hashed (phase downloading/verifying). */
   downloading: boolean;
+  /** 0..1 within the current phase. */
   progress: number;
   error: string | null;
+  /**
+   * "verifying" = sha256 of the finished file (streaming, native); progress
+   * then counts bytes hashed. "verified" = downloaded and sha256 matched.
+   */
+  phase?: "downloading" | "verifying" | "verified" | "error";
+  /** Set with `error`. */
+  errorKind?: IntegrityErrorKind;
+  /** Retrying the same source won't help; don't auto-retry (see AssetIntegrityError). */
+  permanent?: boolean;
   bytesWritten?: number;
   bytesExpected?: number;
   speedBytesPerSec?: number;
@@ -123,6 +136,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
 
   state.set(asset.id, {
     downloading: true,
+    phase: "downloading",
     progress: 0,
     error: null,
     bytesWritten: 0,
@@ -135,6 +149,19 @@ export function startDownload(asset: CatalogModel): Promise<void> {
   const releaseWakeLock = holdWakeLockForDownload(asset.id);
   const promise = modelManager
     .downloadCatalogModel(asset, (p: DownloadProgress) => {
+      if (p.phase === "verifying") {
+        const total = p.totalBytesExpectedToWrite || asset.sizeBytes;
+        state.set(asset.id, {
+          downloading: true,
+          phase: "verifying",
+          progress: total > 0 ? Math.min(1, p.totalBytesWritten / total) : 0,
+          error: null,
+          bytesWritten: p.totalBytesWritten,
+          bytesExpected: total,
+        });
+        notify();
+        return;
+      }
       const progress = p.totalBytesExpectedToWrite > 0 ? p.totalBytesWritten / p.totalBytesExpectedToWrite : 0;
       const ts = downloadTimestamps.get(asset.id);
       const currentTime = Date.now();
@@ -161,6 +188,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
 
       state.set(asset.id, {
         downloading: true,
+        phase: "downloading",
         progress,
         error: null,
         bytesWritten: p.totalBytesWritten,
@@ -173,6 +201,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
     .then(() => {
       state.set(asset.id, {
         downloading: false,
+        phase: "verified",
         progress: 1,
         error: null,
         bytesWritten: asset.sizeBytes,
@@ -183,10 +212,14 @@ export function startDownload(asset: CatalogModel): Promise<void> {
       downloadTimestamps.delete(asset.id);
     })
     .catch((e: any) => {
+      const { kind, permanent } = errorKindOf(e);
       state.set(asset.id, {
         downloading: false,
+        phase: "error",
         progress: 0,
         error: e?.message ?? String(e),
+        errorKind: kind,
+        permanent,
       });
       downloadTimestamps.delete(asset.id);
     })
@@ -198,4 +231,30 @@ export function startDownload(asset: CatalogModel): Promise<void> {
 
   inFlight.set(asset.id, promise);
   return promise;
+}
+
+/**
+ * Installs a model or pack from a user-picked file (content:// from the
+ * document picker, or file://) with no network: copied into the app and
+ * accepted only if its size + sha256 match a catalog entry. Holds the wake
+ * lock like a download, since hashing a multi-GB file takes a while.
+ * Rejects with AssetIntegrityError (see errorKindOf) on anything else.
+ */
+export async function importAssetFile(uri: string, onProgress?: HashProgress): Promise<CatalogModel> {
+  const release = holdWakeLockForDownload(`import:${uri}`);
+  try {
+    const asset = await modelManager.importFromFile(uri, onProgress);
+    state.set(asset.id, {
+      downloading: false,
+      phase: "verified",
+      progress: 1,
+      error: null,
+      bytesWritten: asset.sizeBytes,
+      bytesExpected: asset.sizeBytes,
+    });
+    notify();
+    return asset;
+  } finally {
+    release();
+  }
 }

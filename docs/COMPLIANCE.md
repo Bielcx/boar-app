@@ -11,7 +11,7 @@ every status. Statuses are only what has been checked:
 Raw benchmark files (JSONL, answers, reports) are in [evidence/](evidence/);
 the demo videos and screenshots are in [demo/](demo/README.md).
 
-Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
+Last reviewed: 2026-09-26 (items 5, 10 and 14); 2026-09-25 for the rest. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
 (Dimensity 8300), 11.6 GB RAM, Android 16.
 
 | # | Requirement | Status |
@@ -20,7 +20,7 @@ Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
 | 2 | Operates within 12 GB of RAM | PASS |
 | 3 | Uses at most 50 GB for app, models, indexes and assets | PASS |
 | 4 | Works completely offline once installed | PASS |
-| 5 | No API calls, remote inference, web searches or network requests during use | PASS |
+| 5 | No API calls, remote inference, web searches or network requests during use | PARTIAL |
 | 6 | Doesn't require Google Play Services for core functionality | PASS |
 | 7 | Handles explanation, comparison, synthesis and reasoning | PARTIAL |
 | 8 | Responds at speeds usable for real lookups | PARTIAL |
@@ -76,21 +76,52 @@ Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
   a follow-up and the knowledge pack answering
   ([demo/](demo/README.md), 2026-09-24).
 
-### 5. No network requests during use — PASS
-The only network code in the app (`src/`):
+### 5. No network requests during use — PARTIAL
+Two Android builds exist ([BUILD_VARIANTS.md](BUILD_VARIANTS.md)):
+
+| Build | Network permissions | How models arrive |
+|---|---|---|
+| **offline** (`make apk-offline`) | none: `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and the `CHANGE_*` ones are removed from the merged manifest | imported from files, checked by size + SHA-256 ([OFFLINE_INSTALL.md](OFFLINE_INSTALL.md)) |
+| downloader (`make apk-downloader`, the v1.0.0 release) | `INTERNET` | downloaded in the app, checked by size + SHA-256; file import also works |
+
+Permissions the published **v1.0.0** APK declares (`aapt dump permissions`):
+`INTERNET`, `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `VIBRATE`, `WAKE_LOCK`,
+`READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` (max SDK 32). It does
+**not** declare `ACCESS_NETWORK_STATE`; an earlier version of this page said it
+did. From the next release both builds drop `SYSTEM_ALERT_WINDOW` (left over
+from the development template) and the storage permissions (imports use the
+system file picker), and set `allowBackup="false"` and
+`usesCleartextTraffic="false"`. The offline build also drops `RECORD_AUDIO`
+unless built with `EXPO_PUBLIC_BOAR_VOICE=1`.
+
+The only network code in the app (`src/`), both refusing to run in the offline
+build (`networkAllowed()`, `src/config/variant.ts`):
 - `ModelManager.downloadCatalogModel` — model and knowledge-pack downloads,
   started by the setup wizard or an explicit Download tap.
 - `src/services/modelBrowser.ts` — Hugging Face model search, only when the user
   searches.
 
-Inference, retrieval, chat history, telemetry and evaluation make no network
-calls. The APK holds `INTERNET` and `ACCESS_NETWORK_STATE` for those downloads
-only.
+A test (`src/config/networkAudit.test.ts`) fails if a new network call site
+appears anywhere else, or if a network/cloud client library (Firebase, Sentry,
+expo-updates, …) is added. CI audits the offline build's merged manifest on
+every pull request and builds and audits the full APK on `main`
+(`scripts/audit-offline-apk.sh`, which also rejects Play Services, Firebase,
+ML Kit, expo-updates, Retrofit, Ktor, Volley and Sentry classes in the dex).
+OkHttp is present in every React Native app; without `INTERNET` the OS refuses
+its sockets.
 
-Optional voice input (`modules/voice-input`) uses Android's system speech
-recognizer with offline preferred (`EXTRA_PREFER_OFFLINE`). Whether it
-recognizes offline depends on the phone's installed speech service; typing
-always works.
+Inference, retrieval, chat history, telemetry and evaluation make no network
+calls.
+
+Voice input is off by default. When turned on, BOAR uses Android 12+'s
+on-device speech recognizer. The regular system recognizer (usually Google's,
+which may send audio to its servers even with `EXTRA_PREFER_OFFLINE`) is used
+only if the user explicitly accepts that warning, and never in the offline
+build (`src/voice/voicePolicy.ts`). Typing always works.
+
+Why PARTIAL: the offline APK's audit has to be run on a built APK
+(`make apk-offline`), and a network capture during use on a real phone hasn't
+been recorded yet.
 
 ### 6. No Google Play Services — PASS
 - The release build's runtime dependencies contain no Play Services or Firebase
@@ -147,8 +178,11 @@ it's public at claim time (18).
   ([docs/KNOWLEDGE_PACKS.md](KNOWLEDGE_PACKS.md)).
 - Models: downloaded by the in-app setup wizard from the URLs in
   `src/models/manifest.ts`, which also records each file's size and SHA-256.
-  Downloads are verified by size on the device; the URLs point to each
-  repository's `main` branch rather than a pinned revision.
+  Every URL is pinned to an immutable revision (a Hugging Face commit, a repo
+  commit, or a release asset); `npm run manifest:verify` re-checks sizes and
+  hashes against the hosts. On the phone every download and every imported
+  file is hashed in streaming (native SHA-256 in 1 MiB chunks) and deleted if
+  it doesn't match.
 
 ### 11. Models and datasets documented — PASS
 [docs/MODELS.md](MODELS.md) and `src/models/manifest.ts`: every model and
@@ -170,7 +204,9 @@ then a correct answer at about 7 tok/s with Qwen2.5-1.5B.
 
 ### 14. Assets or download instructions — PASS
 The first-run setup wizard downloads every required model and optional
-knowledge pack in the app. `scripts/setup-models.sh` plus
+knowledge pack in the app (downloader build), or imports them from files
+(both builds; the only way in the offline build, see
+[OFFLINE_INSTALL.md](OFFLINE_INSTALL.md)). `scripts/setup-models.sh` plus
 `plugins/withBundledModels.js` is an alternative that bundles models into the
 APK (see [docs/MODELS.md](MODELS.md)).
 
