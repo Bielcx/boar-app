@@ -20,9 +20,9 @@ const root = new URL("../", import.meta.url);
 const targets = files.length ? files : DEFAULT_FILES.filter((f) => existsSync(new URL(f, root)));
 
 // One match per catalog object: sizeBytes, sha256 and sourceUrl in that order
-// (a few string fields may sit between sha256 and sourceUrl),
+// (a few string fields or comments may sit between sha256 and sourceUrl),
 // labelled with the nearest id (or filename) before or after it.
-const ENTRY = /sizeBytes:\s*(\d+),\s*sha256:\s*"([0-9a-f]{64})",(?:\s*\w+:\s*"[^"]*",){0,3}\s*sourceUrl:\s*"([^"]*)"/g;
+const ENTRY = /sizeBytes:\s*(\d+),\s*sha256:\s*"([0-9a-f]{64})",(?:\s*(?:\w+:\s*"[^"]*",|\/\*[\s\S]*?\*\/|\/\/[^\n]*)){0,4}\s*sourceUrl:\s*"([^"]*)"/g;
 const entries = [];
 for (const file of targets) {
   const src = readFileSync(new URL(file, root), "utf8");
