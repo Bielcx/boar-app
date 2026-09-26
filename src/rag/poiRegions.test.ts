@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { POI_REGIONS, poiCatalogEntries, regionForPoint, regionsForTimeZone } from "./poiRegions";
+import { POI_REGIONS, WORLD_PLACES, poiCatalogEntries, regionForPoint, regionsForTimeZone, worldPlacesEntry } from "./poiRegions";
 
 describe("poiRegions", () => {
   it("finds the region containing a point, and none in the ocean", () => {
@@ -20,5 +20,6 @@ describe("poiRegions", () => {
       expect(x.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(x.sizeBytes).toBeGreaterThan(0);
     }
+    expect(worldPlacesEntry()).toMatchObject({ id: "poi-world-places", format: "poi-pack", filename: WORLD_PLACES.filename, sha256: WORLD_PLACES.sha256 });
   });
 });
