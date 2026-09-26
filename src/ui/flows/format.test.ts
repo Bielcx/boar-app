@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatSeconds, minutesLeft } from "./format";
+import { formatBytes, formatBytesParts, formatSeconds, minutesLeft } from "./format";
 
 describe("formatBytes", () => {
   it("uses the locale's decimal separator", () => {
@@ -14,6 +14,7 @@ describe("formatBytes", () => {
     expect(formatBytes(1023 * 1024 ** 2, "en")).toBe("1 GB");
     expect(formatBytes(999 * 1024 ** 2, "en")).toBe("999 MB");
     expect(formatBytes(1010 * 1024, "en")).toBe("1 MB");
+    expect(formatBytesParts(1.25 * 1024 ** 3, "pt")).toEqual({ value: "1,3", unit: "GB" });
     expect(formatBytes(2.5 * 1024 ** 2, "en")).toBe("2.5 MB");
     expect(formatBytes(600 * 1024, "en")).toBe("600 KB");
   });

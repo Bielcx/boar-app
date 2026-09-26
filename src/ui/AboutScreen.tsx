@@ -46,7 +46,7 @@ export function AboutScreen() {
         <Text variant="callout" color="secondary" align="center">
           {t("flows.about.tagline")}
         </Text>
-        <Text variant="footnote" color="tertiary" align="center" numeric>
+        <Text variant="footnote" color="secondary" align="center" numeric>
           {t("flows.about.version", { version: appConfig.expo.version, build })}
         </Text>
       </View>

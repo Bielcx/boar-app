@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, IconName, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
+import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
@@ -87,23 +87,36 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
 
   return (
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
-      <View style={{ gap: tokens.space.xxs }}>
-        <Text variant="headline">{title ?? model.label}</Text>
-        <Text variant="footnote" color="secondary">
-          {meta ?? [t(`flows.row.kind.${model.kind}`), size, model.license].join(" · ")}
+      {/* The mockup's catalog card: kind overline and status seal, then the name with its size, then one metadata line. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+        <Text variant="label" color="field" style={{ flex: 1 }}>
+          {t(`flows.row.kind.${model.kind}`)}
         </Text>
+        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+      </View>
+      <View style={{ gap: tokens.space.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
+          <Text variant="headline" style={{ flex: 1 }}>
+            {title ?? model.label}
+          </Text>
+          {!meta && (
+            <Text variant="headline" numeric>
+              {size}
+            </Text>
+          )}
+        </View>
+        <MetaLine items={meta ? [meta] : [model.license]} />
         {details?.map((d) => (
-          <Text key={d} variant="footnote" color="tertiary">
+          <Text key={d} variant="footnote" color="secondary">
             {d}
           </Text>
         ))}
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
-        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
-        {view.fitWarning && (
+      {view.fitWarning && (
+        <View style={{ flexDirection: "row" }}>
           <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
-        )}
-      </View>
+        </View>
+      )}
 
       {(state.kind === "downloading" || state.kind === "verifying") && (
         <Progress
@@ -124,7 +137,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Text variant="footnote" color="danger">
             {t(`flows.row.error.${state.errorKind}`)}
           </Text>
-          <Text variant="caption" color="tertiary" selectable>
+          <Text variant="caption" color="secondary" selectable>
             {state.message}
           </Text>
         </View>

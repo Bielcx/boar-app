@@ -3,20 +3,19 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, ListRow, Screen, Section, Skeleton, Text, TextField, useToast } from "./components";
+import { Button, Card, EmptyState, ListRow, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
-import { RadioRow } from "./flows/RadioRow";
 import { DEEP_AUTO_MIN_TOK_PER_SEC as MIN_DEEP_TOK_PER_SEC, deepAutoEligible, MIN_SPEED_SAMPLES, ModelSpeed, modelSpeedStats } from "../routing/depth";
 import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
 import { listRecentExecutions } from "../services/executionTelemetry";
 import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
-import { formatBytes, formatCount, formatRate } from "./flows/format";
+import { formatBytes, formatBytesParts, formatCount, formatRate } from "./flows/format";
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -50,23 +49,13 @@ export function ModelsScreen() {
     setAnswer((prev) => (prev ? { ...prev, deepModelId: id } : prev));
     await setAnswerSettings({ deepModelId: id });
   };
-  const speedLine = (id: string): string => {
-    const sp = speeds[id];
-    if (!sp) return t("flows.models.notMeasured");
-    return t("flows.models.measured", {
-      rate: formatRate(sp.medianTokPerSec, i18n.language),
-      count: sp.samples,
-      date: sp.lastAt ? new Date(sp.lastAt).toLocaleDateString(i18n.language) : "—",
-    });
-  };
-
   if (!catalog.loaded) {
     return (
       <Screen>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
-          <Skeleton height={20} width="60%" />
-          <Skeleton height={96} />
-          <Skeleton height={96} />
+          <Skeleton height={tokens.space.lg} width="60%" />
+          <Skeleton height={tokens.size.control * 2} />
+          <Skeleton height={tokens.size.control * 2} />
         </View>
       </Screen>
     );
@@ -108,12 +97,16 @@ export function ModelsScreen() {
 
   return (
     <Screen>
-      <Text variant="callout" color="secondary">
-        {t("flows.models.storage", {
-          used: formatBytes(catalog.usedBytes, i18n.language),
-          free: catalog.freeBytes > 0 ? formatBytes(catalog.freeBytes, i18n.language) : "—",
-        })}
-      </Text>
+      <Card style={{ flexDirection: "row", gap: tokens.space.base }}>
+        <View style={{ flex: 1 }}>
+          <Stat label={t("flows.models.usedLabel")} {...formatBytesParts(catalog.usedBytes, i18n.language)} />
+        </View>
+        {catalog.freeBytes > 0 && (
+          <View style={{ flex: 1 }}>
+            <Stat label={t("flows.models.freeLabel")} {...formatBytesParts(catalog.freeBytes, i18n.language)} />
+          </View>
+        )}
+      </Card>
 
       <Section title={t("flows.models.inUse")} footer={t("flows.models.inUseFooter")}>
         {renderGroup(groups.inUse)}
@@ -122,37 +115,50 @@ export function ModelsScreen() {
       {groups.installed.length > 0 && <Section title={t("flows.models.installed")}>{renderGroup(groups.installed)}</Section>}
 
       {answer && (
-        <Section title={t("flows.models.deepTitle")} footer={t("flows.models.deepFooter", { min: MIN_DEEP_TOK_PER_SEC })}>
-          <View accessibilityRole="radiogroup">
-            <RadioRow
+        <View style={{ gap: tokens.space.md }}>
+          <Text variant="label" color="secondary">
+            {t("flows.models.deepTitle")}
+          </Text>
+          <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
+            <OptionCard
               title={t("flows.models.deepAuto")}
-              subtitle={t("flows.models.deepAutoSub", { min: MIN_DEEP_TOK_PER_SEC })}
+              description={t("flows.models.deepAutoSub", { min: MIN_DEEP_TOK_PER_SEC })}
               selected={answer.deepModelId === undefined}
               onPress={() => chooseDeep(undefined)}
             />
-            <RadioRow title={t("flows.models.deepNone")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
+            <OptionCard title={t("flows.models.deepNone")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
             {models
               .filter((m) => m.kind === "llm" && catalog.statuses[m.id]?.present && m.id !== catalog.activeLlmId)
-              .map((m) => (
-                <RadioRow
-                  key={m.id}
-                  title={m.label}
-                  subtitle={[
-                    speedLine(m.id),
-                    deepAutoEligible(speeds[m.id])
-                      ? undefined
-                      : (speeds[m.id]?.samples ?? 0) < MIN_SPEED_SAMPLES
-                        ? t("flows.models.notEnoughSamples", { min: MIN_SPEED_SAMPLES })
-                        : t("flows.models.tooSlow"),
-                  ]
-                    .filter(Boolean)
-                    .join("\n")}
-                  selected={answer.deepModelId === m.id}
-                  onPress={() => chooseDeep(m.id)}
-                />
-              ))}
+              .map((m) => {
+                const sp = speeds[m.id];
+                return (
+                  <OptionCard
+                    key={m.id}
+                    title={m.label}
+                    // The measured speed decides; nothing is shown that was not measured here.
+                    trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
+                    description={
+                      deepAutoEligible(sp)
+                        ? undefined
+                        : (sp?.samples ?? 0) < MIN_SPEED_SAMPLES
+                          ? t("flows.models.notEnoughSamples", { min: MIN_SPEED_SAMPLES })
+                          : t("flows.models.tooSlow")
+                    }
+                    meta={[
+                      sp
+                        ? t("flows.models.samples", { count: sp.samples, date: sp.lastAt ? new Date(sp.lastAt).toLocaleDateString(i18n.language) : "—" })
+                        : t("flows.models.notMeasured"),
+                    ]}
+                    selected={answer.deepModelId === m.id}
+                    onPress={() => chooseDeep(m.id)}
+                  />
+                );
+              })}
           </View>
-        </Section>
+          <Text variant="footnote" color="secondary">
+            {t("flows.models.deepFooter", { min: MIN_DEEP_TOK_PER_SEC })}
+          </Text>
+        </View>
       )}
 
       {(offline || catalog.imports.length > 0) && (

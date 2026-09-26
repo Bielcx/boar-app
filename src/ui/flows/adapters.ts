@@ -6,6 +6,7 @@
  * - Memory fit and pack removal are wired (estimateMemoryFit, removeCorpusPackIndex).
  * - Places: POI_REGIONS, poiCatalogEntries, worldPlacesEntry and
  *   searchPlaces are wired. The preparedness pack is wired. Still interim: map tiles.
+ * - Topic packs (preparedness, crypto) are wired.
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
@@ -21,6 +22,7 @@ import type { NativePosition } from "../../services/location.pure";
 import * as OfflineLocation from "offline-location";
 // Importing the module also registers the pack with the asset registry.
 import { PREPAREDNESS_PACK, PREPAREDNESS_SOURCES, preparednessEntry as bramblePreparednessEntry } from "../../rag/preparedness";
+import { CRYPTO_PACK, CRYPTO_SOURCES, cryptoEntry } from "../../rag/cryptoPack";
 
 /** Tusk's estimate against the RAM the OS says is available right now. */
 export function fitFor(model: CatalogModel): MemoryFit | undefined {
@@ -103,6 +105,12 @@ export function topicPacks(): TopicPack[] {
       name: PREPAREDNESS_PACK.name,
       docCount: PREPAREDNESS_PACK.docCount,
       sources: PREPAREDNESS_SOURCES.map(({ name, license, url }) => ({ name, license, url })),
+    },
+    {
+      entry: cryptoEntry(),
+      name: CRYPTO_PACK.name,
+      docCount: CRYPTO_PACK.docCount,
+      sources: CRYPTO_SOURCES.map(({ name, license, url }) => ({ name, license, url })),
     },
   ];
 }

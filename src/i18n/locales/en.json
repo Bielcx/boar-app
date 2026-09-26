@@ -381,7 +381,6 @@
       }
     },
     "models": {
-      "storage": "BOAR uses {{used}} · {{free}} free on this phone",
       "inUse": "In use",
       "inUseFooter": "The answer model writes your answers; the search model finds passages in your knowledge.",
       "installed": "Installed",
@@ -412,8 +411,11 @@
       "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
       "deepNone": "None: always use the answer model",
       "notMeasured": "Not measured on this phone yet",
-      "measured_one": "{{rate}} tokens/s · {{count}} answer · measured on this phone on {{date}}",
-      "measured_other": "{{rate}} tokens/s · median of {{count}} answers · measured on this phone on {{date}}",
+      "rate": "{{rate}} tok/s",
+      "samples_one": "{{count}} answer measured here · {{date}}",
+      "samples_other": "Median of {{count}} answers measured here · {{date}}",
+      "usedLabel": "Used by BOAR",
+      "freeLabel": "Free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
       "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
     },
