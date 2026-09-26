@@ -4,8 +4,8 @@
  *
  * The entries below are the SAMPLE build of 2026-09-26 (five metropolitan
  * areas), generated from each pack's .json summary: sizes, SHA-256 and counts
- * are measured, not estimated. `sourceUrl` is empty until the packs are hosted
- * (release assets); until then they're installed with `npm run pack:push`.
+ * are measured, not estimated. `sourceUrl` is the file on the Hugging Face
+ * dataset r4topunk/boar-packs, pinned to the commit it was uploaded in.
  */
 import type { CatalogModel } from "../models/manifest";
 import { registerAssetProvider } from "../models/assetRegistry";
@@ -42,6 +42,7 @@ export const WORLD_PLACES = {
   sizeBytes: 20811776,
   sha256: "fdb302aa2a2813ad36487b4f0ffa629ba21faec700ee5fcb5c4bf9c3448e9746",
   license: "CC BY 4.0 (GeoNames)",
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/world-places.sqlite",
   places: 34149,
 };
 
@@ -55,7 +56,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 1380352,
     sha256: "42e6caf31e9018ad76e282f26114812dbdf0ab23c2aaf269199b9126bbe935d3",
-    sourceUrl: "",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/sao-paulo.sqlite",
     filename: "poi/sao-paulo.sqlite",
     poiCount: 7013,
     veganCount: 126,
@@ -142,7 +143,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 1863680,
     sha256: "bd7c1afcb59f4438bb2a9b0fbde2360720194ea05ac5081ee9dc4fed0c094506",
-    sourceUrl: "",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/singapore.sqlite",
     filename: "poi/singapore.sqlite",
     poiCount: 10188,
     veganCount: 97,
@@ -229,7 +230,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 3366912,
     sha256: "0831d93f747e4fa002d850523fc4098bc58ee262058b8b54b6a0b3cc60f5f480",
-    sourceUrl: "",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/taipei.sqlite",
     filename: "poi/taipei.sqlite",
     poiCount: 18857,
     veganCount: 156,
@@ -286,7 +287,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 1482752,
     sha256: "dedc896e659e112e16811005d038bd9cff6ead678b8d63b566565eec67ca8b73",
-    sourceUrl: "",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/buenos-aires.sqlite",
     filename: "poi/buenos-aires.sqlite",
     poiCount: 8049,
     veganCount: 78,
@@ -373,7 +374,7 @@ export const POI_REGIONS: PoiRegion[] = [
     },
     sizeBytes: 3309568,
     sha256: "9216b3b0e55eb435390c79fc9460b99bc60d4396520091a8e37c22155e3c7ba3",
-    sourceUrl: "",
+    sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/berlin.sqlite",
     filename: "poi/berlin.sqlite",
     poiCount: 15278,
     veganCount: 1979,
@@ -497,7 +498,7 @@ export function worldPlacesEntry(): CatalogModel {
     filename: WORLD_PLACES.filename,
     sizeBytes: WORLD_PLACES.sizeBytes,
     sha256: WORLD_PLACES.sha256,
-    sourceUrl: "",
+    sourceUrl: WORLD_PLACES.sourceUrl,
     license: WORLD_PLACES.license,
     description: `${WORLD_PLACES.places.toLocaleString("en-US")} cities and towns with 15,000+ people, to find places by name offline`,
     required: false,

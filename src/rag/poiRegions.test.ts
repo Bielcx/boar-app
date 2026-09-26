@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { allAssets } from "../models/assetRegistry";
 import { POI_REGIONS, WORLD_PLACES, poiCatalogEntries, regionForPoint, regionsForTimeZone, worldPlacesEntry } from "./poiRegions";
+import { preparednessEntry } from "./preparedness";
 
 describe("poiRegions", () => {
   it("finds the region containing a point, and none in the ocean", () => {
@@ -46,5 +47,15 @@ describe("tiles", () => {
     expect(tileIdsFor(41.89, 12.48, 15)).toEqual(["t-N41E012", "t-N42E012"]);
     // Near a corner the circle spans four tiles.
     expect(tileIdsFor(42.0, 13.0, 10).sort()).toEqual(["t-N41E012", "t-N41E013", "t-N42E012", "t-N42E013"]);
+  });
+});
+
+describe("hosted pack URLs", () => {
+  it("pin every hosted file to an upload commit, never a branch", () => {
+    const entries = [...poiCatalogEntries(), worldPlacesEntry(), preparednessEntry()].filter((e) => e.sourceUrl);
+    expect(entries.length).toBeGreaterThan(0);
+    for (const e of entries) {
+      expect(e.sourceUrl).toMatch(/^https:\/\/huggingface\.co\/datasets\/r4topunk\/boar-packs\/resolve\/[0-9a-f]{40}\/[\w./-]+\.sqlite$/);
+    }
   });
 });
