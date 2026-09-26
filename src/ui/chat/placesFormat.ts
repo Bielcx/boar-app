@@ -34,12 +34,16 @@ const DIET_ORDER = ["vegan", "vegetarian", "gluten_free", "halal", "kosher"] as 
  * options", "limited" is "Some vegan options"; "no" and missing say nothing.
  * A vegetarian-only place that also has vegan options reads "Vegetarian, vegan options".
  */
-export function dietLabels(diet: Place["diet"], t: T): string[] {
+export function dietLabels(diet: Place["diet"], t: T, flag?: Place["dietFlag"]): string[] {
+  // The engine doubts the tag (e.g. a burger chain tagged vegan-only): say it needs checking, no diet label.
+  if (flag === "verify") return [t("chat.places.dietToVerify")];
   if (!diet) return [];
   const out: string[] = [];
   for (const key of DIET_ORDER) {
     const v: PlaceDiet | undefined = diet[key];
-    if (v === "only" || v === "yes" || v === "limited") out.push(t(`chat.places.diet.${key}.${v}`));
+    if (v !== "only" && v !== "yes" && v !== "limited") continue;
+    // Uncertain: report the tag without the strong "only" claim.
+    out.push(t(flag === "uncertain" && v === "only" ? `chat.places.diet.${key}.tagged` : `chat.places.diet.${key}.${v}`));
   }
   return out;
 }
@@ -178,7 +182,7 @@ export function openStateAt(p: Place, now: Date | null): OpenState | null {
 export function placeA11yLabel(p: Place, now: Date | null, locale: string, t: T): string {
   const parts = [p.name];
   if (p.distanceM != null) parts.push(spokenDistance(p.distanceM, locale, t));
-  parts.push(...dietLabels(p.diet, t), ...cuisineLabels(p.cuisine));
+  parts.push(...dietLabels(p.diet, t, p.dietFlag), ...cuisineLabels(p.cuisine));
   const state = openStateAt(p, now);
   if (state) parts.push(openStateLabel(state, t));
   if (p.address) parts.push(p.address);
@@ -188,7 +192,7 @@ export function placeA11yLabel(p: Place, now: Date | null, locale: string, t: T)
 
 /** The second line of a row: diet, cuisine and open state, " · " separated. */
 export function placeDetailLine(p: Place, now: Date | null, t: T): { text: string; closed: boolean } {
-  const parts = [...dietLabels(p.diet, t), ...cuisineLabels(p.cuisine)];
+  const parts = [...dietLabels(p.diet, t, p.dietFlag), ...cuisineLabels(p.cuisine)];
   const state = openStateAt(p, now);
   if (state) parts.push(openStateLabel(state, t));
   return { text: parts.join(" · "), closed: state?.open === false };

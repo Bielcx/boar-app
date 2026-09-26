@@ -604,8 +604,7 @@
       "q1": "Por que existem estações do ano na Terra?",
       "q2": "Qual a diferença entre pandemia e epidemia?",
       "q3": "Quanto é 30 °C em Fahrenheit?",
-      "q4": "Como estancar um sangramento nasal?",
-      "available": "q3"
+      "q4": "Como estancar um sangramento nasal?"
     },
     "header": {
       "menu": "Abrir menu",
@@ -660,27 +659,32 @@
         "vegan": {
           "only": "Vegano",
           "yes": "Opções veganas",
-          "limited": "Poucas opções veganas"
+          "limited": "Poucas opções veganas",
+          "tagged": "Marcado como vegano"
         },
         "vegetarian": {
           "only": "Vegetariano",
           "yes": "Opções vegetarianas",
-          "limited": "Poucas opções vegetarianas"
+          "limited": "Poucas opções vegetarianas",
+          "tagged": "Marcado como vegetariano"
         },
         "gluten_free": {
           "only": "Sem glúten",
           "yes": "Opções sem glúten",
-          "limited": "Poucas opções sem glúten"
+          "limited": "Poucas opções sem glúten",
+          "tagged": "Marcado como sem glúten"
         },
         "halal": {
           "only": "Halal",
           "yes": "Opções halal",
-          "limited": "Poucas opções halal"
+          "limited": "Poucas opções halal",
+          "tagged": "Marcado como halal"
         },
         "kosher": {
           "only": "Kosher",
           "yes": "Opções kosher",
-          "limited": "Poucas opções kosher"
+          "limited": "Poucas opções kosher",
+          "tagged": "Marcado como kosher"
         }
       },
       "open": "Aberto",
@@ -726,7 +730,8 @@
       "noneNear": "Não tenho dados offline de lugares perto de você",
       "noneNearFiltered": "Não tenho dados offline de lugares ({{filter}}) perto de você",
       "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
-      "searchHint": "Digite uma cidade primeiro"
+      "searchHint": "Digite uma cidade primeiro",
+      "dietToVerify": "Etiqueta de dieta do OSM a conferir"
     },
     "assistantName": "boar"
   }

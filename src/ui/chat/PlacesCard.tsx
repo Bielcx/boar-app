@@ -56,7 +56,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
   const { t: tr } = useTranslation();
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= 1.6;
-  const tags = [...dietLabels(place.diet, tr), ...cuisineLabels(place.cuisine)].join(" · ");
+  const tags = [...dietLabels(place.diet, tr, place.dietFlag), ...cuisineLabels(place.cuisine)].join(" · ");
   const state = openStateAt(place, now);
   const distance = place.distanceM != null ? formatDistance(place.distanceM, locale) : null;
   return (
@@ -160,8 +160,8 @@ function PlaceSheet({
     >
       <View style={{ gap: t.space.base }}>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.xs }}>
-          {dietLabels(place.diet, tr).map((d) => (
-            <Badge key={d} label={d} tone="field" />
+          {dietLabels(place.diet, tr, place.dietFlag).map((d) => (
+            <Badge key={d} label={d} tone={place.dietFlag === "verify" ? "warning" : "field"} caps={false} />
           ))}
           {cuisineLabels(place.cuisine, 4).map((c) => (
             <Badge key={c} label={c} />

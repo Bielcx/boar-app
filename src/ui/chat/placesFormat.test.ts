@@ -53,6 +53,16 @@ describe("dietLabels", () => {
   });
 });
 
+describe("dietFlag", () => {
+  it("replaces a doubtful tag with a note, and softens an uncertain 'only'", () => {
+    expect(dietLabels({ vegan: "only" }, t, "verify")).toEqual(["chat.places.dietToVerify"]);
+    expect(dietLabels({ vegan: "only", vegetarian: "yes" }, t, "uncertain")).toEqual([
+      "chat.places.diet.vegan.tagged",
+      "chat.places.diet.vegetarian.yes",
+    ]);
+  });
+});
+
 describe("cuisineLabels", () => {
   it("formats OSM values and drops diet words", () => {
     expect(cuisineLabels(["vegan", "fine_dining", "indian", "thai"])).toEqual(["Fine dining", "Indian"]);
