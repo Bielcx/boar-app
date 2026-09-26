@@ -1,7 +1,11 @@
 import { colors, getThemeColors, THEMES, midnightTheme, amberTheme, frontierTheme } from "./colors";
 import { typography, fontFamilies, getTypography, FONT_SCALES, Typography } from "./typography";
 import { spacing, radii, shadows } from "./spacing";
-import { ThemeProvider, useTheme } from "./ThemeContext";
+import { ThemeProvider, useTheme, useTokens } from "./ThemeContext";
+export { buildTokens, toneColors, space, radius, size, motion, fontFamily, MIN_TOUCH, MIN_FONT_SIZE, APP_FONT_SCALE } from "./tokens";
+export type { Tokens, ColorTokens, ColorScheme, TextVariant, Tone, TypeStyle } from "./tokens";
+export { lightPalette, darkPalette } from "./palette";
+export { resolveScheme } from "./scheme";
 
 export {
   colors,
@@ -19,6 +23,7 @@ export {
   shadows,
   ThemeProvider,
   useTheme,
+  useTokens,
 };
 
 export type { Typography };

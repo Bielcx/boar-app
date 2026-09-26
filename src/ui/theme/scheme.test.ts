@@ -1,0 +1,19 @@
+import { describe, expect, it } from "vitest";
+import { resolveScheme } from "./scheme";
+
+describe("resolveScheme", () => {
+  it("honors an explicit choice regardless of the OS", () => {
+    expect(resolveScheme("light", "dark")).toBe("light");
+    expect(resolveScheme("dark", "light")).toBe("dark");
+  });
+
+  it("follows the OS when set to system", () => {
+    expect(resolveScheme("system", "light")).toBe("light");
+    expect(resolveScheme("system", "dark")).toBe("dark");
+  });
+
+  it("falls back to dark when the OS reports nothing", () => {
+    expect(resolveScheme("system", null)).toBe("dark");
+    expect(resolveScheme("system", undefined)).toBe("dark");
+  });
+});

@@ -5,6 +5,7 @@ import { ModelRole, RoutingPreset } from "../routing/types";
 
 export type ThemeId = "midnight" | "amber" | "frontier";
 export type FontScale = "compact" | "standard" | "large";
+export type Appearance = "system" | "light" | "dark";
 export type LanguageId = "en" | "pt";
 
 interface Settings {
@@ -21,6 +22,7 @@ interface Settings {
   autoGenerateTitles?: boolean;
   deepResearchMode?: boolean;
   themeId?: ThemeId;
+  appearance?: Appearance;
   fontScale?: FontScale;
   languageId?: LanguageId;
   routingPreset?: RoutingPreset;
@@ -190,6 +192,17 @@ export async function getThemeId(): Promise<ThemeId> {
 export async function setThemeId(theme: ThemeId): Promise<void> {
   const s = await readSettings();
   s.themeId = theme;
+  await writeSettings(s);
+}
+
+export async function getAppearance(): Promise<Appearance> {
+  const s = await readSettings();
+  return s.appearance ?? "system";
+}
+
+export async function setAppearance(appearance: Appearance): Promise<void> {
+  const s = await readSettings();
+  s.appearance = appearance;
   await writeSettings(s);
 }
 

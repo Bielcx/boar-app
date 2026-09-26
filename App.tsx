@@ -1,71 +1,61 @@
 import { useEffect, useState } from "react";
-import { StatusBar } from "expo-status-bar";
-import { StyleSheet, ActivityIndicator, View } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import "./src/i18n";
 import { LanguageProvider } from "./src/i18n/LanguageContext";
-import { ChatScreen } from "./src/ui/ChatScreen";
-import { ModelSetupScreen } from "./src/ui/ModelSetupScreen";
 import { ModelManager } from "./src/models/ModelManager";
-import { ThemeProvider, useTheme } from "./src/ui/theme";
+import { ThemeProvider, useTokens } from "./src/ui/theme";
+import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
+import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
 
 const modelManager = new ModelManager();
 
-type Screen = "checking" | "required-setup" | "chat";
-
 function AppContent() {
-  const [screen, setScreen] = useState<Screen>("checking");
-  const { colors } = useTheme();
+  const t = useTokens();
+  const [initialRoute, setInitialRoute] = useState<"Main" | "Setup" | null>(null);
 
   useEffect(() => {
     initHaptics();
-  }, []);
-
-  useEffect(() => {
     (async () => {
       const ready = await modelManager.requiredModelsPresent();
-      setScreen(ready ? "chat" : "required-setup");
+      setInitialRoute(ready ? "Main" : "Setup");
     })();
   }, []);
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg.terminal }]} edges={["top", "bottom"]}>
-      <StatusBar style="light" />
-      {screen === "checking" && (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.emerald[400]} size="large" />
-        </View>
-      )}
-      {screen === "required-setup" && (
-        <ModelSetupScreen mode="required" onReady={() => setScreen("chat")} />
-      )}
-      {screen === "chat" && (
-        <ChatScreen onRelaunchWizard={() => setScreen("required-setup")} />
-      )}
-    </SafeAreaView>
-  );
+  if (!initialRoute) {
+    return (
+      <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]}>
+        <ActivityIndicator color={t.color.accent.solid} size="large" />
+      </View>
+    );
+  }
+  return <RootNavigator initialRoute={initialRoute} />;
 }
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <LanguageProvider>
-        <ThemeProvider>
-          <AppContent />
-        </ThemeProvider>
-      </LanguageProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <KeyboardProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <AnnouncerProvider>
+                <ToastProvider>
+                  <AppContent />
+                </ToastProvider>
+              </AnnouncerProvider>
+            </ThemeProvider>
+          </LanguageProvider>
+        </KeyboardProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  root: { flex: 1 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
 });

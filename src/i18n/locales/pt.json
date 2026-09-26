@@ -443,5 +443,33 @@
     "runFailedTitle": "Falha na avaliação",
     "deviceRequest": "Iniciado por um computador conectado (pedido {{id}}).",
     "noRetrieval": "sem recuperação"
+  },
+  "ui": {
+    "close": "Fechar",
+    "dismiss": "Dispensar",
+    "undo": "Desfazer",
+    "cancel": "Cancelar",
+    "delete": "Apagar",
+    "back": "Voltar"
+  },
+  "nav": {
+    "subtitle": "Pesquisa offline",
+    "newChat": "Nova conversa",
+    "recent": "Recentes",
+    "noHistory": "Suas conversas ficam neste aparelho e aparecem aqui.",
+    "keepingLast": "Guardando suas últimas {{count}} conversas",
+    "knowledge": "Conhecimento",
+    "settings": "Ajustes",
+    "performance": "Desempenho",
+    "about": "Sobre",
+    "promptIdeas": "Ideias de perguntas",
+    "catalog": "Catálogo de componentes",
+    "deleteChatA11y": "Apagar conversa: {{title}}",
+    "deleteChatTitle": "Apagar esta conversa?",
+    "deleteChatBody": "\"{{title}}\" será removida deste aparelho. Não dá para desfazer.",
+    "deleteChatConfirm": "Apagar conversa",
+    "chatDeleted": "Conversa apagada",
+    "activeSession": "atual",
+    "setup": "Configuração"
   }
 }

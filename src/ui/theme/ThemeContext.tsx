@@ -1,83 +1,140 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from "react";
-import { impact, ImpactFeedbackStyle } from "../../services/haptics";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AccessibilityInfo, useColorScheme } from "react-native";
+import * as SystemUI from "expo-system-ui";
+import { selection } from "../../services/haptics";
 import {
-  ThemeId,
+  Appearance,
   FontScale,
-  getThemeId,
-  setThemeId as persistThemeId,
+  ThemeId,
+  getAppearance,
   getFontScale,
+  getThemeId,
+  setAppearance as persistAppearance,
   setFontScale as persistFontScale,
+  setThemeId as persistThemeId,
 } from "../../models/settings";
-import { getThemeColors, midnightTheme, Colors } from "./colors";
+import { Colors, legacyColorsFromTokens } from "./colors";
+import { resolveScheme } from "./scheme";
+import { buildTokens, ColorScheme, Tokens } from "./tokens";
 import { getTypography, Typography } from "./typography";
 
 interface ThemeContextType {
-  themeId: ThemeId;
+  /** Design tokens for the resolved scheme. Use these in new code. */
+  tokens: Tokens;
+  /** Resolved color scheme after applying `appearance` to the OS setting. */
+  scheme: ColorScheme;
+  appearance: Appearance;
+  setAppearance: (appearance: Appearance) => Promise<void>;
   fontScale: FontScale;
-  colors: Colors;
-  typography: Typography;
-  setTheme: (theme: ThemeId) => Promise<void>;
   setFontScale: (scale: FontScale) => Promise<void>;
+  /** OS "reduce motion" preference. Skip non-essential animation when true. */
+  reduceMotion: boolean;
+
+  /** @deprecated Legacy color shape bridged from `tokens`. Migrate to `tokens.color`. */
+  colors: Colors;
+  /** @deprecated Legacy type ramp. Migrate to `<Text variant>` / `tokens.type`. */
+  typography: Typography;
+  /** @deprecated The three dark themes were replaced by `appearance`. Kept so old settings screens compile. */
+  themeId: ThemeId;
+  /** @deprecated See `themeId`. */
+  setTheme: (theme: ThemeId) => Promise<void>;
 }
 
+const defaultTokens = buildTokens("dark");
+
 const ThemeContext = createContext<ThemeContextType>({
-  themeId: "midnight",
+  tokens: defaultTokens,
+  scheme: "dark",
+  appearance: "system",
+  setAppearance: async () => {},
   fontScale: "standard",
-  colors: midnightTheme,
-  typography: getTypography("standard"),
-  setTheme: async () => {},
   setFontScale: async () => {},
+  reduceMotion: false,
+  colors: legacyColorsFromTokens(defaultTokens.color),
+  typography: getTypography("standard"),
+  themeId: "midnight",
+  setTheme: async () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeId, setThemeIdState] = useState<ThemeId>("midnight");
+  const system = useColorScheme();
+  const [appearance, setAppearanceState] = useState<Appearance>("system");
   const [fontScale, setFontScaleState] = useState<FontScale>("standard");
+  const [themeId, setThemeIdState] = useState<ThemeId>("midnight");
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [savedTheme, savedScale] = await Promise.all([
-        getThemeId(),
+      const [savedAppearance, savedScale, savedTheme] = await Promise.all([
+        getAppearance(),
         getFontScale(),
+        getThemeId(),
       ]);
-      setThemeIdState(savedTheme);
+      setAppearanceState(savedAppearance);
       setFontScaleState(savedScale);
+      setThemeIdState(savedTheme);
     })();
   }, []);
 
-  const setTheme = useCallback(async (newTheme: ThemeId) => {
-    setThemeIdState(newTheme);
-    impact(ImpactFeedbackStyle.Light);
-    await persistThemeId(newTheme);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => sub.remove();
   }, []);
 
-  const setFontScale = useCallback(async (newScale: FontScale) => {
-    setFontScaleState(newScale);
-    impact(ImpactFeedbackStyle.Light);
-    await persistFontScale(newScale);
+  const scheme = resolveScheme(appearance, system);
+  const tokens = useMemo(() => buildTokens(scheme, fontScale), [scheme, fontScale]);
+
+  // Root view color shows during screen transitions and behind the keyboard.
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(tokens.color.bg.canvas).catch(() => {});
+  }, [tokens.color.bg.canvas]);
+
+  const setAppearance = useCallback(async (next: Appearance) => {
+    setAppearanceState(next);
+    selection();
+    await persistAppearance(next);
   }, []);
 
-  const currentColors = useMemo(() => getThemeColors(themeId), [themeId]);
-  const currentTypography = useMemo(() => getTypography(fontScale), [fontScale]);
+  const setFontScale = useCallback(async (next: FontScale) => {
+    setFontScaleState(next);
+    selection();
+    await persistFontScale(next);
+  }, []);
 
-  const value = useMemo(
+  const setTheme = useCallback(async (next: ThemeId) => {
+    setThemeIdState(next);
+    await persistThemeId(next);
+  }, []);
+
+  const colors = useMemo(() => legacyColorsFromTokens(tokens.color), [tokens.color]);
+  const typography = useMemo(() => getTypography(fontScale), [fontScale]);
+
+  const value = useMemo<ThemeContextType>(
     () => ({
-      themeId,
+      tokens,
+      scheme,
+      appearance,
+      setAppearance,
       fontScale,
-      colors: currentColors,
-      typography: currentTypography,
-      setTheme,
       setFontScale,
+      reduceMotion,
+      colors,
+      typography,
+      themeId,
+      setTheme,
     }),
-    [themeId, fontScale, currentColors, currentTypography, setTheme, setFontScale]
+    [tokens, scheme, appearance, setAppearance, fontScale, setFontScale, reduceMotion, colors, typography, themeId, setTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextType {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
+  return useContext(ThemeContext);
+}
+
+/** Shorthand for components that only need tokens. */
+export function useTokens(): Tokens {
+  return useContext(ThemeContext).tokens;
 }

@@ -443,5 +443,33 @@
     "runFailedTitle": "Evaluation failed",
     "deviceRequest": "Started from a connected computer (request {{id}}).",
     "noRetrieval": "no retrieval"
+  },
+  "ui": {
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "undo": "Undo",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "back": "Back"
+  },
+  "nav": {
+    "subtitle": "Offline research",
+    "newChat": "New chat",
+    "recent": "Recent",
+    "noHistory": "Your conversations stay on this device and show up here.",
+    "keepingLast": "Keeping your last {{count}} conversations",
+    "knowledge": "Knowledge",
+    "settings": "Settings",
+    "performance": "Performance",
+    "about": "About",
+    "promptIdeas": "Question ideas",
+    "catalog": "Component catalog",
+    "deleteChatA11y": "Delete conversation: {{title}}",
+    "deleteChatTitle": "Delete this conversation?",
+    "deleteChatBody": "\"{{title}}\" will be removed from this device. This can't be undone.",
+    "deleteChatConfirm": "Delete conversation",
+    "chatDeleted": "Conversation deleted",
+    "activeSession": "current",
+    "setup": "Setup"
   }
 }
