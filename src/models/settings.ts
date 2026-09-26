@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { AssetKind } from "./manifest";
 import { PersonalityId, DEFAULT_PERSONALITY_ID } from "../constants/personalities";
 import { ModelRole, RoutingPreset } from "../routing/types";
+import { DEFAULT_APPEARANCE } from "../ui/theme/scheme";
 
 export type ThemeId = "midnight" | "amber" | "frontier";
 export type FontScale = "compact" | "standard" | "large";
@@ -201,7 +202,7 @@ export async function setThemeId(theme: ThemeId): Promise<void> {
 
 export async function getAppearance(): Promise<Appearance> {
   const s = await readSettings();
-  return s.appearance ?? "system";
+  return s.appearance ?? DEFAULT_APPEARANCE;
 }
 
 export async function setAppearance(appearance: Appearance): Promise<void> {
