@@ -17,6 +17,8 @@ export interface AssetStatus {
   sizeOnDiskBytes: number;
   /** true = sha256 checked for this exact file; null = present, not hashed yet. */
   checksumOk: boolean | null;
+  /** Bytes of an interrupted download kept on disk; the next download resumes from here. */
+  partialBytes?: number;
 }
 
 export interface DownloadProgress {
@@ -176,10 +178,13 @@ export class ModelManager {
     }
     const sizeOnDisk = info.size ?? 0;
     if (sizeOnDisk !== asset.sizeBytes) {
-      if (downloadsOwningFile.has(asset.id)) {
-        return { asset, present: false, sizeOnDiskBytes: 0, checksumOk: null };
+      // Smaller = an interrupted download: keep it, the next download resumes
+      // from its last byte (Range request) and the sha256 check at the end
+      // still guards the result. Larger can't be a prefix of the right file.
+      if (downloadsOwningFile.has(asset.id) || sizeOnDisk < asset.sizeBytes) {
+        return { asset, present: false, sizeOnDiskBytes: 0, checksumOk: null, partialBytes: sizeOnDisk };
       }
-      dlog(asset.id, `statusOf(): deleting size-mismatched file (${sizeOnDisk} != ${asset.sizeBytes})`);
+      dlog(asset.id, `statusOf(): deleting oversized file (${sizeOnDisk} > ${asset.sizeBytes})`);
       await FileSystem.deleteAsync(path, { idempotent: true }).catch(() => {});
       return { asset, present: false, sizeOnDiskBytes: 0, checksumOk: null };
     }
@@ -234,6 +239,8 @@ export class ModelManager {
     signal?: AbortSignal,
     catalog: CatalogModel[] = this.catalog
   ): Promise<CatalogModel> {
+    // Entries without a known hash can't be identified by content.
+    catalog = catalog.filter((a) => /^[0-9a-f]{64}$/i.test(a.sha256));
     throwIfAborted(signal);
     const src = await FileSystem.getInfoAsync(srcUri);
     if (!src.exists || src.isDirectory) {
@@ -388,6 +395,21 @@ export class ModelManager {
     dlog(asset.id, `storage check: ${storage.ok ? "ok" : storage.reason}, projected ${storage.projectedBytes} of ${STORAGE_BUDGET_BYTES} bytes`);
     if (!storage.ok) throw new AssetIntegrityError("storage", storage.message, true);
 
+    // A file left by an interrupted download (network drop, app killed,
+    // restart) is the resume point: its length goes out as `Range: bytes=N-`.
+    const pausedResumable = this.pausedDownloads.get(asset.id);
+    let resumeFrom = 0;
+    if (!pausedResumable && partial?.exists) {
+      const size = partial.size ?? 0;
+      if (size === asset.sizeBytes) {
+        dlog(asset.id, "complete file already on disk — verifying instead of downloading");
+        await this.verifyDownloaded(asset, onProgress);
+        return;
+      }
+      if (size > asset.sizeBytes) await FileSystem.deleteAsync(destPath, { idempotent: true }).catch(() => {});
+      else resumeFrom = size;
+    }
+
     downloadsOwningFile.set(asset.id, asset);
 
     const freeBytesAtStart = await FileSystem.getFreeDiskStorageAsync().catch(() => -1);
@@ -414,6 +436,10 @@ export class ModelManager {
     // pinned file is gone or replaced, so downloading it would only fail
     // verification minutes (or gigabytes) later. Stop at the first callback.
     let serverSize: number | null = null;
+    // Set when a resumed request's total doesn't add up: the server ignored
+    // the Range header and is sending the whole file, which would be appended
+    // after the partial bytes. Throw the partial away and start over.
+    let rangeIgnored = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let downloadResumable: FileSystem.DownloadResumable;
     let lastProgressLogAt = 0;
@@ -427,8 +453,16 @@ export class ModelManager {
       }, DOWNLOAD_INACTIVITY_TIMEOUT_MS);
     };
 
-    const resuming = this.pausedDownloads.get(asset.id);
-    dlog(asset.id, resuming ? "resuming from a previously paused DownloadResumable" : "starting a fresh downloadAsync()");
+    const resuming = pausedResumable ?? null;
+    const isResume = !!resuming || resumeFrom > 0;
+    dlog(
+      asset.id,
+      resuming
+        ? "resuming from a previously paused DownloadResumable"
+        : resumeFrom > 0
+          ? `resuming an interrupted download from byte ${resumeFrom}`
+          : "starting a fresh downloadAsync()"
+    );
     // The native progress callback is bound once, when the resumable is
     // created, but each call (fresh or resume) has its own inactivity timer
     // and onProgress. Route through progressHooks so a resumed transfer
@@ -436,17 +470,22 @@ export class ModelManager {
     // left the resumed call pausing itself every 60s despite progress).
     const onData = (data: FileSystem.DownloadProgressData) => {
       resetInactivityTimer();
-      // Only the first callback of a fresh transfer: after a resume the
-      // expected total may count just the remaining range.
+      // First callback of this request: the native side reports the full
+      // expected size (already-downloaded bytes + this response's length).
       if (
-        !resuming &&
         serverSize === null &&
+        !rangeIgnored &&
         progressCallbackCount === 0 &&
         data.totalBytesExpectedToWrite > 0 &&
         data.totalBytesExpectedToWrite !== asset.sizeBytes
       ) {
-        serverSize = data.totalBytesExpectedToWrite;
-        dlog(asset.id, `server reports ${serverSize} bytes, catalog says ${asset.sizeBytes} — aborting`);
+        if (isResume) rangeIgnored = true;
+        else serverSize = data.totalBytesExpectedToWrite;
+        dlog(
+          asset.id,
+          `server total ${data.totalBytesExpectedToWrite} != catalog ${asset.sizeBytes} — ` +
+            (isResume ? "Range ignored, restarting from zero" : "aborting")
+        );
         downloadResumable.pauseAsync().catch(() => {});
         return;
       }
@@ -468,24 +507,32 @@ export class ModelManager {
     progressHooks.set(asset.id, onData);
     downloadResumable =
       resuming ??
-      FileSystem.createDownloadResumable(asset.sourceUrl, destPath, {}, (data) => progressHooks.get(asset.id)?.(data));
+      FileSystem.createDownloadResumable(
+        asset.sourceUrl,
+        destPath,
+        {},
+        (data) => progressHooks.get(asset.id)?.(data),
+        resumeFrom > 0 ? String(resumeFrom) : undefined
+      );
     this.pausedDownloads.set(asset.id, downloadResumable);
     resetInactivityTimer();
 
     let result: FileSystem.FileSystemDownloadResult | undefined;
     try {
-      result = await (resuming ? downloadResumable.resumeAsync() : downloadResumable.downloadAsync());
+      result = await (isResume ? downloadResumable.resumeAsync() : downloadResumable.downloadAsync());
       dlog(
         asset.id,
-        `${resuming ? "resumeAsync" : "downloadAsync"}() resolved — ` +
+        `${isResume ? "resumeAsync" : "downloadAsync"}() resolved — ` +
           `result=${result ? `{uri: ${result.uri}, status: ${result.status}}` : "undefined"}, ` +
           `total progress callbacks received: ${progressCallbackCount}`
       );
     } catch (e: any) {
       clearTimeout(timer);
-      dlog(asset.id, `${resuming ? "resumeAsync" : "downloadAsync"}() THREW: ${e?.message ?? e} (timedOut=${timedOut})`);
+      dlog(asset.id, `${isResume ? "resumeAsync" : "downloadAsync"}() THREW: ${e?.message ?? e} (timedOut=${timedOut})`);
       if (serverSize !== null) await this.abandonDownload(asset);
       if (serverSize !== null) throw sizeChangedError(asset, serverSize);
+      if (rangeIgnored) await this.abandonDownload(asset);
+      if (rangeIgnored) throw rangeIgnoredError(asset);
       if (timedOut) {
         // Paused, not deleted — stays in pausedDownloads for the next call
         // to pick up. Only genuinely-failed (non-timeout) downloads below
@@ -494,10 +541,19 @@ export class ModelManager {
           `Download of ${asset.label} stalled (no progress for ${DOWNLOAD_INACTIVITY_TIMEOUT_MS / 1000}s) — tap Retry to resume, or check your connection.`
         );
       }
+      // A dropped connection (or any other transfer error): keep the bytes we
+      // have. The next attempt resumes from the file's length, and the
+      // sha256 check at the end catches anything that went wrong.
+      progressHooks.delete(asset.id);
       this.pausedDownloads.delete(asset.id);
       downloadsOwningFile.delete(asset.id);
-      await FileSystem.deleteAsync(destPath, { idempotent: true }).catch(() => {});
-      throw e;
+      const kept = (await FileSystem.getInfoAsync(destPath).catch(() => null)) as { exists: boolean; size?: number } | null;
+      const keptBytes = kept?.exists ? kept.size ?? 0 : 0;
+      throw new AssetIntegrityError(
+        "network",
+        `Download of ${asset.label} was interrupted at ${keptBytes} of ${asset.sizeBytes} bytes (${e?.message ?? e}). Retry to continue from there.`,
+        false
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -505,6 +561,10 @@ export class ModelManager {
     if (!result && serverSize !== null) {
       await this.abandonDownload(asset);
       throw sizeChangedError(asset, serverSize);
+    }
+    if (!result && rangeIgnored) {
+      await this.abandonDownload(asset);
+      throw rangeIgnoredError(asset);
     }
 
     if (!result) {
@@ -557,6 +617,12 @@ export class ModelManager {
       );
     }
 
+    await this.verifyDownloaded(asset, onProgress);
+  }
+
+  /** sha256 of a complete downloaded file; deletes it and throws permanently on mismatch. */
+  private async verifyDownloaded(asset: CatalogModel, onProgress?: (p: DownloadProgress) => void): Promise<void> {
+    const destPath = assetPath(asset);
     await excludeFromBackup(destPath);
     if (!asset.sha256) return;
     onProgress?.({ phase: "verifying", totalBytesWritten: 0, totalBytesExpectedToWrite: asset.sizeBytes });
@@ -613,5 +679,13 @@ function sizeChangedError(asset: CatalogModel, serverSize: number): AssetIntegri
     "size-mismatch",
     `The download server now serves ${serverSize} bytes for ${asset.label}, not the ${asset.sizeBytes} this version of BOAR expects. Skip it for now, import the file, or update the app.`,
     true
+  );
+}
+
+function rangeIgnoredError(asset: CatalogModel): AssetIntegrityError {
+  return new AssetIntegrityError(
+    "network",
+    `The server didn't continue ${asset.label} where it stopped, so the partial download was discarded. Retry to download it from the start.`,
+    false
   );
 }
