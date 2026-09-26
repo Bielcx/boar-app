@@ -28,6 +28,7 @@ Needs the Android SDK + NDK and JDK 17 (the same toolchain as
 | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | declared, asked for on the first "near me" question | same |
 | `ACCESS_BACKGROUND_LOCATION`, `SYSTEM_ALERT_WINDOW`, `READ/WRITE_EXTERNAL_STORAGE` | removed | removed |
 | `allowBackup`, `usesCleartextTraffic` | `false`, `false` | `false`, `false` |
+| `dataExtractionRules` (Android 12+) | every domain excluded from cloud backup and device transfer | same |
 | Getting models | import from file only | download in-app, or import from file |
 | Hugging Face model search | disabled | enabled |
 | Voice with the system recognizer | never (on-device only) | only after the user accepts a warning |
@@ -39,7 +40,8 @@ disagree:
 
 - `app.config.js` → `plugins/withBuildVariant.js` sets `android.blockedPermissions`
   (Expo writes them as `tools:node="remove"`, which also strips permissions that
-  libraries try to merge in), the application id, `allowBackup` and cleartext.
+  libraries try to merge in), the application id, `allowBackup`, `dataExtractionRules`
+  (writes `res/xml/data_extraction_rules.xml`) and cleartext.
 - `src/config/variant.ts` (`APP_VARIANT`, `networkAllowed()`): Expo inlines
   `EXPO_PUBLIC_*` variables into the JS bundle at build time. Every network call
   site checks `networkAllowed()` first; `src/config/networkAudit.test.ts` fails

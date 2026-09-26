@@ -52,15 +52,44 @@ re-checks every entry against its host.
 | Full knowledge base (+4,000 topics) | 2.5 MB | [link](https://raw.githubusercontent.com/rferrari/boar-app/9e46dc4d8f9a95bc7716194b94117f769504c0e0/assets/corpus/corpus-full.json) | `6d602003bb9da59200e3e55b75b9e15bb073a4b9b1357da2c2d47b2803c570be` |
 | Wikipedia Vital Articles (+50,000 articles) | 163.6 MB | [link](https://github.com/rferrari/boar-app/releases/download/knowledge-pack-v1/wiki-vital5.sqlite) | `d3b87d562baba3489f6878bf99783f50d504db94c347029771e53f6d1aecc666` |
 
-## Places (restaurants near you)
+## Places (restaurants near you) and topic packs
 
 Answering "vegan restaurants in the city I'm in" needs two files: the world
-gazetteer `world-places.sqlite` (city names → coordinates, GeoNames, 20.8 MB,
-always needed) and a places pack for the region (OpenStreetMap food places plus
-Wikivoyage Eat/Drink). Their sizes and SHA-256 are listed in
-`src/rag/poiRegions.ts`, and they install by file import like any model. Their
-download links will be added to the table above once they're published as
-release assets.
+gazetteer (city names → coordinates) and the places pack for that area
+(OpenStreetMap food places with diet tags, plus Wikivoyage Eat/Drink). Both
+install by file import like any model, and location comes from the phone's GPS,
+which works without network.
+
+They are hosted in the dataset
+[r4topunk/boar-packs](https://huggingface.co/datasets/r4topunk/boar-packs)
+(sources and licenses per pack in its README: ODbL © OpenStreetMap
+contributors, CC BY-SA 4.0 wiki text, CC BY 4.0 GeoNames, public domain US
+government works), every link pinned to the
+upload commit `6a65cc2`. Source of truth: `src/rag/poiRegions.ts` and
+`src/rag/preparedness.ts`; `npm run manifest:verify` re-checks them.
+
+| Asset | Size | Download | SHA-256 |
+|---|---|---|---|
+| World gazetteer (GeoNames, 34,149 places) **(needed for any places pack)** | 20.8 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/world-places.sqlite) | `fdb302aa2a2813ad36487b4f0ffa629ba21faec700ee5fcb5c4bf9c3448e9746` |
+| Places: São Paulo | 1.4 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/sao-paulo.sqlite) | `42e6caf31e9018ad76e282f26114812dbdf0ab23c2aaf269199b9126bbe935d3` |
+| Places: Singapore | 1.9 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/singapore.sqlite) | `bd7c1afcb59f4438bb2a9b0fbde2360720194ea05ac5081ee9dc4fed0c094506` |
+| Places: Taipei | 3.4 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/taipei.sqlite) | `0831d93f747e4fa002d850523fc4098bc58ee262058b8b54b6a0b3cc60f5f480` |
+| Places: Buenos Aires | 1.5 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/buenos-aires.sqlite) | `dedc896e659e112e16811005d038bd9cff6ead678b8d63b566565eec67ca8b73` |
+| Places: Berlin | 3.3 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/cities/berlin.sqlite) | `9216b3b0e55eb435390c79fc9460b99bc60d4396520091a8e37c22155e3c7ba3` |
+| Emergency and preparedness (topic pack) | 19.6 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/topics/boar-preparedness.sqlite) | `65dff5d9988a6fe2bffe17a4d3ab096a1a8f580d20b1ab18d0ada41bbbc0b4e8` |
+
+```bash
+# Example: Berlin, from a computer
+B=https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/
+curl -L -o world-places.sqlite "$B"places/world-places.sqlite
+curl -L -o berlin.sqlite "$B"places/cities/berlin.sqlite
+shasum -a 256 world-places.sqlite berlin.sqlite   # compare with the table
+adb push world-places.sqlite berlin.sqlite /sdcard/Download/
+```
+
+The file names don't matter: the app recognises each file by size and SHA-256.
+These five cities are the sample build. Places for the rest of the world
+(1°×1° tiles) will be added here when they are published.
 
 ## Size limits
 

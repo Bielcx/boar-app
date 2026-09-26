@@ -291,3 +291,18 @@ export const TIERS: TierDefinition[] = [
 export function totalManifestBytes(models: CatalogModel[]): number {
   return models.reduce((sum, m) => sum + m.sizeBytes, 0);
 }
+
+// A branch URL (resolve/main, raw/.../main/) can change under us: the file
+// would then fail its sha256 check and block every install at setup.
+const PINNED_SOURCE_URLS = [
+  // Hugging Face model or dataset repo at a commit (packs live in subfolders).
+  /^https:\/\/huggingface\.co\/(datasets\/)?[^/]+\/[^/]+\/resolve\/[0-9a-f]{40}\/[^?#]+$/,
+  /^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[0-9a-f]{40}\//,
+  // Release assets are addressed by tag; the sha256 check still guards them.
+  /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\/[^/]+\/[^/]+$/,
+];
+
+/** True when `url` points at an immutable revision (commit or release), never a branch. */
+export function isPinnedSourceUrl(url: string): boolean {
+  return PINNED_SOURCE_URLS.some((re) => re.test(url)) && !url.split("/").includes("..");
+}
