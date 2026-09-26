@@ -15,6 +15,12 @@ const PATTERNS: Array<{ type: TaskType; test: RegExp }> = [
   { type: "code", test: /```|\b(write (a |some )?code|debug this|refactor|fix this function|regex for)\b/i },
   { type: "calculate", test: /\b(calculate|compute|how much is)\b|\d+\s*[+\-*/×÷]\s*\d/i },
   { type: "extract", test: /\b(extract|list all|pull out|find every)\b/i },
+  // Explanation/reasoning questions: never a one-sentence lookup, even when
+  // short and opening with "what" ("What caused the French Revolution?").
+  {
+    type: "research",
+    test: /^(why|how)\b|\b(explain|caused?|causes|effects? of|impacts?|relate[sd]?|relationship|contrast|implications?)\b/i,
+  },
 ];
 
 // Matches ONE greeting phrase, trailing punctuation only — not the whole

@@ -10,6 +10,7 @@ export interface MemoryInfo {
 interface RamMonitorNativeModule {
   getMemoryInfo(): MemoryInfo;
   getDeviceTotalRamBytes(): number;
+  getAvailableRamBytes?(): number;
 }
 
 const RamMonitor = requireNativeModule<RamMonitorNativeModule>("RamMonitor");
@@ -22,6 +23,19 @@ export function getMemoryInfo(): MemoryInfo {
 export function getDeviceTotalRamBytes(): number {
   try {
     return RamMonitor.getDeviceTotalRamBytes();
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * RAM available to a new allocation (ActivityManager availMem ≈ MemAvailable:
+ * free + reclaimable cache). 0 if unavailable (e.g. a native build without
+ * this function, or a platform that does not implement it yet).
+ */
+export function getAvailableRamBytes(): number {
+  try {
+    return RamMonitor.getAvailableRamBytes?.() ?? 0;
   } catch {
     return 0;
   }

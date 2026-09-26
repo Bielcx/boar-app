@@ -139,3 +139,17 @@ describe("classifyTask", () => {
     expect(classifyTask(q)).toBe(classifyTask(q));
   });
 });
+
+describe("classifyTask explanation questions", () => {
+  it("treats why/how/cause/relationship questions as research, not a one-sentence lookup", () => {
+    expect(classifyTask("What caused the French Revolution?")).toBe("research");
+    expect(classifyTask("Why is the sky blue?")).toBe("research");
+    expect(classifyTask("How does inflation relate to interest rates?")).toBe("research");
+    expect(classifyTask("Contrast mitosis with meiosis")).toBe("research");
+  });
+
+  it("keeps short factual questions as lookups", () => {
+    expect(classifyTask("What is the capital of Australia?")).toBe("lookup");
+    expect(classifyTask("Who wrote Dom Casmurro?")).toBe("lookup");
+  });
+});

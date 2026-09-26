@@ -1,4 +1,108 @@
-# Adaptive Offline Intelligence — Phase 0 Architecture Audit
+# Adaptive routing — layered answers
+
+> **Current design (v2, 2026-09).** Sections below "Historical: Phase 0 audit"
+> describe the earlier role-based router and are kept for context only.
+
+## TL;DR
+
+- Routing picks **how deep** to answer, never **which model** writes a normal answer. The model the user picks ("Use") always answers; the old router ignored it for most questions.
+- Three tiers: **instant** (a source sentence, no LLM, <1 s) → **fast** (the user's model over ~1.2k tokens of compressed sources) → **deep** (a large MoE in one pass, or multi-pass on the user's model when no deep model fits), with verification by a distinct model.
+- The UI consumes one typed event stream (`AnswerEvent`, `src/routing/events.ts`) through `answer()` / `deepen()` (`src/routing/answerService.ts`).
+- The pre-load memory check understands mmap: only KV cache + compute buffers must fit; weights may stream from storage (`src/inference/memoryFit.ts`).
+
+```ts
+import { answer, deepen } from "../routing/answerService";
+const h = answer({ query }, (e) => dispatch(e), { systemPrompt, styleReminder, history, maxTokens });
+// h.stop(); const result = await h.done;
+deepen(query, result.sources, (e) => dispatch(e), ctx); // "Deeper answer" button
+```
+
+## Settings
+
+| Key (`src/models/settings.ts`) | Default | Meaning | Migrates from |
+|---|---|---|---|
+| `answerQuickFirst` | `true` | Show the instant source excerpt first; it may be the whole answer to a confident lookup | `adaptiveRoutingEnabled` |
+| `answerAlwaysComplete` | `false` | Always produce the complete (deep) answer | `deepResearchMode` |
+| `deepModelId` | auto | Deep-tier model. `undefined` = largest installed "reasoning" model that fits and is not the fast model; `null` = none | — |
+| `activeModelId.llm` | default model | The model the user picked; always writes the fast answer | — |
+
+`routingPreset` and `modelRoleAssignments` are no longer read by chat (the evaluation harness still uses `router.ts`).
+
+### Toggle matrix (quickFirst / alwaysComplete)
+
+| | alwaysComplete off | alwaysComplete on |
+|---|---|---|
+| **quickFirst on** | instant → (lookup with confidence ≥ 0.75: stop) → fast → `deep_available` | instant as preview only → complete answer (no fast pass) |
+| **quickFirst off** | fast with the picked model; deeper only on request | complete answer |
+
+## Depth plan (`src/routing/depth.ts`, pure)
+
+```
+classifyTask(query)                     # regex, deterministic (classify.ts)
+  ├─ greeting/calculate/translate/code → no retrieval, no instant, fast only
+  ├─ requestedTier = deep (deepen) or alwaysComplete → complete
+  │     ├─ deep model usable (fit ≠ thrashing/insufficient) → deep, single pass, 10 chunks → 2.4k tokens
+  │     └─ else → deep tier, multi-pass on the picked model (orchestrator.ts)
+  │     └─ + verify when a distinct "verifier" model is installed
+  └─ else → fast: picked model, 6 chunks → 1.2k tokens; instant first when quickFirst
+```
+
+Reason codes (`receipt.reasonCodes`) record every decision, e.g. `task:lookup`, `instant:may-finish`, `generate:user-model-qwen2.5-1.5b-instruct-q4km`, `context:748->185`.
+
+## Answer contract (`src/routing/events.ts`)
+
+Every event carries `answerId`; drop events whose id is not the current answer's.
+
+| Event | When |
+|---|---|
+| `stage` `{stage, tier, modelId?, detail?, at}` | `loading_model`, `retrieving` (multi-pass: `detail.index/count`), `prefill`, `generating` (first token), `verifying`, `synthesizing` |
+| `sources` `{tier, sources}` | Once the numbered source list is final: `[n]` in text = `sources[n-1]`, global and deduplicated |
+| `instant` `{snippet:{text, sourceIndex}, confidence}` | Extractive excerpt (0..1 confidence) |
+| `token` `{tier, text}` | Streamed text of the fast/deep answer |
+| `warning` `{code: "model_streams_from_storage", message}` | The model loaded but its weights stream from storage (slower) |
+| `done` `{tier, outcome, receipt, error?}` | Always last for the answer. `outcome`: success/stopped/timeout/interrupted/error; `error.code`: no_model/oom/load_failed/generation_failed/unknown |
+| `deep_available` `{reason?, estSeconds?}` | After a fast `done`, when deepening is possible |
+
+`receipt`: `modelId` (`"extractive"` for instant), `modelLabel`, `tokens`, `tokPerSec` (llama.cpp decode timing), `ttftMs` (to first visible text), `totalMs`, `retrievalMs`, `prefillMs` + `ctxTokens` (llama.cpp `timings.prompt_ms` / `prompt_n`), `cachedTokens` (prompt tokens reused from the KV cache), `loadMs`, `verification`, `reasonCodes`. There is no prefill progress: llama.rn has no prompt-progress callback.
+
+Concurrency: a new `answer()` stops the previous one and waits for it; `LlamaEngine.generate()` is queued and `stop()` also cancels queued generations, so a double send can never run two completions on one context.
+
+## Context compression (`src/routing/context.ts`)
+
+Prefill dominates time-to-first-token on phone CPUs (~70 tok/s for a 1.5B). Instead of whole chunks, the prompt gets the sentences that match the question (IDF-weighted term coverage), each chunk opening with its first sentence, in document order, within a token budget. Chunks with nothing relevant are dropped (the "Hall Primary School" problem).
+
+| Test scenario | Before | After |
+|---|---|---|
+| Lookup over 5 encyclopedia leads (`context.test.ts`) | 748 tok | 185 tok |
+| Comparison over the same 5 leads | 748 tok | 216 tok |
+| Full chat prompt, 3 chunks (`answer.test.ts`) | 454 tok | 316 tok |
+
+Token counts are approximate (4 chars/token) in tests; on device `receipt.ctxTokens` is llama.cpp's own count.
+
+**KV reuse of the system prompt:** already automatic. llama.rn keeps the last completion's KV cache and re-evaluates from the first differing token (`find_common_prefix_length`, `cpp/rn-completion.cpp`). With the current prompt layout, ~156 of 220 tokens of a follow-up question's prompt are a shared prefix (`prompt.test.ts`). Putting sources after the history was tried and gained ~6%, not worth the change. Loading another model (deep tier, verifier) drops the cache.
+
+## Memory check (`src/inference/memoryFit.ts`)
+
+| Verdict | Condition | Load? |
+|---|---|---|
+| `resident` | KV + buffers + whole file ≤ available | yes |
+| `streaming` | MoE; KV + buffers + 2× per-token hot weights ≤ available | yes, with warning |
+| `thrashing` | buffers fit, hot weights do not (dense model larger than RAM) | yes, strong warning; not used as deep tier |
+| `insufficient` | KV + buffers alone > available | no (throws) |
+
+Inputs: GGUF header via `loadLlamaModelInfo` (layers, heads, KV heads, head width, expert count/used/FFN width) and `ActivityManager.availMem` (Android) / `os_proc_available_memory()` (iOS), falling back to total − RSS − 2 GB. Example: Qwen3-30B-A3B, 11 GB file, 12 GB phone with 7 GB available → ~0.4 GB KV (4k ctx, f16), hot set ~1.2 GB → `streaming` (the old check refused it).
+
+## UNKNOWN
+
+- Real RSS / low-memory-killer behavior with an 11 GB mmap on Android; real tok/s of the deep tier through plain llama.rn (no expert cache). Needs a device-lab run.
+- Instant-tier confidence threshold (0.75) is set from test fixtures, not from the evaluation set.
+- Quality effect of sentence-level compression vs whole chunks: needs the frontier evaluation.
+
+---
+
+# Historical: Phase 0 audit (role-based router)
+
+## Adaptive Offline Intelligence — Phase 0 Architecture Audit
 
 Branch: `adaptive-offline-ai`. This audit is the required Phase 0 deliverable
 before any routing/execution-engine code is written, per the build plan.
@@ -128,7 +232,7 @@ JSX text, worth remembering when the routing UI adds its own status-label maps.
 
 `ModelSetupScreen.tsx` (Settings) and `SetupWizardScreen.tsx` (first-run) both
 already have model-management UI (download, activate, remove). `ModelBrowser.tsx`
-+ `ModelCatalogScreen.tsx` handle Hugging Face search. **The routing layer
+handles Hugging Face search. **The routing layer
 should read from/write to this existing model-management state, not introduce
 a second one** — e.g. "assign this already-downloaded model to the `reasoning`
 role" is a new relationship on top of existing `CatalogModel`/`discoveredModels`

@@ -23,6 +23,7 @@ import { retrieve } from "../rag/retrieve";
 import { assemblePrompt, assembleChatMessages, ConversationHistory, ANSWER_CONTEXT_CHUNKS } from "../rag/pure";
 import type { RetrievedChunk } from "../rag/retrieve.types";
 import { RoutingPlan, RoutingStep } from "./router";
+import { buildVerificationPrompt, parseVerificationVerdict } from "./verify";
 import { VerificationStatus } from "./types";
 
 /**
@@ -318,30 +319,4 @@ export async function executeRoutingPlan(
   return { answer, plan, citations, verification, warnings, stepsExecuted, modelSwitches, timedOut, crossMessageModelSwitch: crossMessageModelSwitch(), modelResidency, modelLoadMs, ttftMs, generationLatencyMs, promptFormat, stopped: false };
 }
 
-/**
- * Task-specific per the build plan ("should not simply ask another model
- * whether the first model was correct") — this asks whether the answer's
- * claims are actually supported by the retrieved evidence, a narrower and
- * more checkable question than open-ended correctness.
- */
-function buildVerificationPrompt(query: string, answer: string, citations: RetrievedChunk[]): string {
-  const evidence = citations.map((c, i) => `[${i + 1}] ${c.title}\n${c.body}`).join("\n\n");
-  return (
-    `You are checking whether an answer is actually supported by the evidence below — ` +
-    `not whether it's well-written, not whether you personally agree with it. ` +
-    `Respond with exactly one word first: SUPPORTED, PARTIAL, or UNSUPPORTED, then a ` +
-    `single sentence explaining why.\n\n` +
-    `Question: ${query}\n\nEvidence:\n${evidence}\n\nAnswer to check:\n${answer}\n\nVerdict:`
-  );
-}
-
-function parseVerificationVerdict(text: string): { status: VerificationStatus; note?: string } {
-  const upper = text.trim().toUpperCase();
-  const note = text.trim().slice(0, 200) || undefined;
-  if (upper.startsWith("SUPPORTED")) return { status: "passed", note };
-  if (upper.startsWith("UNSUPPORTED")) return { status: "failed", note };
-  if (upper.startsWith("PARTIAL")) return { status: "uncertain", note };
-  // The verifier didn't follow the requested format — genuinely uncertain,
-  // not a crash: we asked for a specific answer shape and didn't get one.
-  return { status: "uncertain", note };
-}
+export { buildVerificationPrompt, parseVerificationVerdict } from "./verify";

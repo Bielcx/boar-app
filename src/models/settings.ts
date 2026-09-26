@@ -26,6 +26,10 @@ interface Settings {
   routingPreset?: RoutingPreset;
   modelRoleAssignments?: Partial<Record<ModelRole, string>>;
   adaptiveRoutingEnabled?: boolean;
+  answerQuickFirst?: boolean;
+  answerAlwaysComplete?: boolean;
+  /** null = explicitly no deep model; undefined = pick automatically (see src/routing/depth.ts). */
+  deepModelId?: string | null;
 }
 
 export interface MemorySettings {
@@ -275,5 +279,38 @@ export async function getAdaptiveRoutingEnabled(): Promise<boolean> {
 export async function setAdaptiveRoutingEnabled(enabled: boolean): Promise<void> {
   const s = await readSettings();
   s.adaptiveRoutingEnabled = enabled;
+  await writeSettings(s);
+}
+
+/**
+ * Layered answers (docs/ADAPTIVE_ROUTING.md). Two independent toggles:
+ * - answerQuickFirst: show the instant source snippet first (and let it be
+ *   the whole answer for a confident lookup). Migrates from the old
+ *   adaptiveRoutingEnabled flag.
+ * - answerAlwaysComplete: always run the complete (deep) answer. Replaces
+ *   Deep Research Mode, and migrates from it.
+ * The model the user picked ("Use") always writes the fast answer; routing
+ * picks the depth, never overrides that model.
+ */
+export interface AnswerSettings {
+  quickFirst: boolean;
+  alwaysComplete: boolean;
+  deepModelId: string | null | undefined;
+}
+
+export async function getAnswerSettings(): Promise<AnswerSettings> {
+  const s = await readSettings();
+  return {
+    quickFirst: s.answerQuickFirst ?? s.adaptiveRoutingEnabled ?? true,
+    alwaysComplete: s.answerAlwaysComplete ?? s.deepResearchMode ?? false,
+    deepModelId: s.deepModelId,
+  };
+}
+
+export async function setAnswerSettings(patch: Partial<AnswerSettings>): Promise<void> {
+  const s = await readSettings();
+  if (patch.quickFirst !== undefined) s.answerQuickFirst = patch.quickFirst;
+  if (patch.alwaysComplete !== undefined) s.answerAlwaysComplete = patch.alwaysComplete;
+  if ("deepModelId" in patch) s.deepModelId = patch.deepModelId;
   await writeSettings(s);
 }

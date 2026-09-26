@@ -1,6 +1,15 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { initLlama, LlamaContext } from "llama.rn";
-import { getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
+import { initLlama, loadLlamaModelInfo, LlamaContext } from "llama.rn";
+import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
+import {
+  availableRamFrom,
+  describeFit,
+  estimateMemoryFit,
+  GgufShape,
+  MemoryFit,
+  parseGgufShape,
+  toGb,
+} from "./memoryFit";
 
 export interface ChatMessageInput {
   role: string;
@@ -35,6 +44,17 @@ export interface GenerateOptions {
   timeoutMs?: number;
   /** Called once, right before the timeout triggers stop() — lets the caller distinguish a timeout from a natural finish or a user-initiated stop. */
   onTimeout?: () => void;
+  /** llama.cpp's own measurements for this completion (prompt = prefill). */
+  onTimings?: (t: GenerationTimings) => void;
+}
+
+export interface GenerationTimings {
+  promptTokens: number;
+  promptMs: number;
+  predictedTokens: number;
+  predictedMs: number;
+  /** Prompt tokens reused from the previous completion's KV cache (prefix cache hit). */
+  cachedTokens?: number;
 }
 
 /**
@@ -56,15 +76,27 @@ export interface LoadedModelInfo {
   nThreads: number;
 }
 
-// Rough overhead for OS + other apps + this app's own JS/UI runtime, before
-// touching the model at all. Conservative on purpose: a warning that fires
-// too early is annoying; one that fires too late is a cryptic crash.
-const OS_AND_APP_OVERHEAD_BYTES = 2 * 1024 * 1024 * 1024;
-// Multiplier from a GGUF file's on-disk size to its rough resident working
-// set once loaded (weights actually touched + KV cache) — approximation,
-// not a measurement. Matches the estimate used for the catalog's RAM
-// compatibility badges (src/ui/CatalogItemCard.tsx).
-const MODEL_RAM_OVERHEAD_FACTOR = 1.15;
+/**
+ * Context window when the caller does not pick one. 4GB phones (e.g. iPhone
+ * 13) get 2048: the KV cache is the one allocation mmap cannot page out, and
+ * with 4096 the worst case sits too close to the iOS jetsam limit (docs/IOS.md).
+ */
+export function defaultContextSize(): number {
+  let total = 0;
+  try {
+    total = getDeviceTotalRamBytes();
+  } catch {
+    total = 0;
+  }
+  return total > 0 && total <= 4.5 * 1024 ** 3 ? 2048 : 4096;
+}
+
+export interface LoadResult {
+  /** Memory estimate taken right before loading; null when the RAM readouts were unavailable. */
+  fit: MemoryFit | null;
+  /** Non-null when the model loaded but will stream from storage (slower); show it to the user. */
+  warning: string | null;
+}
 
 /**
  * Thin wrapper around llama.rn. Loads a GGUF model with mmap so weights
@@ -84,6 +116,13 @@ export class LlamaEngine {
   // runs leaves its promise unsettled forever (the chat stays "generating"),
   // so unload stops it and waits for it first.
   private inFlight: Promise<unknown> | null = null;
+  // generate() calls run one at a time: two completions on one llama.cpp
+  // context interleave their tokens and corrupt the KV cache (double-send
+  // race, review boar.md). A second call waits for the first to settle.
+  private genQueue: Promise<unknown> = Promise.resolve();
+  // Bumped by stop(): a generation queued before a stop resolves empty
+  // instead of starting after the user already pressed Stop.
+  private stopEpoch = 0;
 
   private enqueue(task: () => Promise<void>): Promise<void> {
     const run = this.queue.then(task);
@@ -91,12 +130,17 @@ export class LlamaEngine {
     return run;
   }
 
-  load(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }): Promise<void> {
-    return this.enqueue(() => this.loadNow(modelFilename, opts));
+  private lastLoad: LoadResult = { fit: null, warning: null };
+
+  load(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }): Promise<LoadResult> {
+    let result: LoadResult = { fit: null, warning: null };
+    return this.enqueue(async () => {
+      result = await this.loadNow(modelFilename, opts);
+    }).then(() => result);
   }
 
-  private async loadNow(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }) {
-    const nCtx = opts?.nCtx ?? 4096;
+  private async loadNow(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }): Promise<LoadResult> {
+    const nCtx = opts?.nCtx ?? defaultContextSize();
     const nThreads = opts?.nThreads ?? 4;
 
     // ChatScreen re-mounts (and calls load() again) every time Settings is
@@ -109,7 +153,7 @@ export class LlamaEngine {
       this.modelInfo.nCtx === nCtx &&
       this.modelInfo.nThreads === nThreads
     ) {
-      return;
+      return this.lastLoad;
     }
 
     const modelPath = `${FileSystem.documentDirectory}${modelFilename}`;
@@ -122,25 +166,23 @@ export class LlamaEngine {
     const fileSizeBytes = (info as { size?: number }).size ?? 0;
 
     // Release any previously loaded model first (e.g. actually switching
-    // models from Settings) so we don't leak the old context's native memory.
+    // models from Settings) so we don't leak the old context's native memory,
+    // and so the RAM readouts below no longer count the old model.
     await this.unloadNow();
 
-    // Pre-flight check: a clear "this probably won't fit" message beats a
-    // cryptic native failure or an outright OOM crash. Best-effort — if the
-    // native RAM readouts aren't available (0), we skip the check rather
-    // than block loading on missing data.
-    const diagnostics = this.estimateFit(fileSizeBytes);
-    if (diagnostics && diagnostics.likelyInsufficient) {
-      throw new Error(
-        `"${modelFilename}" needs roughly ${diagnostics.estimatedGb}GB of RAM, but this ` +
-          `device only has about ${diagnostics.availableGb}GB free (of ${diagnostics.totalGb}GB total). ` +
-          `Try a smaller model from Settings > Tone & Model.`
-      );
+    // Pre-flight check, mmap-aware (see memoryFit.ts): only the KV cache and
+    // compute buffers must be resident, so only those can refuse a load. A
+    // file bigger than free RAM loads with a warning (weights stream from
+    // storage). Best-effort — missing readouts skip the check.
+    const fit = await this.estimateFitAt(modelPath, fileSizeBytes, nCtx);
+    if (fit?.verdict === "insufficient") {
+      throw new Error(describeFit(modelFilename, fit)!);
     }
 
     try {
       this.context = await initLlama({
         model: modelPath,
+        use_mmap: true,
         use_mlock: false, // avoid pinning full weights in RAM; rely on mmap streaming
         n_ctx: nCtx,
         n_threads: nThreads,
@@ -151,39 +193,57 @@ export class LlamaEngine {
       // The native error here (from llama.rn/llama.cpp) is often terse
       // ("Failed to initialize context" with no further detail) — append
       // our own RAM estimate so the user (and future debugging) has an
-      // actual hypothesis instead of a dead end, per diagnostics above.
+      // actual hypothesis instead of a dead end.
       const nativeMessage = e?.message ?? String(e);
-      const hint = diagnostics
-        ? ` (this device has ~${diagnostics.totalGb}GB RAM, ~${diagnostics.availableGb}GB free; ` +
-          `"${modelFilename}" needs roughly ${diagnostics.estimatedGb}GB — likely the cause if those are close)`
+      const hint = fit
+        ? ` (this device has ~${toGb(fit.totalBytes)}GB RAM, ~${toGb(fit.availableBytes)}GB free; ` +
+          `"${modelFilename}" needs ~${toGb(fit.anonBytes)}GB of buffers plus ~${toGb(fit.hotWeightBytes)}GB ` +
+          `of weights per token — likely the cause if those are close)`
         : "";
       throw new Error(`Failed to load "${modelFilename}": ${nativeMessage}${hint}`);
     }
+    this.lastLoad = { fit, warning: fit ? describeFit(modelFilename, fit) : null };
+    return this.lastLoad;
   }
 
-  private estimateFit(
-    fileSizeBytes: number
-  ): { estimatedGb: string; totalGb: string; availableGb: string; likelyInsufficient: boolean } | null {
-    let totalRam = 0;
-    let currentRss = 0;
+  /**
+   * Memory estimate for a downloaded model without loading it (for the model
+   * picker's badges). Reads only the GGUF header. Null if RAM readouts are
+   * unavailable or the file is missing.
+   */
+  async estimateFit(modelFilename: string, opts?: { nCtx?: number }): Promise<MemoryFit | null> {
+    const modelPath = `${FileSystem.documentDirectory}${modelFilename}`;
+    const info = await FileSystem.getInfoAsync(modelPath);
+    if (!info.exists) return null;
+    return this.estimateFitAt(modelPath, (info as { size?: number }).size ?? 0, opts?.nCtx ?? defaultContextSize());
+  }
+
+  private async estimateFitAt(modelPath: string, fileBytes: number, nCtx: number): Promise<MemoryFit | null> {
+    let totalRamBytes = 0;
+    let rssBytes = 0;
+    let availBytes = 0;
     try {
-      totalRam = getDeviceTotalRamBytes();
-      currentRss = getMemoryInfo().rssBytes;
+      totalRamBytes = getDeviceTotalRamBytes();
+      rssBytes = getMemoryInfo().rssBytes;
+      availBytes = getAvailableRamBytes();
     } catch {
       return null;
     }
-    if (totalRam <= 0) return null;
+    if (totalRamBytes <= 0) return null;
 
-    const availableBytes = Math.max(totalRam - currentRss - OS_AND_APP_OVERHEAD_BYTES, 0);
-    const estimatedNeedBytes = fileSizeBytes * MODEL_RAM_OVERHEAD_FACTOR;
-    const toGb = (b: number) => (b / 1024 / 1024 / 1024).toFixed(1);
-
-    return {
-      estimatedGb: toGb(estimatedNeedBytes),
-      totalGb: toGb(totalRam),
-      availableGb: toGb(availableBytes),
-      likelyInsufficient: estimatedNeedBytes > availableBytes,
-    };
+    let shape: GgufShape | null = null;
+    try {
+      shape = parseGgufShape((await loadLlamaModelInfo(modelPath)) as Record<string, unknown>);
+    } catch {
+      // Unreadable header: estimateMemoryFit falls back to file-size heuristics.
+    }
+    return estimateMemoryFit({
+      fileBytes,
+      nCtx,
+      shape,
+      totalRamBytes,
+      availableRamBytes: availableRamFrom({ totalBytes: totalRamBytes, rssBytes, availBytes }),
+    });
   }
 
   unload(): Promise<void> {
@@ -200,6 +260,7 @@ export class LlamaEngine {
     const context = this.context;
     this.context = null;
     this.modelInfo = null;
+    this.lastLoad = { fit: null, warning: null };
     await context?.release();
   }
 
@@ -220,7 +281,14 @@ export class LlamaEngine {
     return this.context?.isJinjaSupported() ?? false;
   }
 
-  async generate({
+  generate(opts: GenerateOptions): Promise<string> {
+    const epoch = this.stopEpoch;
+    const run = this.genQueue.then(() => (epoch === this.stopEpoch ? this.generateNow(opts) : ""));
+    this.genQueue = run.catch(() => {});
+    return run;
+  }
+
+  private async generateNow({
     prompt,
     messages,
     nPredict = 512,
@@ -229,6 +297,7 @@ export class LlamaEngine {
     stop,
     timeoutMs,
     onTimeout,
+    onTimings,
   }: GenerateOptions): Promise<string> {
     if (!this.context) throw new Error("LlamaEngine: model not loaded");
     if (!prompt && !messages) {
@@ -262,8 +331,18 @@ export class LlamaEngine {
     });
     this.inFlight = completion;
     try {
-      const { text } = await completion;
-      return text ?? full;
+      const result = await completion;
+      const t = (result as { timings?: any; tokens_cached?: number }).timings;
+      if (t && onTimings) {
+        onTimings({
+          promptTokens: t.prompt_n ?? 0,
+          promptMs: t.prompt_ms ?? 0,
+          predictedTokens: t.predicted_n ?? 0,
+          predictedMs: t.predicted_ms ?? 0,
+          cachedTokens: (result as { tokens_cached?: number }).tokens_cached,
+        });
+      }
+      return result.text ?? full;
     } finally {
       if (this.inFlight === completion) this.inFlight = null;
       if (timer) clearTimeout(timer);
@@ -277,6 +356,7 @@ export class LlamaEngine {
    * error/abort path, so no try/catch needed around a stopped generate().
    */
   async stop(): Promise<void> {
+    this.stopEpoch++;
     await this.context?.stopCompletion();
   }
 }

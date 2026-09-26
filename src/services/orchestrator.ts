@@ -1,5 +1,6 @@
 import { llamaEngine } from "../inference/LlamaEngine";
-import { retrieve, assemblePrompt, RetrievedChunk, ConversationHistory } from "../rag/retrieve";
+import { retrieve, RetrievedChunk, ConversationHistory } from "../rag/retrieve";
+import { compressContext, mergeSources } from "../routing/context";
 
 /**
  * "Deep Research Mode" — a sequential multi-pass pipeline over the SAME
@@ -26,6 +27,12 @@ export interface ResearchProgress {
 export interface ResearchResult {
   answer: string;
   subQuestions: string[];
+  /**
+   * Global, deduplicated source list: "[n]" anywhere in the answer refers to
+   * citations[n - 1]. (Before, each sub-question numbered its own chunks
+   * from [1] while the footer concatenated every list with duplicates, so
+   * citations pointed at the wrong sources.)
+   */
   citations: RetrievedChunk[];
   /** True if any stage hit STAGE_TIMEOUT_MS and was cut off early. */
   timedOut?: boolean;
@@ -37,6 +44,30 @@ export interface ResearchResult {
 // device could hang the whole research pass indefinitely with no recovery
 // but the user manually stopping it. 2 minutes is deliberately generous.
 const STAGE_TIMEOUT_MS = 120_000;
+/** Per-sub-question context budget: three of these plus the synthesis still prefill fast. */
+const SUB_QUESTION_CONTEXT_TOKENS = 600;
+
+export interface ResearchOptions {
+  /** Chunks retrieved per sub-question (default 6, compressed to SUB_QUESTION_CONTEXT_TOKENS). */
+  retrieveK?: number;
+  /** Called once all sources are known (before synthesis), with the final numbered list. */
+  onSources?: (sources: RetrievedChunk[]) => void;
+}
+
+/**
+ * One generation in the loaded model's own chat template when its GGUF ships
+ * one (plain completion prompts make instruct models ramble), else plain.
+ */
+function generateStage(system: string, user: string, opts: Omit<Parameters<typeof llamaEngine.generate>[0], "prompt" | "messages">) {
+  return llamaEngine.hasEmbeddedChatTemplate()
+    ? llamaEngine.generate({ ...opts, messages: [{ role: "system", content: system }, { role: "user", content: user }] })
+    : llamaEngine.generate({ ...opts, prompt: `${system}\n\n${user}\n\nAnswer:` });
+}
+
+/** Context block numbered with GLOBAL source numbers. */
+export function numberedContext(chunks: RetrievedChunk[], globalIndices: number[]): string {
+  return chunks.map((c, i) => `[${globalIndices[i] + 1}] ${c.title}\n${c.body}`).join("\n\n");
+}
 
 async function decompose(query: string, onTimeout: () => void): Promise<string[]> {
   const prompt =
@@ -44,8 +75,7 @@ async function decompose(query: string, onTimeout: () => void): Promise<string[]
     `together cover it well (e.g. technical analysis, counter-arguments, ` +
     `practical implications — whichever fit this question). One per line, ` +
     `no numbering, no extra commentary.\n\nQuestion: ${query}\n\nSub-questions:`;
-  const text = await llamaEngine.generate({
-    prompt,
+  const text = await generateStage("You plan research.", prompt, {
     nPredict: 150,
     temperature: 0.4,
     timeoutMs: STAGE_TIMEOUT_MS,
@@ -58,22 +88,32 @@ async function decompose(query: string, onTimeout: () => void): Promise<string[]
   return lines.slice(0, 3).length > 0 ? lines.slice(0, 3) : [query];
 }
 
+function instructionOf(systemPrompt: string | undefined): string {
+  return systemPrompt && systemPrompt.trim().length > 0 ? systemPrompt.trim() : "You are an offline research assistant.";
+}
+
 async function researchSubQuestion(
   subQuestion: string,
+  chunks: RetrievedChunk[],
+  globalIndices: number[],
   systemPrompt: string | undefined,
   history: ConversationHistory | undefined,
   onTimeout: () => void
-): Promise<{ answer: string; chunks: RetrievedChunk[] }> {
-  const chunks = await retrieve(subQuestion);
-  const prompt = assemblePrompt(subQuestion, chunks, systemPrompt, history);
-  const answer = await llamaEngine.generate({
-    prompt,
+): Promise<string> {
+  const summary = history?.summary?.trim() ? `Summary of earlier conversation:\n${history.summary.trim()}\n\n` : "";
+  const context = chunks.length
+    ? `Context:\n${numberedContext(chunks, globalIndices)}\n\n`
+    : "";
+  const system =
+    `${instructionOf(systemPrompt)} Answer the question in a short paragraph using the context. ` +
+    `Cite sources with the exact bracket numbers shown in the context, like [3]. ` +
+    `If the context does not cover it, say so.`;
+  return generateStage(system, `${summary}${context}Question: ${subQuestion}`, {
     nPredict: 300,
     temperature: 0.6,
     timeoutMs: STAGE_TIMEOUT_MS,
     onTimeout,
   });
-  return { answer, chunks };
 }
 
 async function synthesize(
@@ -87,17 +127,11 @@ async function synthesize(
   const perspectives = subResults
     .map((r, i) => `Perspective ${i + 1} (${r.subQuestion}):\n${r.answer}`)
     .join("\n\n");
-  const instruction =
-    systemPrompt && systemPrompt.trim().length > 0
-      ? systemPrompt.trim()
-      : "You are an offline research assistant.";
-  const prompt =
-    `${instruction} You are synthesizing multiple research perspectives into one answer.\n\n` +
-    `Original question: ${originalQuery}\n\n${perspectives}\n\n` +
-    `Compare these perspectives, reconcile any conflicts, and write one unified, ` +
-    `well-reasoned answer. Cite sources as [n] where the perspectives did.\n\nAnswer:`;
-  return llamaEngine.generate({
-    prompt,
+  const system =
+    `${instructionOf(systemPrompt)} You are synthesizing multiple research perspectives into one answer. ` +
+    `Compare them, reconcile any conflicts, and write one unified, well-reasoned answer. ` +
+    `Keep the source numbers exactly as the perspectives cite them, like [3]; do not renumber or invent sources.`;
+  return generateStage(system, `Original question: ${originalQuery}\n\n${perspectives}`, {
     nPredict: maxTokens,
     temperature: 0.6,
     onToken,
@@ -113,7 +147,8 @@ export async function runDeepResearch(
   maxTokens: number,
   onProgress?: (p: ResearchProgress) => void,
   onToken?: (piece: string) => void,
-  shouldStop?: () => boolean
+  shouldStop?: () => boolean,
+  options: ResearchOptions = {}
 ): Promise<ResearchResult> {
   let timedOut = false;
   const markTimedOut = () => {
@@ -124,7 +159,8 @@ export async function runDeepResearch(
   const subQuestions = await decompose(query, markTimedOut);
 
   const subResults: { subQuestion: string; answer: string }[] = [];
-  const allChunks: RetrievedChunk[] = [];
+  const perQuestion: RetrievedChunk[][] = [];
+  let allChunks: RetrievedChunk[] = [];
   for (let i = 0; i < subQuestions.length; i++) {
     // llamaEngine.stop() only interrupts whichever single completion call is
     // in flight *right now* — with several sequential completions here
@@ -133,10 +169,16 @@ export async function runDeepResearch(
     // one regardless of the user having asked it to stop.
     if (shouldStop?.()) return { answer: "", subQuestions, citations: allChunks, timedOut };
     onProgress?.({ stage: "researching", subQuestionIndex: i, subQuestionCount: subQuestions.length });
-    const { answer, chunks } = await researchSubQuestion(subQuestions[i], systemPrompt, history, markTimedOut);
+    const retrieved = await retrieve(subQuestions[i], options.retrieveK ?? 6);
+    const { chunks } = compressContext(subQuestions[i], retrieved, { tokenBudget: SUB_QUESTION_CONTEXT_TOKENS });
+    perQuestion.push(chunks);
+    // Number against every source seen so far, so the same chunk keeps one number across sub-questions.
+    const merged = mergeSources(perQuestion);
+    allChunks = merged.sources;
+    const answer = await researchSubQuestion(subQuestions[i], chunks, merged.indexMaps[i], systemPrompt, history, markTimedOut);
     subResults.push({ subQuestion: subQuestions[i], answer });
-    allChunks.push(...chunks);
   }
+  options.onSources?.(allChunks);
 
   if (shouldStop?.()) return { answer: "", subQuestions, citations: allChunks, timedOut };
 

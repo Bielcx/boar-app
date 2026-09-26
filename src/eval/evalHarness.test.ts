@@ -240,7 +240,7 @@ describe("runEvaluation", () => {
   it("adaptive config records the routed model and the preset", async () => {
     presentIds.add(PHI.id).add(QWEN.id);
     const run = await runEvaluation({ configs: [{ kind: "adaptive", label: "Adaptive" }], queries: [queries[0]] });
-    expect(run.rows[0]).toMatchObject({ configId: "adaptive", routingPreset: "balanced", adaptiveRoutingUsed: true, modelId: QWEN.id });
+    expect(run.rows[0]).toMatchObject({ configId: "adaptive", routingPreset: "balanced", adaptiveRoutingUsed: true, modelId: PHI.id });
   });
 
   it("reports a model that isn't installed as a failure row instead of aborting the run", async () => {
