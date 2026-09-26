@@ -67,6 +67,24 @@ Every event carries `answerId`; drop events whose id is not the current answer's
 
 Concurrency: a new `answer()` stops the previous one and waits for it; `LlamaEngine.generate()` is queued and `stop()` also cancels queued generations, so a double send can never run two completions on one context.
 
+## Places questions (`src/routing/geo.ts`)
+
+"Tell me the best vegan restaurants in [the city I'm in]" is answered **without an LLM**, from offline POI records, so no place name can be invented and the list appears in under a second.
+
+```
+detectGeoIntent(query)       # place words (restaurant, café, padaria, "onde comer"), or food words + location/diet;
+                             # never explanatory questions ("What food did the Romans eat?")
+  ├─ city named ("in Lisbon", "em São Paulo") or answer({ place }) → resolvePlace → center, no distances
+  └─ else device: getLocation({ timeoutMs: 700 })   # never prompts; denied/unavailable → coverage "needs_place"
+searchPois({ center, diet, text, limit: 10 })       # pack ranks: diet tag only > yes > limited, then distance
+  ├─ coverage none / 0 hits → "I don't have offline place data for X" (never a generic list)
+  └─ places event + text list: name — distance — address — diet tag — hours [n]; Wikivoyage entries (approx) in a separate guide block
+```
+
+- `criterion` is `diet_match` when a diet was asked, else `distance`; "best" says so and states that ratings/popularity are not available offline.
+- Events: `stage retrieving` → `location` (device only) → `sources` → `places` → `done` (tier `instant`, `receipt.modelId` `"places"`). `places.attribution` carries ODbL (OSM, with extract date) and CC BY-SA (Wikivoyage).
+- Providers are injected with `registerGeoProviders({ getLocation, resolvePlace, searchPois })` (`answerService.ts`): POI pack from the knowledge layer (`src/rag/pois.ts`), location from the UI layer (`src/services/location.ts`). Without them the answer is "places pack not installed".
+
 ## Context compression (`src/routing/context.ts`)
 
 Prefill dominates time-to-first-token on phone CPUs (~70 tok/s for a 1.5B). Instead of whole chunks, the prompt gets the sentences that match the question (IDF-weighted term coverage), each chunk opening with its first sentence, in document order, within a token budget. Chunks with nothing relevant are dropped (the "Hall Primary School" problem).
