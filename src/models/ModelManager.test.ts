@@ -60,6 +60,7 @@ vi.mock("bundled-assets", () => ({ copyBundledAssetToFile: vi.fn(), excludeFromB
 let offline = false;
 vi.mock("../config/variant", () => ({ networkAllowed: () => !offline }));
 
+let copyHook: (() => Promise<void> | void) | null = null;
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 vi.mock("./fileHash", () => ({
   sha256OfFile: async (uri: string, onProgress?: (d: number, t: number) => void) => {
@@ -67,8 +68,15 @@ vi.mock("./fileHash", () => ({
     onProgress?.(data.length, data.length);
     return sha(data);
   },
-  copyWithSha256: async (src: string, dest: string) => {
+  copyWithSha256: async (src: string, dest: string, _p?: unknown, signal?: AbortSignal) => {
     const data = files.get(src)!;
+    put(dest, data.subarray(0, 4)); // partial write, then the "user" may cancel
+    await copyHook?.();
+    if (signal?.aborted) {
+      const e = new Error("Import cancelled");
+      e.name = "AbortError";
+      throw e;
+    }
     put(dest, data);
     return { sha256: sha(data), bytes: data.length };
   },
@@ -102,6 +110,7 @@ beforeEach(() => {
   serverAnnouncedSize = null;
   offline = false;
   excludeFromBackup.mockClear();
+  copyHook = null;
 });
 
 async function rejection(p: Promise<unknown>): Promise<AssetIntegrityError> {
@@ -209,5 +218,26 @@ describe("assets without a known sha256 (Hugging Face search results)", () => {
     const a = asset({ sha256: "" });
     await new ModelManager([a]).downloadCatalogModel(a);
     expect(files.get(DEST)).toEqual(body);
+  });
+});
+
+describe("importFromFile cancellation", () => {
+  const SRC = "content://picker/doc/2";
+
+  it("rejects with an AbortError and copies nothing when already aborted", async () => {
+    put(SRC, body);
+    const ctrl = new AbortController();
+    ctrl.abort();
+    await expect(new ModelManager([asset()]).importFromFile(SRC, undefined, ctrl.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect([...files.keys()]).toEqual([SRC]);
+  });
+
+  it("stops mid-copy, deletes the partial file and installs nothing", async () => {
+    put(SRC, body);
+    const ctrl = new AbortController();
+    copyHook = () => ctrl.abort();
+    await expect(new ModelManager([asset()]).importFromFile(SRC, undefined, ctrl.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(files.has(DEST)).toBe(false);
+    expect([...files.keys()].filter((k) => k.includes("/imports/"))).toEqual([]);
   });
 });

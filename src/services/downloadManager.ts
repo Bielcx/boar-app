@@ -238,12 +238,14 @@ export function startDownload(asset: CatalogModel): Promise<void> {
  * document picker, or file://) with no network: copied into the app and
  * accepted only if its size + sha256 match a catalog entry. Holds the wake
  * lock like a download, since hashing a multi-GB file takes a while.
- * Rejects with AssetIntegrityError (see errorKindOf) on anything else.
+ * Rejects with AssetIntegrityError (see errorKindOf) on anything else, or
+ * with an AbortError (ImportAbortedError) when `signal` is aborted; the
+ * partial copy is deleted either way.
  */
-export async function importAssetFile(uri: string, onProgress?: HashProgress): Promise<CatalogModel> {
+export async function importAssetFile(uri: string, onProgress?: HashProgress, signal?: AbortSignal): Promise<CatalogModel> {
   const release = holdWakeLockForDownload(`import:${uri}`);
   try {
-    const asset = await modelManager.importFromFile(uri, onProgress);
+    const asset = await modelManager.importFromFile(uri, onProgress, signal);
     state.set(asset.id, {
       downloading: false,
       phase: "verified",

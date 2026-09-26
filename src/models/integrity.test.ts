@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AssetIntegrityError,
+  ImportAbortedError,
+  isAbortError,
   candidatesBySize,
   digestsEqual,
   errorKindOf,
@@ -120,5 +122,36 @@ describe("errorKindOf", () => {
   it("reads kind/permanent from AssetIntegrityError, else unknown/transient", () => {
     expect(errorKindOf(new AssetIntegrityError("hash-mismatch", "x", true))).toEqual({ kind: "hash-mismatch", permanent: true });
     expect(errorKindOf(new Error("boom"))).toEqual({ kind: "unknown", permanent: false });
+  });
+});
+
+describe("cancellation", () => {
+  it("stops between chunks with an AbortError and still closes the reader", async () => {
+    const ctrl = new AbortController();
+    let reads = 0;
+    let closed = false;
+    const p = sha256Chunked(
+      {
+        read: () => {
+          reads++;
+          if (reads === 3) ctrl.abort();
+          return new Uint8Array(16);
+        },
+        close: () => {
+          closed = true;
+        },
+      },
+      { chunkBytes: 16, signal: ctrl.signal }
+    );
+    await expect(p).rejects.toBeInstanceOf(ImportAbortedError);
+    expect(reads).toBe(3);
+    expect(closed).toBe(true);
+  });
+
+  it("AbortError is recognisable by name and maps to a non-permanent 'cancelled'", () => {
+    const e = new ImportAbortedError();
+    expect(e.name).toBe("AbortError");
+    expect(isAbortError(e)).toBe(true);
+    expect(errorKindOf(e)).toEqual({ kind: "cancelled", permanent: false });
   });
 });

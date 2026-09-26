@@ -9,6 +9,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.security.MessageDigest
+import java.util.concurrent.ConcurrentHashMap
 
 private const val BUFFER_BYTES = 1 shl 20 // 1 MiB
 private const val PROGRESS_EVERY_BYTES = 32L shl 20 // 32 MiB
@@ -20,15 +21,26 @@ private const val PROGRESS_EVERY_BYTES = 32L shl 20 // 32 MiB
  * tagged with the caller's jobId.
  */
 class FileHashModule : Module() {
+  // jobIds the JS side asked to stop; checked between chunks.
+  private val cancelled = ConcurrentHashMap.newKeySet<String>()
+
   override fun definition() = ModuleDefinition {
     Name("FileHash")
 
     Events("onProgress")
 
+    Function("cancel") { jobId: String ->
+      cancelled.add(jobId)
+    }
+
     AsyncFunction("sha256") { uri: String, jobId: String ->
-      val total = sizeOf(uri)
-      openInput(uri).use { input ->
-        hex(digestStream(input, null, jobId, total))
+      try {
+        val total = sizeOf(uri)
+        openInput(uri).use { input ->
+          hex(digestStream(input, null, jobId, total))
+        }
+      } finally {
+        cancelled.remove(jobId)
       }
     }
 
@@ -37,12 +49,19 @@ class FileHashModule : Module() {
       val dest = fileOf(destUri)
       dest.parentFile?.mkdirs()
       var bytes = 0L
-      val digest = openInput(srcUri).use { input ->
-        FileOutputStream(dest).use { output ->
-          digestStream(input, output, jobId, total) { bytes = it }
+      try {
+        val digest = openInput(srcUri).use { input ->
+          FileOutputStream(dest).use { output ->
+            digestStream(input, output, jobId, total) { bytes = it }
+          }
         }
+        mapOf("sha256" to hex(digest), "bytes" to bytes.toDouble())
+      } catch (e: Throwable) {
+        dest.delete()
+        throw e
+      } finally {
+        cancelled.remove(jobId)
       }
-      mapOf("sha256" to hex(digest), "bytes" to bytes.toDouble())
     }
   }
 
@@ -58,6 +77,7 @@ class FileHashModule : Module() {
     var done = 0L
     var nextReport = PROGRESS_EVERY_BYTES
     while (true) {
+      if (cancelled.contains(jobId)) throw CodedException("E_CANCELLED", "Cancelled", null)
       val n = input.read(buffer)
       if (n < 0) break
       md.update(buffer, 0, n)

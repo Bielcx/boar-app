@@ -13,6 +13,7 @@ export type IntegrityErrorKind =
   | "network"
   | "storage"
   | "offline-variant"
+  | "cancelled"
   | "unknown";
 
 /**
@@ -32,8 +33,28 @@ export class AssetIntegrityError extends Error {
   }
 }
 
+/**
+ * The user cancelled an import (AbortSignal). `name` is "AbortError", like
+ * fetch's, so callers can check `e.name === "AbortError"` for any cancel.
+ */
+export class ImportAbortedError extends Error {
+  constructor(message = "Import cancelled") {
+    super(message);
+    this.name = "AbortError";
+  }
+}
+
+export function isAbortError(e: unknown): boolean {
+  return (e as { name?: string } | null)?.name === "AbortError";
+}
+
+export function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new ImportAbortedError();
+}
+
 export function errorKindOf(e: unknown): { kind: IntegrityErrorKind; permanent: boolean } {
   if (e instanceof AssetIntegrityError) return { kind: e.kind, permanent: e.permanent };
+  if (isAbortError(e)) return { kind: "cancelled", permanent: false };
   return { kind: "unknown", permanent: false };
 }
 
@@ -53,6 +74,8 @@ export interface ChunkedHashOptions {
   onProgress?: (bytesHashed: number, totalBytes: number) => void;
   /** Called between chunks so a JS-thread hash can let the UI breathe. */
   yieldBetweenChunks?: () => Promise<void>;
+  /** Checked between chunks; aborting rejects with ImportAbortedError. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -67,6 +90,7 @@ export async function sha256Chunked(reader: ChunkReader, opts: ChunkedHashOption
   let done = 0;
   try {
     for (;;) {
+      throwIfAborted(opts.signal);
       const chunk = await reader.read(chunkBytes);
       if (chunk.length === 0) break;
       h.update(chunk);
