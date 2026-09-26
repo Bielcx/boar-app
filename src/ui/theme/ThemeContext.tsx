@@ -5,6 +5,9 @@ import { selection } from "../../services/haptics";
 import {
   Appearance,
   FontScale,
+  PaletteChoice,
+  getPaletteChoice,
+  setPaletteChoice as persistPalette,
   ThemeId,
   getAppearance,
   getFontScale,
@@ -27,6 +30,9 @@ interface ThemeContextType {
   setAppearance: (appearance: Appearance) => Promise<void>;
   fontScale: FontScale;
   setFontScale: (scale: FontScale) => Promise<void>;
+  /** Fogueira (default) or Luar. */
+  palette: PaletteChoice;
+  setPalette: (palette: PaletteChoice) => Promise<void>;
   /** OS "reduce motion" preference. Skip non-essential animation when true. */
   reduceMotion: boolean;
 
@@ -49,6 +55,8 @@ const ThemeContext = createContext<ThemeContextType>({
   setAppearance: async () => {},
   fontScale: "standard",
   setFontScale: async () => {},
+  palette: "fogueira",
+  setPalette: async () => {},
   reduceMotion: false,
   colors: legacyColorsFromTokens(defaultTokens.color),
   typography: getTypography("standard"),
@@ -60,16 +68,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const system = useColorScheme();
   const [appearance, setAppearanceState] = useState<Appearance>("system");
   const [fontScale, setFontScaleState] = useState<FontScale>("standard");
+  const [palette, setPaletteState] = useState<PaletteChoice>("fogueira");
   const [themeId, setThemeIdState] = useState<ThemeId>("midnight");
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [savedAppearance, savedScale, savedTheme] = await Promise.all([
+      const [savedAppearance, savedScale, savedTheme, savedPalette] = await Promise.all([
         getAppearance(),
         getFontScale(),
         getThemeId(),
+        getPaletteChoice(),
       ]);
+      setPaletteState(savedPalette);
       setAppearanceState(savedAppearance);
       setFontScaleState(savedScale);
       setThemeIdState(savedTheme);
@@ -83,7 +94,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const scheme = resolveScheme(appearance, system);
-  const tokens = useMemo(() => buildTokens(scheme, fontScale), [scheme, fontScale]);
+  const tokens = useMemo(() => buildTokens(scheme, fontScale, palette), [scheme, fontScale, palette]);
 
   // Root view color shows during screen transitions and behind the keyboard.
   useEffect(() => {
@@ -102,6 +113,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     await persistFontScale(next);
   }, []);
 
+  const setPalette = useCallback(async (next: PaletteChoice) => {
+    setPaletteState(next);
+    selection();
+    await persistPalette(next);
+  }, []);
+
   const setTheme = useCallback(async (next: ThemeId) => {
     setThemeIdState(next);
     await persistThemeId(next);
@@ -118,13 +135,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setAppearance,
       fontScale,
       setFontScale,
+      palette,
+      setPalette,
       reduceMotion,
       colors,
       typography,
       themeId,
       setTheme,
     }),
-    [tokens, scheme, appearance, setAppearance, fontScale, setFontScale, reduceMotion, colors, typography, themeId, setTheme]
+    [tokens, scheme, appearance, setAppearance, fontScale, setFontScale, palette, setPalette, reduceMotion, colors, typography, themeId, setTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

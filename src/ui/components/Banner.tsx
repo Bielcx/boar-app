@@ -43,10 +43,10 @@ export function Banner({ tone = "info", title, message, icon, actionLabel, onAct
         flexDirection: "row",
         gap: t.space.md,
         padding: t.space.md,
-        borderRadius: t.radius.md,
+        borderRadius: t.radius.lg,
         backgroundColor: tc.bg,
-        borderLeftWidth: 3,
-        borderLeftColor: tc.solid,
+        borderWidth: t.size.border,
+        borderColor: tc.fg,
       }}
     >
       <View style={{ paddingTop: 2 }}>

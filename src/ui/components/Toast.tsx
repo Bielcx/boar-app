@@ -82,13 +82,13 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
           flexDirection: "row",
           alignItems: "center",
           gap: t.space.md,
-          paddingLeft: t.space.base,
+          paddingLeft: t.space.md,
           paddingRight: toast.actionLabel ? t.space.xs : t.space.base,
           paddingVertical: t.space.xs,
           minHeight: t.size.touch + 4,
           borderRadius: t.radius.md,
           backgroundColor: t.color.bg.raised,
-          borderWidth: t.size.hairline,
+          borderWidth: t.scheme === "light" ? t.size.hairline : 0,
           borderColor: t.color.line.hairline,
           opacity: anim,
           transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
@@ -96,7 +96,9 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
         }}
       >
         {(toast.icon || tone !== "neutral") && (
-          <Icon name={toast.icon ?? (tone === "danger" ? "alert-octagon" : "check")} color={tc.fg} />
+          <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: tone === "neutral" ? t.color.accent.soft : tc.bg }}>
+            <Icon name={toast.icon ?? (tone === "danger" ? "x" : "check")} size="sm" color={tone === "neutral" ? t.color.accent.text : tc.fg} />
+          </View>
         )}
         <Text variant="callout" style={{ flex: 1, paddingVertical: t.space.sm }}>
           {toast.message}
