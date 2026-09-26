@@ -8,7 +8,7 @@ vi.mock("expo-file-system/legacy", () => ({
   writeAsStringAsync: async (p: string, c: string) => void files.set(p, c),
 }));
 
-import { getLanguageId, getVoiceInputEnabled, languageForLocale, setLanguageId, setVoiceInputEnabled } from "./settings";
+import { getSetupProgress, setSetupProgress, getLanguageId, getVoiceInputEnabled, languageForLocale, setLanguageId, setVoiceInputEnabled } from "./settings";
 
 describe("voice input setting", () => {
   beforeEach(() => files.clear());
@@ -37,5 +37,17 @@ describe("language", () => {
   it("prefers the saved choice over the device locale", async () => {
     await setLanguageId("pt");
     expect(await getLanguageId()).toBe("pt");
+  });
+});
+
+describe("setup progress", () => {
+  beforeEach(() => files.clear());
+
+  it("round-trips and clears", async () => {
+    expect(await getSetupProgress()).toBeNull();
+    await setSetupProgress({ step: 3, packageId: "encyclopedia", travelRegionId: "sao-paulo" });
+    expect(await getSetupProgress()).toEqual({ step: 3, packageId: "encyclopedia", travelRegionId: "sao-paulo" });
+    await setSetupProgress(null);
+    expect(await getSetupProgress()).toBeNull();
   });
 });
