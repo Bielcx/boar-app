@@ -45,8 +45,8 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
         <View
           style={{
-            width: t.space.xxxl,
-            height: t.space.xxxl,
+            width: t.size.avatar,
+            height: t.size.avatar,
             borderRadius: t.radius.full,
             backgroundColor: t.color.bg.surface,
             alignItems: "center",
@@ -56,7 +56,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
         >
           <Image
             source={require("../../assets/boar.png")}
-            style={{ width: t.space.xxl, height: t.space.xxl }}
+            style={{ width: t.size.avatarSm, height: t.size.avatarSm }}
             accessibilityIgnoresInvertColors
             importantForAccessibility="no"
           />
