@@ -1,4 +1,4 @@
-package expo.modules.devicelocation
+package expo.modules.offlinelocation
 
 import android.Manifest
 import android.content.Context
@@ -26,11 +26,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  * for fresh fixes, and the passive provider's last known fix as a fallback.
  * Foreground only; nothing is stored or sent.
  */
-class DeviceLocationModule : Module() {
+class OfflineLocationModule : Module() {
   private val mainHandler = Handler(Looper.getMainLooper())
 
   override fun definition() = ModuleDefinition {
-    Name("DeviceLocation")
+    Name("OfflineLocation")
 
     AsyncFunction("getPermissionStatus") { promise: Promise ->
       val context = appContext.reactContext
@@ -65,6 +65,14 @@ class DeviceLocationModule : Module() {
         val granted = result.values.any { it.status == PermissionsStatus.GRANTED }
         promise.resolve(if (granted) "granted" else "denied")
       }, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+
+    AsyncFunction("getLastKnownPosition") {
+      val context = appContext.reactContext ?: return@AsyncFunction null
+      val fine = hasFine(context)
+      if (!fine && !hasCoarse(context)) return@AsyncFunction null
+      val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+      lastKnown(lm, fine)?.let { toMap(it, "cached") }
     }
 
     AsyncFunction("getCurrentPosition") { timeoutMs: Double, maxAgeMs: Double, promise: Promise ->

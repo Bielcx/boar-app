@@ -33,7 +33,7 @@ fi
 
 # Everything the offline build may declare. Anything else fails, so a new
 # library can't sneak a permission in unnoticed. Location is foreground GPS
-# for "near me" questions (modules/device-location); it never leaves the phone.
+# for "near me" questions (modules/offline-location); it never leaves the phone.
 ALLOWED_PERMS=(
   android.permission.VIBRATE
   android.permission.WAKE_LOCK

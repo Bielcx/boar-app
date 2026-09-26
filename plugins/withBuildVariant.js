@@ -37,7 +37,7 @@ const ALWAYS_BLOCKED = [
   "android.permission.WRITE_EXTERNAL_STORAGE",
 ];
 
-// Foreground GPS for "near me" questions (modules/device-location).
+// Foreground GPS for "near me" questions (modules/offline-location).
 const LOCATION_PERMISSIONS = [
   "android.permission.ACCESS_FINE_LOCATION",
   "android.permission.ACCESS_COARSE_LOCATION",

@@ -1,5 +1,5 @@
 {
-  "name": "device-location",
+  "name": "offline-location",
   "version": "0.1.0",
   "description": "Local Expo module: on-device position from the GPS (Android LocationManager, iOS CoreLocation). No Google Play Services, no network, no geocoding.",
   "main": "index.ts",

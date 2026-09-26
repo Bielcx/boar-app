@@ -115,7 +115,7 @@ calls.
 
 Location ("restaurants near me") comes from the phone's GPS through the plain
 Android `LocationManager`, with no network provider, no Play Services and no
-reverse geocoding (`modules/device-location`). It's asked for only on the first
+reverse geocoding (`modules/offline-location`). It's asked for only on the first
 question that needs it, and it's never stored or sent. Both builds declare
 `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`, never background location.
 

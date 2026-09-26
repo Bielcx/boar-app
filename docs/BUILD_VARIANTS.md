@@ -73,7 +73,7 @@ and on demand (full build, dex audit, APK uploaded as an artifact).
 ## Location
 
 "Best vegan restaurants in the city I'm in" needs to know where the phone is,
-and the GPS works without any network. `modules/device-location` reads it with
+and the GPS works without any network. `modules/offline-location` reads it with
 the plain Android `LocationManager` (`GPS_PROVIDER`, and the passive provider's
 last fix as a fallback) and CoreLocation on iOS. It never uses Google's
 FusedLocationProviderClient (Play Services, missing on GrapheneOS), which is why

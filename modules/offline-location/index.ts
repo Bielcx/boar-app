@@ -7,8 +7,8 @@ import { requireOptionalNativeModule } from "expo-modules-core";
  * offline knowledge pack. Foreground only ("when in use"); nothing runs in
  * the background, and the position is never stored or sent anywhere.
  *
- * Android: LocationManager GPS_PROVIDER (modules/device-location/android).
- * iOS: CoreLocation (modules/device-location/ios).
+ * Android: LocationManager GPS_PROVIDER (modules/offline-location/android).
+ * iOS: CoreLocation (modules/offline-location/ios).
  */
 
 export type LocationPermissionStatus = "granted" | "denied" | "undetermined";
@@ -34,18 +34,19 @@ export interface PositionOptions {
 /** Rejection codes (error.code). */
 export type LocationErrorCode = "E_PERMISSION" | "E_TIMEOUT" | "E_UNAVAILABLE";
 
-interface DeviceLocationNativeModule {
+interface OfflineLocationNativeModule {
   getPermissionStatus(): Promise<LocationPermissionStatus>;
   requestPermission(): Promise<"granted" | "denied">;
   getCurrentPosition(timeoutMs: number, maxAgeMs: number): Promise<DevicePosition>;
+  getLastKnownPosition(): Promise<DevicePosition | null>;
 }
 
-const native = requireOptionalNativeModule<DeviceLocationNativeModule>("DeviceLocation");
+const native = requireOptionalNativeModule<OfflineLocationNativeModule>("OfflineLocation");
 
 export const DEFAULT_TIMEOUT_MS = 15_000;
 export const DEFAULT_MAX_AGE_MS = 10 * 60_000;
 
-export function isDeviceLocationSupported(): boolean {
+export function isOfflineLocationSupported(): boolean {
   return native != null;
 }
 
@@ -63,4 +64,9 @@ export async function getCurrentPosition(opts: PositionOptions = {}): Promise<De
     throw Object.assign(new Error("Location is not available in this build"), { code: "E_UNAVAILABLE" });
   }
   return native.getCurrentPosition(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, opts.maxAgeMs ?? DEFAULT_MAX_AGE_MS);
+}
+
+/** The phone's last fix, without turning the GPS on. null if none or no permission. */
+export async function getLastKnownPosition(): Promise<DevicePosition | null> {
+  return native ? native.getLastKnownPosition() : null;
 }

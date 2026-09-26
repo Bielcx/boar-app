@@ -27,7 +27,7 @@ const FORBIDDEN_DEPENDENCIES = [
   "expo-network",
   "@react-native-community/netinfo",
   // Location through Google Play Services (FusedLocationProviderClient): breaks
-  // on GrapheneOS. Use modules/device-location (plain LocationManager) instead.
+  // on GrapheneOS. Use modules/offline-location (plain LocationManager) instead.
   "expo-location",
   "react-native-geolocation-service",
   "@react-native-community/geolocation",

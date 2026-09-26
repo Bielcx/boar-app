@@ -1,4 +1,4 @@
-import type { DevicePosition, LocationPermissionStatus, PositionOptions } from "device-location";
+import type { DevicePosition, LocationPermissionStatus, PositionOptions } from "offline-location";
 
 /**
  * When BOAR may ask for the phone's location: only when a question needs it
