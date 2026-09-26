@@ -4,9 +4,9 @@
  * manifest (flows-spec §4.1); nothing is typed in by hand.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Pressable, View } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Pressable, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, EmptyState, Icon, IconName, Progress, Screen, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
+import { Badge, Button, EmptyState, Icon, IconName, ListRow, Progress, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -28,6 +28,9 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { formatBytes, formatCount, minutesLeft } from "./flows/format";
+import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { citySummary, deviceTimeZone, PoiRegion, suggestRegion } from "./flows/poi";
+import { locateForUser } from "../services/location";
 
 interface Props {
   onReady: () => void;
@@ -51,7 +54,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [packageId, setPackageId] = useState<PackageId>("essential");
   const [backOpen, setBackOpen] = useState(false);
-  const titleRef = useRef<View>(null);
+  const [travel, setTravel] = useState<PoiRegion | null>(null);
+  const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
   useEffect(() => {
@@ -62,7 +66,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   }, [step]);
 
   const tier = TIERS.find((x) => x.id === PACKAGES.find((p) => p.id === packageId)!.tier)!;
-  const assets = useMemo(() => packageAssets(tier, MODEL_CATALOG), [tier]);
+  const assets = useMemo(() => [...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], [tier, travel]);
   const present = useMemo(
     () => Object.fromEntries(Object.values(catalog.statuses).map((s) => [s.asset.id, s.present])),
     [catalog.statuses]
@@ -101,6 +105,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           deviceRamBytes={catalog.deviceRamBytes}
           loaded={catalog.loaded}
           lang={lang}
+          travel={travel}
+          onTravel={setTravel}
           onBack={() => setStep(1)}
           onInstall={startInstall}
         />
@@ -113,6 +119,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           allPresent={allPresent}
           lang={lang}
           onBack={() => setBackOpen(true)}
+          onChoosePackage={() => setStep(2)}
           onReady={onReady}
         />
       )}
@@ -140,7 +147,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   );
 }
 
-function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefObject<View | null>; step: Step; title: string; subtitle?: string }) {
+function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefObject<RNText | null>; step: Step; title: string; subtitle?: string }) {
   const { t } = useTranslation();
   const tokens = useTokens();
   return (
@@ -148,9 +155,9 @@ function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefOb
       <Text variant="label" color="tertiary">
         {t("flows.onboarding.stepOf", { step, total: 3 })}
       </Text>
-      <View ref={titleRef} accessible accessibilityRole="header" accessibilityLabel={title}>
-        <Text variant="title1">{title}</Text>
-      </View>
+      <Text ref={titleRef} variant="title1" header>
+        {title}
+      </Text>
       {subtitle && (
         <Text variant="callout" color="secondary">
           {subtitle}
@@ -167,13 +174,13 @@ function Welcome({
   onNext,
   onSkip,
 }: {
-  titleRef: React.RefObject<View | null>;
+  titleRef: React.RefObject<RNText | null>;
   languageId: LanguageId;
   setLanguage: (id: LanguageId) => Promise<void>;
   onNext: () => void;
   onSkip?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
   const points: { icon: IconName; key: string }[] = [
@@ -193,11 +200,9 @@ function Welcome({
     >
       <View style={{ alignItems: "center", gap: tokens.space.md, paddingTop: tokens.space.xl }}>
         <Image source={require("../../assets/boar.png")} style={{ width: 88, height: 88, borderRadius: tokens.radius.lg }} accessible={false} />
-        <View ref={titleRef} accessible accessibilityRole="header" accessibilityLabel="BOAR">
-          <Text variant="display" align="center">
-            BOAR
-          </Text>
-        </View>
+        <Text ref={titleRef} variant="display" align="center" header>
+          BOAR
+        </Text>
         <Text variant="title3" align="center" color="secondary">
           {t("flows.onboarding.tagline")}
         </Text>
@@ -221,7 +226,7 @@ function Welcome({
           value={languageId}
           onChange={async (id) => {
             await setLanguage(id);
-            announce(id === "pt" ? "Idioma: Português" : "Language: English");
+            announce(i18n.getFixedT(id)("flows.onboarding.languageAnnounce"));
           }}
           options={[
             { value: "en", label: "English" },
@@ -242,10 +247,12 @@ function PackageStep({
   deviceRamBytes,
   loaded,
   lang,
+  travel,
+  onTravel,
   onBack,
   onInstall,
 }: {
-  titleRef: React.RefObject<View | null>;
+  titleRef: React.RefObject<RNText | null>;
   selected: PackageId;
   onSelect: (id: PackageId) => void;
   present: Record<string, boolean>;
@@ -253,6 +260,8 @@ function PackageStep({
   deviceRamBytes: number;
   loaded: boolean;
   lang: string;
+  travel: PoiRegion | null;
+  onTravel: (region: PoiRegion | null) => void;
   onBack: () => void;
   onInstall: () => void;
 }) {
@@ -260,7 +269,7 @@ function PackageStep({
   const tokens = useTokens();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
-    const plan = planPackage(packageAssets(tier, MODEL_CATALOG), present);
+    const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], present);
     const fit = plan.largestLlm ? fitFor(plan.largestLlm, deviceRamBytes) : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
@@ -277,8 +286,14 @@ function PackageStep({
             label={chosen.plan.downloadBytes > 0 ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) }) : t("flows.onboarding.continue")}
             fullWidth
             disabled={!loaded || chosen.shortfall > 0}
+            accessibilityHint={chosen.shortfall > 0 ? t("flows.onboarding.noSpace", { size: formatBytes(chosen.shortfall, lang) }) : undefined}
             onPress={onInstall}
           />
+          {chosen.shortfall > 0 && (
+            <Text variant="footnote" color="danger" align="center">
+              {t("flows.onboarding.noSpace", { size: formatBytes(chosen.shortfall, lang) })}
+            </Text>
+          )}
           <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} />
         </>
       }
@@ -307,8 +322,8 @@ function PackageStep({
           const warning =
             p.shortfall > 0
               ? t("flows.onboarding.noSpace", { size: formatBytes(p.shortfall, lang) })
-              : p.fit === "thrashing"
-                ? t("flows.row.fit.thrashing")
+              : p.fit === "insufficient" || p.fit === "thrashing" || p.fit === "streaming"
+                ? t(`flows.row.fit.${p.fit}`)
                 : null;
           const name = t(`flows.onboarding.package.${p.id}.name`);
           return (
@@ -344,7 +359,7 @@ function PackageStep({
                 </Text>
               ))}
               {warning && (
-                <Text variant="footnote" color={p.shortfall > 0 ? "danger" : "warning"}>
+                <Text variant="footnote" color={p.shortfall > 0 || p.fit === "insufficient" ? "danger" : "warning"}>
                   {warning}
                 </Text>
               )}
@@ -352,10 +367,97 @@ function PackageStep({
           );
         })}
       </View>
+      <TravelCard selected={travel} onChange={onTravel} lang={lang} />
       <Text variant="footnote" color="tertiary">
         {t("flows.onboarding.laterNote")}
       </Text>
     </Screen>
+  );
+}
+
+/** Optional offline places for the user's region (P1). Hidden when the build has no region packs. */
+function TravelCard({ selected, onChange, lang }: { selected: PoiRegion | null; onChange: (r: PoiRegion | null) => void; lang: string }) {
+  const { t } = useTranslation();
+  const tokens = useTokens();
+  const regions = useMemo(() => poiRegions(), []);
+  const [point, setPoint] = useState<{ lat: number; lon: number } | undefined>();
+  const [locating, setLocating] = useState(false);
+  const [locationNote, setLocationNote] = useState<string | null>(null);
+  const [explainOpen, setExplainOpen] = useState(false);
+  const explainAnswer = useRef<((ok: boolean) => void) | null>(null);
+
+  if (regions.length === 0) return null;
+  const suggestion = suggestRegion(regions, { timeZone: deviceTimeZone(), point });
+
+  const explain = () =>
+    new Promise<boolean>((resolve) => {
+      explainAnswer.current = resolve;
+      setExplainOpen(true);
+    });
+  const answerExplain = (ok: boolean) => {
+    setExplainOpen(false);
+    explainAnswer.current?.(ok);
+    explainAnswer.current = null;
+  };
+
+  const useLocation = async () => {
+    setLocating(true);
+    setLocationNote(null);
+    const result = await locateForUser(explain);
+    setLocating(false);
+    if (result.status === "ok") {
+      setPoint({ lat: result.lat, lon: result.lon });
+      // A different region now wins: don't keep including the old one silently.
+      if (selected) onChange(null);
+    } else {
+      setLocationNote(t(result.status === "declined" ? "flows.places.locationDeclined" : "flows.places.locationUnavailable"));
+    }
+  };
+
+  const region = suggestion?.region;
+  const name = region ? (lang.startsWith("pt") ? region.name.pt : region.name.en) : "";
+  const cities = region ? citySummary(region) : null;
+
+  return (
+    <Section title={t("flows.places.travelTitle")} footer={t("flows.places.footer")}>
+      {region && cities ? (
+        <>
+          <ListRow
+            title={t("flows.places.include", { region: name })}
+            subtitle={[
+              t("flows.places.meta", { places: formatCount(region.poiCount, lang), size: formatBytes(region.sizeBytes, lang) }),
+              cities.more > 0 ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more }) : cities.names.join(", "),
+              t(`flows.places.reason.${suggestion!.reason}`),
+            ].join("\n")}
+            switch={{ value: selected?.id === region.id, onValueChange: (v) => onChange(v ? region : null) }}
+          />
+        </>
+      ) : (
+        <ListRow title={t("flows.places.noRegionHere")} />
+      )}
+      {suggestion?.reason !== "location" && (
+        <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
+          <Button size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
+          {locationNote && (
+            <Text variant="footnote" color="secondary">
+              {locationNote}
+            </Text>
+          )}
+        </View>
+      )}
+      <Sheet
+        visible={explainOpen}
+        onClose={() => answerExplain(false)}
+        title={t("flows.places.rationaleTitle")}
+        description={t("flows.places.rationaleBody")}
+        footer={
+          <>
+            <Button label={t("flows.places.notNow")} variant="secondary" fullWidth onPress={() => answerExplain(false)} />
+            <Button label={t("flows.places.continue")} fullWidth onPress={() => answerExplain(true)} />
+          </>
+        }
+      />
+    </Section>
   );
 }
 
@@ -387,14 +489,16 @@ function InstallStep({
   allPresent,
   lang,
   onBack,
+  onChoosePackage,
   onReady,
 }: {
-  titleRef: React.RefObject<View | null>;
+  titleRef: React.RefObject<RNText | null>;
   assets: CatalogModel[];
   catalog: ReturnType<typeof useCatalog>;
   allPresent: boolean;
   lang: string;
   onBack: () => void;
+  onChoosePackage: () => void;
   onReady: () => void;
 }) {
   const { t } = useTranslation();
@@ -409,6 +513,32 @@ function InstallStep({
   const states = assets.map((a) => ({ asset: a, state: catalog.view(a).state }));
   const downloading = states.some((s) => s.state.kind === "downloading" || s.state.kind === "verifying");
   const failed = states.filter((s) => s.state.kind === "failed");
+  const noSpaceFailure = failed.some((f) => f.state.kind === "failed" && f.state.errorKind === "storage");
+
+  // A new failure is announced right away and focus moves to the retry button (Prism F5).
+  const retryRef = useRef<View>(null);
+  const failedKey = failed.map((f) => f.asset.id).join(",");
+  const lastFailedKey = useRef("");
+  useEffect(() => {
+    if (failedKey && failedKey !== lastFailedKey.current) {
+      const first = failed[0];
+      const reason = first.state.kind === "failed" ? t(`flows.row.error.${first.state.errorKind}`) : "";
+      announce(`${t("flows.onboarding.downloadFailed")}. ${first.asset.label}: ${reason}`, { assertive: true });
+      setTimeout(() => {
+        const node = retryRef.current && findNodeHandle(retryRef.current);
+        if (node) AccessibilityInfo.setAccessibilityFocus(node);
+      }, 300);
+    }
+    lastFailedKey.current = failedKey;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failedKey]);
+
+  // Announce the switch to verification once per asset.
+  const verifyingKey = states.filter((s) => s.state.kind === "verifying").map((s) => s.asset.id).join(",");
+  useEffect(() => {
+    if (verifyingKey) announce(t("flows.row.verifying"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyingKey]);
 
   // Aggregate progress, and when it last moved, for the stall hint.
   const totalBytes = assets.reduce((sum, a) => sum + a.sizeBytes, 0);
@@ -561,19 +691,41 @@ function InstallStep({
                     : t("flows.onboarding.indexFailed")}
           </Text>
           {indexPhase === "building" && seed && (
-            <Progress label={t("flows.onboarding.indexRow")} value={seed.done / seed.total} valueText={t("flows.onboarding.indexCounter", { done: seed.done, total: seed.total })} tone="field" />
+            <Progress label={t("flows.onboarding.indexRow")} value={seed.done / seed.total} valueText={t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })} tone="field" />
           )}
         </View>
       </View>
 
       {failed.length > 0 && (
-        <EmptyState
-          tone="error"
-          title={t("flows.onboarding.downloadFailed")}
-          body={failed.map((f) => `${f.asset.label}: ${f.state.kind === "failed" ? f.state.message : ""}`).join("\n")}
-          actionLabel={t("flows.row.retry")}
-          onAction={() => failed.forEach((f) => catalog.download(f.asset))}
-        />
+        <View
+          style={{
+            gap: tokens.space.sm,
+            padding: tokens.space.base,
+            borderRadius: tokens.radius.md,
+            backgroundColor: tokens.color.status.danger.soft,
+          }}
+        >
+          <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
+            <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />
+            <Text variant="headline" color="danger" header>
+              {t("flows.onboarding.downloadFailed")}
+            </Text>
+          </View>
+          {failed.map((f) => (
+            <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
+              <Text variant="callout">
+                {f.asset.label}: {t(`flows.row.error.${f.state.kind === "failed" ? f.state.errorKind : "unknown"}`)}
+              </Text>
+              {f.state.kind === "failed" && (
+                <Text variant="caption" color="tertiary" selectable>
+                  {f.state.message}
+                </Text>
+              )}
+            </View>
+          ))}
+          <Button ref={retryRef} label={t("flows.row.retry")} icon="refresh-cw" onPress={() => failed.forEach((f) => catalog.download(f.asset))} />
+          {noSpaceFailure && <Button label={t("flows.onboarding.smallerPackage")} variant="secondary" onPress={onChoosePackage} />}
+        </View>
       )}
 
       {indexPhase === "error" && (

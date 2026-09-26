@@ -12,7 +12,7 @@ import { getActiveModelId, setActiveModelId } from "../../models/settings";
 import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discoveredModels";
 import { getDownloadState, startDownload, subscribeDownloads } from "../../services/downloadManager";
 import { llamaEngine } from "../../inference/LlamaEngine";
-import { fitFor, removePackIndex } from "./adapters";
+import { fitFor, poiCatalogEntry, poiRegions, removePackIndex } from "./adapters";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
 
 export const modelManager = new ModelManager();
@@ -60,7 +60,8 @@ export function useCatalog(): CatalogState {
 
   const refresh = useCallback(async () => {
     const found = await listDiscoveredModels();
-    const all = [...(await modelManager.statusAll()), ...(await Promise.all(found.map((m) => modelManager.statusOf(m))))];
+    const extra = [...found, ...poiRegions().map(poiCatalogEntry)];
+    const all = [...(await modelManager.statusAll()), ...(await Promise.all(extra.map((m) => modelManager.statusOf(m))))];
     setDiscovered(found);
     setStatuses(Object.fromEntries(all.map((s) => [s.asset.id, s])));
     setActiveLlmId((await getActiveModelId("llm")) ?? defaultId("llm"));

@@ -17,6 +17,12 @@ interface Props {
   onRemove: () => Promise<void>;
   /** Another model is loading: Use waits. */
   busy?: boolean;
+  /** Overrides the catalog label (e.g. a translated region name). */
+  title?: string;
+  /** Replaces the kind · size · license line. */
+  meta?: string;
+  /** Extra lines under the meta line (e.g. cities covered). */
+  details?: string[];
 }
 
 function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | null {
@@ -40,12 +46,13 @@ function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | n
   }
 }
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
   const announce = useAnnounce();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [explainOpen, setExplainOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
   const { state } = view;
   const b = badge(state, t);
@@ -68,10 +75,15 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy }: P
   return (
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
       <View style={{ gap: tokens.space.xxs }}>
-        <Text variant="headline">{model.label}</Text>
+        <Text variant="headline">{title ?? model.label}</Text>
         <Text variant="footnote" color="secondary">
-          {[t(`flows.row.kind.${model.kind}`), size, model.license].join(" · ")}
+          {meta ?? [t(`flows.row.kind.${model.kind}`), size, model.license].join(" · ")}
         </Text>
+        {details?.map((d) => (
+          <Text key={d} variant="footnote" color="tertiary">
+            {d}
+          </Text>
+        ))}
       </View>
       {b && <Badge label={b.label} tone={b.tone} />}
 
@@ -104,6 +116,16 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy }: P
         {view.primary === "download" && (
           <Button size="sm" label={t("flows.row.download", { size })} icon="download" onPress={onDownload} />
         )}
+        {view.primary === "explain" && (
+          <Button
+            size="sm"
+            variant="secondary"
+            label={t("flows.row.download", { size })}
+            icon="download"
+            accessibilityHint={t("flows.row.fit.insufficient")}
+            onPress={() => setExplainOpen(true)}
+          />
+        )}
         {view.primary === "retry" && (
           <Button
             size="sm"
@@ -125,6 +147,27 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy }: P
           />
         )}
       </View>
+
+      <Sheet
+        visible={explainOpen}
+        onClose={() => setExplainOpen(false)}
+        title={t("flows.row.wontFitTitle", { name: model.label })}
+        description={t("flows.row.fit.insufficient")}
+        footer={
+          <>
+            <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setExplainOpen(false)} />
+            <Button
+              label={t("flows.row.downloadAnyway", { size })}
+              variant="secondary"
+              fullWidth
+              onPress={() => {
+                setExplainOpen(false);
+                onDownload();
+              }}
+            />
+          </>
+        }
+      />
 
       <Sheet
         visible={confirmOpen}

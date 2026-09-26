@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useToast } from "./components";
+import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
@@ -48,6 +48,7 @@ export function SettingsScreen() {
   const tokens = useTokens();
   const navigation = useNavigation<Nav>();
   const toast = useToast();
+  const announce = useAnnounce();
   const { appearance, setAppearance, fontScale, setFontScale } = useTheme();
   const { languageId, setLanguage } = useLanguage();
   const [values, setValues] = useState<Values | null>(null);
@@ -111,11 +112,21 @@ export function SettingsScreen() {
         />
         <ListRow
           icon="zap"
-          title={t("flows.settings.quickFirst")} switch={{ value: values.quickFirst, onValueChange: (v) => update("quickFirst", v, setAdaptiveRoutingEnabled) }}
+          title={t("flows.settings.quickFirst")}
+          subtitle={t("flows.settings.quickFirstHint")}
+          switch={{ value: values.quickFirst, onValueChange: (v) => {
+              update("quickFirst", v, setAdaptiveRoutingEnabled);
+              announce(t(answerModeKey(v, values.alwaysComplete)));
+            } }}
         />
         <ListRow
           icon="layers"
-          title={t("flows.settings.alwaysComplete")} switch={{ value: values.alwaysComplete, onValueChange: (v) => update("alwaysComplete", v, setDeepResearchMode) }}
+          title={t("flows.settings.alwaysComplete")}
+          subtitle={t("flows.settings.alwaysCompleteHint")}
+          switch={{ value: values.alwaysComplete, onValueChange: (v) => {
+              update("alwaysComplete", v, setDeepResearchMode);
+              announce(t(answerModeKey(values.quickFirst, v)));
+            } }}
         />
       </Section>
 
