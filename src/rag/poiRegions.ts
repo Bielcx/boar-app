@@ -8,6 +8,7 @@
  * (release assets); until then they're installed with `npm run pack:push`.
  */
 import type { CatalogModel } from "../models/manifest";
+import { registerAssetProvider } from "../models/assetRegistry";
 
 export interface PoiRegion {
   id: string;
@@ -484,3 +485,23 @@ export function poiCatalogEntries(regions: PoiRegion[] = POI_REGIONS): CatalogMo
     required: false,
   }));
 }
+
+/** The world gazetteer as a catalog entry (fixed id), downloaded with any places pack. */
+export function worldPlacesEntry(): CatalogModel {
+  return {
+    id: "poi-world-places",
+    kind: "corpus",
+    format: "poi-pack",
+    label: "World places (GeoNames)",
+    filename: WORLD_PLACES.filename,
+    sizeBytes: WORLD_PLACES.sizeBytes,
+    sha256: WORLD_PLACES.sha256,
+    sourceUrl: "",
+    license: WORLD_PLACES.license,
+    description: `${WORLD_PLACES.places.toLocaleString("en-US")} cities and towns with 15,000+ people, to find places by name offline`,
+    required: false,
+  };
+}
+
+// Places packs and the gazetteer are installable (download or file import) wherever the catalog is read.
+registerAssetProvider("poi", () => [...poiCatalogEntries(), worldPlacesEntry()]);

@@ -64,4 +64,12 @@ describe("importDocuments", () => {
     expect(count("SELECT COUNT(*) AS n FROM chunks")).toBe(0);
     expect(count("SELECT COUNT(*) AS n FROM custom_collections")).toBe(0);
   });
+
+  it("refuses a document over the size limit before reading it", async () => {
+    const { importDocuments } = await import("./documentImporter");
+    await (await import("../rag/db")).getDb();
+    const huge = { uri: "file:///huge.txt", name: "huge.txt", size: 26 * 1024 * 1024 } as any;
+    await expect(importDocuments([huge], "Huge")).rejects.toThrow(/at most 25/);
+    expect(count("SELECT COUNT(*) AS n FROM custom_collections")).toBe(0);
+  });
 });

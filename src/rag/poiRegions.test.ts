@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { POI_REGIONS, poiCatalogEntries, regionForPoint, regionsForTimeZone } from "./poiRegions";
+import { allAssets } from "../models/assetRegistry";
+import { POI_REGIONS, WORLD_PLACES, poiCatalogEntries, regionForPoint, regionsForTimeZone, worldPlacesEntry } from "./poiRegions";
 
 describe("poiRegions", () => {
   it("finds the region containing a point, and none in the ocean", () => {
@@ -20,5 +21,12 @@ describe("poiRegions", () => {
       expect(x.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(x.sizeBytes).toBeGreaterThan(0);
     }
+    expect(worldPlacesEntry()).toMatchObject({ id: "poi-world-places", format: "poi-pack", filename: WORLD_PLACES.filename, sha256: WORLD_PLACES.sha256 });
+  });
+
+  it("registers the places packs and the gazetteer in the asset registry", () => {
+    const ids = allAssets().map((a) => a.id);
+    expect(ids).toContain("poi-world-places");
+    for (const r of POI_REGIONS) expect(ids).toContain(`poi-${r.id}`);
   });
 });
