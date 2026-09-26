@@ -20,6 +20,8 @@ import type { CustomCollection } from "../rag/db";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
 import { CollectionIndexStatus, getCollectionIndexStatus, onCollectionIndexStatus } from "../rag/indexStatus";
 import { CatalogRow } from "./flows/CatalogRow";
+import { ImportList } from "./flows/ImportList";
+import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
 import { poiCatalogEntry, poiRegions } from "./flows/adapters";
@@ -174,11 +176,19 @@ export function KnowledgeScreen() {
             model={pack}
             details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
-            onDownload={() => downloadPack(pack)}
+            onDownload={() => (networkAllowed() ? downloadPack(pack) : catalog.importFiles())}
             onRemove={() => catalog.remove(pack)}
           />
         ))}
       </Section>
+
+      {catalog.imports.length > 0 && (
+        <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
+          <View style={{ padding: tokens.space.base }}>
+            <ImportList imports={catalog.imports} onPick={catalog.importFiles} />
+          </View>
+        </Section>
+      )}
 
       <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
         {regions.length === 0 ? (
@@ -204,7 +214,7 @@ export function KnowledgeScreen() {
                     : cities.names.join(", "),
                 ].filter(Boolean)}
                 view={catalog.view(entry)}
-                onDownload={() => catalog.download(entry)}
+                onDownload={() => (networkAllowed() ? catalog.download(entry) : catalog.importFiles())}
                 onRemove={() => catalog.remove(entry)}
               />
             );

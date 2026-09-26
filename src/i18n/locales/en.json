@@ -362,7 +362,9 @@
       "removed": "{{name}} removed",
       "wontFitTitle": "{{name}} won't fit on this phone",
       "downloadAnyway": "Download anyway ({{size}})",
-      "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate."
+      "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate.",
+      "importFile": "Import file ({{size}})",
+      "importAnyway": "Import anyway ({{size}})"
     },
     "models": {
       "storage": "BOAR uses {{used}} · {{free}} free on this phone",
@@ -564,7 +566,12 @@
       "doneAnnounce": "Setup finished. BOAR is ready.",
       "open": "Open BOAR",
       "languageAnnounce": "Language: English",
-      "smallerPackage": "Choose a smaller package"
+      "smallerPackage": "Choose a smaller package",
+      "importSize": "Files to import: {{size}}",
+      "importTitle": "Import the files",
+      "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
+      "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
+      "toImport": "Not imported yet"
     },
     "places": {
       "title": "Places (offline)",
@@ -587,6 +594,14 @@
       "rationaleBody": "BOAR reads your position from the phone's GPS, which works without internet, to suggest places near you. It never leaves the phone.",
       "notNow": "Not now",
       "continue": "Continue"
+    },
+    "import": {
+      "title": "Import files",
+      "footer": "Each file is checked by size and SHA-256 against the catalog. The file name doesn't matter.",
+      "pick": "Choose files",
+      "checking": "Checking {{name}}",
+      "checkingValue": "Checking, {{pct}}%",
+      "verified": "Verified: {{item}}"
     }
   },
   "chat": {

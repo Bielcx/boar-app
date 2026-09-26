@@ -16,6 +16,7 @@ const FLOW_FILES = [
   "EvaluationScreen.tsx",
   "AboutScreen.tsx",
   "flows/CatalogRow.tsx",
+  "flows/ImportList.tsx",
   "navigation/RootNavigator.tsx",
 ].map((f) => join(__dirname, "..", "ui", f));
 
@@ -67,6 +68,8 @@ function staticKeys(): string[] {
   for (const file of FLOW_FILES) {
     const source = readFileSync(file, "utf8");
     for (const m of source.matchAll(/\b(?:t|tr)\(\s*"([\w.-]+)"/g)) keys.add(m[1]);
+    // Any "flows.*" literal, including ones picked by a ternary inside t(...).
+    for (const m of source.matchAll(/"(flows\.[\w.-]+[\w-])"/g)) keys.add(m[1]);
   }
   for (const k of DYNAMIC_KEYS) keys.add(k);
   return [...keys].sort();

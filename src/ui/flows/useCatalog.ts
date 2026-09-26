@@ -10,13 +10,26 @@ import { AssetStatus, ModelManager } from "../../models/ModelManager";
 import { CatalogModel, MODEL_CATALOG } from "../../models/manifest";
 import { getActiveModelId, setActiveModelId } from "../../models/settings";
 import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discoveredModels";
-import { getDownloadState, startDownload, subscribeDownloads } from "../../services/downloadManager";
+import { getDownloadState, importAssetFile, startDownload, subscribeDownloads } from "../../services/downloadManager";
+import * as DocumentPicker from "expo-document-picker";
+import { AssetIntegrityError, IntegrityErrorKind } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { fitFor, poiCatalogEntry, poiRegions, removePackIndex } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
 
 export const modelManager = new ModelManager();
+
+/** One picked file on its way in (offline build, or "import a file"). */
+export interface FileImport {
+  name: string;
+  status: "importing" | "verified" | "failed";
+  /** 0..1 of the file hashed so far. */
+  progress: number;
+  assetId?: string;
+  errorKind?: IntegrityErrorKind;
+  message?: string;
+}
 
 export interface CatalogState {
   loaded: boolean;
@@ -36,6 +49,9 @@ export interface CatalogState {
   download: (model: CatalogModel) => Promise<void>;
   remove: (model: CatalogModel) => Promise<void>;
   use: (model: CatalogModel) => Promise<boolean>;
+  imports: FileImport[];
+  /** Opens the system file picker and imports each chosen file. A cancelled picker does nothing. */
+  importFiles: () => Promise<void>;
 }
 
 function defaultId(kind: "llm" | "embedding"): string | undefined {
@@ -146,6 +162,33 @@ export function useCatalog(): CatalogState {
     [loadingId, refresh]
   );
 
+  const [imports, setImports] = useState<FileImport[]>([]);
+  const importFiles = useCallback(async () => {
+    const picked = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: false, type: "*/*" });
+    if (picked.canceled || picked.assets.length === 0) return;
+    const files = picked.assets;
+    const patch = (name: string, next: Partial<FileImport>) =>
+      setImports((prev) => prev.map((f) => (f.name === name ? { ...f, ...next } : f)));
+    setImports((prev) => [
+      ...prev.filter((f) => !files.some((p) => p.name === f.name)),
+      ...files.map((f) => ({ name: f.name, status: "importing" as const, progress: 0 })),
+    ]);
+    // One at a time: each file is hashed in full.
+    for (const file of files) {
+      try {
+        const asset = await importAssetFile(file.uri, (done, total) => patch(file.name, { progress: total > 0 ? done / total : 0 }));
+        patch(file.name, { status: "verified", progress: 1, assetId: asset.id });
+      } catch (e: any) {
+        patch(file.name, {
+          status: "failed",
+          errorKind: e instanceof AssetIntegrityError ? e.kind : "unknown",
+          message: e?.message ?? String(e),
+        });
+      }
+    }
+    await refresh();
+  }, [refresh]);
+
   const usedBytes = Object.values(statuses).reduce((sum, s) => sum + (s.present ? s.sizeOnDiskBytes : 0), 0);
 
   return {
@@ -165,5 +208,7 @@ export function useCatalog(): CatalogState {
     download,
     remove,
     use,
+    imports,
+    importFiles,
   };
 }

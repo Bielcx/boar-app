@@ -9,6 +9,7 @@ import type { CatalogModel } from "../../models/manifest";
 import { formatBytes } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
+import { networkAllowed } from "../../config/variant";
 
 interface Props {
   model: CatalogModel;
@@ -60,6 +61,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const { state } = view;
   const b = badge(state, t);
   const size = formatBytes(model.sizeBytes, i18n.language);
+  const offline = !networkAllowed();
+  const getLabel = offline ? t("flows.row.importFile", { size }) : t("flows.row.download", { size });
+  const getIcon = offline ? ("file-plus" as const) : ("download" as const);
   const installed = state.kind === "installed" || state.kind === "in-use" || (state.kind === "failed" && state.errorKind === "load");
   const removable = !model.required && (installed || model.id.startsWith("hf-"));
 
@@ -117,14 +121,14 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         {view.primary === "download" && (
-          <Button size="sm" label={t("flows.row.download", { size })} icon="download" onPress={onDownload} />
+          <Button size="sm" label={getLabel} icon={getIcon} onPress={onDownload} />
         )}
         {view.primary === "explain" && (
           <Button
             size="sm"
             variant="secondary"
-            label={t("flows.row.download", { size })}
-            icon="download"
+            label={getLabel}
+            icon={getIcon}
             accessibilityHint={t("flows.row.fit.insufficient")}
             onPress={() => setExplainOpen(true)}
           />
@@ -160,7 +164,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <>
             <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setExplainOpen(false)} />
             <Button
-              label={t("flows.row.downloadAnyway", { size })}
+              label={offline ? t("flows.row.importAnyway", { size }) : t("flows.row.downloadAnyway", { size })}
               variant="secondary"
               fullWidth
               onPress={() => {
