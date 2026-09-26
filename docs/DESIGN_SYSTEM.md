@@ -101,7 +101,7 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 | `elevation.glow` | ember glow `0 0 22px rgba(glow,.45)` on the primary action and the OFFLINE seal only | same, .3 |
 | `<Ambient>` / `<Screen ambient>` | Fogueira: ember radial glow from the bottom; Luar: faint moon top-right | 60% strength |
 
-`Ambient` uses RN's CSS `radial-gradient` (`experimental_backgroundImage`); where unsupported it simply doesn't render.
+`Ambient` uses RN's CSS `radial-gradient` (`experimental_backgroundImage`); where unsupported it simply doesn't render. The ember peak is capped at 0.25 alpha (designer 0.32), so text over the glow stays AA; `ambient.test.ts` locks it.
 
 ## 6. Motion and haptics
 

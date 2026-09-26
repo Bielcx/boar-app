@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useTheme } from "../theme";
+import { AMBIENT_LIGHT_STRENGTH, emberGradient, MOON_ALPHA } from "../theme/ambient";
 
 /**
  * The identity's "pattern of light", drawn behind a screen's content:
@@ -12,7 +13,7 @@ import { useTheme } from "../theme";
 export function Ambient() {
   const { tokens: t, palette } = useTheme();
   const g = t.color.glow;
-  const strength = t.scheme === "dark" ? 1 : 0.6;
+  const strength = t.scheme === "dark" ? 1 : AMBIENT_LIGHT_STRENGTH;
   return (
     <View
       pointerEvents="none"
@@ -30,7 +31,7 @@ export function Ambient() {
             height: 220,
             borderRadius: 999,
             backgroundColor: t.color.moon,
-            opacity: 0.13,
+            opacity: MOON_ALPHA,
           }}
         />
       ) : (
@@ -42,7 +43,7 @@ export function Ambient() {
             bottom: -170,
             height: 440,
             opacity: strength,
-            experimental_backgroundImage: `radial-gradient(ellipse at 50% 100%, rgba(${g}, 0.32) 0%, rgba(${g}, 0.08) 45%, rgba(${g}, 0) 70%)`,
+            experimental_backgroundImage: emberGradient(g),
           }}
         />
       )}
