@@ -37,23 +37,37 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
         flexDirection: "row",
         alignItems: "center",
         gap: t.space.xs,
-        paddingHorizontal: t.space.xs,
-        paddingVertical: t.space.xxs,
-        backgroundColor: t.color.bg.canvas,
-        borderBottomWidth: t.size.hairline,
-        borderBottomColor: t.color.line.hairline,
+        paddingHorizontal: t.space.sm,
+        paddingVertical: t.space.xs,
       }}
     >
       <IconButton icon="menu" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-        <Image source={require("../../assets/boar.png")} style={{ width: 28, height: 28 }} accessibilityIgnoresInvertColors importantForAccessibility="no" />
+        <View
+          style={{
+            width: t.space.xxxl,
+            height: t.space.xxxl,
+            borderRadius: t.radius.full,
+            backgroundColor: t.color.bg.surface,
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          <Image
+            source={require("../../assets/boar.png")}
+            style={{ width: t.space.xxl, height: t.space.xxl }}
+            accessibilityIgnoresInvertColors
+            importantForAccessibility="no"
+          />
+        </View>
         {showTitle && (
-          <View style={{ flexShrink: 1 }}>
+          <View style={{ flexShrink: 1, flexGrow: 1 }}>
             <Text variant="headline" header numberOfLines={1}>
               boar
             </Text>
             {activeModelLabel && (
-              <Text variant="caption" color="tertiary" numberOfLines={1}>
+              <Text variant="mono" color="secondary" numberOfLines={1}>
                 {activeModelLabel}
               </Text>
             )}
@@ -81,12 +95,12 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
         <View style={{ gap: t.space.md }}>
           <Text color="secondary">{tr(OFFLINE_BUILD ? "chat.header.offlineBody" : "chat.header.offlineBodyDownloader")}</Text>
           {activeModelLabel && (
-            <Text variant="footnote" color="tertiary">
+            <Text variant="footnote" color="secondary">
               {tr("chat.header.modelLoaded", { label: activeModelLabel })}
             </Text>
           )}
           {voiceEnabled && (
-            <Text variant="footnote" color="tertiary">
+            <Text variant="footnote" color="secondary">
               {tr("chat.header.voiceCaveat")}
             </Text>
           )}

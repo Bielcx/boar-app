@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, receiptDetails, receiptLine, stageLine } from "./presentation";
+import { phaseAnnouncement, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -84,6 +84,19 @@ describe("receiptLine", () => {
     expect(receiptLine({ ...receipt, tokens: 0, tokPerSec: 0, ttftMs: 0 }, "en-US", t)).toBe(
       'chat.receipt.answeredIn{"time":"6.2 s"} · Qwen3 4B · chat.receipt.offline'
     );
+  });
+});
+
+describe("receiptShort", () => {
+  it("is the total time and speed, numbers only", () => {
+    expect(receiptShort(receipt, "pt-BR")).toBe("6,2 s · 14,8 tok/s");
+    expect(receiptShort(receipt, "en-US")).toBe("6.2 s · 14.8 tok/s");
+  });
+
+  it("keeps only the time when no model generated the answer", () => {
+    expect(receiptShort({ ...receipt, modelId: "extractive", totalMs: 400 }, "en-US")).toBe("0.4 s");
+    expect(receiptShort({ ...receipt, modelId: "places", totalMs: 300 }, "en-US")).toBe("0.3 s");
+    expect(receiptShort({ ...receipt, tokPerSec: 0 }, "en-US")).toBe("6.2 s");
   });
 });
 

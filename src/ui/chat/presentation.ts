@@ -83,6 +83,19 @@ export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
   return parts.join(" · ");
 }
 
+/**
+ * The receipt as it sits next to the assistant's name: total time, plus the
+ * generation speed when a model wrote the answer ("1.4 s · 16 tok/s"). Numbers
+ * only; the spoken and expanded forms use `receiptLine`.
+ */
+export function receiptShort(r: AnswerReceipt, locale: string): string {
+  const parts = [formatSeconds(r.totalMs, locale)];
+  if (r.modelId !== EXTRACTIVE_MODEL_ID && r.modelId !== PLACES_MODEL_ID && r.tokPerSec > 0) {
+    parts.push(`${formatTokPerSec(r.tokPerSec, locale)} tok/s`);
+  }
+  return parts.join(" · ");
+}
+
 /** The measured details shown when the receipt is expanded, as label/value rows. */
 export function receiptDetails(r: AnswerReceipt, locale: string, t: T): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];

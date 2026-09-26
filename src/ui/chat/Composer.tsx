@@ -31,21 +31,18 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   return (
     <View
       style={{
-        paddingHorizontal: t.space.base,
+        paddingHorizontal: t.space.lg,
         paddingTop: t.space.sm,
-        paddingBottom: t.space.sm,
+        paddingBottom: t.space.md,
         gap: t.space.xs,
-        backgroundColor: t.color.bg.canvas,
-        borderTopWidth: t.size.hairline,
-        borderTopColor: t.color.line.hairline,
       }}
     >
       {!ready && (
-        <Text variant="caption" color="tertiary">
+        <Text variant="caption" color="secondary">
           {tr("chat.composer.notReady")}
         </Text>
       )}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.xs }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm }}>
         {voiceEnabled && (
           <VoiceInputButton disabled={!ready} onTranscript={(text) => onChange(value ? `${value} ${text}` : text)} />
         )}
