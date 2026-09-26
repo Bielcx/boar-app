@@ -90,3 +90,14 @@ export function storageShortfall(downloadBytes: number, freeBytes: number): numb
   if (freeBytes <= 0) return 0;
   return Math.max(0, downloadBytes - freeBytes);
 }
+
+/**
+ * The package setup recommends and pre-selects: the richest one whose
+ * download fits the free space measured on the phone (PACKAGES is ordered
+ * smallest first). Unknown free space never blocks; if nothing fits, the
+ * smallest package.
+ */
+export function recommendPackage(plans: { id: PackageId; shortfall: number }[]): PackageId {
+  const fitting = plans.filter((p) => p.shortfall === 0);
+  return (fitting[fitting.length - 1] ?? plans[0]).id;
+}
