@@ -11,7 +11,7 @@
  * a double send can never run two completions on one context.
  */
 import { classifyTask } from "./classify";
-import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./context";
+import { compressContext, selectInstant, instantFinalBlock, INSTANT_FINAL_CONFIDENCE } from "./context";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
@@ -450,7 +450,9 @@ export function createAnswerer(deps: AnswerDeps) {
         if (snip && sourceIndex >= 0) {
           markVisible();
           emit({ type: "instant", answerId, snippet: { text: snip.text, sourceIndex }, confidence: snip.confidence });
-          if (plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE) {
+          const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
+          if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
+          if (plan.instant === "may-finish" && block === null) {
             reasonCodes.push("instant:final");
             return finish(
               "instant",

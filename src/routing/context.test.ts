@@ -4,6 +4,7 @@ import {
   approxTokens,
   compressContext,
   INSTANT_FINAL_CONFIDENCE,
+  instantFinalBlock,
   mergeSources,
   scoreSentences,
   selectInstant,
@@ -199,5 +200,24 @@ describe("post-quantum question (Vitalik, on camera)", () => {
     if (s) {
       expect(["RSA cryptosystem", "Elliptic Curve Digital Signature Algorithm"]).not.toContain(chunks[s.sourceIndex].title);
     }
+  });
+});
+
+describe("instantFinalBlock", () => {
+  // Snippets the crypto pack actually produced (E2E, integration b5903d0).
+  it("keeps the model for lists, two-part questions, bare mentions and pronoun openings", () => {
+    expect(instantFinalBlock("Which signature algorithms are quantum resistant?", "It initially focuses on key exchange algorithms but by now includes several signature schemes.")).toBe("anaphora");
+    expect(instantFinalBlock("Which signature algorithms are quantum resistant?", "ML-DSA, SLH-DSA and Falcon were selected by NIST.")).toBe("list");
+    expect(instantFinalBlock("What is EIP-4844 and what does it add to Ethereum?", "EIP-4844 is a proposal.")).toBe("compound");
+    expect(
+      instantFinalBlock("What is ML-DSA?", "EIP-8051 specifies only ML-DSA-44, which targets 128-bit classical security.")
+    ).toBe("not-definition");
+  });
+
+  it("lets a self-contained single-fact sentence finish", () => {
+    expect(instantFinalBlock("What is the capital of Australia?", "Canberra is the capital city of Australia.")).toBeNull();
+    expect(instantFinalBlock("What is ML-DSA?", "ML-DSA (Module-Lattice-Based Digital Signature Algorithm) is a post-quantum signature scheme.")).toBeNull();
+    expect(instantFinalBlock("Who is Vitalik Buterin?", "Vitalik Buterin is a co-founder of Ethereum.")).toBeNull();
+    expect(instantFinalBlock("When was Canberra founded?", "Canberra was founded in 1913.")).toBeNull();
   });
 });
