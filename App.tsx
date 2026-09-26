@@ -12,6 +12,13 @@ import { FONT_FILES } from "./src/ui/theme/fontFiles";
 import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
+import { registerGeoProviders } from "./src/routing/answerService";
+import { geoProvidersFrom } from "./src/routing/geoWiring";
+import { getCurrentPoint } from "./src/services/location";
+import { installedPoiPacks, resolvePlace, searchPois } from "./src/rag/pois";
+
+// Offline places: without this, every places question answers "places pack not installed".
+registerGeoProviders(geoProvidersFrom({ installedPoiPacks, getCurrentPoint, resolvePlace, searchPois }));
 
 const modelManager = new ModelManager();
 
