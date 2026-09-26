@@ -352,3 +352,75 @@ Attribution: CC BY-SA 4.0 requires crediting each page; the app shows every
 passage's source title, URL and license, and the pack's `meta.license` lists
 all licenses. Public-domain text needs no license, but the source is still
 shown.
+
+## Topic packs: Ethereum and cryptography (`boar-crypto`)
+
+For the questions a cryptographer or an Ethereum researcher asks: post-quantum
+signatures, EIPs by number, the consensus specs, zero-knowledge proofs, Bitcoin
+wallets. Primary sources first (the EIP itself, the spec, the BIP), Wikipedia
+for the concepts around them. Same format-2 search; every document keeps its
+URL and license.
+
+```bash
+node scripts/fetch-crypto.mjs clone build/crypto-src                     # sparse clones, ~300 MB
+node scripts/fetch-crypto.mjs build build/crypto-src build/crypto eips bips specs ethereumorg wikipedia-titles
+node scripts/filter-relevance.mjs --topic "cryptography, Ethereum, Bitcoin and blockchain technology" --task crypto-relevance \
+  --budget 0.10 --report build/crypto/relevance-report.json --titles build/crypto/wikipedia-titles.json --out build/crypto/wikipedia-kept.json
+CRYPTO_WP_TITLES=build/crypto/wikipedia-kept.json node scripts/fetch-crypto.mjs build build/crypto-src build/crypto wikipedia
+node scripts/build-wiki-pack.mjs --out boar-crypto.sqlite --shards build/crypto/{eips,bips,specs,ethereumorg,wikipedia}.jsonl \
+  --manifest pack-manifest.json --name "Ethereum and cryptography" --no-embed
+# lead embeddings where models may run (the Mac mini): --embed-only on the same --out
+```
+
+| Source | License | Documents |
+|---|---|---|
+| EIPs ([ethereum/EIPs](https://github.com/ethereum/EIPs)) and ERCs ([ethereum/ERCs](https://github.com/ethereum/ERCs)), front matter kept as status/type/requires lines | CC0 1.0 | 591 + 617 |
+| Consensus specs (every fork and feature), execution-specs overview pages (its test-tooling docs left out), execution APIs, Portal Network specs (test vectors left out) | CC0 1.0 | 129 |
+| Ethereum Yellow Paper, one document per section (display math dropped, inline math as text) | CC BY-SA 4.0 | 27 |
+| ethereum.org content pages, English (videos, contributing, community, stories and site pages left out) | MIT | 228 |
+| Bitcoin BIPs whose `License:` header is permissive (BSD-2/3, MIT, CC0, PD, CC BY 4.0, FSFAP, Apache-2.0, or an `OR` with one of these) | per BIP | 180 of 213 (33 without such a header, incl. 3 CC BY-SA-only, left out) |
+| Wikipedia: categories Cryptography, Cryptographic algorithms, Cryptographic hash functions, Digital signature schemes, Elliptic curve cryptography, Post-quantum cryptography, Zero-knowledge proofs, Cryptographic protocols, Blockchains, Ethereum, Cryptocurrencies, Smart contracts, Decentralized finance (depth 1), relevance-filtered, plus ML-DSA, Kyber, ML-KEM, SLH-DSA and Falcon by name | CC BY-SA 4.0 | 1,369 (1,413 of 2,312 kept by the filter) |
+
+Not included: the Solidity documentation (GPL-3.0), *Mastering Ethereum* and
+*Mastering Bitcoin* (non-commercial / no-derivatives licenses).
+
+**Names as aliases.** EIP/ERC/BIP numbers get every common spelling as an alias
+("ERC-20", "ERC20", "EIP-20", "BIP 32", "BIP32"), and the redirects Wikipedia
+itself returns become aliases of their target ("ML-DSA" → *Lattice-based
+cryptography*, "SLH-DSA" → *SPHINCS+*, "Kyber" → *ML-KEM*; Wikipedia has no
+separate ML-DSA article). They go into the pack's `redirects` table, so "What is
+ML-DSA?" resolves by name. In a multi-source pack an exact title or alias of a
+primary source counts as the question's subject even when its words are common
+in the pack ("ERC-20" among hundreds of ERCs).
+
+**Relevance filter.** Same Jev yes/no as the preparedness pack, topic
+"cryptography, Ethereum, Bitcoin and blockchain technology", kept at ≥ 0.5:
+1,413 of 2,312 Wikipedia candidates. Dropped titles with probabilities in
+`docs/packs/boar-crypto.relevance.json` (people, companies, wartime codebreaking
+history, films). Cost: US$0.022. The curated git sources are not filtered.
+
+**Result** (2026-09-26): 3,141 documents; pack **35,962,880 bytes**, SHA-256
+`fe75514ed407ea5f9c0310d3261407c9e779719b7787c2d8c4e7f584dae12c5e`, lead
+embeddings for all 3,141 documents (bge-small, Metal, on the Mac mini). Hosted at
+`topics/boar-crypto.sqlite` in the dataset r4topunk/boar-packs, commit `b309ba9`.
+Every document is listed in `docs/packs/boar-crypto.manifest.json`.
+
+**Retrieval** (`eval/retrieval/questions.crypto.v1.jsonl`, 20 questions written
+before looking at any search result, 10 naming the subject and 10 describing it;
+gold can list several documents that answer):
+
+| Configuration | recall@1 | recall@3 | recall@6 | MRR@10 |
+|---|---|---|---|---|
+| format-1 baseline (OR-ed words, plain BM25) | 0.40 | 0.65 | 0.80 | 0.568 |
+| full (named titles first) — the app's default | **0.65** | **0.80** | **0.90** | **0.728** |
+| full + lead-embedding rerank, w 0.5 | 0.65 | 0.85 | 0.90 | 0.750 |
+
+Twenty questions is too few to tell the rerank apart from noise, so it stays
+off, as on the Wikipedia sample. The title-subject rule above was found on a
+dev question (odd id) and moved "full" from 0.60/0.75/0.85/0.678. What still
+fails: descriptive questions that avoid the article's words ("computation on
+encrypted data without decrypting it" → *Homomorphic encryption* is not in the
+top 6; "a tree of hashes checked by light clients" → *Merkle tree* misses), and
+Vitalik's question "Which signature algorithms are quantum resistant?" puts
+*Quantum cryptography* (key distribution, not signatures) first and
+*Post-quantum cryptography* third.

@@ -19,10 +19,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { createGunzip, createGzip } from "node:zlib";
 import { PoiPackWriter, voyageEatDrink } from "./lib/poi-writer.mjs";
+import { lines } from "./lib/lines.mjs";
 import { tileId, tileOf } from "./lib/poi-pack-lib.mjs";
 
 const [step] = process.argv.slice(2, 3);
@@ -94,7 +94,7 @@ async function extract() {
     const tmp = `${out}.part`;
     const done = new Promise((r) => gz.pipe(createWriteStream(tmp)).on("finish", r));
     let n = 0;
-    for await (const line of createInterface({ input: createReadStream(geo), crlfDelay: Infinity })) {
+    for await (const line of lines(createReadStream(geo))) {
       const f = JSON.parse(line.replace(/^\x1e/, ""));
       const p = f.geometry && pointOf(f.geometry);
       if (!p) continue;
@@ -112,7 +112,7 @@ async function extract() {
 
 async function* readExtracts() {
   for (const f of readdirSync(EXTRACTS).filter((x) => x.endsWith(".jsonl.gz"))) {
-    for await (const line of createInterface({ input: createReadStream(join(EXTRACTS, f)).pipe(createGunzip()), crlfDelay: Infinity })) {
+    for await (const line of lines(createReadStream(join(EXTRACTS, f)).pipe(createGunzip()))) {
       if (line) yield JSON.parse(line);
     }
   }
@@ -139,7 +139,7 @@ async function tiles() {
   let written = 0;
   for (const b of [...bands.keys()].sort((x, y) => x - y)) {
     const byTile = new Map();
-    for await (const line of createInterface({ input: createReadStream(join(BANDS, `${b}.jsonl`)), crlfDelay: Infinity })) {
+    for await (const line of lines(createReadStream(join(BANDS, `${b}.jsonl`)))) {
       const r = JSON.parse(line);
       const t = tileId(...tileOf(r.lat, r.lon));
       if (!byTile.has(t)) byTile.set(t, []);

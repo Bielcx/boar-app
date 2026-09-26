@@ -1,0 +1,3608 @@
+{
+ "/Users/r4to/Script/boar/shared-data/crypto/build/wikipedia-titles.json": {
+  "topic": "cryptography, Ethereum, Bitcoin and blockchain technology",
+  "cut": 0.5,
+  "candidates": 2312,
+  "translationsDropped": 0,
+  "kept": 1413,
+  "dropped": [
+   {
+    "title": "Zoom (software)",
+    "p": 0.01
+   },
+   {
+    "title": "Michel de Castelnau",
+    "p": 0.01
+   },
+   {
+    "title": "Raid on La Caine",
+    "p": 0.01
+   },
+   {
+    "title": "Battle of Midway",
+    "p": 0.01
+   },
+   {
+    "title": "German submarine U-505",
+    "p": 0.01
+   },
+   {
+    "title": "Schoenberg hexachord",
+    "p": 0.01
+   },
+   {
+    "title": "Ritchie Boys",
+    "p": 0.01
+   },
+   {
+    "title": "Uvita (Costa Rica)",
+    "p": 0.01
+   },
+   {
+    "title": "Perfect (2018 film)",
+    "p": 0.01
+   },
+   {
+    "title": "Olympics Go! Paris 2024",
+    "p": 0.01
+   },
+   {
+    "title": "Tom Clancy's Ghost Recon Breakpoint",
+    "p": 0.01
+   },
+   {
+    "title": "Hunter Biden",
+    "p": 0.01
+   },
+   {
+    "title": "Matt Damon",
+    "p": 0.01
+   },
+   {
+    "title": "Alan Howard (hedge fund manager)",
+    "p": 0.01
+   },
+   {
+    "title": "Keith Levene",
+    "p": 0.01
+   },
+   {
+    "title": "Mike Majlak",
+    "p": 0.01
+   },
+   {
+    "title": "Jake Paul",
+    "p": 0.01
+   },
+   {
+    "title": "Radosław Piesiewicz",
+    "p": 0.01
+   },
+   {
+    "title": "Kyle Roche",
+    "p": 0.01
+   },
+   {
+    "title": "Donald Trump",
+    "p": 0.01
+   },
+   {
+    "title": "Eric Trump",
+    "p": 0.01
+   },
+   {
+    "title": "Melania Trump",
+    "p": 0.01
+   },
+   {
+    "title": "$LAPTOP",
+    "p": 0.01
+   },
+   {
+    "title": "123 Reg",
+    "p": 0.02
+   },
+   {
+    "title": "Talim (textiles)",
+    "p": 0.02
+   },
+   {
+    "title": "Oak Orion",
+    "p": 0.02
+   },
+   {
+    "title": "WildLeaks",
+    "p": 0.02
+   },
+   {
+    "title": "San Jose Semaphore",
+    "p": 0.02
+   },
+   {
+    "title": "Decipherment of cuneiform",
+    "p": 0.02
+   },
+   {
+    "title": "Decipherment of rongorongo",
+    "p": 0.02
+   },
+   {
+    "title": "Decipherment of Palmyrene",
+    "p": 0.02
+   },
+   {
+    "title": "Santa Valley quipus",
+    "p": 0.02
+   },
+   {
+    "title": "Day One (app)",
+    "p": 0.02
+   },
+   {
+    "title": "Facebook Messenger",
+    "p": 0.02
+   },
+   {
+    "title": "Creed & Company",
+    "p": 0.02
+   },
+   {
+    "title": "Operation CHAOS",
+    "p": 0.02
+   },
+   {
+    "title": "Cyrillic Projector",
+    "p": 0.02
+   },
+   {
+    "title": "Gulf of Tonkin incident",
+    "p": 0.02
+   },
+   {
+    "title": "USS Liberty incident",
+    "p": 0.02
+   },
+   {
+    "title": "SMS Magdeburg",
+    "p": 0.02
+   },
+   {
+    "title": "Project MERRIMAC",
+    "p": 0.02
+   },
+   {
+    "title": "USS Pueblo (AGER-2)",
+    "p": 0.02
+   },
+   {
+    "title": "Military Intelligence Service (United States)",
+    "p": 0.02
+   },
+   {
+    "title": "Radio Reconnaissance Platoon",
+    "p": 0.02
+   },
+   {
+    "title": "Comparison of VoIP software",
+    "p": 0.02
+   },
+   {
+    "title": "Visible Embryo Project",
+    "p": 0.02
+   },
+   {
+    "title": "Drecom",
+    "p": 0.02
+   },
+   {
+    "title": "Let's Hunt Monsters",
+    "p": 0.02
+   },
+   {
+    "title": "Eric Adams",
+    "p": 0.02
+   },
+   {
+    "title": "Jean Chalopin",
+    "p": 0.02
+   },
+   {
+    "title": "Zoe Cruz",
+    "p": 0.02
+   },
+   {
+    "title": "Mark Cuban",
+    "p": 0.02
+   },
+   {
+    "title": "Ben Kurland",
+    "p": 0.02
+   },
+   {
+    "title": "Marion Laboure",
+    "p": 0.02
+   },
+   {
+    "title": "Ben McKenzie",
+    "p": 0.02
+   },
+   {
+    "title": "Elon Musk",
+    "p": 0.02
+   },
+   {
+    "title": "Ben Phillips (YouTuber)",
+    "p": 0.02
+   },
+   {
+    "title": "I'm Starting to Worry About This Black Box of Doom",
+    "p": 0.02
+   },
+   {
+    "title": "Philco computers",
+    "p": 0.03
+   },
+   {
+    "title": "JioSphere",
+    "p": 0.03
+   },
+   {
+    "title": "SBI Group",
+    "p": 0.03
+   },
+   {
+    "title": "Cobden Centre",
+    "p": 0.03
+   },
+   {
+    "title": "Decipherment of ancient Egyptian scripts",
+    "p": 0.03
+   },
+   {
+    "title": "SECURITY.BIN",
+    "p": 0.03
+   },
+   {
+    "title": "Rich Communication Services",
+    "p": 0.03
+   },
+   {
+    "title": "Soroush Plus",
+    "p": 0.03
+   },
+   {
+    "title": "WhatsApp",
+    "p": 0.03
+   },
+   {
+    "title": "General der Nachrichtenaufklärung Training Referat",
+    "p": 0.03
+   },
+   {
+    "title": "Hut 1",
+    "p": 0.03
+   },
+   {
+    "title": "Hut 11",
+    "p": 0.03
+   },
+   {
+    "title": "National Vigilance Park",
+    "p": 0.03
+   },
+   {
+    "title": "Jeevan Pramaan",
+    "p": 0.03
+   },
+   {
+    "title": "Phoner",
+    "p": 0.03
+   },
+   {
+    "title": "Twinkle (software)",
+    "p": 0.03
+   },
+   {
+    "title": "StrikeX",
+    "p": 0.03
+   },
+   {
+    "title": "WebXR",
+    "p": 0.03
+   },
+   {
+    "title": "Kevin O'Leary",
+    "p": 0.03
+   },
+   {
+    "title": "Paul Sebastien",
+    "p": 0.03
+   },
+   {
+    "title": "Alex Blania",
+    "p": 0.03
+   },
+   {
+    "title": "Christopher Bouzy",
+    "p": 0.03
+   },
+   {
+    "title": "Russell J. Bruemmer",
+    "p": 0.03
+   },
+   {
+    "title": "Mary Lacity",
+    "p": 0.03
+   },
+   {
+    "title": "Logan Paul",
+    "p": 0.03
+   },
+   {
+    "title": "Peter Thiel",
+    "p": 0.03
+   },
+   {
+    "title": "Bunz Trading Zone",
+    "p": 0.03
+   },
+   {
+    "title": "Neptune's Brood",
+    "p": 0.03
+   },
+   {
+    "title": "$CHILLGUY",
+    "p": 0.03
+   },
+   {
+    "title": "Pizzino",
+    "p": 0.04
+   },
+   {
+    "title": "Polybius Bank",
+    "p": 0.04
+   },
+   {
+    "title": "Radiofrequency MASINT",
+    "p": 0.04
+   },
+   {
+    "title": "WikiLeaks",
+    "p": 0.04
+   },
+   {
+    "title": "Babington Plot",
+    "p": 0.04
+   },
+   {
+    "title": "Smithy code",
+    "p": 0.04
+   },
+   {
+    "title": "C. F. E. BACH motif",
+    "p": 0.04
+   },
+   {
+    "title": "Communications & Information Services Corps",
+    "p": 0.04
+   },
+   {
+    "title": "Diplomatic Wireless Service",
+    "p": 0.04
+   },
+   {
+    "title": "Finnish Defence Intelligence Agency",
+    "p": 0.04
+   },
+   {
+    "title": "Radio Battalion",
+    "p": 0.04
+   },
+   {
+    "title": "Teleadministration",
+    "p": 0.04
+   },
+   {
+    "title": "Erica Klarreich",
+    "p": 0.04
+   },
+   {
+    "title": "Andrew Lee (entrepreneur)",
+    "p": 0.04
+   },
+   {
+    "title": "NNTPS",
+    "p": 0.04
+   },
+   {
+    "title": "Susan Athey",
+    "p": 0.04
+   },
+   {
+    "title": "Benjamin Lawsky",
+    "p": 0.04
+   },
+   {
+    "title": "Mariya Prusakova (snowboarder)",
+    "p": 0.04
+   },
+   {
+    "title": "Dan Schulman",
+    "p": 0.04
+   },
+   {
+    "title": "Sam Trabucco",
+    "p": 0.04
+   },
+   {
+    "title": "LGBcoin",
+    "p": 0.04
+   },
+   {
+    "title": "NIPRNet",
+    "p": 0.05
+   },
+   {
+    "title": "Broadcast to Allied Merchant Ships",
+    "p": 0.05
+   },
+   {
+    "title": "Bale Messenger",
+    "p": 0.05
+   },
+   {
+    "title": "Heartland Payment Systems",
+    "p": 0.05
+   },
+   {
+    "title": "ESIM",
+    "p": 0.05
+   },
+   {
+    "title": "Choctaw code talkers",
+    "p": 0.05
+   },
+   {
+    "title": "The Colorado Sun",
+    "p": 0.05
+   },
+   {
+    "title": "Shayne Coplan",
+    "p": 0.05
+   },
+   {
+    "title": "Caroline Ellison",
+    "p": 0.05
+   },
+   {
+    "title": "Jason Fernandes",
+    "p": 0.05
+   },
+   {
+    "title": "Gary Gensler",
+    "p": 0.05
+   },
+   {
+    "title": "Blythe Masters",
+    "p": 0.05
+   },
+   {
+    "title": "John J. Ray III",
+    "p": 0.05
+   },
+   {
+    "title": "Song Chi-hyung",
+    "p": 0.05
+   },
+   {
+    "title": "Don Tapscott",
+    "p": 0.05
+   },
+   {
+    "title": "Changpeng Zhao",
+    "p": 0.05
+   },
+   {
+    "title": "Frinkcoin",
+    "p": 0.05
+   },
+   {
+    "title": "Eli Regalado",
+    "p": 0.05
+   },
+   {
+    "title": "Kruskal count",
+    "p": 0.06
+   },
+   {
+    "title": "Tokken",
+    "p": 0.06
+   },
+   {
+    "title": "Bored & Hungry",
+    "p": 0.06
+   },
+   {
+    "title": "Matrix (app)",
+    "p": 0.06
+   },
+   {
+    "title": "Connecting Humanity",
+    "p": 0.06
+   },
+   {
+    "title": "BACH motif",
+    "p": 0.06
+   },
+   {
+    "title": "HM Government Communications Centre",
+    "p": 0.06
+   },
+   {
+    "title": "Offer Assistant",
+    "p": 0.06
+   },
+   {
+    "title": "Acme Commodity and Phrase Code",
+    "p": 0.06
+   },
+   {
+    "title": "LAN Manager",
+    "p": 0.06
+   },
+   {
+    "title": "Valuart",
+    "p": 0.06
+   },
+   {
+    "title": "Long Blockchain Corp.",
+    "p": 0.06
+   },
+   {
+    "title": "Off the Grid (video game)",
+    "p": 0.06
+   },
+   {
+    "title": "Jack Dorsey",
+    "p": 0.06
+   },
+   {
+    "title": "Brad Garlinghouse",
+    "p": 0.06
+   },
+   {
+    "title": "Arthur Hayes (banker)",
+    "p": 0.06
+   },
+   {
+    "title": "Katie Haun",
+    "p": 0.06
+   },
+   {
+    "title": "Li Xiaolai",
+    "p": 0.06
+   },
+   {
+    "title": "Alex Mashinsky",
+    "p": 0.06
+   },
+   {
+    "title": "Richard Teng",
+    "p": 0.06
+   },
+   {
+    "title": "Gary Wang (American businessman)",
+    "p": 0.06
+   },
+   {
+    "title": "Haliey Welch",
+    "p": 0.06
+   },
+   {
+    "title": "Tyler Winklevoss",
+    "p": 0.06
+   },
+   {
+    "title": "Zhang Zhenxin",
+    "p": 0.06
+   },
+   {
+    "title": "Alameda Research",
+    "p": 0.06
+   },
+   {
+    "title": "Coinsquare",
+    "p": 0.06
+   },
+   {
+    "title": "EToro",
+    "p": 0.06
+   },
+   {
+    "title": "Revolut",
+    "p": 0.06
+   },
+   {
+    "title": "Tuttle Twins",
+    "p": 0.06
+   },
+   {
+    "title": "$HAWK",
+    "p": 0.06
+   },
+   {
+    "title": "Goliath Ventures",
+    "p": 0.06
+   },
+   {
+    "title": "Decipherment",
+    "p": 0.07
+   },
+   {
+    "title": "Code Access Security",
+    "p": 0.07
+   },
+   {
+    "title": "Animoca Brands",
+    "p": 0.07
+   },
+   {
+    "title": "La Caldera (NFT collection)",
+    "p": 0.07
+   },
+   {
+    "title": "Crypto-trading hamster",
+    "p": 0.07
+   },
+   {
+    "title": "William Blair (surgeon)",
+    "p": 0.07
+   },
+   {
+    "title": "Sacher hexachord",
+    "p": 0.07
+   },
+   {
+    "title": "Centre for Cybersecurity & Cybercrime Investigation",
+    "p": 0.07
+   },
+   {
+    "title": "MI8",
+    "p": 0.07
+   },
+   {
+    "title": "National Cyber Crimes Investigation Agency",
+    "p": 0.07
+   },
+   {
+    "title": "PhonerLite",
+    "p": 0.07
+   },
+   {
+    "title": "European Information Technologies Certification",
+    "p": 0.07
+   },
+   {
+    "title": "Open Media Commons",
+    "p": 0.07
+   },
+   {
+    "title": "Perrin number",
+    "p": 0.07
+   },
+   {
+    "title": "2025 Czech government Bitcoin scandal",
+    "p": 0.07
+   },
+   {
+    "title": "Investigation of 2025 Czech government Bitcoin scandal",
+    "p": 0.07
+   },
+   {
+    "title": "Domain controller",
+    "p": 0.07
+   },
+   {
+    "title": "ZOC (software)",
+    "p": 0.07
+   },
+   {
+    "title": "No Postage Necessary",
+    "p": 0.07
+   },
+   {
+    "title": "Atari SA",
+    "p": 0.07
+   },
+   {
+    "title": "Immutable (company)",
+    "p": 0.07
+   },
+   {
+    "title": "CryptoZoo",
+    "p": 0.07
+   },
+   {
+    "title": "Anthony Di Iorio",
+    "p": 0.07
+   },
+   {
+    "title": "Taylor Gerring",
+    "p": 0.07
+   },
+   {
+    "title": "List of people in blockchain technology",
+    "p": 0.07
+   },
+   {
+    "title": "Brian Behlendorf",
+    "p": 0.07
+   },
+   {
+    "title": "Marta Belcher",
+    "p": 0.07
+   },
+   {
+    "title": "Bilal Bin Saqib",
+    "p": 0.07
+   },
+   {
+    "title": "Brendan Blumer",
+    "p": 0.07
+   },
+   {
+    "title": "Ben Delo",
+    "p": 0.07
+   },
+   {
+    "title": "Chris Dixon",
+    "p": 0.07
+   },
+   {
+    "title": "Christopher Harborne",
+    "p": 0.07
+   },
+   {
+    "title": "Brock Pierce",
+    "p": 0.07
+   },
+   {
+    "title": "Cameron Winklevoss",
+    "p": 0.07
+   },
+   {
+    "title": "Alex Witkoff",
+    "p": 0.07
+   },
+   {
+    "title": "BlockFi",
+    "p": 0.07
+   },
+   {
+    "title": "BIT (company)",
+    "p": 0.07
+   },
+   {
+    "title": "Börse Stuttgart",
+    "p": 0.07
+   },
+   {
+    "title": "Zondacrypto",
+    "p": 0.07
+   },
+   {
+    "title": "Trial of Sam Bankman-Fried",
+    "p": 0.07
+   },
+   {
+    "title": "Serge Belamant",
+    "p": 0.08
+   },
+   {
+    "title": "HyperVerse",
+    "p": 0.08
+   },
+   {
+    "title": "Consensys",
+    "p": 0.08
+   },
+   {
+    "title": "Alexander Browder",
+    "p": 0.08
+   },
+   {
+    "title": "Foreign instrumentation signals intelligence",
+    "p": 0.08
+   },
+   {
+    "title": "Matrix (protocol)",
+    "p": 0.08
+   },
+   {
+    "title": "SIM card",
+    "p": 0.08
+   },
+   {
+    "title": "Far East Combined Bureau",
+    "p": 0.08
+   },
+   {
+    "title": "Fleet Radio Unit, Melbourne",
+    "p": 0.08
+   },
+   {
+    "title": "Notarikon",
+    "p": 0.08
+   },
+   {
+    "title": "Room 641A",
+    "p": 0.08
+   },
+   {
+    "title": "Voynich manuscript",
+    "p": 0.08
+   },
+   {
+    "title": "Government Paperwork Elimination Act",
+    "p": 0.08
+   },
+   {
+    "title": "GCHQ Bude",
+    "p": 0.08
+   },
+   {
+    "title": "Operation Stella Polaris",
+    "p": 0.08
+   },
+   {
+    "title": "Wireless Experimental Centre",
+    "p": 0.08
+   },
+   {
+    "title": "RADIUS",
+    "p": 0.08
+   },
+   {
+    "title": "MPrime",
+    "p": 0.08
+   },
+   {
+    "title": "MicroStrategy",
+    "p": 0.08
+   },
+   {
+    "title": "Rain (cryptocurrency exchange)",
+    "p": 0.08
+   },
+   {
+    "title": "Multiven",
+    "p": 0.08
+   },
+   {
+    "title": "Snaky Cat",
+    "p": 0.08
+   },
+   {
+    "title": "Kik (app)",
+    "p": 0.08
+   },
+   {
+    "title": "Paolo Ardoino",
+    "p": 0.08
+   },
+   {
+    "title": "Wences Casares",
+    "p": 0.08
+   },
+   {
+    "title": "Chun Wang",
+    "p": 0.08
+   },
+   {
+    "title": "Do Kwon",
+    "p": 0.08
+   },
+   {
+    "title": "Michael Novogratz",
+    "p": 0.08
+   },
+   {
+    "title": "Justin Sun",
+    "p": 0.08
+   },
+   {
+    "title": "Alex Tapscott",
+    "p": 0.08
+   },
+   {
+    "title": "Blockware Mining",
+    "p": 0.08
+   },
+   {
+    "title": "Blockworks Inc",
+    "p": 0.08
+   },
+   {
+    "title": "DWF Labs",
+    "p": 0.08
+   },
+   {
+    "title": "Mara (technology company)",
+    "p": 0.08
+   },
+   {
+    "title": "TeraWulf",
+    "p": 0.08
+   },
+   {
+    "title": "The Block (website)",
+    "p": 0.08
+   },
+   {
+    "title": "Bitget",
+    "p": 0.08
+   },
+   {
+    "title": "Bullish",
+    "p": 0.08
+   },
+   {
+    "title": "Coinbase",
+    "p": 0.08
+   },
+   {
+    "title": "Crypto.com",
+    "p": 0.08
+   },
+   {
+    "title": "ShapeShift",
+    "p": 0.08
+   },
+   {
+    "title": "Thodex",
+    "p": 0.08
+   },
+   {
+    "title": "Faruk Fatih Özer",
+    "p": 0.08
+   },
+   {
+    "title": "SEC v. Wahi",
+    "p": 0.08
+   },
+   {
+    "title": "SIGINT Activity Designator",
+    "p": 0.09
+   },
+   {
+    "title": "Regulation of algorithms",
+    "p": 0.09
+   },
+   {
+    "title": "EtherRock",
+    "p": 0.09
+   },
+   {
+    "title": "$Libra",
+    "p": 0.09
+   },
+   {
+    "title": "World Liberty Financial",
+    "p": 0.09
+   },
+   {
+    "title": "Eike Kiltz",
+    "p": 0.09
+   },
+   {
+    "title": "Julia Ward",
+    "p": 0.09
+   },
+   {
+    "title": "Thin SIM",
+    "p": 0.09
+   },
+   {
+    "title": "CAVNET",
+    "p": 0.09
+   },
+   {
+    "title": "Zimmermann telegram",
+    "p": 0.09
+   },
+   {
+    "title": "DSCH motif",
+    "p": 0.09
+   },
+   {
+    "title": "Mary Hughes Budenbach",
+    "p": 0.09
+   },
+   {
+    "title": "Australian Cyber Security Centre",
+    "p": 0.09
+   },
+   {
+    "title": "Y service",
+    "p": 0.09
+   },
+   {
+    "title": "Everykey",
+    "p": 0.09
+   },
+   {
+    "title": "Libdvdcss",
+    "p": 0.09
+   },
+   {
+    "title": "Athena Bitcoin",
+    "p": 0.09
+   },
+   {
+    "title": "Deep Web (film)",
+    "p": 0.09
+   },
+   {
+    "title": "Pineapple Fund",
+    "p": 0.09
+   },
+   {
+    "title": "Binance",
+    "p": 0.09
+   },
+   {
+    "title": "Dark Machine",
+    "p": 0.09
+   },
+   {
+    "title": "Sorare",
+    "p": 0.09
+   },
+   {
+    "title": "Vitalik Buterin",
+    "p": 0.09
+   },
+   {
+    "title": "Charles Hoskinson",
+    "p": 0.09
+   },
+   {
+    "title": "Gavin Wood",
+    "p": 0.09
+   },
+   {
+    "title": "Jeremy Allaire",
+    "p": 0.09
+   },
+   {
+    "title": "Sam Bankman-Fried",
+    "p": 0.09
+   },
+   {
+    "title": "Jeremy Kauffman",
+    "p": 0.09
+   },
+   {
+    "title": "Chris Larsen",
+    "p": 0.09
+   },
+   {
+    "title": "Jed McCaleb",
+    "p": 0.09
+   },
+   {
+    "title": "Daniel Shin",
+    "p": 0.09
+   },
+   {
+    "title": "Marco Streng",
+    "p": 0.09
+   },
+   {
+    "title": "Roger Ver",
+    "p": 0.09
+   },
+   {
+    "title": "BitFuFu",
+    "p": 0.09
+   },
+   {
+    "title": "Bitvavo",
+    "p": 0.09
+   },
+   {
+    "title": "Gate.com",
+    "p": 0.09
+   },
+   {
+    "title": "KuCoin",
+    "p": 0.09
+   },
+   {
+    "title": "Kuna (company)",
+    "p": 0.09
+   },
+   {
+    "title": "SFOX",
+    "p": 0.09
+   },
+   {
+    "title": "Offensive Security",
+    "p": 0.1
+   },
+   {
+    "title": "SIPRNet",
+    "p": 0.1
+   },
+   {
+    "title": "Mosca's theorem",
+    "p": 0.1
+   },
+   {
+    "title": "Aptos Labs",
+    "p": 0.1
+   },
+   {
+    "title": "Mihaela Ulieru",
+    "p": 0.1
+   },
+   {
+    "title": "Al-Kindi",
+    "p": 0.1
+   },
+   {
+    "title": "U-Key",
+    "p": 0.1
+   },
+   {
+    "title": "Lyn Alden",
+    "p": 0.1
+   },
+   {
+    "title": "Voxel Bridge",
+    "p": 0.1
+   },
+   {
+    "title": "Flappy Bird (2024 video game)",
+    "p": 0.1
+   },
+   {
+    "title": "Legends of Aria",
+    "p": 0.1
+   },
+   {
+    "title": "$Libra cryptocurrency scandal",
+    "p": 0.1
+   },
+   {
+    "title": "Virgil Griffith",
+    "p": 0.1
+   },
+   {
+    "title": "Joseph Lubin (entrepreneur)",
+    "p": 0.1
+   },
+   {
+    "title": "Mike Winkelmann",
+    "p": 0.1
+   },
+   {
+    "title": "Tavonia Evans",
+    "p": 0.1
+   },
+   {
+    "title": "Malone Lam",
+    "p": 0.1
+   },
+   {
+    "title": "Jirayut Srupsrisopa",
+    "p": 0.1
+   },
+   {
+    "title": "Bitdeer",
+    "p": 0.1
+   },
+   {
+    "title": "Bitwala",
+    "p": 0.1
+   },
+   {
+    "title": "Dohrnii Foundation",
+    "p": 0.1
+   },
+   {
+    "title": "Numerai",
+    "p": 0.1
+   },
+   {
+    "title": "BitFlyer",
+    "p": 0.1
+   },
+   {
+    "title": "Cryptopia",
+    "p": 0.1
+   },
+   {
+    "title": "FTX",
+    "p": 0.1
+   },
+   {
+    "title": "SpankChain",
+    "p": 0.1
+   },
+   {
+    "title": "Upbit",
+    "p": 0.1
+   },
+   {
+    "title": "Pawthereum",
+    "p": 0.1
+   },
+   {
+    "title": "Popcat",
+    "p": 0.1
+   },
+   {
+    "title": "Election security",
+    "p": 0.11
+   },
+   {
+    "title": "Vouch by Reference",
+    "p": 0.11
+   },
+   {
+    "title": "ChromaWay",
+    "p": 0.11
+   },
+   {
+    "title": "List of most expensive non-fungible tokens",
+    "p": 0.11
+   },
+   {
+    "title": "AmbaCoin",
+    "p": 0.11
+   },
+   {
+    "title": "Signals intelligence by alliances, nations and industries",
+    "p": 0.11
+   },
+   {
+    "title": "ElcomSoft",
+    "p": 0.11
+   },
+   {
+    "title": "Aggelos Kiayias",
+    "p": 0.11
+   },
+   {
+    "title": "Borg cipher",
+    "p": 0.11
+   },
+   {
+    "title": "Code-talker paradox",
+    "p": 0.11
+   },
+   {
+    "title": "Australian Signals Directorate",
+    "p": 0.11
+   },
+   {
+    "title": "COSIC",
+    "p": 0.11
+   },
+   {
+    "title": "Luftnachrichten Abteilung 350",
+    "p": 0.11
+   },
+   {
+    "title": "National Cyber Security Centre (Ireland)",
+    "p": 0.11
+   },
+   {
+    "title": "European Information Technologies Certification Academy",
+    "p": 0.11
+   },
+   {
+    "title": "Audrey Ruth Briggs",
+    "p": 0.11
+   },
+   {
+    "title": "EuroCrypt",
+    "p": 0.11
+   },
+   {
+    "title": "2018 Bitcoin bomb threats",
+    "p": 0.11
+   },
+   {
+    "title": "Cryptocurrencies in Puerto Rico",
+    "p": 0.11
+   },
+   {
+    "title": "Digital Asset Holdings",
+    "p": 0.11
+   },
+   {
+    "title": "Northern Data",
+    "p": 0.11
+   },
+   {
+    "title": "Hamster Kombat",
+    "p": 0.11
+   },
+   {
+    "title": "Pak (creator)",
+    "p": 0.11
+   },
+   {
+    "title": "Dan Boneh",
+    "p": 0.11
+   },
+   {
+    "title": "Ruja Ignatova",
+    "p": 0.11
+   },
+   {
+    "title": "Ari Juels",
+    "p": 0.11
+   },
+   {
+    "title": "Zooko Wilcox-O'Hearn",
+    "p": 0.11
+   },
+   {
+    "title": "Galaxy Digital (company)",
+    "p": 0.11
+   },
+   {
+    "title": "Rain (platform)",
+    "p": 0.11
+   },
+   {
+    "title": "CoinJar",
+    "p": 0.11
+   },
+   {
+    "title": "Digital Currency Group",
+    "p": 0.11
+   },
+   {
+    "title": "GDAX",
+    "p": 0.11
+   },
+   {
+    "title": "Gemini (cryptocurrency exchange)",
+    "p": 0.11
+   },
+   {
+    "title": "OKX",
+    "p": 0.11
+   },
+   {
+    "title": "Wi-Fi Protected Access",
+    "p": 0.12
+   },
+   {
+    "title": "WLAN Authentication and Privacy Infrastructure",
+    "p": 0.12
+   },
+   {
+    "title": "ZachXBT",
+    "p": 0.12
+   },
+   {
+    "title": "MazaCoin",
+    "p": 0.12
+   },
+   {
+    "title": "Duqu",
+    "p": 0.12
+   },
+   {
+    "title": "Stuxnet",
+    "p": 0.12
+   },
+   {
+    "title": "GCHQ",
+    "p": 0.12
+   },
+   {
+    "title": "AbsoluteTelnet",
+    "p": 0.12
+   },
+   {
+    "title": "Doug Stinson",
+    "p": 0.12
+   },
+   {
+    "title": "Texas Strategic Bitcoin Reserve",
+    "p": 0.12
+   },
+   {
+    "title": "U.S. Strategic Bitcoin Reserve",
+    "p": 0.12
+   },
+   {
+    "title": "Two Roads Picture Co.",
+    "p": 0.12
+   },
+   {
+    "title": "David A. Marcus",
+    "p": 0.12
+   },
+   {
+    "title": "Quadriga (company)",
+    "p": 0.12
+   },
+   {
+    "title": "BTCS Inc.",
+    "p": 0.12
+   },
+   {
+    "title": "Elliptic (company)",
+    "p": 0.12
+   },
+   {
+    "title": "Independent Reserve",
+    "p": 0.12
+   },
+   {
+    "title": "Silvergate Bank",
+    "p": 0.12
+   },
+   {
+    "title": "Atom Asset Exchange",
+    "p": 0.12
+   },
+   {
+    "title": "Bitkub",
+    "p": 0.12
+   },
+   {
+    "title": "Garantex",
+    "p": 0.12
+   },
+   {
+    "title": "HTX (cryptocurrency exchange)",
+    "p": 0.12
+   },
+   {
+    "title": "Bitfinex",
+    "p": 0.12
+   },
+   {
+    "title": "Blockchain.com",
+    "p": 0.12
+   },
+   {
+    "title": "CrySyS Lab",
+    "p": 0.13
+   },
+   {
+    "title": "Curio Cards",
+    "p": 0.13
+   },
+   {
+    "title": "Bundle Africa",
+    "p": 0.13
+   },
+   {
+    "title": "Hodlnaut",
+    "p": 0.13
+   },
+   {
+    "title": "John Somers (courtier)",
+    "p": 0.13
+   },
+   {
+    "title": "Rudolf Bailovic",
+    "p": 0.13
+   },
+   {
+    "title": "Central Bureau",
+    "p": 0.13
+   },
+   {
+    "title": "Code talker",
+    "p": 0.13
+   },
+   {
+    "title": "Operation Ruthless",
+    "p": 0.13
+   },
+   {
+    "title": "Electronic Signatures in Global and National Commerce Act",
+    "p": 0.13
+   },
+   {
+    "title": "FAPSI",
+    "p": 0.13
+   },
+   {
+    "title": "General der Nachrichtenaufklärung",
+    "p": 0.13
+   },
+   {
+    "title": "Hut 8",
+    "p": 0.13
+   },
+   {
+    "title": "Teamwire",
+    "p": 0.13
+   },
+   {
+    "title": "Whisper Systems",
+    "p": 0.13
+   },
+   {
+    "title": "WinSCP",
+    "p": 0.13
+   },
+   {
+    "title": "The Sandbox (company)",
+    "p": 0.13
+   },
+   {
+    "title": "$Trump",
+    "p": 0.13
+   },
+   {
+    "title": "Christian Catalini",
+    "p": 0.13
+   },
+   {
+    "title": "Amit Bhardwaj",
+    "p": 0.13
+   },
+   {
+    "title": "Celsius Network",
+    "p": 0.13
+   },
+   {
+    "title": "CoinEx",
+    "p": 0.13
+   },
+   {
+    "title": "Genesis (cryptocurrency company)",
+    "p": 0.13
+   },
+   {
+    "title": "Cryptocurrency in the second Trump presidency",
+    "p": 0.13
+   },
+   {
+    "title": "Save the Kids token",
+    "p": 0.13
+   },
+   {
+    "title": "Voiceverse NFT plagiarism scandal",
+    "p": 0.13
+   },
+   {
+    "title": "Online credentials for learning",
+    "p": 0.14
+   },
+   {
+    "title": "Smart-ID",
+    "p": 0.14
+   },
+   {
+    "title": "Wi-Fi Protected Setup",
+    "p": 0.14
+   },
+   {
+    "title": "Bankchain",
+    "p": 0.14
+   },
+   {
+    "title": "Chiliz",
+    "p": 0.14
+   },
+   {
+    "title": "MobileCoin",
+    "p": 0.14
+   },
+   {
+    "title": "Levchin Prize",
+    "p": 0.14
+   },
+   {
+    "title": "Boaz Tsaban",
+    "p": 0.14
+   },
+   {
+    "title": "Peter Novopashenny",
+    "p": 0.14
+   },
+   {
+    "title": "Illegal number",
+    "p": 0.14
+   },
+   {
+    "title": "Signal Intelligence Service",
+    "p": 0.14
+   },
+   {
+    "title": "Glossary of quantum computing",
+    "p": 0.14
+   },
+   {
+    "title": "Hidden matching problem",
+    "p": 0.14
+   },
+   {
+    "title": "Keygen",
+    "p": 0.14
+   },
+   {
+    "title": "SecureCRT",
+    "p": 0.14
+   },
+   {
+    "title": "Cryptographic Quarterly",
+    "p": 0.14
+   },
+   {
+    "title": "Sum of squares function",
+    "p": 0.14
+   },
+   {
+    "title": "Eran Tromer",
+    "p": 0.14
+   },
+   {
+    "title": "Abra (company)",
+    "p": 0.14
+   },
+   {
+    "title": "Bitcoin.com.au",
+    "p": 0.14
+   },
+   {
+    "title": "EDX Markets",
+    "p": 0.14
+   },
+   {
+    "title": "Adaptive redaction",
+    "p": 0.15
+   },
+   {
+    "title": "ESign (India)",
+    "p": 0.15
+   },
+   {
+    "title": "RSA Award for Excellence in Mathematics",
+    "p": 0.15
+   },
+   {
+    "title": "Statistically close",
+    "p": 0.15
+   },
+   {
+    "title": "Blockverify",
+    "p": 0.15
+   },
+   {
+    "title": "Qstay",
+    "p": 0.15
+   },
+   {
+    "title": "Build Finance DAO",
+    "p": 0.15
+   },
+   {
+    "title": "Metasploit",
+    "p": 0.15
+   },
+   {
+    "title": "IMessage",
+    "p": 0.15
+   },
+   {
+    "title": "United States Naval Computing Machine Laboratory",
+    "p": 0.15
+   },
+   {
+    "title": "Martin and Mitchell defection",
+    "p": 0.15
+   },
+   {
+    "title": "National Defence Radio Establishment",
+    "p": 0.15
+   },
+   {
+    "title": "National Institute of Standards and Technology",
+    "p": 0.15
+   },
+   {
+    "title": "Quantum capacity",
+    "p": 0.15
+   },
+   {
+    "title": "Dashlane",
+    "p": 0.15
+   },
+   {
+    "title": "Bitstamp",
+    "p": 0.15
+   },
+   {
+    "title": "Canaan Creative",
+    "p": 0.15
+   },
+   {
+    "title": "EDonkey network",
+    "p": 0.15
+   },
+   {
+    "title": "Alessandro Chiesa",
+    "p": 0.15
+   },
+   {
+    "title": "Kraken (cryptocurrency exchange)",
+    "p": 0.15
+   },
+   {
+    "title": "Liberty Reserve",
+    "p": 0.15
+   },
+   {
+    "title": "Coincheck",
+    "p": 0.15
+   },
+   {
+    "title": "Protocol for Carrying Authentication for Network Access",
+    "p": 0.16
+   },
+   {
+    "title": "Estcoin",
+    "p": 0.16
+   },
+   {
+    "title": "KodakCoin",
+    "p": 0.16
+   },
+   {
+    "title": "LogicLocker",
+    "p": 0.16
+   },
+   {
+    "title": "Code Girls",
+    "p": 0.16
+   },
+   {
+    "title": "Commercial code (communications)",
+    "p": 0.16
+   },
+   {
+    "title": "Shugborough inscription",
+    "p": 0.16
+   },
+   {
+    "title": "Penet remailer",
+    "p": 0.16
+   },
+   {
+    "title": "Communications Security Establishment",
+    "p": 0.16
+   },
+   {
+    "title": "Hut 14",
+    "p": 0.16
+   },
+   {
+    "title": "National Cryptologic Museum",
+    "p": 0.16
+   },
+   {
+    "title": "Wrens at Bletchley Park",
+    "p": 0.16
+   },
+   {
+    "title": "Tera Term",
+    "p": 0.16
+   },
+   {
+    "title": "Tresorit",
+    "p": 0.16
+   },
+   {
+    "title": "Printer tracking dots",
+    "p": 0.16
+   },
+   {
+    "title": "ANDVT",
+    "p": 0.16
+   },
+   {
+    "title": "Bitcoin and politics",
+    "p": 0.16
+   },
+   {
+    "title": "Bitcoin City",
+    "p": 0.16
+   },
+   {
+    "title": "Luke Dashjr",
+    "p": 0.16
+   },
+   {
+    "title": "Everydays: the First 5000 Days",
+    "p": 0.16
+   },
+   {
+    "title": "Keonne Rodriguez",
+    "p": 0.16
+   },
+   {
+    "title": "PlusToken",
+    "p": 0.16
+   },
+   {
+    "title": "Arkham (cryptocurrency exchange)",
+    "p": 0.16
+   },
+   {
+    "title": "WazirX",
+    "p": 0.16
+   },
+   {
+    "title": "Astar Network",
+    "p": 0.17
+   },
+   {
+    "title": "LBRY",
+    "p": 0.17
+   },
+   {
+    "title": "Bored Ape",
+    "p": 0.17
+   },
+   {
+    "title": "Crypto: The Game",
+    "p": 0.17
+   },
+   {
+    "title": "GBDT (digital token)",
+    "p": 0.17
+   },
+   {
+    "title": "WhopperCoin",
+    "p": 0.17
+   },
+   {
+    "title": "Aster (cryptocurrency exchange)",
+    "p": 0.17
+   },
+   {
+    "title": "Iron Finance",
+    "p": 0.17
+   },
+   {
+    "title": "Self-service password reset",
+    "p": 0.17
+   },
+   {
+    "title": "Vinod Vaikuntanathan",
+    "p": 0.17
+   },
+   {
+    "title": "Erich Hüttenhain",
+    "p": 0.17
+   },
+   {
+    "title": "Venona project",
+    "p": 0.17
+   },
+   {
+    "title": "DeCSS",
+    "p": 0.17
+   },
+   {
+    "title": "Arlington Hall",
+    "p": 0.17
+   },
+   {
+    "title": "Bletchley Park",
+    "p": 0.17
+   },
+   {
+    "title": "Hut 3",
+    "p": 0.17
+   },
+   {
+    "title": "Hut 4",
+    "p": 0.17
+   },
+   {
+    "title": "Naval Security Group",
+    "p": 0.17
+   },
+   {
+    "title": "On the roof gang",
+    "p": 0.17
+   },
+   {
+    "title": "ISO 19092-2",
+    "p": 0.17
+   },
+   {
+    "title": "Polyglot (computing)",
+    "p": 0.17
+   },
+   {
+    "title": "The Bitcoin Standard",
+    "p": 0.17
+   },
+   {
+    "title": "Ciphr",
+    "p": 0.17
+   },
+   {
+    "title": "Selected Areas in Cryptography",
+    "p": 0.17
+   },
+   {
+    "title": "Teleport (software)",
+    "p": 0.17
+   },
+   {
+    "title": "USI Tech",
+    "p": 0.17
+   },
+   {
+    "title": "Bybit",
+    "p": 0.17
+   },
+   {
+    "title": "ChipMixer",
+    "p": 0.17
+   },
+   {
+    "title": "Injective (blockchain)",
+    "p": 0.18
+   },
+   {
+    "title": "Guang Gong",
+    "p": 0.18
+   },
+   {
+    "title": "Thomas Phelippes",
+    "p": 0.18
+   },
+   {
+    "title": "National Cryptologic University",
+    "p": 0.18
+   },
+   {
+    "title": "National Institute of Cryptology Research and Development",
+    "p": 0.18
+   },
+   {
+    "title": "Code-O-Graph",
+    "p": 0.18
+   },
+   {
+    "title": "Ferdinand Voegele",
+    "p": 0.18
+   },
+   {
+    "title": "Multiprogram Research Facility",
+    "p": 0.18
+   },
+   {
+    "title": "Cryptology Research Society of India",
+    "p": 0.18
+   },
+   {
+    "title": "Hut 6",
+    "p": 0.18
+   },
+   {
+    "title": "International Association for Cryptologic Research",
+    "p": 0.18
+   },
+   {
+    "title": "United States Coast Guard Unit 387 Cryptanalysis Unit",
+    "p": 0.18
+   },
+   {
+    "title": "Comparison of SSH clients",
+    "p": 0.18
+   },
+   {
+    "title": "Mitro",
+    "p": 0.18
+   },
+   {
+    "title": "Cryptography Research",
+    "p": 0.18
+   },
+   {
+    "title": "HHL algorithm",
+    "p": 0.18
+   },
+   {
+    "title": "El Zonte",
+    "p": 0.18
+   },
+   {
+    "title": "Ember Sword",
+    "p": 0.18
+   },
+   {
+    "title": "Polymarket",
+    "p": 0.18
+   },
+   {
+    "title": "Coinmarketcap",
+    "p": 0.18
+   },
+   {
+    "title": "Minds (social network)",
+    "p": 0.18
+   },
+   {
+    "title": "Cryptocurrency in Iran",
+    "p": 0.18
+   },
+   {
+    "title": "Jens Groth",
+    "p": 0.18
+   },
+   {
+    "title": "Mirror Trading International",
+    "p": 0.18
+   },
+   {
+    "title": "HTTP/1.1 Upgrade header",
+    "p": 0.19
+   },
+   {
+    "title": "Odysee",
+    "p": 0.19
+   },
+   {
+    "title": "Rootkit",
+    "p": 0.19
+   },
+   {
+    "title": "National Cipher Challenge",
+    "p": 0.19
+   },
+   {
+    "title": "Central Security Service",
+    "p": 0.19
+   },
+   {
+    "title": "Cipher Department of the High Command of the Luftwaffe",
+    "p": 0.19
+   },
+   {
+    "title": "PuTTY",
+    "p": 0.19
+   },
+   {
+    "title": "Security printing",
+    "p": 0.19
+   },
+   {
+    "title": "Prime95",
+    "p": 0.19
+   },
+   {
+    "title": "Emin Gün Sirer",
+    "p": 0.19
+   },
+   {
+    "title": "Bitconnect",
+    "p": 0.19
+   },
+   {
+    "title": "Bitmart",
+    "p": 0.19
+   },
+   {
+    "title": "SafeMoon",
+    "p": 0.19
+   },
+   {
+    "title": "Scam center",
+    "p": 0.19
+   },
+   {
+    "title": "NiceHash",
+    "p": 0.19
+   },
+   {
+    "title": "Bitchcoin",
+    "p": 0.2
+   },
+   {
+    "title": "Arattai",
+    "p": 0.2
+   },
+   {
+    "title": "Wilhelm Fenner",
+    "p": 0.2
+   },
+   {
+    "title": "The world wonders",
+    "p": 0.2
+   },
+   {
+    "title": "ASC X9",
+    "p": 0.2
+   },
+   {
+    "title": "Debbie Leung",
+    "p": 0.2
+   },
+   {
+    "title": "Point-to-Point Tunneling Protocol",
+    "p": 0.2
+   },
+   {
+    "title": "Bitnation",
+    "p": 0.2
+   },
+   {
+    "title": "Diameter (protocol)",
+    "p": 0.2
+   },
+   {
+    "title": "Socios.com",
+    "p": 0.2
+   },
+   {
+    "title": "Eli Ben-Sasson",
+    "p": 0.2
+   },
+   {
+    "title": "BitMEX",
+    "p": 0.2
+   },
+   {
+    "title": "Chaos Communication Congress",
+    "p": 0.21
+   },
+   {
+    "title": "Musical cryptogram",
+    "p": 0.21
+   },
+   {
+    "title": "CAVE-based authentication",
+    "p": 0.21
+   },
+   {
+    "title": "WPA3",
+    "p": 0.21
+   },
+   {
+    "title": "Urbit",
+    "p": 0.21
+   },
+   {
+    "title": "Petro (token)",
+    "p": 0.21
+   },
+   {
+    "title": "World (blockchain)",
+    "p": 0.21
+   },
+   {
+    "title": "USB flash drive security",
+    "p": 0.21
+   },
+   {
+    "title": "KAME project",
+    "p": 0.21
+   },
+   {
+    "title": "Centre for Applied Cryptographic Research",
+    "p": 0.21
+   },
+   {
+    "title": "Cipher Department of the High Command of the Wehrmacht",
+    "p": 0.21
+   },
+   {
+    "title": "Women in Bletchley Park",
+    "p": 0.21
+   },
+   {
+    "title": "Walsh Report (cryptography)",
+    "p": 0.21
+   },
+   {
+    "title": "Authenticated Identity Body",
+    "p": 0.21
+   },
+   {
+    "title": "Guardian Project (software)",
+    "p": 0.21
+   },
+   {
+    "title": "Passwork",
+    "p": 0.21
+   },
+   {
+    "title": "Differential privacy composition theorems",
+    "p": 0.21
+   },
+   {
+    "title": "Bitcoin in El Salvador",
+    "p": 0.21
+   },
+   {
+    "title": "TACACS",
+    "p": 0.21
+   },
+   {
+    "title": "SSH File Transfer Protocol",
+    "p": 0.21
+   },
+   {
+    "title": "Web-based SSH",
+    "p": 0.21
+   },
+   {
+    "title": "2016 Bitfinex hack",
+    "p": 0.21
+   },
+   {
+    "title": "Blender.io",
+    "p": 0.21
+   },
+   {
+    "title": "Knapsack problem",
+    "p": 0.22
+   },
+   {
+    "title": "Locally recoverable code",
+    "p": 0.22
+   },
+   {
+    "title": "List of cryptocurrencies",
+    "p": 0.22
+   },
+   {
+    "title": "Satoshi Nakamoto",
+    "p": 0.22
+   },
+   {
+    "title": "Dark Mail Alliance",
+    "p": 0.22
+   },
+   {
+    "title": "EncroChat",
+    "p": 0.22
+   },
+   {
+    "title": "Japanese naval codes",
+    "p": 0.22
+   },
+   {
+    "title": "Station CAST",
+    "p": 0.22
+   },
+   {
+    "title": "Hut 7",
+    "p": 0.22
+   },
+   {
+    "title": "Canonical XML",
+    "p": 0.22
+   },
+   {
+    "title": "Journal of Cryptology",
+    "p": 0.22
+   },
+   {
+    "title": "Bitcoin buried in Newport landfill",
+    "p": 0.22
+   },
+   {
+    "title": "Chia Network",
+    "p": 0.22
+   },
+   {
+    "title": "Shiba Inu (cryptocurrency)",
+    "p": 0.22
+   },
+   {
+    "title": "Bitcoin Satoshi Vision",
+    "p": 0.23
+   },
+   {
+    "title": "Microsoft Security Development Lifecycle",
+    "p": 0.23
+   },
+   {
+    "title": "Generic Security Service Algorithm for Secret Key Transaction",
+    "p": 0.23
+   },
+   {
+    "title": "SPNEGO",
+    "p": 0.23
+   },
+   {
+    "title": ".brave",
+    "p": 0.23
+   },
+   {
+    "title": "Royal Mint Gold",
+    "p": 0.23
+   },
+   {
+    "title": "Agostino Amadi",
+    "p": 0.23
+   },
+   {
+    "title": "Walter Fricke",
+    "p": 0.23
+   },
+   {
+    "title": "Wilhelm Tranow",
+    "p": 0.23
+   },
+   {
+    "title": "Digital rights management",
+    "p": 0.23
+   },
+   {
+    "title": "Research Office of the Reich Air Ministry",
+    "p": 0.23
+   },
+   {
+    "title": "Women cryptanalysts at MI1(b)",
+    "p": 0.23
+   },
+   {
+    "title": "QNu Labs",
+    "p": 0.23
+   },
+   {
+    "title": "Acid Cryptofiler",
+    "p": 0.23
+   },
+   {
+    "title": "Core FTP",
+    "p": 0.23
+   },
+   {
+    "title": "Pleasant Password Server",
+    "p": 0.23
+   },
+   {
+    "title": "WolfSSL",
+    "p": 0.23
+   },
+   {
+    "title": "Matt Curtin",
+    "p": 0.23
+   },
+   {
+    "title": "Extensible Authentication Protocol",
+    "p": 0.23
+   },
+   {
+    "title": "Pump.fun",
+    "p": 0.23
+   },
+   {
+    "title": "Tether Limited",
+    "p": 0.23
+   },
+   {
+    "title": "Autoroll",
+    "p": 0.24
+   },
+   {
+    "title": "Generic Bootstrapping Architecture",
+    "p": 0.24
+   },
+   {
+    "title": "Auroracoin",
+    "p": 0.24
+   },
+   {
+    "title": "Crypto Rial",
+    "p": 0.24
+   },
+   {
+    "title": "Microsoft Office password protection",
+    "p": 0.24
+   },
+   {
+    "title": "Telegram (software)",
+    "p": 0.24
+   },
+   {
+    "title": "Dorabella Cipher",
+    "p": 0.24
+   },
+   {
+    "title": "United States v. Rawls",
+    "p": 0.24
+   },
+   {
+    "title": "American Cryptogram Association",
+    "p": 0.24
+   },
+   {
+    "title": "PC Bruno",
+    "p": 0.24
+   },
+   {
+    "title": "Station HYPO",
+    "p": 0.24
+   },
+   {
+    "title": "BBM Enterprise",
+    "p": 0.24
+   },
+   {
+    "title": "Communications Machine",
+    "p": 0.24
+   },
+   {
+    "title": "Kryptographik",
+    "p": 0.24
+   },
+   {
+    "title": "Sieve of Sundaram",
+    "p": 0.24
+   },
+   {
+    "title": "Mt. Gox",
+    "p": 0.24
+   },
+   {
+    "title": "Goto fail",
+    "p": 0.24
+   },
+   {
+    "title": "Nym Technologies",
+    "p": 0.24
+   },
+   {
+    "title": "Augur (software)",
+    "p": 0.24
+   },
+   {
+    "title": "Aventus (protocol)",
+    "p": 0.24
+   },
+   {
+    "title": "Data in use",
+    "p": 0.25
+   },
+   {
+    "title": "Titcoin",
+    "p": 0.25
+   },
+   {
+    "title": "Rublon",
+    "p": 0.25
+   },
+   {
+    "title": "Next-Generation Secure Computing Base",
+    "p": 0.25
+   },
+   {
+    "title": "Dundee Society",
+    "p": 0.25
+   },
+   {
+    "title": "Shutdown of Sky Global",
+    "p": 0.25
+   },
+   {
+    "title": "Wire (software)",
+    "p": 0.25
+   },
+   {
+    "title": "Beale ciphers",
+    "p": 0.25
+   },
+   {
+    "title": "Cryptologia",
+    "p": 0.25
+   },
+   {
+    "title": "Quantum network",
+    "p": 0.25
+   },
+   {
+    "title": "Comparison of SSH servers",
+    "p": 0.25
+   },
+   {
+    "title": "Corkscrew (program)",
+    "p": 0.25
+   },
+   {
+    "title": "Silent Circle (software)",
+    "p": 0.25
+   },
+   {
+    "title": "ABA digital signature guidelines",
+    "p": 0.25
+   },
+   {
+    "title": "EIDAS",
+    "p": 0.25
+   },
+   {
+    "title": "Qualified electronic signature",
+    "p": 0.25
+   },
+   {
+    "title": "Switchover",
+    "p": 0.25
+   },
+   {
+    "title": "2020 Twitter account hijacking",
+    "p": 0.25
+   },
+   {
+    "title": "William Entriken",
+    "p": 0.25
+   },
+   {
+    "title": "Host Identity Protocol",
+    "p": 0.26
+   },
+   {
+    "title": "Avalanche (blockchain platform)",
+    "p": 0.26
+   },
+   {
+    "title": "CryptoPunks",
+    "p": 0.26
+   },
+   {
+    "title": "Decentraland",
+    "p": 0.26
+   },
+   {
+    "title": "Sovereign Currency Act of 2018",
+    "p": 0.26
+   },
+   {
+    "title": "Fleet Radio Unit",
+    "p": 0.26
+   },
+   {
+    "title": "Secure Communication based on Quantum Cryptography",
+    "p": 0.26
+   },
+   {
+    "title": "OneID",
+    "p": 0.26
+   },
+   {
+    "title": "ID Quantique",
+    "p": 0.26
+   },
+   {
+    "title": "Microprinting",
+    "p": 0.26
+   },
+   {
+    "title": "PancakeSwap",
+    "p": 0.26
+   },
+   {
+    "title": "Presearch (search engine)",
+    "p": 0.26
+   },
+   {
+    "title": "Cryptocurrency in Australia",
+    "p": 0.26
+   },
+   {
+    "title": "Cryptocurrency in Nigeria",
+    "p": 0.26
+   },
+   {
+    "title": "TICOM",
+    "p": 0.27
+   },
+   {
+    "title": "Qrpff",
+    "p": 0.27
+   },
+   {
+    "title": "Black Chamber",
+    "p": 0.27
+   },
+   {
+    "title": "ECRYPT",
+    "p": 0.27
+   },
+   {
+    "title": "Eagle-1",
+    "p": 0.27
+   },
+   {
+    "title": "Java Anon Proxy",
+    "p": 0.27
+   },
+   {
+    "title": "Tinfoil Hat Linux",
+    "p": 0.27
+   },
+   {
+    "title": "Polyinstantiation",
+    "p": 0.27
+   },
+   {
+    "title": "CryptoKitties",
+    "p": 0.27
+   },
+   {
+    "title": "PrivateCore",
+    "p": 0.28
+   },
+   {
+    "title": "StarkWare Industries",
+    "p": 0.28
+   },
+   {
+    "title": "NEO (blockchain)",
+    "p": 0.28
+   },
+   {
+    "title": "Pseudonym",
+    "p": 0.28
+   },
+   {
+    "title": "Pwdump",
+    "p": 0.28
+   },
+   {
+    "title": "Çetin Kaya Koç",
+    "p": 0.28
+   },
+   {
+    "title": "Rclone",
+    "p": 0.28
+   },
+   {
+    "title": "Steganographia",
+    "p": 0.28
+   },
+   {
+    "title": "Johannes Trithemius",
+    "p": 0.28
+   },
+   {
+    "title": "SMTPS",
+    "p": 0.28
+   },
+   {
+    "title": "Web API security",
+    "p": 0.28
+   },
+   {
+    "title": "2021 Squid Game cryptocurrency scam",
+    "p": 0.28
+   },
+   {
+    "title": "Anonymous matching",
+    "p": 0.29
+   },
+   {
+    "title": "Kurzsignale",
+    "p": 0.29
+   },
+   {
+    "title": "Normal basis",
+    "p": 0.29
+   },
+   {
+    "title": "Coinye",
+    "p": 0.29
+   },
+   {
+    "title": "Helium Network",
+    "p": 0.29
+   },
+   {
+    "title": "IGap",
+    "p": 0.29
+   },
+   {
+    "title": "Wheel factorization",
+    "p": 0.29
+   },
+   {
+    "title": "Bitcoin Law",
+    "p": 0.29
+   },
+   {
+    "title": "Pyth Network",
+    "p": 0.3
+   },
+   {
+    "title": "Cryptogram of Olivier Levasseur",
+    "p": 0.3
+   },
+   {
+    "title": "Operation Trojan Shield",
+    "p": 0.3
+   },
+   {
+    "title": "Peter Junger",
+    "p": 0.3
+   },
+   {
+    "title": "B-Dienst",
+    "p": 0.3
+   },
+   {
+    "title": "Authy",
+    "p": 0.3
+   },
+   {
+    "title": "Microsoft Authenticator",
+    "p": 0.3
+   },
+   {
+    "title": "Silvio Micali",
+    "p": 0.3
+   },
+   {
+    "title": "2024 WazirX hack",
+    "p": 0.3
+   },
+   {
+    "title": "Axie Infinity",
+    "p": 0.31
+   },
+   {
+    "title": "The Codebreakers",
+    "p": 0.31
+   },
+   {
+    "title": "MI1",
+    "p": 0.31
+   },
+   {
+    "title": "LastPass",
+    "p": 0.31
+   },
+   {
+    "title": "Exponential mechanism",
+    "p": 0.31
+   },
+   {
+    "title": "HTTPS Everywhere",
+    "p": 0.31
+   },
+   {
+    "title": "Exodus Wallet",
+    "p": 0.31
+   },
+   {
+    "title": "H.235",
+    "p": 0.32
+   },
+   {
+    "title": "Temporal Key Integrity Protocol",
+    "p": 0.32
+   },
+   {
+    "title": "Terra (blockchain)",
+    "p": 0.32
+   },
+   {
+    "title": "Form 1099-DA",
+    "p": 0.32
+   },
+   {
+    "title": "Index of cryptography articles",
+    "p": 0.32
+   },
+   {
+    "title": "EncryptEase",
+    "p": 0.32
+   },
+   {
+    "title": "Apple–FBI encryption dispute",
+    "p": 0.32
+   },
+   {
+    "title": "Kryptos",
+    "p": 0.32
+   },
+   {
+    "title": "Regulation of Investigatory Powers Act 2000",
+    "p": 0.32
+   },
+   {
+    "title": "QUBE-II",
+    "p": 0.32
+   },
+   {
+    "title": "Privacy-preserving computational geometry",
+    "p": 0.32
+   },
+   {
+    "title": "Secure Network Programming",
+    "p": 0.32
+   },
+   {
+    "title": "JPM Coin",
+    "p": 0.32
+   },
+   {
+    "title": "Computer security",
+    "p": 0.33
+   },
+   {
+    "title": "HTTP Strict Transport Security",
+    "p": 0.33
+   },
+   {
+    "title": "Voice inversion",
+    "p": 0.33
+   },
+   {
+    "title": "Room 40",
+    "p": 0.33
+   },
+   {
+    "title": "Media Key Block",
+    "p": 0.33
+   },
+   {
+    "title": "Resource Public Key Infrastructure",
+    "p": 0.33
+   },
+   {
+    "title": "Kodak KashMiner",
+    "p": 0.33
+   },
+   {
+    "title": "Wei Dai",
+    "p": 0.33
+   },
+   {
+    "title": "Chainalysis",
+    "p": 0.33
+   },
+   {
+    "title": "Dogecoin",
+    "p": 0.34
+   },
+   {
+    "title": "Sui (blockchain platform)",
+    "p": 0.34
+   },
+   {
+    "title": "DRE-i with enhanced privacy",
+    "p": 0.34
+   },
+   {
+    "title": "Secret decoder ring",
+    "p": 0.34
+   },
+   {
+    "title": "Signal operating instructions",
+    "p": 0.34
+   },
+   {
+    "title": "Abhorchdienst",
+    "p": 0.34
+   },
+   {
+    "title": "FRUPAC",
+    "p": 0.34
+   },
+   {
+    "title": "Special Communications Service of Russia",
+    "p": 0.34
+   },
+   {
+    "title": "Advanced electronic signature",
+    "p": 0.34
+   },
+   {
+    "title": "Smart cow problem",
+    "p": 0.34
+   },
+   {
+    "title": "U-229",
+    "p": 0.34
+   },
+   {
+    "title": "Pépin's test",
+    "p": 0.34
+   },
+   {
+    "title": "Proth's theorem",
+    "p": 0.34
+   },
+   {
+    "title": "Yonatan Sompolinsky",
+    "p": 0.34
+   },
+   {
+    "title": "Mixin Network",
+    "p": 0.34
+   },
+   {
+    "title": "Vndc",
+    "p": 0.34
+   },
+   {
+    "title": "Cryptocurrencies in Europe",
+    "p": 0.35
+   },
+   {
+    "title": "Hugo Krawczyk",
+    "p": 0.35
+   },
+   {
+    "title": "Magic (cryptography)",
+    "p": 0.35
+   },
+   {
+    "title": "Pers Z S",
+    "p": 0.35
+   },
+   {
+    "title": "KWallet",
+    "p": 0.35
+   },
+   {
+    "title": "Mempool.space",
+    "p": 0.35
+   },
+   {
+    "title": "Poly Network exploit",
+    "p": 0.35
+   },
+   {
+    "title": "Publius (publishing system)",
+    "p": 0.36
+   },
+   {
+    "title": "Theban alphabet",
+    "p": 0.36
+   },
+   {
+    "title": "Anti–computer forensics",
+    "p": 0.36
+   },
+   {
+    "title": "Quantum readout",
+    "p": 0.36
+   },
+   {
+    "title": "QuintessenceLabs",
+    "p": 0.36
+   },
+   {
+    "title": "United States v. Gratkowski",
+    "p": 0.36
+   },
+   {
+    "title": "OneCoin",
+    "p": 0.36
+   },
+   {
+    "title": "Trust Wallet",
+    "p": 0.36
+   },
+   {
+    "title": "Data at rest",
+    "p": 0.37
+   },
+   {
+    "title": "Digital credential",
+    "p": 0.37
+   },
+   {
+    "title": "BitClout",
+    "p": 0.37
+   },
+   {
+    "title": "Signals intelligence operational platforms by nation",
+    "p": 0.37
+   },
+   {
+    "title": "Clock drift",
+    "p": 0.37
+   },
+   {
+    "title": "Proton Mail",
+    "p": 0.37
+   },
+   {
+    "title": "AACS encryption key controversy",
+    "p": 0.37
+   },
+   {
+    "title": "OP-20-G",
+    "p": 0.37
+   },
+   {
+    "title": "Initiative for Open Authentication",
+    "p": 0.37
+   },
+   {
+    "title": "Counterparty (platform)",
+    "p": 0.37
+   },
+   {
+    "title": "Hyperledger",
+    "p": 0.37
+   },
+   {
+    "title": "Electronic signature",
+    "p": 0.38
+   },
+   {
+    "title": "Secure Hypertext Transfer Protocol",
+    "p": 0.38
+   },
+   {
+    "title": "Cardano (blockchain platform)",
+    "p": 0.38
+   },
+   {
+    "title": "Canton Network",
+    "p": 0.38
+   },
+   {
+    "title": "Stellar (payment network)",
+    "p": 0.38
+   },
+   {
+    "title": "RSA Security",
+    "p": 0.38
+   },
+   {
+    "title": "KeeWeb",
+    "p": 0.38
+   },
+   {
+    "title": "OpenBSD",
+    "p": 0.38
+   },
+   {
+    "title": "OpenSSH",
+    "p": 0.38
+   },
+   {
+    "title": "Canary trap",
+    "p": 0.38
+   },
+   {
+    "title": "Srivastava code",
+    "p": 0.38
+   },
+   {
+    "title": "Password Authentication Protocol",
+    "p": 0.38
+   },
+   {
+    "title": "List of blockchains",
+    "p": 0.39
+   },
+   {
+    "title": "List of cryptographers",
+    "p": 0.39
+   },
+   {
+    "title": "Sinkov statistic",
+    "p": 0.39
+   },
+   {
+    "title": "Signal (software)",
+    "p": 0.39
+   },
+   {
+    "title": "NordLocker",
+    "p": 0.39
+   },
+   {
+    "title": "Threema",
+    "p": 0.39
+   },
+   {
+    "title": "Cryptographie indéchiffrable",
+    "p": 0.39
+   },
+   {
+    "title": "KY-58",
+    "p": 0.39
+   },
+   {
+    "title": "Sieve of Eratosthenes",
+    "p": 0.39
+   },
+   {
+    "title": "Protected Extensible Authentication Protocol",
+    "p": 0.39
+   },
+   {
+    "title": "Basic Attention Token",
+    "p": 0.39
+   },
+   {
+    "title": "AS2",
+    "p": 0.4
+   },
+   {
+    "title": "DigiCipher 2",
+    "p": 0.4
+   },
+   {
+    "title": "DomainKeys Identified Mail",
+    "p": 0.4
+   },
+   {
+    "title": "Tron (blockchain)",
+    "p": 0.4
+   },
+   {
+    "title": "The DAO",
+    "p": 0.4
+   },
+   {
+    "title": "Content Scramble System",
+    "p": 0.4
+   },
+   {
+    "title": "ZertES",
+    "p": 0.4
+   },
+   {
+    "title": "Dual basis in a field extension",
+    "p": 0.4
+   },
+   {
+    "title": "Alternant code",
+    "p": 0.4
+   },
+   {
+    "title": "Navajo I",
+    "p": 0.4
+   },
+   {
+    "title": "DNS over TLS",
+    "p": 0.4
+   },
+   {
+    "title": "CNGN",
+    "p": 0.4
+   },
+   {
+    "title": "Blacker (security)",
+    "p": 0.41
+   },
+   {
+    "title": "Nostr",
+    "p": 0.41
+   },
+   {
+    "title": "Cipher Bureau (Poland)",
+    "p": 0.41
+   },
+   {
+    "title": "Japanese cryptology from the 1500s to Meiji",
+    "p": 0.41
+   },
+   {
+    "title": "Polygraphia Nova",
+    "p": 0.41
+   },
+   {
+    "title": "Smart card management system",
+    "p": 0.41
+   },
+   {
+    "title": "Non-local quantum computation",
+    "p": 0.41
+   },
+   {
+    "title": "Bitwarden",
+    "p": 0.41
+   },
+   {
+    "title": "RetroShare",
+    "p": 0.41
+   },
+   {
+    "title": "Differential privacy",
+    "p": 0.41
+   },
+   {
+    "title": "KOV-21",
+    "p": 0.41
+   },
+   {
+    "title": "Tether (cryptocurrency)",
+    "p": 0.41
+   },
+   {
+    "title": "Grams (search)",
+    "p": 0.41
+   },
+   {
+    "title": "Cypherpunks (book)",
+    "p": 0.42
+   },
+   {
+    "title": "List of cryptography journals",
+    "p": 0.42
+   },
+   {
+    "title": "Common Scrambling Algorithm",
+    "p": 0.42
+   },
+   {
+    "title": "IEEE 802.11i-2004",
+    "p": 0.42
+   },
+   {
+    "title": "HTC Exodus",
+    "p": 0.42
+   },
+   {
+    "title": "Zano (blockchain platform)",
+    "p": 0.42
+   },
+   {
+    "title": "Legality of cryptocurrency by country or territory",
+    "p": 0.42
+   },
+   {
+    "title": "Virtual currency law in Iran",
+    "p": 0.42
+   },
+   {
+    "title": "Bingo voting",
+    "p": 0.42
+   },
+   {
+    "title": "IEEE Security in Storage Working Group",
+    "p": 0.42
+   },
+   {
+    "title": "SimpleX Chat",
+    "p": 0.42
+   },
+   {
+    "title": "Blockscale",
+    "p": 0.42
+   },
+   {
+    "title": "Symmetric Boolean function",
+    "p": 0.43
+   },
+   {
+    "title": "Private Communications Technology",
+    "p": 0.43
+   },
+   {
+    "title": "Proof of secure erasure",
+    "p": 0.43
+   },
+   {
+    "title": "Blockchain game",
+    "p": 0.43
+   },
+   {
+    "title": "DeSo",
+    "p": 0.43
+   },
+   {
+    "title": "Algorand",
+    "p": 0.43
+   },
+   {
+    "title": "Bibliography of cryptography",
+    "p": 0.43
+   },
+   {
+    "title": "List of telecommunications encryption terms",
+    "p": 0.43
+   },
+   {
+    "title": "Aircrack-ng",
+    "p": 0.43
+   },
+   {
+    "title": "Comparison of encrypted external drives",
+    "p": 0.43
+   },
+   {
+    "title": "Domain Name System Security Extensions",
+    "p": 0.43
+   },
+   {
+    "title": "National Information Assurance Glossary",
+    "p": 0.43
+   },
+   {
+    "title": "Mujahedeen Secrets",
+    "p": 0.43
+   },
+   {
+    "title": "Sieve of Pritchard",
+    "p": 0.43
+   },
+   {
+    "title": "Bitkey",
+    "p": 0.43
+   },
+   {
+    "title": "Tor (network)",
+    "p": 0.43
+   },
+   {
+    "title": "Lsh",
+    "p": 0.43
+   },
+   {
+    "title": "Information security",
+    "p": 0.44
+   },
+   {
+    "title": "Tableau de Concordance",
+    "p": 0.44
+   },
+   {
+    "title": "Schlüsselgerät 41",
+    "p": 0.44
+   },
+   {
+    "title": "Japanese army and diplomatic codes",
+    "p": 0.44
+   },
+   {
+    "title": "Lavabit",
+    "p": 0.44
+   },
+   {
+    "title": "Electronic signatures and law",
+    "p": 0.44
+   },
+   {
+    "title": "Factorization of polynomials over finite fields",
+    "p": 0.45
+   },
+   {
+    "title": "Scrambler",
+    "p": 0.45
+   },
+   {
+    "title": "Signals intelligence",
+    "p": 0.45
+   },
+   {
+    "title": "Grid Security Infrastructure",
+    "p": 0.45
+   },
+   {
+    "title": "Simple Authentication and Security Layer",
+    "p": 0.45
+   },
+   {
+    "title": "Wired Equivalent Privacy",
+    "p": 0.45
+   },
+   {
+    "title": "Cryptocurrency bubble",
+    "p": 0.45
+   },
+   {
+    "title": "Confidentiality",
+    "p": 0.45
+   },
+   {
+    "title": "Typex",
+    "p": 0.45
+   },
+   {
+    "title": "KeePass",
+    "p": 0.45
+   },
+   {
+    "title": "Peerio",
+    "p": 0.45
+   },
+   {
+    "title": "Invisible ink",
+    "p": 0.45
+   },
+   {
+    "title": "STU-I",
+    "p": 0.45
+   },
+   {
+    "title": "UUHash",
+    "p": 0.46
+   },
+   {
+    "title": "Oblivious HTTP",
+    "p": 0.46
+   },
+   {
+    "title": "TrueCrypt version history",
+    "p": 0.46
+   },
+   {
+    "title": "Qualified website authentication certificate",
+    "p": 0.46
+   },
+   {
+    "title": "IEEE 802.1AE",
+    "p": 0.46
+   },
+   {
+    "title": "JADE (cipher machine)",
+    "p": 0.46
+   },
+   {
+    "title": "Version history for TLS/SSL support in web browsers",
+    "p": 0.46
+   },
+   {
+    "title": "ICON (blockchain platform)",
+    "p": 0.47
+   },
+   {
+    "title": "Stacks blockchain",
+    "p": 0.47
+   },
+   {
+    "title": "MetaMask",
+    "p": 0.47
+   },
+   {
+    "title": "Firo (cryptocurrency)",
+    "p": 0.47
+   },
+   {
+    "title": "Keystroke logging",
+    "p": 0.47
+   },
+   {
+    "title": "Noreen (cipher machine)",
+    "p": 0.47
+   },
+   {
+    "title": "Secure telephone",
+    "p": 0.47
+   },
+   {
+    "title": "Capstone (cryptography)",
+    "p": 0.47
+   },
+   {
+    "title": "Ticket Granting Ticket",
+    "p": 0.47
+   },
+   {
+    "title": "Flash proxy",
+    "p": 0.47
+   },
+   {
+    "title": "Brute Force: Cracking the Data Encryption Standard",
+    "p": 0.47
+   },
+   {
+    "title": "Coset leader",
+    "p": 0.47
+   },
+   {
+    "title": "Lucas–Lehmer primality test",
+    "p": 0.47
+   },
+   {
+    "title": "Wilson's theorem",
+    "p": 0.47
+   },
+   {
+    "title": "Pig butchering scam",
+    "p": 0.47
+   },
+   {
+    "title": "Point-to-point encryption",
+    "p": 0.48
+   },
+   {
+    "title": "BitTorrent protocol encryption",
+    "p": 0.48
+   },
+   {
+    "title": "Secure copy protocol",
+    "p": 0.48
+   },
+   {
+    "title": "Key distribution in wireless sensor networks",
+    "p": 0.48
+   },
+   {
+    "title": "OpenIKED",
+    "p": 0.48
+   },
+   {
+    "title": "Visible Light Photon Counter",
+    "p": 0.48
+   },
+   {
+    "title": "Covert channel",
+    "p": 0.48
+   },
+   {
+    "title": "Sieve of Atkin",
+    "p": 0.48
+   },
+   {
+    "title": "Diem (digital currency)",
+    "p": 0.48
+   },
+   {
+    "title": "Secure Neighbor Discovery",
+    "p": 0.49
+   },
+   {
+    "title": "WPA2",
+    "p": 0.49
+   },
+   {
+    "title": "XRP Ledger",
+    "p": 0.49
+   },
+   {
+    "title": "Risk-based authentication",
+    "p": 0.49
+   },
+   {
+    "title": "The American Black Chamber",
+    "p": 0.49
+   },
+   {
+    "title": "Crypto Wars",
+    "p": 0.49
+   },
+   {
+    "title": "Texas Instruments signing key controversy",
+    "p": 0.49
+   },
+   {
+    "title": "SAGA (satellite)",
+    "p": 0.49
+   },
+   {
+    "title": "Dropbear (software)",
+    "p": 0.49
+   },
+   {
+    "title": "BPCS-steganography",
+    "p": 0.49
+   },
+   {
+    "title": "List of steganography techniques",
+    "p": 0.49
+   },
+   {
+    "title": "Crypto (book)",
+    "p": 0.49
+   },
+   {
+    "title": "Hyphanet",
+    "p": 0.49
+   }
+  ],
+  "spentUsd": 0.022205231999999995
+ }
+}
