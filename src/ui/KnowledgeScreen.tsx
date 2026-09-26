@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { DocumentPickerAsset } from "expo-document-picker";
@@ -10,6 +10,7 @@ import {
   deleteCustomCollection,
   exportCollection,
   importDocuments,
+  ImportCancelledError,
   ImportProgress,
   listCustomCollections,
   pickDocuments,
@@ -17,6 +18,7 @@ import {
 } from "../services/documentImporter";
 import type { CustomCollection } from "../rag/db";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
+import { CollectionIndexStatus, getCollectionIndexStatus, onCollectionIndexStatus } from "../rag/indexStatus";
 import { CatalogRow } from "./flows/CatalogRow";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
@@ -45,6 +47,8 @@ export function KnowledgeScreen() {
   const [importError, setImportError] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<CustomCollection | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [indexStatus, setIndexStatus] = useState<Record<string, CollectionIndexStatus>>(getCollectionIndexStatus);
+  const abortRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     await refresh();
@@ -57,6 +61,16 @@ export function KnowledgeScreen() {
     }, [load])
   );
   useEffect(() => onSeedProgress((p) => setSeed(p.done >= p.total ? null : p)), []);
+  useEffect(() => onCollectionIndexStatus(setIndexStatus), []);
+
+  /** One line for a collection's index state; undefined when there is nothing to say. */
+  const statusLine = (id: string): string | undefined => {
+    const st = indexStatus[id];
+    if (!st) return undefined;
+    if (st.state === "indexing") return t("flows.knowledge.indexing", { done: formatCount(st.done, lang), total: formatCount(st.total, lang) });
+    if (st.state === "error") return t("flows.knowledge.indexError", { error: st.error ?? "" });
+    return t("flows.knowledge.indexed");
+  };
 
   const downloadPack = async (pack: CatalogModel) => {
     await catalog.download(pack);
@@ -82,14 +96,22 @@ export function KnowledgeScreen() {
     const collectionName = name.trim() || files[0].name;
     setPicked(null);
     setImporting({ stage: "reading" });
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      await importDocuments(files, collectionName, setImporting);
+      await importDocuments(files, collectionName, setImporting, controller.signal);
       announce(t("flows.knowledge.imported", { name: collectionName }));
       toast({ message: t("flows.knowledge.imported", { name: collectionName }), tone: "success" });
     } catch (e: any) {
-      setImportError(e?.message ?? String(e));
-      announce(t("flows.knowledge.importFailed"), { assertive: true });
+      // Cancelled by the user: back to where we were, no error.
+      if (e instanceof ImportCancelledError || e?.name === "AbortError") {
+        announce(t("flows.knowledge.importCancelled"));
+      } else {
+        setImportError(e?.message ?? String(e));
+        announce(t("flows.knowledge.importFailed"), { assertive: true });
+      }
     } finally {
+      abortRef.current = null;
       setImporting(null);
       setCollections(await listCustomCollections());
     }
@@ -145,11 +167,12 @@ export function KnowledgeScreen() {
       )}
 
       <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
-        <ListRow title={t("flows.knowledge.builtin")} subtitle={t("flows.knowledge.builtinSub")} />
+        <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
         {CORPUS_CATALOG.map((pack) => (
           <CatalogRow
             key={pack.id}
             model={pack}
+            details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
             onDownload={() => downloadPack(pack)}
             onRemove={() => catalog.remove(pack)}
@@ -238,6 +261,7 @@ export function KnowledgeScreen() {
         <View style={{ gap: tokens.space.xs }}>
           <Text variant="subhead">{t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })}</Text>
           <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
+          <Button size="sm" variant="secondary" label={t("common.cancel")} onPress={() => abortRef.current?.abort()} />
         </View>
       )}
 

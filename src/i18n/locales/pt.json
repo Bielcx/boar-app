@@ -430,7 +430,10 @@
       "filesPicked_one": "{{count}} arquivo selecionado",
       "filesPicked_other": "{{count}} arquivos selecionados",
       "nameLabel": "Nome da coleção",
-      "import": "Importar"
+      "import": "Importar",
+      "indexed": "Indexada",
+      "indexError": "A indexação falhou: {{error}}",
+      "importCancelled": "Importação cancelada"
     },
     "performance": {
       "provisional": "As faixas de velocidade são provisórias até serem medidas em celulares.",

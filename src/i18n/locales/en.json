@@ -430,7 +430,10 @@
       "filesPicked_one": "{{count}} file selected",
       "filesPicked_other": "{{count}} files selected",
       "nameLabel": "Collection name",
-      "import": "Import"
+      "import": "Import",
+      "indexed": "Indexed",
+      "indexError": "Indexing failed: {{error}}",
+      "importCancelled": "Import cancelled"
     },
     "performance": {
       "provisional": "Speed ratings are provisional until they are measured on phones.",
