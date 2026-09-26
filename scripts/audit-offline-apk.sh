@@ -67,17 +67,22 @@ if [[ "$target" == *.xml ]]; then
 else
   apkanalyzer=$(ls "$sdk"/cmdline-tools/*/bin/apkanalyzer 2>/dev/null | head -1 || true)
   aapt2=$(ls "$sdk"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1 || true)
-  if [[ -n "$apkanalyzer" ]]; then
-    perms=$("$apkanalyzer" manifest permissions "$target")
-    manifest=$("$apkanalyzer" manifest print "$target")
-    packages=$("$apkanalyzer" dex packages "$target" | awk '{print $NF}')
+  # apkanalyzer needs a Java runtime; without one, fall back to aapt2 + the dex strings.
+  if [[ -n "$apkanalyzer" ]] && perms=$("$apkanalyzer" manifest permissions "$target" 2>/dev/null) \
+    && manifest=$("$apkanalyzer" manifest print "$target" 2>/dev/null) \
+    && packages=$("$apkanalyzer" dex packages "$target" 2>/dev/null | awk '{print $NF}'); then
+    tool=apkanalyzer
   elif [[ -n "$aapt2" ]]; then
-    perms=$("$aapt2" dump permissions "$target" | grep -o "name='[^']*'" | cut -d"'" -f2)
+    tool=aapt2
+    perms=$("$aapt2" dump permissions "$target" | grep -o "name='[^']*'" | cut -d"'" -f2 || true)
     manifest=$("$aapt2" dump xmltree --file AndroidManifest.xml "$target")
-    packages=$(unzip -p "$target" 'classes*.dex' | strings | grep -oE 'L[a-z0-9_]+(/[A-Za-z0-9_$]+)+;' | tr '/' '.' | sed 's/^L//' || true)
+    packages=$(unzip -p "$target" 'classes*.dex' | strings | grep -oE 'L[a-z0-9_]+(/[A-Za-z0-9_$]+)+;' | tr '/' '.' | sed 's/^L//' | sort -u || true)
   else
-    echo "Need apkanalyzer or aapt2 under $sdk" >&2; exit 2
+    echo "Need apkanalyzer (with Java) or aapt2 under $sdk" >&2; exit 2
   fi
+  # An APK always has classes; an empty list means the dex check couldn't run.
+  [[ -n "$packages" ]] || bad "could not list the APK's dex packages ($tool): network-library check did not run"
+  echo "(read with $tool)"
 fi
 
 echo "== declared permissions ($variant audit) =="
@@ -97,7 +102,9 @@ if [[ "$variant" == offline ]]; then
   grep -q 'dataExtractionRules' <<<"$manifest" || bad "no dataExtractionRules (Android 12+ device transfer would copy app data)"
   if [[ -n "$packages" ]]; then
     for pkg in "${FORBIDDEN_PACKAGES[@]}"; do
-      grep -q "^${pkg//./\\.}" <<<"$packages" && bad "ships network/cloud package $pkg"
+      # Whole package segments only: expo.modules.updates must not match
+      # expo.modules.updatesinterface (expo-updates-interface, interfaces only).
+      grep -qE "^${pkg//./\\.}(\\.|$)" <<<"$packages" && bad "ships network/cloud package $pkg"
     done
     grep -q '^okhttp3' <<<"$packages" && echo "note: okhttp3 present (React Native core); inert without INTERNET"
   fi
