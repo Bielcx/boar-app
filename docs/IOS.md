@@ -23,8 +23,9 @@ xcrun simctl launch booted team.sopa.aoair
 scripts/ios-remote-build.sh sim-run
 # Or only build the simulator .app
 scripts/ios-remote-build.sh sim
-# On the build Mac itself (what the remote wrapper runs)
-scripts/ios-build-on-host.sh sim-run
+# On the build Mac itself (what the remote wrapper runs). With IOS_OUT_DIR only the
+# .app is kept (builds/ios/<sdk>/) and ios/build is deleted.
+IOS_OUT_DIR=/Users/r4to/Script/boar/builds/ios scripts/ios-build-on-host.sh sim-run
 # On the mini, npm ci / pod install / xcodebuild wait for the shared heavy-job queue
 # (~/boar/bin/heavy, log in ~/boar/heavy.log). Inference in the simulator is interactive,
 # so hold the queue yourself for the session, e.g.:

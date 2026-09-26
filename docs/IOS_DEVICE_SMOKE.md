@@ -3,7 +3,11 @@
 TL;DR: build a signed Release on the build Mac, install on the iPhone, put the default model on it, ask one sourced question online and one in airplane mode, and record times plus memory. Target device: iPhone 13 (iPhone14,5, A15, 4GB RAM), iOS 26.6.2.
 
 ```bash
-# Phone paired with THIS Mac (fallback), build on the mini:
+# Xcode 27 and the phone on the same Mac: build, sign, install, launch in one go.
+# Only BOAR.app is kept, in builds/ios/iphoneos/ (ios/build is deleted).
+IOS_TEAM=<team id> IOS_DEVICE=3498052E-FE1D-5F23-A4F0-F2ABB29B8221 \
+  IOS_OUT_DIR=/Users/r4to/Script/boar/builds/ios scripts/ios-build-on-host.sh device-run
+# Phone paired with THIS Mac, build on the mini:
 IOS_TEAM=<team id> IOS_DEVICE=3498052E-FE1D-5F23-A4F0-F2ABB29B8221 \
   scripts/ios-remote-build.sh device-local
 # Phone paired with the mini over the network:

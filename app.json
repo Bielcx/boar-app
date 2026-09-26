@@ -16,7 +16,8 @@
         "NSSpeechRecognitionUsageDescription": "BOAR transcribes your voice question on this device. Audio is never sent to a server.",
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "BOAR uses your location, read on this device, to answer questions about places near you, such as restaurants in the city you are in. It is never sent anywhere."
       },
       "entitlements": {
         "com.apple.developer.kernel.increased-memory-limit": true,
@@ -64,6 +65,10 @@
         "projectId": "cba72560-8333-4fca-af84-f42d1c25abe3"
       }
     },
-    "owner": "vaipraonde"
+    "owner": "vaipraonde",
+    "locales": {
+      "en": "./locales/en.json",
+      "pt": "./locales/pt.json"
+    }
   }
 }

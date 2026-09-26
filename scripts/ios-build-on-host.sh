@@ -9,11 +9,13 @@
 #   scripts/ios-build-on-host.sh device-run   # ...install + launch on IOS_DEVICE via devicectl
 #
 # Env:
-#   IOS_XCODE_APP      Xcode to use (default: newest /Applications/Xcode*.app)
+#   IOS_XCODE_APP      Xcode to use (default: highest CFBundleShortVersionString among /Applications/Xcode*.app)
 #   IOS_CONFIG         Release | Debug (default Release: JS bundled, no Metro)
 #   IOS_SKIP_DEPS      1 = skip npm ci / prebuild / pod install (reuse ios/)
 #   IOS_SIM_DEVICE     simulator UDID for sim-run (default: an available iPhone 17 Pro, else any iPhone)
-#   IOS_MODELS_DIR     models for sim-run (default ~/boar/shared-models)
+#   IOS_MODELS_DIR     models for sim-run (default ~/boar/shared-models, else /Users/r4to/Script/boar/shared-models)
+#   IOS_OUT_DIR        copy the built BOAR.app to $IOS_OUT_DIR/<sdk>/ and delete ios/build
+#                      entirely (disk rule on the main Mac); unset = keep ios/build/Build/Products
 #   IOS_TEAM           Apple team id for device builds (required; never committed)
 #   IOS_DEVICE         device id for device-run (CoreDevice id or UDID, `xcrun devicectl list devices`)
 #   IOS_NO_QUEUE       1 = do not go through ~/boar/bin/heavy (on a Mac without the queue
@@ -38,7 +40,17 @@ if [[ "${IOS_NO_QUEUE:-0}" != "1" && -x "$HOME/boar/bin/heavy" ]]; then
 fi
 heavy() { ${HEAVY[@]+"${HEAVY[@]}"} "$@"; }
 
-XCODE="${IOS_XCODE_APP:-$(ls -d /Applications/Xcode*.app | sort -V | tail -1)}"
+newest_xcode() {
+  local app best="" best_v=""
+  for app in /Applications/Xcode*.app; do
+    local v; v=$(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null) || continue
+    if [[ -z "$best" || "$(printf '%s\n%s\n' "$best_v" "$v" | sort -V | tail -1)" == "$v" ]]; then
+      best="$app"; best_v="$v"
+    fi
+  done
+  echo "$best"
+}
+XCODE="${IOS_XCODE_APP:-$(newest_xcode)}"
 export DEVELOPER_DIR="$XCODE/Contents/Developer"
 log "using $(xcodebuild -version | head -1) at $XCODE"
 
@@ -50,7 +62,16 @@ fi
 
 case "$MODE" in
   sim|sim-run)
-    SDK=iphonesimulator; DEST="generic/platform=iOS Simulator"
+    # A concrete simulator, not "generic/platform=iOS Simulator": the generic
+    # destination wants the runtime matching the SDK (e.g. iOS 27 for Xcode 27),
+    # while any installed runtime >= the deployment target (16.4) works here.
+    SDK=iphonesimulator
+    DEV="${IOS_SIM_DEVICE:-}"
+    if [[ -z "$DEV" ]]; then
+      DEV=$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
+      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}')
+    fi
+    DEST="platform=iOS Simulator,id=$DEV"
     SIGN_ARGS=(ARCHS=arm64 ONLY_ACTIVE_ARCH=YES)
     ;;
   device|device-run)
@@ -75,21 +96,27 @@ heavy xcodebuild -workspace ios/BOAR.xcworkspace -scheme BOAR -configuration "$C
 APP="$ROOT/ios/build/Build/Products/$CONFIG-$SDK/BOAR.app"
 log "built $APP ($(du -sh "$APP" | cut -f1))"
 
-# Keep the product, drop the heavy intermediates.
-rm -rf ios/build/Build/Intermediates.noindex ios/build/Index.noindex
+if [[ -n "${IOS_OUT_DIR:-}" ]]; then
+  mkdir -p "$IOS_OUT_DIR/$SDK"
+  rm -rf "$IOS_OUT_DIR/$SDK/BOAR.app"
+  cp -R "$APP" "$IOS_OUT_DIR/$SDK/"
+  APP="$IOS_OUT_DIR/$SDK/BOAR.app"
+  rm -rf ios/build
+  log "kept only $APP"
+else
+  # Keep the product, drop the heavy intermediates.
+  rm -rf ios/build/Build/Intermediates.noindex ios/build/Index.noindex
+fi
 
 case "$MODE" in
   sim-run)
-    DEV="${IOS_SIM_DEVICE:-}"
-    if [[ -z "$DEV" ]]; then
-      DEV=$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
-      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}')
-    fi
     xcrun simctl boot "$DEV" 2>/dev/null || true
     xcrun simctl bootstatus "$DEV" -b >/dev/null
     xcrun simctl install "$DEV" "$APP"
     xcrun simctl launch "$DEV" "$BUNDLE_ID" >/dev/null
-    IOS_SIM_UDID="$DEV" scripts/ios-sim-seed-models.sh "${IOS_MODELS_DIR:-$HOME/boar/shared-models}"
+    MODELS="${IOS_MODELS_DIR:-$HOME/boar/shared-models}"
+    [[ -d "$MODELS" ]] || MODELS=/Users/r4to/Script/boar/shared-models
+    IOS_SIM_UDID="$DEV" scripts/ios-sim-seed-models.sh "$MODELS"
     xcrun simctl terminate "$DEV" "$BUNDLE_ID" || true
     xcrun simctl launch "$DEV" "$BUNDLE_ID"
     log "simulator UDID: $DEV"
