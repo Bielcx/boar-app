@@ -12,7 +12,7 @@
  */
 import { classifyTask } from "./classify";
 import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./context";
-import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan } from "./depth";
+import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
@@ -87,6 +87,8 @@ export interface AnswerDeps {
   now(): number;
   /** Context window the model will be loaded with (LlamaEngine defaultContextSize). */
   contextSize?(): number;
+  /** Median measured tok/s per model id on this device (execution telemetry), for rule D6. */
+  getModelSpeeds?(): Promise<Map<string, number>>;
   /** Offline places (POI pack + device location); null when not installed/registered. */
   getGeoProviders?(): GeoProviders | null;
 }
@@ -310,10 +312,11 @@ export function createAnswerer(deps: AnswerDeps) {
           : detectGeoIntent(req.query);
       if (geoIntent) return runGeo(geoIntent as GeoIntent, t0, markVisible, () => firstVisibleAt);
 
-      const [settings, installed, activeId] = await Promise.all([
+      const [settings, installed, activeId, speeds] = await Promise.all([
         deps.getSettings(),
         deps.listInstalledLlms(),
         deps.getActiveModelId(),
+        deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
       ]);
       const byId = new Map(installed.map((m) => [m.id, m]));
       const fastLlm = (activeId ? byId.get(activeId) : undefined) ?? installed.find((m) => m.isDefault) ?? installed[0];
@@ -323,6 +326,7 @@ export function createAnswerer(deps: AnswerDeps) {
         sizeBytes: m.sizeBytes,
         roles: m.roles,
         fit: fit?.verdict,
+        tokPerSec: speeds.get(m.id),
       });
 
       // Only models that could be the deep tier are worth a header read.
@@ -343,10 +347,18 @@ export function createAnswerer(deps: AnswerDeps) {
         alwaysComplete: settings.alwaysComplete,
         fastModel: fastLlm ? toDepth(fastLlm) : null,
         deepModel,
-        verifiers: depthModels.filter((m) => m.roles.includes("verifier")),
+        // Verification is automatic too, so the same speed rule (D6) applies: a 200-token verdict
+        // at 2.7 tok/s is over a minute on top of the answer.
+        verifiers: depthModels.filter((m) => m.roles.includes("verifier") && deepAutoIneligibility(m) === null),
         hasReusedSources: !!req.reuseSources?.length,
       });
       const reasonCodes = [`task:${taskType}`, ...plan.reasonCodes];
+      if (!deepModel && !settings.deepModelId) {
+        for (const m of depthModels.filter((d) => d.roles.includes("reasoning"))) {
+          const why = deepAutoIneligibility(m);
+          if (why) reasonCodes.push(`deep-auto:skip-${m.id}-${why}${m.tokPerSec !== undefined ? `-${m.tokPerSec.toFixed(1)}tps` : ""}`);
+        }
+      }
       const gen = plan.generation;
       const genTier: AnswerTier = gen?.tier ?? "fast";
       const genLlm = gen ? byId.get(gen.modelId) : undefined;

@@ -31,6 +31,8 @@ export interface DepthModel {
   roles: ModelRole[];
   /** From estimateFit; undefined when unknown (treated as usable). */
   fit?: FitVerdict;
+  /** Median decode speed measured on this device (telemetry); undefined = never measured. */
+  tokPerSec?: number;
 }
 
 export interface DepthInput {
@@ -87,14 +89,57 @@ export const DEEP_RETRIEVE_K = 6;
 export const DEEP_CONTEXT_TOKENS = 400;
 export const DEEP_MAX_TOKENS = 200;
 
+/**
+ * Rule D6 (product roadmap v1.1): the automatic deep tier never picks a
+ * model measured below 5 tok/s on this device (Qwen2.5-7B ran at ~2.7 and
+ * timed out), and a model never measured is not eligible automatically.
+ * A deep model the user picked explicitly is still used.
+ */
+export const DEEP_AUTO_MIN_TOK_PER_SEC = 5;
+/** Measurements needed before a model's speed counts. */
+export const MIN_SPEED_SAMPLES = 2;
+/** Shorter generations are dominated by prefill and say little about decode speed. */
+const MIN_TOKENS_FOR_SPEED = 16;
+
+export interface SpeedSample {
+  modelId?: string;
+  tokPerSec?: number;
+  tokensGenerated?: number;
+  outcome?: string;
+}
+
+/** Median measured tok/s per model, from execution telemetry; models with too few samples are absent. */
+export function measuredSpeeds(records: SpeedSample[]): Map<string, number> {
+  const by = new Map<string, number[]>();
+  for (const r of records) {
+    if (!r.modelId || !r.tokPerSec || r.tokPerSec <= 0 || !Number.isFinite(r.tokPerSec)) continue;
+    if ((r.tokensGenerated ?? 0) < MIN_TOKENS_FOR_SPEED || (r.outcome && r.outcome !== "success")) continue;
+    by.set(r.modelId, [...(by.get(r.modelId) ?? []), r.tokPerSec]);
+  }
+  const out = new Map<string, number>();
+  for (const [id, v] of by) {
+    if (v.length < MIN_SPEED_SAMPLES) continue;
+    const s = [...v].sort((a, b) => a - b);
+    out.set(id, s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2);
+  }
+  return out;
+}
+
+/** Why a model is not eligible as the automatic deep model (null = eligible). */
+export function deepAutoIneligibility(m: DepthModel): "unmeasured" | "too-slow" | null {
+  if (m.tokPerSec === undefined) return "unmeasured";
+  return m.tokPerSec < DEEP_AUTO_MIN_TOK_PER_SEC ? "too-slow" : null;
+}
+
 const usable = (m: DepthModel | null | undefined): m is DepthModel =>
   !!m && m.fit !== "insufficient" && m.fit !== "thrashing";
 
 /**
  * The deep model: the user's explicit choice when installed, else the largest
- * installed LLM curated for "reasoning" — in both cases only if it differs
- * from the fast model and fits (a dense model that would re-read its weights
- * from storage every token is not a usable deep tier). null = explicitly none.
+ * installed LLM curated for "reasoning" measured at >= 5 tok/s here (rule
+ * D6) — in both cases only if it differs from the fast model and fits (a
+ * dense model that would re-read its weights from storage every token is not
+ * a usable deep tier). null = explicitly none, or no eligible model.
  */
 export function resolveDeepModel(
   installed: DepthModel[],
@@ -106,7 +151,7 @@ export function resolveDeepModel(
   if (explicitId) return candidates.find((m) => m.id === explicitId) ?? null;
   return (
     candidates
-      .filter((m) => m.roles.includes("reasoning"))
+      .filter((m) => m.roles.includes("reasoning") && deepAutoIneligibility(m) === null)
       .sort((a, b) => b.sizeBytes - a.sizeBytes)[0] ?? null
   );
 }
