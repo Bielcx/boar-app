@@ -41,7 +41,7 @@ The team id is in Xcode > Settings > Accounts on the build Mac. It stays in the 
 
 ## 1.5B vs 4B on the 4GB iPhone (v1.1 default decision)
 
-The v1.1 default is Qwen3-4B-Instruct-2507 Q4_K_M. It stays the default on this phone only if, with n_ctx 2048, it (a) loads and answers without a jetsam kill and (b) decodes at ≥ ~6 tok/s. Otherwise the 4GB iPhone defaults to the Compact model (Qwen2.5-1.5B) via `defaultLlmIdFor(totalRamBytes)` in `src/models/manifest.ts`, and the engine owner is told.
+The v1.1 default is Qwen3-4B-Instruct-2507 Q4_K_M. It stays the default on this phone only if, with n_ctx 2048, it (a) loads and answers without a jetsam kill and (b) decodes at ≥ ~6 tok/s. Otherwise the 4GB iPhone defaults to the Compact model (Qwen2.5-1.5B) via `pickDefaultAnswerModel(installed, totalRamBytes, fits)` in `src/routing/defaultModel.ts` (4B only above 4.5 GB and when its memory fit is not thrashing/insufficient), and the engine owner is told. The 4B catalog entry and id belong to the trust/offline owner.
 
 Run steps 4 and 5 once per model (switch in Settings), same two questions, and fill:
 
