@@ -11,7 +11,7 @@ const chunk = (id: string, title: string, body: string): RetrievedChunk => ({
 });
 const FR = chunk("fr", "French Revolution", "The French Revolution began in 1789 with a financial crisis in France.");
 const IR = chunk("ir", "Industrial Revolution", "The Industrial Revolution began in Britain around 1760 with textile machines.");
-const EU = chunk("eu", "Europe", "Europe changed deeply after the revolution of 1789 and the industrial revolution.");
+const EU = chunk("eu", "Europe", "In Europe, the French Revolution and the Industrial Revolution were both caused by deep economic change.");
 
 const calls: { messages?: { role: string; content: string }[]; prompt?: string }[] = [];
 let hasTemplate = true;
@@ -48,13 +48,17 @@ describe("runDeepResearch citations", () => {
     const r = await runDeepResearch("Compare the causes of both revolutions", undefined, undefined, 256, undefined, undefined, undefined, {
       onSources: (s) => (emitted = s),
     });
-    // FR=1, EU=2 from the first sub-question; EU keeps [2], IR becomes [3].
-    expect(r.citations.map((c) => c.chunkId)).toEqual(["fr", "eu", "ir"]);
+    const ids = r.citations.map((c) => c.chunkId);
+    // Every source once, even though both sub-questions retrieved "Europe".
+    expect([...ids].sort()).toEqual(["eu", "fr", "ir"]);
     expect(emitted).toEqual(r.citations);
+    // "Europe" carries the same global number in both sub-question prompts, matching citations[n-1].
+    const euNumber = ids.indexOf("eu") + 1;
+    const first = text(calls[1]);
     const second = text(calls[2]);
-    expect(second).toMatch(/\[2\] Europe/);
-    expect(second).toMatch(/\[3\] Industrial Revolution/);
-    expect(second).not.toMatch(/\[1\] Europe/);
+    expect(first).toContain(`[${euNumber}] Europe`);
+    expect(second).toContain(`[${euNumber}] Europe`);
+    expect(second).toContain(`[${ids.indexOf("ir") + 1}] Industrial Revolution`);
   });
 
   it("uses the model's chat template when the GGUF ships one, plain prompts otherwise", async () => {

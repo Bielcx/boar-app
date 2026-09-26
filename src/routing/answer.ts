@@ -12,7 +12,8 @@
  */
 import { classifyTask } from "./classify";
 import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./context";
-import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan } from "./depth";
+import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
+import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
@@ -54,6 +55,8 @@ export interface InstalledLlm {
   roles: ModelRole[];
   /** The app's default model (fallback when no active model is set or it vanished). */
   isDefault?: boolean;
+  /** Catalog tier for the device-dependent default (see defaultModel.ts). */
+  answerTier?: "default" | "compact";
 }
 
 export interface AnswerEngine {
@@ -87,6 +90,10 @@ export interface AnswerDeps {
   now(): number;
   /** Context window the model will be loaded with (LlamaEngine defaultContextSize). */
   contextSize?(): number;
+  /** Total device RAM (0 = unknown), for the device-dependent default model. */
+  deviceRamBytes?(): number;
+  /** Median measured tok/s per model id on this device (execution telemetry), for rule D6. */
+  getModelSpeeds?(): Promise<Map<string, number>>;
   /** Offline places (POI pack + device location); null when not installed/registered. */
   getGeoProviders?(): GeoProviders | null;
 }
@@ -246,13 +253,25 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
-      const sources = found.pois.map(toSourceChunk);
-      const places = found.pois.map((p, i) => toPlace(p, i, byDistance));
+      // Without a distance (city named), a place is only findable by its
+      // address: exact places with an address come first, ranking kept
+      // within each group; approximate guide listings stay last.
+      const ranked = byDistance
+        ? found.pois
+        : [
+            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && p.address),
+            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && !p.address),
+            // Doubtful diet tags stay after every trustworthy place, as the pack ranked them.
+            ...found.pois.filter((p) => !p.approx && p.dietFlag === "verify"),
+            ...found.pois.filter((p) => p.approx),
+          ];
+      const sources = ranked.map(toSourceChunk);
+      const places = ranked.map((p, i) => toPlace(p, i, byDistance));
       const attribution: { source: "osm" | "wikivoyage"; date?: string; license: string }[] = [];
-      if (found.pois.some((p) => p.source.kind === "osm")) {
-        attribution.push({ source: "osm", date: found.pois.find((p) => p.osmDate)?.osmDate, license: "ODbL" });
+      if (ranked.some((p) => p.source.kind === "osm")) {
+        attribution.push({ source: "osm", date: ranked.find((p) => p.osmDate)?.osmDate, license: "ODbL" });
       }
-      if (found.pois.some((p) => p.source.kind === "wikivoyage")) attribution.push({ source: "wikivoyage", license: "CC BY-SA" });
+      if (ranked.some((p) => p.source.kind === "wikivoyage")) attribution.push({ source: "wikivoyage", license: "CC BY-SA" });
 
       markVisible();
       emit({ type: "sources", answerId, tier: "instant", sources });
@@ -265,11 +284,18 @@ export function createAnswerer(deps: AnswerDeps) {
         filters,
         criterion,
         coverage: "ok",
-        truncated: found.pois.length >= PLACES_LIMIT,
+        truncated: ranked.length >= PLACES_LIMIT,
         attribution,
       });
-      reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`);
-      const text = formatPlacesAnswer({ intent, places, areaLabel: area.label ?? "", byDistance, radiusM: found.radiusUsedM });
+      reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`, ...(found.region ? [`places:region-${found.region}`] : []));
+      const text = formatPlacesAnswer({
+        intent,
+        places,
+        areaLabel: area.label ?? "",
+        byDistance,
+        radiusM: found.radiusUsedM,
+        osmDate: attribution.find((a) => a.source === "osm")?.date,
+      });
       const r = receipt(retrievalMs);
       emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r });
       return { answerId, tier: "instant", outcome: "success", text, sources, receipt: r };
@@ -293,19 +319,38 @@ export function createAnswerer(deps: AnswerDeps) {
           : detectGeoIntent(req.query);
       if (geoIntent) return runGeo(geoIntent as GeoIntent, t0, markVisible, () => firstVisibleAt);
 
-      const [settings, installed, activeId] = await Promise.all([
+      const [settings, installed, activeId, speeds] = await Promise.all([
         deps.getSettings(),
         deps.listInstalledLlms(),
         deps.getActiveModelId(),
+        deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
       ]);
       const byId = new Map(installed.map((m) => [m.id, m]));
-      const fastLlm = (activeId ? byId.get(activeId) : undefined) ?? installed.find((m) => m.isDefault) ?? installed[0];
+      // The user's pick; without one (or if it was deleted), the device-dependent default:
+      // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
+      let fastLlm = activeId ? byId.get(activeId) : undefined;
+      if (!fastLlm && installed.length) {
+        const tiered = installed.filter((m) => m.answerTier);
+        if (tiered.length) {
+          const withFit = await Promise.all(
+            tiered.map(async (m) => ({
+              id: m.id,
+              answerTier: m.answerTier,
+              fit: m.answerTier === "default" ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+            }))
+          );
+          const pick = pickDefaultAnswerModel(withFit, deps.deviceRamBytes?.() ?? 0);
+          fastLlm = pick ? byId.get(pick.id) : undefined;
+        }
+        fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
+      }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
         id: m.id,
         label: m.label,
         sizeBytes: m.sizeBytes,
         roles: m.roles,
         fit: fit?.verdict,
+        tokPerSec: speeds.get(m.id),
       });
 
       // Only models that could be the deep tier are worth a header read.
@@ -326,10 +371,18 @@ export function createAnswerer(deps: AnswerDeps) {
         alwaysComplete: settings.alwaysComplete,
         fastModel: fastLlm ? toDepth(fastLlm) : null,
         deepModel,
-        verifiers: depthModels.filter((m) => m.roles.includes("verifier")),
+        // Verification is automatic too, so the same speed rule (D6) applies: a 200-token verdict
+        // at 2.7 tok/s is over a minute on top of the answer.
+        verifiers: depthModels.filter((m) => m.roles.includes("verifier") && deepAutoIneligibility(m) === null),
         hasReusedSources: !!req.reuseSources?.length,
       });
       const reasonCodes = [`task:${taskType}`, ...plan.reasonCodes];
+      if (!deepModel && !settings.deepModelId) {
+        for (const m of depthModels.filter((d) => d.roles.includes("reasoning"))) {
+          const why = deepAutoIneligibility(m);
+          if (why) reasonCodes.push(`deep-auto:skip-${m.id}-${why}${m.tokPerSec !== undefined ? `-${m.tokPerSec.toFixed(1)}tps` : ""}`);
+        }
+      }
       const gen = plan.generation;
       const genTier: AnswerTier = gen?.tier ?? "fast";
       const genLlm = gen ? byId.get(gen.modelId) : undefined;
@@ -376,7 +429,10 @@ export function createAnswerer(deps: AnswerDeps) {
         256,
         Math.min(
           gen?.contextTokens ?? 1200,
-          ctxSize - ctx.maxTokens - PROMPT_OVERHEAD_TOKENS - (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
+          ctxSize -
+            Math.min(ctx.maxTokens, gen?.maxTokens ?? Infinity) -
+            PROMPT_OVERHEAD_TOKENS -
+            (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
       const compressed = compressContext(req.query, raw, { tokenBudget: budget });
@@ -478,9 +534,10 @@ export function createAnswerer(deps: AnswerDeps) {
           stage("prefill", genTier, genLlm.id);
           const useTemplate = deps.engine.hasEmbeddedChatTemplate();
           const common = {
-            nPredict: ctx.maxTokens,
-            // Reasoning models think before answering; bound it per tier.
-            thinkingBudget: genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET,
+            nPredict: Math.min(ctx.maxTokens, gen.maxTokens ?? Infinity),
+            // Reasoning models think before answering: bounded on the fast tier, off on the streaming MoE.
+            thinkingBudget: gen.thinking ? (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET) : undefined,
+            enableThinking: gen.thinking ? undefined : false,
             onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };

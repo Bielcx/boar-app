@@ -31,6 +31,11 @@ export interface PoiRecord {
   description?: string;
   approx?: boolean;
   osmDate?: string;
+  /** Plausibility of the diet tag (0..1), checked when the pack was built; only for the requested diet. */
+  dietCheck?: number;
+  dietCheckFor?: Diet;
+  /** "verify": the tag looks wrong (already last in the list); "uncertain": do not present the diet as strong. */
+  dietFlag?: "verify" | "uncertain";
   source: { kind: "osm" | "wikivoyage"; url: string; title?: string };
 }
 
@@ -154,6 +159,7 @@ export function toPlace(p: PoiRecord & { distanceM?: number }, sourceIndex: numb
     description: p.description,
     source: p.source.kind,
     sourceIndex,
+    dietFlag: p.dietFlag,
   };
 }
 
@@ -200,10 +206,12 @@ export interface PlacesAnswerInput {
   areaLabel: string;
   byDistance: boolean;
   radiusM?: number;
+  /** OpenStreetMap extract date, for the provenance line. */
+  osmDate?: string;
 }
 
 /** Text answer (also what screen readers and "copy" get). Every name comes from `places`. */
-export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radiusM }: PlacesAnswerInput): string {
+export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radiusM, osmDate }: PlacesAnswerInput): string {
   const pt = intent.lang === "pt";
   const L = pt ? "pt" : "en";
   const dietWords = intent.diet.map((d) => DIET_LABEL[L][d]).join(pt ? " e " : " and ");
@@ -233,7 +241,15 @@ export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radi
     const parts = [p.name];
     if (p.distanceM !== undefined) parts.push(formatDistance(p.distanceM));
     if (p.address) parts.push(p.address);
-    const d = intent.diet.map((k) => p.diet?.[k] && `${DIET_LABEL[L][k]}: ${LEVEL_LABEL[L][p.diet[k]!]}`).filter(Boolean);
+    const d = intent.diet
+      .map((k) => {
+        if (!p.diet?.[k]) return undefined;
+        // A doubtful tag never gets the strong label: "verify" says so, "uncertain" shows the tag without its level.
+        if (p.dietFlag === "verify") return pt ? `etiqueta ${DIET_LABEL[L][k]} do OSM a conferir` : `OSM ${DIET_LABEL[L][k]} tag to verify`;
+        if (p.dietFlag === "uncertain") return pt ? `etiqueta ${DIET_LABEL[L][k]} (não confirmada)` : `${DIET_LABEL[L][k]} tag (unconfirmed)`;
+        return `${DIET_LABEL[L][k]}: ${LEVEL_LABEL[L][p.diet[k]!]}`;
+      })
+      .filter(Boolean);
     if (d.length) parts.push(d.join(", "));
     if (p.openingHours) parts.push(p.openingHours);
     lines.push(`${i + 1}. ${parts.join(" — ")} [${(p.sourceIndex ?? i) + 1}]`);
@@ -251,6 +267,13 @@ export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radi
     );
   }
   if (radiusM && byDistance) lines.push(pt ? `Raio da busca: ${formatDistance(radiusM)}.` : `Search radius: ${formatDistance(radiusM)}.`);
+  if (listed.length) {
+    lines.push(
+      pt
+        ? `Dados do OpenStreetMap${osmDate ? ` (extrato de ${osmDate})` : ""}, mantidos por voluntários: etiquetas e horários podem estar errados; confira a fonte numerada.`
+        : `Data from OpenStreetMap${osmDate ? ` (extract ${osmDate})` : ""}, maintained by volunteers: tags and hours can be wrong; check the numbered source.`
+    );
+  }
   return lines.join("\n");
 }
 

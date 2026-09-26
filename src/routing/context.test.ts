@@ -117,10 +117,10 @@ describe("compressContext", () => {
     console.log(`[compress] compare: ${r.tokensBefore} -> ${r.tokensAfter} approx tokens`);
   });
 
-  it("preserves input order so [n] numbering stays stable, and reports kept indices", () => {
-    const r = compressContext("capital city Australia textile industry", chunks);
-    expect(r.keptIndices).toEqual([...r.keptIndices].sort((a, b) => a - b));
-    r.chunks.forEach((c, i) => expect(c.chunkId).toBe(chunks[r.keptIndices[i]].chunkId));
+  it("orders kept chunks by relevance (that order is the [n] numbering) and reports kept indices", () => {
+    const r = compressContext("Who designed Canberra, the capital of Australia?", [SYDNEY, MOLD, CANBERRA]);
+    expect(r.chunks[0].title).toBe("Canberra");
+    r.chunks.forEach((c, i) => expect(c.chunkId).toBe([SYDNEY, MOLD, CANBERRA][r.keptIndices[i]].chunkId));
   });
 
   it("restores document order inside a chunk and opens with its first sentence", () => {
@@ -156,5 +156,48 @@ describe("mergeSources", () => {
       [0, 1],
       [1, 2],
     ]);
+  });
+});
+
+import PQ_FIXTURE from "./testing/pq-chunks.json";
+
+describe("post-quantum question (Vitalik, on camera)", () => {
+  // Real Wikipedia excerpts, classic-crypto distractors first (as retrieval returned them on device).
+  const chunks = PQ_FIXTURE.chunks as RetrievedChunk[];
+  const query = "Which signature algorithms are quantum resistant?";
+  const PQ = /\b(ML-DSA|Dilithium|Falcon|SPHINCS\+?)/;
+
+  it("keeps the quantum-resistant schemes through the 1.2k-token budget, unbroken", () => {
+    const r = compressContext(query, chunks, { tokenBudget: 1200 });
+    const all = r.chunks.map((c) => c.body).join("\n");
+    expect(all).toContain("CRYSTALS-Dilithium, a quantum-resistant scheme based on LWE in lattices");
+    expect(all).toContain("Falcon, a quantum-resistant scheme based on CVP in lattices");
+    expect(all).toContain("SPHINCS+, a quantum-resistant scheme based on hash functions");
+    // A soft line wrap in the source must not split the sentence naming ML-DSA.
+    expect(all).toMatch(/ML-DSA \(commonly known as Dilithium\) were among the first post-quantum algorithms standardised by NIST/);
+    console.log(`[compress] post-quantum: ${r.tokensBefore} -> ${r.tokensAfter} approx tokens, kept ${r.chunks.map((c) => c.title).join(" | ")}`);
+  });
+
+  it("cites a post-quantum source as [1] and drops the RSA distractor", () => {
+    const r = compressContext(query, chunks, { tokenBudget: 1200 });
+    // Retrieval returned RSA and ECDSA first; after compression the source numbered [1] names the schemes.
+    expect(r.chunks[0].body).toMatch(PQ);
+    expect(r.chunks.map((c) => c.title)).not.toContain("RSA cryptosystem");
+    // ECDSA may stay as context (it is a signature algorithm, useful as the non-resistant contrast), never first.
+    expect(r.chunks[0].title).not.toBe("Elliptic Curve Digital Signature Algorithm");
+  });
+
+  it("still keeps them when the budget is tight (600 tokens), ahead of RSA/ECDSA text", () => {
+    const r = compressContext(query, chunks, { tokenBudget: 600 });
+    const all = r.chunks.map((c) => c.body).join("\n");
+    expect(all).toMatch(PQ);
+    expect(r.tokensAfter).toBeLessThanOrEqual(600);
+  });
+
+  it("does not quote an RSA/ECDSA sentence as the instant answer", () => {
+    const s = selectInstant(query, chunks);
+    if (s) {
+      expect(["RSA cryptosystem", "Elliptic Curve Digital Signature Algorithm"]).not.toContain(chunks[s.sourceIndex].title);
+    }
   });
 });

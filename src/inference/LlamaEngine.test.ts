@@ -269,8 +269,35 @@ describe("thinking budget", () => {
     };
     await engine.generate({ messages: [{ role: "user", content: "q" }], nPredict: 300, thinkingBudget: 256 });
     await engine.generate({ prompt: "q", nPredict: 300, thinkingBudget: 256 });
-    expect(seen[0]).toMatchObject({ n_predict: 556, thinking_budget_tokens: 256 });
+    // llama.rn ignores thinking_budget_tokens unless the end tag is given.
+    expect(seen[0]).toMatchObject({ n_predict: 556, thinking_budget_tokens: 256, thinking_start_tag: "<think>", thinking_end_tag: "</think>" });
+    expect(seen[0].thinking_budget_message).toBeTruthy();
     expect(seen[1].n_predict).toBe(300);
     expect(seen[1].thinking_budget_tokens).toBeUndefined();
+    await engine.generate({ messages: [{ role: "user", content: "q" }], nPredict: 200, thinkingBudget: 256, enableThinking: false });
+    expect(seen[2]).toMatchObject({ n_predict: 200, enable_thinking: false });
+    expect(seen[2].thinking_budget_tokens).toBeUndefined();
+  });
+});
+
+describe("thinkingTagsFor", () => {
+  it("uses Gemma 4's channel markers and <think> for everyone else", async () => {
+    const { thinkingTagsFor } = await import("./LlamaEngine");
+    expect(thinkingTagsFor("gemma4")).toEqual({ start: "<|channel>thought", end: "<channel|>" });
+    expect(thinkingTagsFor("lfm2moe")).toEqual({ start: "<think>", end: "</think>" });
+    expect(thinkingTagsFor(null)).toEqual({ start: "<think>", end: "</think>" });
+  });
+
+  it("picks the tags from the loaded model's GGUF header", async () => {
+    header = { "general.architecture": "gemma4", "gemma4.block_count": "30", "gemma4.embedding_length": "2560", "gemma4.attention.head_count": "8" } as any;
+    const engine = new LlamaEngine();
+    await engine.load("models/gemma.gguf");
+    const seen: any[] = [];
+    (created[0] as any).completion = (p: any) => {
+      seen.push(p);
+      return Promise.resolve({ text: "ok" });
+    };
+    await engine.generate({ messages: [{ role: "user", content: "q" }], nPredict: 100, thinkingBudget: 64 });
+    expect(seen[0]).toMatchObject({ thinking_start_tag: "<|channel>thought", thinking_end_tag: "<channel|>" });
   });
 });

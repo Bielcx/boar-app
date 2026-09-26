@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { DepthInput, DepthModel, planAnswer, resolveDeepModel } from "./depth";
+import { DepthInput, DepthModel, deepAutoEligible, deepAutoIneligibility, measuredSpeeds, modelSpeedStats, planAnswer, resolveDeepModel } from "./depth";
 
 const GB = 1024 ** 3;
 const qwen15: DepthModel = { id: "qwen1.5", label: "Qwen 1.5B", sizeBytes: 1 * GB, roles: ["fast"] };
 const lfm8: DepthModel = { id: "lfm8", label: "LFM2.5 8B-A1B", sizeBytes: 5 * GB, roles: [] };
-const qwen7: DepthModel = { id: "qwen7", label: "Qwen 7B", sizeBytes: 4.7 * GB, roles: ["reasoning", "verifier"] };
-const moe30: DepthModel = { id: "qwen3-30b", label: "Qwen3 30B-A3B", sizeBytes: 11 * GB, roles: ["reasoning"], fit: "streaming" };
+const qwen7: DepthModel = { id: "qwen7", label: "Qwen 7B", sizeBytes: 4.7 * GB, roles: ["reasoning", "verifier"], tokPerSec: 6 };
+const moe30: DepthModel = { id: "qwen3-30b", label: "Qwen3 30B-A3B", sizeBytes: 11 * GB, roles: ["reasoning"], fit: "streaming", tokPerSec: 5.5 };
 
 const base = (over: Partial<DepthInput> = {}): DepthInput => ({
   taskType: "chat",
@@ -69,7 +69,8 @@ describe("planAnswer toggle matrix (answerQuickFirst / answerAlwaysComplete)", (
 describe("planAnswer deep tier", () => {
   it("uses the deep model in one pass over more context when one is usable", () => {
     const plan = planAnswer(base({ requestedTier: "deep", deepModel: moe30 }));
-    expect(plan.generation).toMatchObject({ tier: "deep", modelId: "qwen3-30b", mode: "single", retrieveK: 10, contextTokens: 2400 });
+    // Deep-tier contract (ADR 0001): TTFT <= 15 s on a streaming MoE.
+    expect(plan.generation).toMatchObject({ tier: "deep", modelId: "qwen3-30b", mode: "single", retrieveK: 6, contextTokens: 400, maxTokens: 200, thinking: false });
     expect(plan.instant).toBe("off");
   });
 
@@ -119,5 +120,61 @@ describe("resolveDeepModel", () => {
 
   it("drops models that would not fit", () => {
     expect(resolveDeepModel([qwen15, { ...moe30, fit: "insufficient" }], "qwen1.5", undefined)).toBeNull();
+  });
+});
+
+describe("rule D6: automatic deep model needs >= 5 tok/s measured", () => {
+  it("never picks a model measured below 5 tok/s automatically (Qwen 7B at 2.7 timed out)", () => {
+    const slow7 = { ...qwen7, tokPerSec: 2.7 };
+    expect(resolveDeepModel([qwen15, slow7], "qwen1.5", undefined)).toBeNull();
+    // ...so the complete answer falls back to multi-pass on the picked model.
+    const plan = planAnswer(base({ requestedTier: "deep", deepModel: resolveDeepModel([qwen15, slow7], "qwen1.5", undefined) }));
+    expect(plan.generation).toMatchObject({ modelId: "qwen1.5", mode: "multipass" });
+  });
+
+  it("does not pick a never-measured model automatically", () => {
+    expect(resolveDeepModel([qwen15, { ...moe30, tokPerSec: undefined }], "qwen1.5", undefined)).toBeNull();
+    expect(deepAutoIneligibility({ ...moe30, tokPerSec: undefined })).toBe("unmeasured");
+  });
+
+  it("still honors a deep model the user picked explicitly, whatever its speed", () => {
+    expect(resolveDeepModel([qwen15, { ...qwen7, tokPerSec: 2.7 }], "qwen1.5", "qwen7")?.id).toBe("qwen7");
+    expect(resolveDeepModel([qwen15, { ...moe30, tokPerSec: undefined }], "qwen1.5", "qwen3-30b")?.id).toBe("qwen3-30b");
+  });
+
+  it("picks the largest eligible model", () => {
+    expect(resolveDeepModel([qwen15, qwen7, { ...moe30, tokPerSec: 4.9 }], "qwen1.5", undefined)?.id).toBe("qwen7");
+  });
+});
+
+describe("measuredSpeeds", () => {
+  it("takes the median of successful, long-enough generations, needing 2 samples", () => {
+    const m = measuredSpeeds([
+      { modelId: "a", tokPerSec: 4, tokensGenerated: 100, outcome: "success" },
+      { modelId: "a", tokPerSec: 6, tokensGenerated: 100, outcome: "success" },
+      { modelId: "a", tokPerSec: 50, tokensGenerated: 3, outcome: "success" }, // too short
+      { modelId: "a", tokPerSec: 1, tokensGenerated: 100, outcome: "failure" }, // failed
+      { modelId: "b", tokPerSec: 9, tokensGenerated: 100, outcome: "success" }, // one sample only
+    ]);
+    expect(m.get("a")).toBe(5);
+    expect(m.has("b")).toBe(false);
+  });
+});
+
+describe("modelSpeedStats / deepAutoEligible (shared with the model picker)", () => {
+  it("reports median, samples and last date, deriving tok/s from latency when not recorded", () => {
+    const st = modelSpeedStats([
+      { modelId: "m", tokensGenerated: 100, generationLatencyMs: 10_000, outcome: "success", createdAt: 1 },
+      { modelId: "m", tokPerSec: 14, tokensGenerated: 100, outcome: "success", createdAt: 5 },
+      { modelId: "m", tokPerSec: 12, tokensGenerated: 100, outcome: "success", createdAt: 3 },
+    ]).get("m")!;
+    expect(st).toEqual({ medianTokPerSec: 12, samples: 3, lastAt: 5 });
+  });
+
+  it("is eligible only with >= 2 samples at >= 5 tok/s", () => {
+    expect(deepAutoEligible(null)).toBe(false);
+    expect(deepAutoEligible({ medianTokPerSec: 9, samples: 1 })).toBe(false);
+    expect(deepAutoEligible({ medianTokPerSec: 4.9, samples: 6 })).toBe(false);
+    expect(deepAutoEligible({ medianTokPerSec: 5, samples: 2 })).toBe(true);
   });
 });

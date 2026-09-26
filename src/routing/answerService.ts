@@ -10,6 +10,7 @@
  * docs/ADAPTIVE_ROUTING.md for the routing rules.
  */
 import { defaultContextSize, llamaEngine } from "../inference/LlamaEngine";
+import { getDeviceTotalRamBytes } from "ram-monitor";
 import { retrieve } from "../rag/retrieve";
 import { assemblePrompt, assembleChatMessages } from "../rag/pure";
 import { ModelManager } from "../models/ModelManager";
@@ -18,6 +19,8 @@ import { listDiscoveredModels } from "../models/discoveredModels";
 import { getActiveModelId, getAnswerSettings } from "../models/settings";
 import { runDeepResearch } from "../services/orchestrator";
 import { createAnswerer, InstalledLlm } from "./answer";
+import { measuredSpeeds } from "./depth";
+import { listRecentExecutions } from "../services/executionTelemetry";
 import type { GeoProviders } from "./geo";
 
 let geoProviders: GeoProviders | null = null;
@@ -45,6 +48,8 @@ async function listInstalledLlms(): Promise<InstalledLlm[]> {
       sizeBytes: s.asset.sizeBytes,
       roles: s.asset.capabilities?.roles ?? [],
       isDefault: s.asset.required,
+      // Catalog field added with the Qwen3-4B default (trust branch); absent on older catalogs.
+      answerTier: (s.asset as { answerTier?: "default" | "compact" }).answerTier,
     }));
 }
 
@@ -59,5 +64,13 @@ export const { answer, deepen } = createAnswerer({
   assembleChatMessages,
   now: () => performance.now(),
   contextSize: defaultContextSize,
+  deviceRamBytes: () => {
+    try {
+      return getDeviceTotalRamBytes();
+    } catch {
+      return 0;
+    }
+  },
   getGeoProviders: () => geoProviders,
+  getModelSpeeds: async () => measuredSpeeds(await listRecentExecutions(500)),
 });
