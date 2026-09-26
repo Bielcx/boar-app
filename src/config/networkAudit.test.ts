@@ -26,7 +26,15 @@ const FORBIDDEN_DEPENDENCIES = [
   "axios",
   "expo-network",
   "@react-native-community/netinfo",
+  // Location through Google Play Services (FusedLocationProviderClient): breaks
+  // on GrapheneOS. Use modules/offline-location (plain LocationManager) instead.
+  "expo-location",
+  "react-native-geolocation-service",
+  "@react-native-community/geolocation",
 ];
+
+// Google Play Services / Firebase in a native Android dependency's Gradle file.
+const GMS_GRADLE = /play-services|com\.google\.android\.gms|com\.google\.firebase/;
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -54,6 +62,22 @@ describe("network call sites", () => {
 });
 
 describe("dependencies", () => {
+  it("pull in no Google Play Services or Firebase on Android (local modules and direct deps)", () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    const gradleFiles = Object.keys(pkg.dependencies ?? {})
+      .map((d) => join(ROOT, "node_modules", d, "android", "build.gradle"))
+      .filter((f) => {
+        try {
+          return statSync(f).isFile();
+        } catch {
+          return false;
+        }
+      });
+    expect(gradleFiles.length).toBeGreaterThan(3);
+    const offenders = gradleFiles.filter((f) => GMS_GRADLE.test(readFileSync(f, "utf8"))).map((f) => relative(ROOT, f));
+    expect(offenders).toEqual([]);
+  });
+
   it("include no network/cloud client libraries", () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
     const deps = Object.keys(pkg.dependencies ?? {});

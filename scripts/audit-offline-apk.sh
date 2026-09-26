@@ -19,6 +19,7 @@ fail=0
 bad() { echo "FAIL: $*" >&2; fail=1; }
 
 FORBIDDEN_PERMS=(
+  android.permission.ACCESS_BACKGROUND_LOCATION
   android.permission.INTERNET
   android.permission.ACCESS_NETWORK_STATE
   android.permission.ACCESS_WIFI_STATE
@@ -28,6 +29,19 @@ FORBIDDEN_PERMS=(
 )
 if [[ "${EXPO_PUBLIC_BOAR_VOICE:-0}" != "1" ]]; then
   FORBIDDEN_PERMS+=(android.permission.RECORD_AUDIO)
+fi
+
+# Everything the offline build may declare. Anything else fails, so a new
+# library can't sneak a permission in unnoticed. Location is foreground GPS
+# for "near me" questions (modules/offline-location); it never leaves the phone.
+ALLOWED_PERMS=(
+  android.permission.VIBRATE
+  android.permission.WAKE_LOCK
+  android.permission.ACCESS_FINE_LOCATION
+  android.permission.ACCESS_COARSE_LOCATION
+)
+if [[ "${EXPO_PUBLIC_BOAR_VOICE:-0}" == "1" ]]; then
+  ALLOWED_PERMS+=(android.permission.RECORD_AUDIO)
 fi
 
 # Network/cloud client libraries the offline build must not ship. OkHttp is
@@ -73,6 +87,11 @@ if [[ "$variant" == offline ]]; then
   for p in "${FORBIDDEN_PERMS[@]}"; do
     grep -qx "$p" <<<"$perms" && bad "declares $p"
   done
+  while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
+    [[ "$p" == *.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION ]] && continue  # app-internal, added by AndroidX
+    printf '%s\n' "${ALLOWED_PERMS[@]}" "${FORBIDDEN_PERMS[@]}" | grep -qx "$p" || bad "declares $p, which is not on the offline allowlist"
+  done <<<"$perms"
   grep -Eq 'usesCleartextTraffic(="|\(.*\)=)(false|0|0x0)' <<<"$manifest" || bad "cleartext traffic not explicitly disabled"
   grep -Eq 'allowBackup(="|\(.*\)=)(false|0|0x0)' <<<"$manifest" || bad "allowBackup not disabled"
   if [[ -n "$packages" ]]; then

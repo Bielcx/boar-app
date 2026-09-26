@@ -13,6 +13,10 @@ const { AndroidConfig, withAndroidManifest } = require("@expo/config-plugins");
  *
  * Voice input needs RECORD_AUDIO. The offline build drops it unless it was
  * built with EXPO_PUBLIC_BOAR_VOICE=1.
+ *
+ * Both builds may ask for the phone's location (GPS works without network) to
+ * answer "near me" questions; it's asked for only on the first such question
+ * (src/location/locationPolicy.ts). Never in the background.
  */
 
 const NETWORK_PERMISSIONS = [
@@ -27,9 +31,16 @@ const NETWORK_PERMISSIONS = [
 // SYSTEM_ALERT_WINDOW comes from the React Native dev template; file imports
 // go through the system document picker (SAF), which needs no storage permission.
 const ALWAYS_BLOCKED = [
+  "android.permission.ACCESS_BACKGROUND_LOCATION",
   "android.permission.SYSTEM_ALERT_WINDOW",
   "android.permission.READ_EXTERNAL_STORAGE",
   "android.permission.WRITE_EXTERNAL_STORAGE",
+];
+
+// Foreground GPS for "near me" questions (modules/offline-location).
+const LOCATION_PERMISSIONS = [
+  "android.permission.ACCESS_FINE_LOCATION",
+  "android.permission.ACCESS_COARSE_LOCATION",
 ];
 
 function parseVariant(raw) {
@@ -57,6 +68,7 @@ function variantFromEnv(env = process.env) {
 function applyBuildVariant(config, env = process.env) {
   const { variant, voice } = variantFromEnv(env);
   const android = { ...(config.android ?? {}) };
+  android.permissions = [...new Set([...(android.permissions ?? []), ...LOCATION_PERMISSIONS])];
   android.blockedPermissions = [
     ...new Set([...(android.blockedPermissions ?? []), ...blockedPermissionsFor(variant, voice)]),
   ];
@@ -90,4 +102,5 @@ module.exports = {
   parseVariant,
   variantFromEnv,
   NETWORK_PERMISSIONS,
+  LOCATION_PERMISSIONS,
 };

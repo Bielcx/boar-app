@@ -25,7 +25,8 @@ Needs the Android SDK + NDK and JDK 17 (the same toolchain as
 | App name | BOAR Offline | BOAR |
 | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_NETWORK_STATE`, `CHANGE_WIFI_STATE` | removed | `INTERNET` kept |
 | `RECORD_AUDIO` | removed, unless `EXPO_PUBLIC_BOAR_VOICE=1` | kept (voice is off by default) |
-| `SYSTEM_ALERT_WINDOW`, `READ/WRITE_EXTERNAL_STORAGE` | removed | removed |
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | declared, asked for on the first "near me" question | same |
+| `ACCESS_BACKGROUND_LOCATION`, `SYSTEM_ALERT_WINDOW`, `READ/WRITE_EXTERNAL_STORAGE` | removed | removed |
 | `allowBackup`, `usesCleartextTraffic` | `false`, `false` | `false`, `false` |
 | Getting models | import from file only | download in-app, or import from file |
 | Hugging Face model search | disabled | enabled |
@@ -56,8 +57,10 @@ still work with the dev client.
 `scripts/audit-offline-apk.sh <apk or merged AndroidManifest.xml>` (adapted from
 Field Atlas, Apache-2.0) fails when the offline build:
 
-- declares any network permission, `SYSTEM_ALERT_WINDOW`, or `RECORD_AUDIO`
-  (unless built with voice);
+- declares any permission outside its allowlist (`VIBRATE`, `WAKE_LOCK`,
+  `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, plus `RECORD_AUDIO` when
+  built with voice), with an explicit failure for network permissions and
+  background location;
 - doesn't disable cleartext traffic or backup;
 - ships Play Services, Firebase, ML Kit, expo-updates, Retrofit, Ktor, Volley or
   Sentry classes. OkHttp is reported but allowed: it's part of React Native
@@ -66,6 +69,27 @@ Field Atlas, Apache-2.0) fails when the offline build:
 CI (`.github/workflows/ci.yml`): `offline-manifest-audit` on every pull request
 (prebuild + Gradle manifest merge, no native compile), `offline-apk` on `main`
 and on demand (full build, dex audit, APK uploaded as an artifact).
+
+## Location
+
+"Best vegan restaurants in the city I'm in" needs to know where the phone is,
+and the GPS works without any network. `modules/offline-location` reads it with
+the plain Android `LocationManager` (`GPS_PROVIDER`, and the passive provider's
+last fix as a fallback) and CoreLocation on iOS. It never uses Google's
+FusedLocationProviderClient (Play Services, missing on GrapheneOS), which is why
+`expo-location` isn't used (its Android side depends on
+`play-services-location`), and never uses `NETWORK_PROVIDER`, which on most
+phones looks positions up online. There's no reverse geocoding either: place
+names come from the offline knowledge pack.
+
+The permission is asked for only on the first question that needs it, after
+BOAR explains that the position never leaves the phone
+(`src/location/locationPolicy.ts`). After a "no", BOAR doesn't ask again; the
+user can name a place instead. Foreground only, nothing stored.
+
+`src/config/networkAudit.test.ts` fails if a direct dependency's Android Gradle
+file pulls in Play Services or Firebase, or if `expo-location` or another
+GMS-based location library is added.
 
 ## iOS
 
