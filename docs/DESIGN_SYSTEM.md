@@ -135,6 +135,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `SegmentedControl` | 2-4 exclusive options; `size="compact"` for forms | radiogroup + radio `checked`; turns vertical at ≥ 1.35 font scale; compact keeps the touch target through `hitSlop` |
 | `OptionCard` | One choice among sibling cards (install tier, model, language): `title`, `badge` (on the title line), `trailing` (the deciding figure, right), `description`, `meta`, `leading`, `indicator` radio/check/none | role radio + `selected`/`checked`; selection = accent border + `raised` surface + filled indicator (a soft accent wash would hide soft accent badges) |
 | `Stat` | The number that leads a card: `value`, `unit`, `label` overline, `size` lg 34 / md 26 / sm 17 | One focus stop "label: value unit"; tabular |
+| `Mascot` | The boar, transparent background: `size` hero 128 / brand 56 / avatar 32 / avatarSm 24, `dim`. Use it instead of `assets/boar.png` (opaque square) | Decorative, hidden |
 | `MetaLine` | One line of secondary facts, "978 MB · ~4 min"; falsy items dropped | Read with commas; tabular |
 | `Stepper` | Linear flow progress: bar + short label per step | One progressbar stop with the caller's "Step 2 of 4: Model"; value is text ("2/4"), never a numeric range (iOS would speak a percentage) |
 | `Chip` | Filter/toggle/tag; `size="inline"` for citation `[n]` inside text | Button + `selected` when pressable; inline chip keeps a 44/48-tall hit area (horizontal slop is limited so adjacent citations stay separate) |
