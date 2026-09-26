@@ -1,8 +1,8 @@
 import React, { memo } from "react";
-import { Image, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Progress, Sheet, Text, useToast } from "../components";
+import { Badge, Button, Card, Mascot, Progress, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary } from "./modelError";
@@ -87,20 +87,6 @@ export const UserMessage = memo(function UserMessage({
     </Pressable>
   );
 });
-
-/** The mascot at hero size (empty and loading states). Decorative: the wordmark or status next to it carries the meaning. */
-function Mascot({ dim }: { dim?: boolean }) {
-  const t = useTokens();
-  const side = t.size.mascot;
-  return (
-    <Image
-      source={require("../../../assets/boar.png")}
-      style={{ width: side, height: side, opacity: dim ? 0.55 : 1 }}
-      accessibilityIgnoresInvertColors
-      importantForAccessibility="no"
-    />
-  );
-}
 
 /**
  * A new chat, laid out like the mockup: mascot, wordmark and tagline centred,

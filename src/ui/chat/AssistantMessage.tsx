@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, MetaLine, Text } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
@@ -437,12 +437,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               overflow: "hidden",
             }}
           >
-            <Image
-              source={require("../../../assets/boar.png")}
-              style={{ width: t.size.avatarSm, height: t.size.avatarSm }}
-              accessibilityIgnoresInvertColors
-              importantForAccessibility="no"
-            />
+            <Mascot size="avatarSm" />
           </View>
           <Text variant="headline" style={{ flexShrink: 1 }}>
             {tr("chat.assistantName")}
