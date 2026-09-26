@@ -28,6 +28,7 @@ function Hairline() {
 
 export function ModelsScreen() {
   const { t, i18n } = useTranslation();
+  const tokens = useTokens();
   const navigation = useNavigation<Nav>();
   const toast = useToast();
   const catalog = useCatalog();
