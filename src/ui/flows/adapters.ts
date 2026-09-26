@@ -16,6 +16,7 @@ import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
 import type { PoiRegion } from "./poi";
 import type { City } from "./travel";
+import type { ModelSpeed } from "./modelSpeed";
 import { resolvePlace } from "../../rag/pois";
 import { POI_REGIONS, poiCatalogEntries, WORLD_PLACES } from "../../rag/poiRegions";
 import type { NativePosition } from "../../services/location.pure";
@@ -105,4 +106,15 @@ export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): Ca
 /** The Emergency & Preparedness pack (boar-preparedness). Interim: none until it exists. */
 export function preparednessEntry(): CatalogModel | undefined {
   return undefined;
+}
+
+/**
+ * Whether automatic deep answers may use a model, from its measured speed.
+ * Interim copy of the routing rule (v1.1: never below 5 tok/s measured on
+ * this phone; unmeasured models stay eligible until measured) until Tusk
+ * exposes it from src/routing.
+ */
+export const MIN_DEEP_TOK_PER_SEC = 5;
+export function deepAutoEligible(speed: ModelSpeed | undefined): boolean {
+  return !speed || speed.medianTokPerSec >= MIN_DEEP_TOK_PER_SEC;
 }

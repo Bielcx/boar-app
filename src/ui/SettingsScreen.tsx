@@ -8,9 +8,9 @@ import { useTheme, useTokens } from "./theme";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
   Appearance,
+  getAnswerSettings,
+  setAnswerSettings,
   FontScale,
-  getAdaptiveRoutingEnabled,
-  getDeepResearchMode,
   getHapticsEnabled,
   getMaxTokens,
   getMemorySettings,
@@ -18,8 +18,6 @@ import {
   getVoiceInputEnabled,
   LanguageId,
   PaletteChoice,
-  setAdaptiveRoutingEnabled,
-  setDeepResearchMode,
   setHapticsEnabled,
   setVoiceInputEnabled,
 } from "../models/settings";
@@ -62,8 +60,8 @@ export function SettingsScreen() {
         const [personality, maxTokens, quickFirst, alwaysComplete, memory, haptics, voice] = await Promise.all([
           getPersonalityId(),
           getMaxTokens(),
-          getAdaptiveRoutingEnabled(),
-          getDeepResearchMode(),
+          getAnswerSettings().then((a) => a.quickFirst),
+          getAnswerSettings().then((a) => a.alwaysComplete),
           getMemorySettings(),
           getHapticsEnabled(),
           getVoiceInputEnabled(),
@@ -116,7 +114,7 @@ export function SettingsScreen() {
           title={t("flows.settings.quickFirst")}
           subtitle={t("flows.settings.quickFirstHint")}
           switch={{ value: values.quickFirst, onValueChange: (v) => {
-              update("quickFirst", v, setAdaptiveRoutingEnabled);
+              update("quickFirst", v, (quickFirst) => setAnswerSettings({ quickFirst }));
               announce(t(answerModeKey(v, values.alwaysComplete)));
             } }}
         />
@@ -125,7 +123,7 @@ export function SettingsScreen() {
           title={t("flows.settings.alwaysComplete")}
           subtitle={t("flows.settings.alwaysCompleteHint")}
           switch={{ value: values.alwaysComplete, onValueChange: (v) => {
-              update("alwaysComplete", v, setDeepResearchMode);
+              update("alwaysComplete", v, (alwaysComplete) => setAnswerSettings({ alwaysComplete }));
               announce(t(answerModeKey(values.quickFirst, v)));
             } }}
         />

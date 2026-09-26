@@ -355,7 +355,9 @@
         "offline-variant": "This version has no internet access. Import the file instead.",
         "load": "Couldn't load this model.",
         "unknown": "Something went wrong.",
-        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item."
+        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item.",
+        "too-large": "This file is larger than BOAR accepts for this kind of item.",
+        "no-source": "This item isn't published for download yet. Import its file instead."
       },
       "download": "Download {{size}}",
       "retry": "Try again",
@@ -403,7 +405,16 @@
       "addToList": "Add to Models",
       "added": "{{name}} added to Models",
       "addFailed": "Couldn't add it: {{error}}",
-      "nowAnswering": "{{name}} now writes your answers"
+      "nowAnswering": "{{name}} now writes your answers",
+      "deepTitle": "Model for full answers",
+      "deepFooter": "Full answers use this model. Automatic mode never picks a model measured below {{min}} tokens/s on this phone.",
+      "deepAuto": "Automatic",
+      "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
+      "deepNone": "None: always use the answer model",
+      "notMeasured": "Not measured on this phone yet",
+      "measured_one": "{{rate}} tokens/s · {{count}} answer · measured on this phone on {{date}}",
+      "measured_other": "{{rate}} tokens/s · median of {{count}} answers · measured on this phone on {{date}}",
+      "tooSlow": "Not available in automatic mode: too slow on this phone."
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",

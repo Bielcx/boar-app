@@ -9,10 +9,15 @@ import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
+import { RadioRow } from "./flows/RadioRow";
+import { speedsByModel, ModelSpeed } from "./flows/modelSpeed";
+import { deepAutoEligible, MIN_DEEP_TOK_PER_SEC } from "./flows/adapters";
+import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
+import { listRecentExecutions } from "../services/executionTelemetry";
 import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
-import { formatBytes, formatCount } from "./flows/format";
+import { formatBytes, formatCount, formatRate } from "./flows/format";
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -30,11 +35,30 @@ export function ModelsScreen() {
   const { refresh } = catalog;
   const offline = !networkAllowed();
 
+  const [answer, setAnswer] = useState<AnswerSettings | null>(null);
+  const [speeds, setSpeeds] = useState<Record<string, ModelSpeed>>({});
   useFocusEffect(
     useCallback(() => {
       refresh();
+      getAnswerSettings().then(setAnswer);
+      listRecentExecutions(200)
+        .then((records) => setSpeeds(speedsByModel(records)))
+        .catch(() => setSpeeds({}));
     }, [refresh])
   );
+  const chooseDeep = async (id: string | null | undefined) => {
+    setAnswer((prev) => (prev ? { ...prev, deepModelId: id } : prev));
+    await setAnswerSettings({ deepModelId: id });
+  };
+  const speedLine = (id: string): string => {
+    const sp = speeds[id];
+    if (!sp) return t("flows.models.notMeasured");
+    return t("flows.models.measured", {
+      rate: formatRate(sp.medianTokPerSec, i18n.language),
+      count: sp.samples,
+      date: new Date(sp.lastAt).toLocaleDateString(i18n.language),
+    });
+  };
 
   if (!catalog.loaded) {
     return (
@@ -96,6 +120,36 @@ export function ModelsScreen() {
       </Section>
 
       {groups.installed.length > 0 && <Section title={t("flows.models.installed")}>{renderGroup(groups.installed)}</Section>}
+
+      {answer && (
+        <Section title={t("flows.models.deepTitle")} footer={t("flows.models.deepFooter", { min: MIN_DEEP_TOK_PER_SEC })}>
+          <View accessibilityRole="radiogroup">
+            <RadioRow
+              title={t("flows.models.deepAuto")}
+              subtitle={t("flows.models.deepAutoSub", { min: MIN_DEEP_TOK_PER_SEC })}
+              selected={answer.deepModelId === undefined}
+              onPress={() => chooseDeep(undefined)}
+            />
+            <RadioRow title={t("flows.models.deepNone")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
+            {models
+              .filter((m) => m.kind === "llm" && catalog.statuses[m.id]?.present && m.id !== catalog.activeLlmId)
+              .map((m) => (
+                <RadioRow
+                  key={m.id}
+                  title={m.label}
+                  subtitle={[
+                    speedLine(m.id),
+                    !deepAutoEligible(speeds[m.id]) ? t("flows.models.tooSlow") : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join("\n")}
+                  selected={answer.deepModelId === m.id}
+                  onPress={() => chooseDeep(m.id)}
+                />
+              ))}
+          </View>
+        </Section>
+      )}
 
       {(offline || catalog.imports.length > 0) && (
         <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
