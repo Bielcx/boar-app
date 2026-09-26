@@ -16,13 +16,17 @@ import {
   Icon,
   IconButton,
   ListRow,
+  MetaLine,
   OfflineSeal,
+  OptionCard,
   Progress,
   Screen,
   Section,
   SegmentedControl,
   Sheet,
   Skeleton,
+  Stat,
+  Stepper,
   Switch,
   Text,
   TextField,
@@ -82,6 +86,8 @@ export function ComponentCatalogScreen() {
   const [sheet, setSheet] = useState(false);
   const [text, setText] = useState("");
   const [chip, setChip] = useState(true);
+  const [tier, setTier] = useState<"essential" | "encyclopedia">("essential");
+  const [lang, setLang] = useState<"en" | "pt">("en");
 
   return (
     <Screen ambient>
@@ -205,6 +211,47 @@ export function ComponentCatalogScreen() {
         <Banner tone="warning" message="Only 1.2 GB free. The next model needs 2.4 GB." actionLabel="Manage storage" onAction={() => {}} />
         <Banner tone="danger" title="Model failed to load" message="Out of memory while loading Qwen2.5 3B." actionLabel="Use a smaller model" onAction={() => {}} onDismiss={() => {}} />
         <Banner tone="success" message="Checksum verified." />
+      </Group>
+
+      <Group title="Choices and figures">
+        <Stepper steps={["Hardware", "Model", "Install", "Index"]} current={1} accessibilityLabel="Step 2 of 4: Model" />
+        <OptionCard
+          title="Essential"
+          selected={tier === "essential"}
+          onPress={() => setTier("essential")}
+          trailing="978 MB"
+          description="Answer and search models, plus the core topic collections."
+          meta={["~4 min at 5 MB/s", "978 MB on disk"]}
+        />
+        <OptionCard
+          title="Encyclopedia"
+          badge={<Badge label="Recommended" tone="accent" />}
+          selected={tier === "encyclopedia"}
+          onPress={() => setTier("encyclopedia")}
+          trailing="1.1 GB"
+          description="Essential plus the Vital Articles pack."
+          meta={["~4 min at 5 MB/s", "1.1 GB on disk"]}
+        />
+        <View style={{ flexDirection: "row", gap: t.space.md }}>
+          {(["en", "pt"] as const).map((l) => (
+            <View key={l} style={{ flex: 1 }}>
+              <OptionCard
+                title={l === "en" ? "English" : "Português"}
+                indicator="check"
+                selected={lang === l}
+                onPress={() => setLang(l)}
+              />
+            </View>
+          ))}
+        </View>
+        <Card>
+          <View style={{ gap: t.space.sm }}>
+            <Stat label="Downloading" value="62" unit="%" size="lg" />
+            <Progress value={0.62} label="Download" />
+            <MetaLine items={["611 / 986 MB", "2 min left"]} />
+          </View>
+        </Card>
+        <MetaLine items={["1.4 s", "16 tok/s", false]} />
       </Group>
 
       <Group title="Lists">

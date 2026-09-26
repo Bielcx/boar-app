@@ -17,7 +17,7 @@ import {
   setThemeId as persistThemeId,
 } from "../../models/settings";
 import { Colors, legacyColorsFromTokens } from "./colors";
-import { resolveScheme } from "./scheme";
+import { DEFAULT_APPEARANCE, resolveScheme } from "./scheme";
 import { buildTokens, ColorScheme, Tokens } from "./tokens";
 import { getTypography, Typography } from "./typography";
 
@@ -51,7 +51,7 @@ const defaultTokens = buildTokens("dark");
 const ThemeContext = createContext<ThemeContextType>({
   tokens: defaultTokens,
   scheme: "dark",
-  appearance: "system",
+  appearance: DEFAULT_APPEARANCE,
   setAppearance: async () => {},
   fontScale: "standard",
   setFontScale: async () => {},
@@ -66,7 +66,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const system = useColorScheme();
-  const [appearance, setAppearanceState] = useState<Appearance>("system");
+  const [appearance, setAppearanceState] = useState<Appearance>(DEFAULT_APPEARANCE);
   const [fontScale, setFontScaleState] = useState<FontScale>("standard");
   const [palette, setPaletteState] = useState<PaletteChoice>("fogueira");
   const [themeId, setThemeIdState] = useState<ThemeId>("midnight");

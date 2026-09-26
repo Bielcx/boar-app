@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveScheme } from "./scheme";
+import { DEFAULT_APPEARANCE, resolveScheme } from "./scheme";
 
 describe("resolveScheme", () => {
   it("honors an explicit choice regardless of the OS", () => {
@@ -15,5 +15,10 @@ describe("resolveScheme", () => {
   it("falls back to dark when the OS reports nothing", () => {
     expect(resolveScheme("system", null)).toBe("dark");
     expect(resolveScheme("system", undefined)).toBe("dark");
+  });
+
+  it("opens dark by default, even on a light OS", () => {
+    expect(DEFAULT_APPEARANCE).toBe("dark");
+    expect(resolveScheme(DEFAULT_APPEARANCE, "light")).toBe("dark");
   });
 });
