@@ -284,16 +284,13 @@ export async function setCustomCollectionActive(id: string, active: boolean): Pr
 }
 
 export async function deleteCustomCollection(id: string): Promise<void> {
+  // Embeddings reference chunks, so they go first; chunks_fts has no index on
+  // chunk_id, so it's cleared in one pass instead of one scan per chunk.
+  const rows = `SELECT chunk_id FROM chunks WHERE collection_id = ?`;
   await writeTransaction(async (txn) => {
-    const rows = await txn.getAllAsync<{ chunk_id: string }>(
-      `SELECT chunk_id FROM chunks WHERE collection_id = ?`,
-      [id]
-    );
-    for (const r of rows) {
-      await txn.runAsync(`DELETE FROM chunks WHERE chunk_id = ?`, [r.chunk_id]);
-      await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id = ?`, [r.chunk_id]);
-      await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id = ?`, [r.chunk_id]);
-    }
+    await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id IN (${rows})`, [id]);
+    await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id IN (${rows})`, [id]);
+    await txn.runAsync(`DELETE FROM chunks WHERE collection_id = ?`, [id]);
     await txn.runAsync(`DELETE FROM custom_collections WHERE id = ?`, [id]);
   });
 }

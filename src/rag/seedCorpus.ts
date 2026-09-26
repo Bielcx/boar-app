@@ -1,6 +1,14 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { getDb, insertChunk, deleteSeedChunks, deleteSeedChunksWithPrefix, ChunkRecord } from "./db";
 import { closePack } from "./packs";
+import { clearCollectionIndexStatus, setCollectionIndexStatus } from "./indexStatus";
+
+export {
+  getCollectionIndexStatus,
+  onCollectionIndexStatus,
+  type CollectionIndexState,
+  type CollectionIndexStatus,
+} from "./indexStatus";
 import { embeddingEngine } from "./embed";
 import minimumCorpus from "../../assets/corpus/corpus.json";
 import { CORPUS_CATALOG, CatalogModel } from "../models/manifest";
@@ -100,27 +108,13 @@ export interface SeedProgress {
   collectionTotal: number;
 }
 
-export type CollectionIndexState = "indexed" | "indexing" | "error";
-
-export interface CollectionIndexStatus {
-  state: CollectionIndexState;
-  /** Documents of this collection checked so far in the current or last run. */
-  done: number;
-  total: number;
-  error?: string;
-}
-
 // On globalThis rather than in the module: a dev hot reload re-runs this
 // module while the previous run is still inserting.
 const running = globalThis as {
   __boarSeeding?: Promise<void> | null;
   __boarSeedListeners?: Set<(p: SeedProgress) => void>;
-  __boarSeedStatus?: Map<string, CollectionIndexStatus>;
-  __boarSeedStatusListeners?: Set<(s: Record<string, CollectionIndexStatus>) => void>;
 };
 const listeners = (running.__boarSeedListeners ??= new Set());
-const status = (running.__boarSeedStatus ??= new Map());
-const statusListeners = (running.__boarSeedStatusListeners ??= new Set());
 
 /** Progress of the indexing run in progress, for a status line. Returns an unsubscribe. */
 export function onSeedProgress(listener: (p: SeedProgress) => void): () => void {
@@ -128,29 +122,7 @@ export function onSeedProgress(listener: (p: SeedProgress) => void): () => void 
   return () => listeners.delete(listener);
 }
 
-/**
- * Index state of each seed-corpus collection seen by the current or last
- * run, keyed by collection id. A collection that isn't listed hasn't been
- * indexed in this app session (or was removed). SQLite knowledge packs
- * aren't listed: they ship with their own index.
- */
-export function getCollectionIndexStatus(): Record<string, CollectionIndexStatus> {
-  return Object.fromEntries(status);
-}
-
-/** Called with the whole status map whenever a collection's state changes. Returns an unsubscribe. */
-export function onCollectionIndexStatus(
-  listener: (s: Record<string, CollectionIndexStatus>) => void
-): () => void {
-  statusListeners.add(listener);
-  return () => statusListeners.delete(listener);
-}
-
-function setStatus(id: string, next: CollectionIndexStatus): void {
-  status.set(id, next);
-  const snapshot = getCollectionIndexStatus();
-  statusListeners.forEach((l) => l(snapshot));
-}
+const setStatus = setCollectionIndexStatus;
 
 /**
  * Removes a downloaded corpus pack from the knowledge base, before its file
@@ -167,8 +139,7 @@ export async function removeCorpusPackIndex(pack: Pick<CatalogModel, "id" | "for
   // Let a run in progress finish first, or it would re-insert what's deleted here.
   await running.__boarSeeding?.catch(() => {});
   const removed = await deleteSeedChunksWithPrefix(chunkIdPrefix(pack.id));
-  status.delete(pack.id);
-  statusListeners.forEach((l) => l(getCollectionIndexStatus()));
+  clearCollectionIndexStatus(pack.id);
   return removed;
 }
 
