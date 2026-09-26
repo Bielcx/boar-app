@@ -69,6 +69,46 @@ interface Base {
   answerId: string;
 }
 
+/** OpenStreetMap diet tag value (diet:vegan=only|yes|limited|no). */
+export type PlaceDiet = "only" | "yes" | "limited" | "no";
+
+/** A place from the offline POI pack. Every field comes from the record; nothing is generated. */
+export interface Place {
+  /** "osm:node/123" or "wikivoyage:<page>#<n>". */
+  id: string;
+  name: string;
+  /** WGS84 decimal degrees. */
+  lat: number;
+  lon: number;
+  /** OSM amenity: restaurant | cafe | fast_food | bar | ... */
+  kind?: string;
+  cuisine?: string[];
+  diet?: Partial<Record<"vegan" | "vegetarian" | "gluten_free" | "halal" | "kosher", PlaceDiet>>;
+  /** Only when the origin is the device position (GPS); never for "in <city>". */
+  distanceM?: number;
+  address?: string;
+  /** OSM opening_hours, raw. */
+  openingHours?: string;
+  /** Shown as text, never opened (offline). */
+  phone?: string;
+  website?: string;
+  /** Wikivoyage Eat/Drink text. */
+  description?: string;
+  source: "osm" | "wikivoyage";
+  /** Index into the answer's sources[] ("[n]" = sourceIndex + 1). */
+  sourceIndex?: number;
+}
+
+export interface PlacesArea {
+  kind: "near" | "city";
+  /** "near you" / "perto de você", or the city name. */
+  label?: string;
+  origin?: { lat: number; lon: number; accuracyM?: number; ageS?: number };
+  radiusM?: number;
+  /** Set when the area came from a city named in the question (or answer({ place })). */
+  place?: { name: string; country?: string };
+}
+
 export type AnswerEvent =
   | (Base & {
       type: "stage";
@@ -106,6 +146,35 @@ export type AnswerEvent =
       estSeconds?: number;
     })
   | (Base & {
+      /** Device position lookup for a "near me" question. "prompt"/"denied": the UI asks for permission in context, or for a city. */
+      type: "location";
+      status: "granted" | "denied" | "unavailable" | "stale" | "prompt";
+      accuracyM?: number;
+      ageS?: number;
+    })
+  | (Base & {
+      /**
+       * Places answer, already ranked (the UI must not reorder): by diet tag
+       * strength (only > yes > limited) then distance when criterion is
+       * "diet_match", by distance when "distance". Emitted before any
+       * model token; for now the whole answer (done tier "instant",
+       * receipt.modelId "places").
+       */
+      type: "places";
+      tier: AnswerTier;
+      places: Place[];
+      area: PlacesArea;
+      /** Requested filters, e.g. ["vegan"]. */
+      filters?: string[];
+      /** How "best" was decided; popularity is never claimed. */
+      criterion: "distance" | "diet_match";
+      /** ok: places listed. none: no offline data for this area. no_pack: POI pack not installed. needs_place: no location and no city named. */
+      coverage: "ok" | "none" | "no_pack" | "needs_place";
+      truncated?: boolean;
+      /** Required attribution (ODbL for OpenStreetMap, CC BY-SA for Wikivoyage). */
+      attribution: { source: "osm" | "wikivoyage"; date?: string; license: string }[];
+    })
+  | (Base & {
       /** A model loaded but its weights stream from storage (see src/inference/memoryFit.ts). */
       type: "warning";
       code: "model_streams_from_storage";
@@ -124,6 +193,8 @@ export interface AnswerRequest {
   tier?: "auto" | "fast" | "deep";
   /** For deepen(): reuse the sources of this earlier answer instead of retrieving again. */
   reuseSources?: RetrievedChunk[];
+  /** City the user typed after a "which city?" prompt (location denied/unavailable). */
+  place?: string;
 }
 
 export interface AnswerResult {

@@ -15,6 +15,17 @@ import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./cont
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan } from "./depth";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
+import {
+  detectGeoIntent,
+  formatPlacesAnswer,
+  GeoIntent,
+  GeoProviders,
+  needsPlaceAnswer,
+  noDataAnswer,
+  noPackAnswer,
+  toPlace,
+  toSourceChunk,
+} from "./geo";
 import type {
   AnswerErrorCode,
   AnswerEvent,
@@ -76,7 +87,13 @@ export interface AnswerDeps {
   now(): number;
   /** Context window the model will be loaded with (LlamaEngine defaultContextSize). */
   contextSize?(): number;
+  /** Offline places (POI pack + device location); null when not installed/registered. */
+  getGeoProviders?(): GeoProviders | null;
 }
+
+/** GPS budget: the first useful information must appear in under a second. */
+export const LOCATION_TIMEOUT_MS = 700;
+export const PLACES_LIMIT = 10;
 
 /** Max <think> tokens before an answer (reasoning models only; see LlamaEngine thinkingBudget). */
 export const FAST_THINKING_BUDGET = 256;
@@ -150,6 +167,114 @@ export function createAnswerer(deps: AnswerDeps) {
       .catch(() => {});
     return handle;
 
+    async function runGeo(
+      intent: GeoIntent,
+      t0: number,
+      markVisible: () => void,
+      visibleAt: () => number | null
+    ): Promise<AnswerResult> {
+      const reasonCodes = ["task:places", `near:${intent.near.kind}`, ...intent.diet.map((d) => `diet:${d}`)];
+      const receipt = (retrievalMs?: number): AnswerReceipt => ({
+        modelId: "places",
+        modelLabel: "Offline places",
+        tokens: 0,
+        tokPerSec: 0,
+        ttftMs: (visibleAt() ?? deps.now()) - t0,
+        totalMs: deps.now() - t0,
+        retrievalMs,
+        reasonCodes,
+      });
+      const filters = intent.diet.length ? intent.diet : undefined;
+      const criterion = intent.diet.length ? ("diet_match" as const) : ("distance" as const);
+      const finishPlaces = (
+        coverage: "ok" | "none" | "no_pack" | "needs_place",
+        text: string,
+        area: Extract<AnswerEvent, { type: "places" }>["area"],
+        retrievalMs?: number
+      ): AnswerResult => {
+        markVisible();
+        emit({ type: "places", answerId, tier: "instant", places: [], area, filters, criterion, coverage, attribution: [] });
+        const r = receipt(retrievalMs);
+        emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r });
+        return { answerId, tier: "instant", outcome: "success", text, sources: [], receipt: r };
+      };
+
+      emit({ type: "stage", answerId, stage: "retrieving", tier: "instant", at: deps.now() });
+      const geo = deps.getGeoProviders?.() ?? null;
+      const pt = intent.lang === "pt";
+      if (!geo) {
+        reasonCodes.push("places:no-pack");
+        return finishPlaces("no_pack", noPackAnswer(intent), { kind: intent.near.kind === "device" ? "near" : "city" });
+      }
+
+      let center: { lat: number; lon: number };
+      let area: Extract<AnswerEvent, { type: "places" }>["area"];
+      if (intent.near.kind === "place") {
+        const place = await geo.resolvePlace(intent.near.name).catch(() => null);
+        if (!place) {
+          reasonCodes.push("places:unknown-place");
+          return finishPlaces("none", noDataAnswer(intent, intent.near.name), { kind: "city", label: intent.near.name, place: { name: intent.near.name } });
+        }
+        center = { lat: place.lat, lon: place.lon };
+        area = { kind: "city", label: place.name, place: { name: place.name, country: place.country } };
+      } else {
+        const loc = await geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS }).catch(() => ({ error: "unavailable" as const }));
+        if ("error" in loc) {
+          const status = loc.error === "timeout" ? "unavailable" : loc.error;
+          emit({ type: "location", answerId, status });
+          reasonCodes.push(`location:${loc.error}`);
+          return finishPlaces("needs_place", needsPlaceAnswer(intent), { kind: "near" });
+        }
+        emit({ type: "location", answerId, status: "granted", accuracyM: loc.accuracyM, ageS: loc.ageS });
+        center = { lat: loc.lat, lon: loc.lon };
+        area = { kind: "near", label: pt ? "perto de você" : "near you", origin: { lat: loc.lat, lon: loc.lon, accuracyM: loc.accuracyM, ageS: loc.ageS } };
+      }
+
+      const rs = deps.now();
+      const found = await geo
+        .searchPois({ center, diet: intent.diet.length ? intent.diet : undefined, text: intent.text, limit: PLACES_LIMIT })
+        .catch((e) => {
+          console.warn("[answer] POI search failed:", e?.message ?? e);
+          return null;
+        });
+      const retrievalMs = deps.now() - rs;
+      if (!found || found.coverage === "none" || found.pois.length === 0) {
+        reasonCodes.push(found ? `places:coverage-${found.coverage}` : "places:search-failed");
+        const label = area.kind === "city" ? area.label! : found?.region ?? (pt ? "sua região" : "your area");
+        return finishPlaces("none", noDataAnswer(intent, label), area, retrievalMs);
+      }
+
+      const byDistance = intent.near.kind === "device";
+      area.radiusM = found.radiusUsedM;
+      const sources = found.pois.map(toSourceChunk);
+      const places = found.pois.map((p, i) => toPlace(p, i, byDistance));
+      const attribution: { source: "osm" | "wikivoyage"; date?: string; license: string }[] = [];
+      if (found.pois.some((p) => p.source.kind === "osm")) {
+        attribution.push({ source: "osm", date: found.pois.find((p) => p.osmDate)?.osmDate, license: "ODbL" });
+      }
+      if (found.pois.some((p) => p.source.kind === "wikivoyage")) attribution.push({ source: "wikivoyage", license: "CC BY-SA" });
+
+      markVisible();
+      emit({ type: "sources", answerId, tier: "instant", sources });
+      emit({
+        type: "places",
+        answerId,
+        tier: "instant",
+        places,
+        area,
+        filters,
+        criterion,
+        coverage: "ok",
+        truncated: found.pois.length >= PLACES_LIMIT,
+        attribution,
+      });
+      reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`);
+      const text = formatPlacesAnswer({ intent, places, areaLabel: area.label ?? "", byDistance, radiusM: found.radiusUsedM });
+      const r = receipt(retrievalMs);
+      emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r });
+      return { answerId, tier: "instant", outcome: "success", text, sources, receipt: r };
+    }
+
     async function run(): Promise<AnswerResult> {
       const t0 = deps.now();
       let firstVisibleAt: number | null = null;
@@ -158,6 +283,15 @@ export function createAnswerer(deps: AnswerDeps) {
       };
       const stage = (name: AnswerStageName, tier: AnswerTier, modelId?: string, detail?: { index?: number; count?: number }) =>
         emit({ type: "stage", answerId, stage: name, tier, modelId, detail, at: deps.now() });
+
+      // Places questions never touch a model: the answer is built from the
+      // POI records alone, so no name can be invented and it lands in <1s.
+      const geoIntent = req.place
+        ? { ...(detectGeoIntent(req.query) ?? { diet: [], wantsBest: false, lang: "en" as const }), near: { kind: "place" as const, name: req.place } }
+        : req.tier === "deep" || req.reuseSources
+          ? null
+          : detectGeoIntent(req.query);
+      if (geoIntent) return runGeo(geoIntent as GeoIntent, t0, markVisible, () => firstVisibleAt);
 
       const [settings, installed, activeId] = await Promise.all([
         deps.getSettings(),
