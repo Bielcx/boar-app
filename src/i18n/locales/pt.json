@@ -461,9 +461,8 @@
       "indexError": "A indexação falhou: {{error}}",
       "importCancelled": "Importação cancelada",
       "cancelImportA11y": "Cancelar a importação de {{name}}",
-      "preparednessTitle": "Emergência e preparação",
-      "preparednessFooter": "Primeiros socorros, sobrevivência, desastres, evacuação e autossuficiência, para ler sem internet.",
-      "preparednessName": "Emergência e preparação",
+      "topicPacksTitle": "Pacotes temáticos",
+      "topicPacksFooter": "Coleções sobre um assunto, para ler sem internet. Cada arquivo é conferido antes do uso.",
       "sourcesLine": "Fontes: {{sources}}"
     },
     "performance": {
@@ -534,8 +533,8 @@
       "copyHint": "Copia o endereço do repositório",
       "copied": "Link copiado",
       "fontsTitle": "Fontes tipográficas",
-      "preparednessSources": "Fontes de Emergência e preparação",
-      "preparednessFooter": "Cada trecho nas respostas indica a fonte e a licença."
+      "packSources": "Fontes: {{name}}",
+      "packFooter": "Cada trecho nas respostas indica a fonte e a licença."
     },
     "onboarding": {
       "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",
@@ -557,6 +556,8 @@
       "step2Sub": "Tudo é baixado uma vez e depois funciona offline.",
       "step3Title": "Instalando",
       "step3Sub": "Esta é a única vez que o BOAR usa a internet.",
+      "indexTitle": "Preparando a busca",
+      "indexSub": "Montando o índice de busca no celular. Não precisa de internet.",
       "device": "Este celular: {{ram}} de memória · {{free}} livres",
       "deviceUnknown": "Não foi possível ler a memória e o espaço deste celular.",
       "unknown": "desconhecido",
@@ -585,6 +586,9 @@
       "totalValue": "{{done}} de {{total}}",
       "percentAnnounce": "{{pct}}% baixado",
       "queued": "Na fila",
+      "filesReady_one": "{{count}} arquivo baixado",
+      "filesReady_other": "{{count}} arquivos baixados",
+      "keepOpenTitle": "Mantenha o BOAR aberto",
       "stage": {
         "start": "Início",
         "choose": "Escolha",

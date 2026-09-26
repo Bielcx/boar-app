@@ -9,6 +9,11 @@ describe("formatBytes", () => {
 
   it("picks the unit by size", () => {
     expect(formatBytes(986 * 1024 ** 2, "en")).toBe("986 MB");
+    // Never four digits of the smaller unit (iOS shot: "1,000 MB on disk").
+    expect(formatBytes(1000 * 1024 ** 2, "en")).toBe("1 GB");
+    expect(formatBytes(1023 * 1024 ** 2, "en")).toBe("1 GB");
+    expect(formatBytes(999 * 1024 ** 2, "en")).toBe("999 MB");
+    expect(formatBytes(1010 * 1024, "en")).toBe("1 MB");
     expect(formatBytes(2.5 * 1024 ** 2, "en")).toBe("2.5 MB");
     expect(formatBytes(600 * 1024, "en")).toBe("600 KB");
   });

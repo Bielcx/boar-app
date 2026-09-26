@@ -8,8 +8,9 @@ function number(value: number, locale: string, digits: number): string {
 }
 
 export function formatBytes(bytes: number, locale: string): string {
-  if (bytes >= GB) return `${number(bytes / GB, locale, 1)} GB`;
-  if (bytes >= MB) return `${number(bytes / MB, locale, bytes >= 100 * MB ? 0 : 1)} MB`;
+  // Switch units where the smaller one would round to four digits ("1,000 MB" reads as 1.0 GB).
+  if (bytes >= 999.5 * MB) return `${number(bytes / GB, locale, 1)} GB`;
+  if (bytes >= 999.5 * 1024) return `${number(bytes / MB, locale, bytes >= 100 * MB ? 0 : 1)} MB`;
   return `${number(Math.max(bytes, 0) / 1024, locale, 0)} KB`;
 }
 

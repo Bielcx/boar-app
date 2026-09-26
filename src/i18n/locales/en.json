@@ -461,9 +461,8 @@
       "indexError": "Indexing failed: {{error}}",
       "importCancelled": "Import cancelled",
       "cancelImportA11y": "Cancel importing {{name}}",
-      "preparednessTitle": "Emergency & preparedness",
-      "preparednessFooter": "First aid, survival, disasters, evacuation and self-reliance, readable without internet.",
-      "preparednessName": "Emergency and preparedness",
+      "topicPacksTitle": "Topic packs",
+      "topicPacksFooter": "Collections on one subject, readable without internet. Each file is checked before use.",
       "sourcesLine": "Sources: {{sources}}"
     },
     "performance": {
@@ -534,8 +533,8 @@
       "copyHint": "Copies the repository address",
       "copied": "Link copied",
       "fontsTitle": "Fonts",
-      "preparednessSources": "Emergency and preparedness sources",
-      "preparednessFooter": "Each passage in answers links to its source and license."
+      "packSources": "Sources: {{name}}",
+      "packFooter": "Each passage in answers links to its source and license."
     },
     "onboarding": {
       "tagline": "AI research that runs entirely on your phone, without internet.",
@@ -557,6 +556,8 @@
       "step2Sub": "Everything is downloaded once and then works offline.",
       "step3Title": "Installing",
       "step3Sub": "This is the only time BOAR uses the internet.",
+      "indexTitle": "Preparing search",
+      "indexSub": "Building the search index on the phone. No internet needed.",
       "device": "This phone: {{ram}} of memory · {{free}} free",
       "deviceUnknown": "Couldn't read this phone's memory and storage.",
       "unknown": "unknown",
@@ -585,6 +586,9 @@
       "totalValue": "{{done}} of {{total}}",
       "percentAnnounce": "{{pct}}% downloaded",
       "queued": "Waiting",
+      "filesReady_one": "{{count}} file downloaded",
+      "filesReady_other": "{{count}} files downloaded",
+      "keepOpenTitle": "Keep BOAR open",
       "stage": {
         "start": "Start",
         "choose": "Choose",

@@ -1,12 +1,12 @@
 import React, { useCallback } from "react";
-import { Image, View } from "react-native";
+import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Button, ListRow, Screen, Section, Text, useToast } from "./components";
+import { Button, ListRow, Mascot, Screen, Section, Text, useToast } from "./components";
 import { useTokens } from "./theme";
 import { useCatalog } from "./flows/useCatalog";
-import { preparednessInfo } from "./flows/adapters";
+import { packName, topicPacks } from "./flows/adapters";
 import { formatBytes } from "./flows/format";
 import { MODEL_CATALOG } from "../models/manifest";
 import appConfig from "../../app.json";
@@ -25,7 +25,7 @@ export function AboutScreen() {
   const toast = useToast();
   const catalog = useCatalog();
   const { refresh } = catalog;
-  const prepInfo = preparednessInfo();
+  const packs = topicPacks();
 
   useFocusEffect(
     useCallback(() => {
@@ -39,12 +39,7 @@ export function AboutScreen() {
   return (
     <Screen>
       <View style={{ alignItems: "center", gap: tokens.space.sm }}>
-        <Image
-          source={require("../../assets/boar.png")}
-          style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
-          accessibilityIgnoresInvertColors
-          accessible={false}
-        />
+        <Mascot size="brand" />
         <Text variant="title2" align="center">
           BOAR
         </Text>
@@ -76,13 +71,13 @@ export function AboutScreen() {
         )}
       </Section>
 
-      {prepInfo && (
-        <Section title={t("flows.about.preparednessSources")} footer={t("flows.about.preparednessFooter")}>
-          {prepInfo.sources.map((s) => (
+      {packs.map((pack) => (
+        <Section key={pack.entry.id} title={t("flows.about.packSources", { name: packName(pack, i18n.language) })} footer={t("flows.about.packFooter")}>
+          {pack.sources.map((s) => (
             <ListRow key={s.name} title={s.name} subtitle={s.license} />
           ))}
         </Section>
-      )}
+      ))}
 
       <Section title={t("flows.about.fontsTitle")}>
         {BUNDLED_FONTS.map((f) => (
