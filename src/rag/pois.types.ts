@@ -33,6 +33,20 @@ export interface Poi {
   description?: string;
   /** Coordinates are the article's, not the place's: don't show a distance. */
   approx?: boolean;
+  /**
+   * Plausibility (0..1) of the record's diet claim, from a build-time check
+   * (scripts/audit-poi-diet.mjs), for the diet in `dietCheckFor`. The record
+   * itself is unchanged.
+   */
+  dietCheck?: number;
+  dietCheckFor?: Diet;
+  /**
+   * "verify" when, for the diet asked, the OSM tag looks doubtful (dietCheck
+   * < 0.35): listed last, shown as "OSM tag to verify". Otherwise absent, and
+   * the place is shown with the single label "vegan according to
+   * OpenStreetMap" (Boar, 2026-09-26: no stronger badge).
+   */
+  dietFlag?: "verify";
   /** When the source data was extracted (OSM replication timestamp or dump date), for attribution. */
   osmDate?: string;
   source: { kind: "osm" | "wikivoyage"; url: string; title?: string };

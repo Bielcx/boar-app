@@ -31,7 +31,7 @@ export interface Stem {
   idf: number;
 }
 
-export type PackSource = "enwiki" | "enwikivoyage";
+export type PackSource = "enwiki" | "enwikivoyage" | "enwikibooks" | "appropedia" | "usgov";
 
 /** A ranked BM25 chunk before its text is read. */
 export interface Candidate {
@@ -48,6 +48,9 @@ export interface Article {
   source: PackSource;
   views: number;
   text: string;
+  /** Page URL and license, when the pack records them per article (multi-source packs). */
+  url?: string;
+  license?: string;
 }
 
 export interface PackHit {
@@ -66,6 +69,9 @@ export interface PackHit {
   /** Monthly pageviews of the article (0 when unknown). */
   views: number;
   lead: boolean;
+  /** The source page and its license, when the pack records them (otherwise derive from title and source). */
+  url?: string;
+  license?: string;
 }
 
 export interface PackSearchOptions {
@@ -88,7 +94,8 @@ export interface PackSearchOptions {
   queryVec?: Float32Array;
 }
 
-const SOURCES: PackSource[] = ["enwiki", "enwikivoyage"];
+// Index = articles.source code written by scripts/build-wiki-pack.mjs.
+const SOURCES: PackSource[] = ["enwiki", "enwikivoyage", "enwikibooks", "appropedia", "usgov"];
 
 /** Share of the question's term weight a name in it must carry to be treated as the question's subject. */
 export const NAMED_MIN_SHARE = 0.5;
@@ -127,6 +134,17 @@ export function sectionAt(text: string, start: number): string {
     path[level - 1] = m[2].trim();
   }
   return path.slice(1).filter(Boolean).join(" > ");
+}
+
+/**
+ * FTS5 term for a stem. Porter turns a final y into i ("purify" → "purifi")
+ * but "purification" into "purif", so a stem ending in "i" is matched as a
+ * prefix of the stem without it; others match exactly (a prefix on every stem
+ * would let "water" match "watermelon").
+ */
+export function matchTerm(stem: string): string {
+  const q = (t: string) => `"${t.replace(/"/g, '""')}"`;
+  return stem.endsWith("i") && stem.length > 4 ? `${q(stem.slice(0, -1))}*` : q(stem);
 }
 
 /** Surface-form prefix of a porter stem (porter turns a final y into i: energy → energi). */
@@ -246,7 +264,8 @@ export class WikiPack {
     readonly meta: Record<string, string>,
     private nIndexed: number,
     private hasRedirects: boolean,
-    private hasDf: boolean
+    private hasDf: boolean,
+    private hasMeta: boolean
   ) {}
 
   static async open(db: PackSql, decompress: Decompress): Promise<WikiPack> {
@@ -263,7 +282,7 @@ export class WikiPack {
     `);
     const tables = await db.getAllAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'", []);
     const has = (n: string) => tables.some((t) => t.name === n);
-    return new WikiPack(db, decompress, meta, Number(meta.indexedChunks) || 1, has("redirects"), has("df"));
+    return new WikiPack(db, decompress, meta, Number(meta.indexedChunks) || 1, has("redirects"), has("df"), has("article_meta"));
   }
 
   /** [stem, idf] for the content words of `text`, stemmed by FTS5 itself. */
@@ -309,7 +328,18 @@ export class WikiPack {
     if (!a) throw new Error(`pack article ${id} missing`);
     const block = await this.block(a.block_id);
     const text = utf8(block.subarray(a.off, a.off + a.len));
-    return this.articles.put(id, { id, title: a.title, source: SOURCES[a.source] ?? "enwiki", views: a.views, text });
+    const m = this.hasMeta
+      ? await this.db.getFirstAsync<{ url: string | null; license: string | null }>("SELECT url, license FROM article_meta WHERE article_id = ?", [id])
+      : null;
+    return this.articles.put(id, {
+      id,
+      title: a.title,
+      source: SOURCES[a.source] ?? "enwiki",
+      views: a.views,
+      text,
+      ...(m?.url ? { url: m.url } : {}),
+      ...(m?.license ? { license: m.license } : {}),
+    });
   }
 
   /**
@@ -384,6 +414,8 @@ export class WikiPack {
       source: a.source,
       views: a.views,
       lead,
+      ...(a.url ? { url: a.url } : {}),
+      ...(a.license ? { license: a.license } : {}),
     };
   }
 
@@ -424,7 +456,7 @@ export class WikiPack {
       `SELECT f.rowid AS id, f.s, c.article_id, c.start, c.end, a.views
        FROM (SELECT rowid, bm25(fts, ${this.tuning.weights.map(Number).join(", ")}) AS s FROM fts WHERE fts MATCH ? ORDER BY s LIMIT ?) f
        JOIN chunks c ON c.id = f.rowid JOIN articles a ON a.id = c.article_id`,
-      [terms.map((t) => `"${t.replace(/"/g, '""')}"`).join(" OR "), pool]
+      [terms.map(matchTerm).join(" OR "), pool]
     );
     const sorted = rows
       .map((r) => ({ chunkId: r.id, articleId: r.article_id, start: r.start, end: r.end, score: -r.s + prior * Math.log10(1 + r.views) }))

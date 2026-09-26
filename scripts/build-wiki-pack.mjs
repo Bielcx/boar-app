@@ -19,11 +19,13 @@
 //   redirects(title, article_id)           alternative titles → article
 //   df(term, doc)                          document counts of common index terms (query-time idf)
 //   lead_vecs(article_id, scale, vec)      int8 embedding of the article's lead chunk
+//   article_meta(article_id, url, license) optional: per-article source URL and license (multi-source packs)
 //
 // The approach (tiering by pageviews, contentless index over compressed blocks,
 // redirect table) follows AndroidLM's scripts/build_corpus.py and
 // build_redirects.py (https://github.com/Phineas1500/AndroidLM, Apache-2.0).
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, statfsSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { createInterface } from "node:readline";
@@ -71,12 +73,15 @@ const USAGE = `usage: node scripts/build-wiki-pack.mjs --out FILE --shards A.par
   --work-dir DIR          where URL shards are downloaded, default next to --out
   --min-free-gb N         pause (and log PAUSED) while free disk is under N GB, default 0
   --wait-for-shards       don't download URL shards: wait for them to appear in --work-dir (scripts/fetch-shards.sh)
+  --manifest FILE         topic packs: JSON list of {source, title, url, license} (meta gets per-source counts)
+  --name TEXT             the pack's display name, stored in meta
   --no-optimize           skip the final FTS 'optimize' merge (it needs free space about the index's size)
   --block-kb N            uncompressed text per compressed block, default 64
   --zlevel N              zstd level, default 12`;
 
 const log = (msg) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
-const SOURCE = { enwiki: 0, enwikivoyage: 1 };
+// Source codes stored in articles.source (the app maps them back in src/rag/wikiPack.ts).
+const SOURCE = { enwiki: 0, enwikivoyage: 1, enwikibooks: 2, appropedia: 3, usgov: 4 };
 const DF_MIN = 2000; // terms in fewer chunks are counted from their (short) posting lists at query time
 
 function options() {
@@ -103,6 +108,8 @@ function options() {
       "min-free-gb": { type: "string", default: "0" },
       "no-optimize": { type: "boolean", default: false },
       "wait-for-shards": { type: "boolean", default: false },
+      manifest: { type: "string" },
+      name: { type: "string" },
       "block-kb": { type: "string", default: "64" },
       zlevel: { type: "string", default: "12" },
       help: { type: "boolean", default: false },
@@ -140,6 +147,8 @@ function options() {
     minFreeGb: Number(values["min-free-gb"]),
     optimize: !values["no-optimize"],
     waitForShards: values["wait-for-shards"],
+    manifest: values.manifest,
+    name: values.name,
     blockBytes: n("block-kb") * 1024,
     zlevel: n("zlevel"),
   };
@@ -188,6 +197,15 @@ class PackWriter {
     this.stats = { articles: 0, full: 0, chunks: 0, indexed: 0, textBytes: 0, voyage: 0 };
     this.pending = 0;
     this.db.exec("BEGIN");
+  }
+
+  /** Per-article URL and license, for packs mixing sources (table created on first use). */
+  addMeta(id, url, license) {
+    if (!this.insMeta) {
+      this.db.exec("CREATE TABLE article_meta (article_id INTEGER PRIMARY KEY, url TEXT, license TEXT)");
+      this.insMeta = this.db.prepare("INSERT INTO article_meta VALUES (?, ?, ?)");
+    }
+    this.insMeta.run(id, url, license);
   }
 
   flushBlock() {
@@ -266,7 +284,12 @@ async function addWikipedia(w, opts, views, fullIds) {
     // "# Title" heading first, then infobox facts, then the body without its own title heading
     const withoutTitle = body.replace(/^# [^\n]*\n+/, "");
     const text = `# ${r.title}\n\n${box ? `${box}\n\n` : ""}${withoutTitle}`;
-    if (w.add(SOURCE.enwiki, pid, r.title, views?.get(pid) ?? r.views ?? 0, text) !== null && full) w.stats.full++;
+    // JSONL rows may name another source and carry their own URL and license (manifest-listed packs).
+    const source = r.source ? SOURCE[r.source] : SOURCE.enwiki;
+    if (source === undefined) throw new Error(`unknown source "${r.source}" for "${r.title}"`);
+    const id = w.add(source, pid, r.title, views?.get(pid) ?? r.views ?? 0, text);
+    if (id !== null && (r.url || r.license)) w.addMeta(id, r.url ?? null, r.license ?? null);
+    if (id !== null && full) w.stats.full++;
   };
   // A shard given as a URL is downloaded into --work-dir just before it's needed (the next
   // one downloads while the current one is processed) and deleted afterwards.
@@ -496,6 +519,23 @@ async function addLeadEmbeddings(db, opts) {
   return caches;
 }
 
+/** meta.sources / meta.license / meta.manifestSha256 from a topic pack's manifest. */
+function manifestMeta(path) {
+  const raw = readFileSync(path);
+  const docs = JSON.parse(raw.toString("utf8"));
+  const sources = {};
+  for (const d of docs) {
+    const s = (sources[d.source] ??= { documents: 0, licenses: {} });
+    s.documents++;
+    s.licenses[d.license] = (s.licenses[d.license] ?? 0) + 1;
+  }
+  return {
+    sources: JSON.stringify(sources),
+    license: [...new Set(docs.map((d) => d.license))].join("; "),
+    manifestSha256: createHash("sha256").update(raw).digest("hex"),
+  };
+}
+
 function tableBytes(db) {
   try {
     return Object.fromEntries(
@@ -520,7 +560,8 @@ async function main() {
   if (opts.embedOnly) {
     // Pick up a pack whose text, redirects and index are already written.
     const db = new DatabaseSync(opts.out);
-    db.exec("PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF; DROP TABLE IF EXISTS lead_vecs; DELETE FROM meta;");
+    // With --no-embed this only rewrites the metadata and keeps existing embeddings.
+    db.exec(`PRAGMA journal_mode = OFF; PRAGMA synchronous = OFF; ${opts.embed ? "DROP TABLE IF EXISTS lead_vecs;" : ""} DELETE FROM meta;`);
     const n = (sql) => db.prepare(sql).get().n;
     const stats = {
       articles: n("SELECT COUNT(*) AS n FROM articles"),
@@ -558,14 +599,23 @@ async function main() {
     format: "boar-knowledge-pack",
     formatVersion: 2,
     dims: 384,
-    embeddingModelSha256: opts.embed ? EMBEDDING_MODEL.sha256 : "",
-    sources: JSON.stringify({
-      enwiki: { dataset: "HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)", shards: opts.shards.map((s) => s.split("/").pop()), articles: wikiArticles },
-      ...(opts.wikivoyage ? { enwikivoyage: { dump: opts.wikivoyage.split("/").pop(), articles: w.stats.voyage } } : {}),
-      ...(opts.redirects ? { redirects: opts.redirects.split("/").pop() } : {}),
-      ...(opts.pageviews ? { pageviews: opts.pageviews.split("/").pop(), days: opts.pageviewDays } : {}),
-    }),
-    license: "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    // Also when a metadata-only run (--embed-only --no-embed) keeps embeddings made earlier.
+    embeddingModelSha256:
+      opts.embed || w.db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'lead_vecs'").get() ? EMBEDDING_MODEL.sha256 : "",
+    // A topic pack (--manifest, e.g. scripts/fetch-preparedness.mjs) lists every document with its source,
+    // URL and license; the meta keeps per-source counts and licenses and the manifest's hash.
+    ...(opts.manifest
+      ? manifestMeta(opts.manifest)
+      : {
+          sources: JSON.stringify({
+            enwiki: { dataset: "HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)", shards: opts.shards.map((s) => s.split("/").pop()), articles: wikiArticles },
+            ...(opts.wikivoyage ? { enwikivoyage: { dump: opts.wikivoyage.split("/").pop(), articles: w.stats.voyage } } : {}),
+            ...(opts.redirects ? { redirects: opts.redirects.split("/").pop() } : {}),
+            ...(opts.pageviews ? { pageviews: opts.pageviews.split("/").pop(), days: opts.pageviewDays } : {}),
+          }),
+          license: "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+        }),
+    ...(opts.name ? { name: opts.name } : {}),
     articles: w.stats.articles,
     chunks: w.stats.chunks,
     indexedChunks: w.stats.indexed,

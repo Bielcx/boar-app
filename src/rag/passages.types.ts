@@ -3,7 +3,7 @@
  * native imports so pure code and tests can use the types.
  */
 
-export type PassageSourceKind = "enwiki" | "enwikivoyage" | "builtin" | "user";
+export type PassageSourceKind = "enwiki" | "enwikivoyage" | "enwikibooks" | "appropedia" | "usgov" | "builtin" | "user";
 
 export interface PassageSentence {
   text: string;
@@ -22,7 +22,8 @@ export interface Passage {
   sentences: PassageSentence[];
   /** 0..1 relevance of the passage (its best sentence, plus a bonus for an article the question names). */
   score: number;
-  source: { title: string; section: string; url: string; kind: PassageSourceKind };
+  /** `license` is set when the pack records it per page (show it with the link: CC BY-SA requires attribution). */
+  source: { title: string; section: string; url: string; kind: PassageSourceKind; license?: string };
   /** Monthly pageviews of the article, 0 when unknown. */
   views: number;
   via: "title" | "bm25" | "semantic";

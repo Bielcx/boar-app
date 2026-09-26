@@ -94,3 +94,12 @@ describe("WikiPack", () => {
     expect(await pack.resolveTitle("Kuala")).toBeNull();
   });
 });
+
+describe("matchTerm", () => {
+  it("matches porter's y→i stems as a prefix, everything else exactly", async () => {
+    const { matchTerm } = await import("./wikiPack");
+    expect(matchTerm("purifi")).toBe('"purif"*');
+    expect(matchTerm("water")).toBe('"water"');
+    expect(matchTerm("hi")).toBe('"hi"');
+  });
+});
