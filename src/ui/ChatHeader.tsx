@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { Image, Pressable, useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Icon, IconButton, OfflineSeal, Sheet, Text } from "./components";
+import { Icon, IconButton, Mascot, OfflineSeal, Sheet, Text } from "./components";
 import { useTokens } from "./theme";
 import { headerFit } from "./chat/headerLayout";
 
@@ -63,12 +63,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
               overflow: "hidden",
             }}
           >
-            <Image
-              source={require("../../assets/boar.png")}
-              style={{ width: t.size.avatarSm, height: t.size.avatarSm }}
-              accessibilityIgnoresInvertColors
-              importantForAccessibility="no"
-            />
+            <Mascot size="avatarSm" />
           </View>
         )}
         <View style={{ flexShrink: 1, flexGrow: 1 }}>
