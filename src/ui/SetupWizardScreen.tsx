@@ -538,7 +538,7 @@ function PackageStep({
               title={t(`flows.onboarding.package.${p.id}.name`)}
               selected={p.id === selected}
               onPress={() => onUserPackage(p.id)}
-              badge={p.id === recommended ? <Badge label={t("flows.onboarding.recommended")} tone="accent" /> : undefined}
+              badge={p.id === recommended ? <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" /> : undefined}
               // The one number that decides: what this choice downloads (or imports) now.
               trailing={p.plan.downloadBytes > 0 ? formatBytes(p.plan.downloadBytes, lang) : undefined}
               description={t(`flows.onboarding.package.${p.id}.body`)}
@@ -574,7 +574,7 @@ function PackageStep({
                   title={t(`flows.onboarding.answerTier.${tierId}`, { name: m.label })}
                   selected={answerTier === tierId}
                   onPress={() => onUserAnswer(tierId)}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggestedHere")} tone="accent" /> : undefined}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggestedHere")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
                 />
               );
@@ -935,6 +935,39 @@ function InstallStep({
   })();
 
   const ready = indexPhase === "ready";
+  const indexing = indexPhase === "building" || indexPhase === "error";
+  const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
+  const hero = !allPresent
+    ? {
+        label: t("flows.onboarding.totalLabel"),
+        fraction: totalBytes > 0 ? doneBytes / totalBytes : 0,
+        meta: [t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })],
+      }
+    : {
+        label: t("flows.onboarding.indexRow"),
+        fraction: seed && seed.total > 0 ? seed.done / seed.total : 0,
+        meta: [indexCounter, seedEta != null ? t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) }) : null].filter((x): x is string => !!x),
+      };
+  // Once every file is in, the per-file rows collapse into one: the index is what is happening now.
+  const fileRows = allPresent
+    ? [
+        {
+          key: "files",
+          icon: <Icon name="check-circle" color={tokens.color.status.success.solid} />,
+          title: t("flows.onboarding.filesReady", { count: assets.length }),
+          status: t("flows.onboarding.ready"),
+          spoken: undefined as string | undefined,
+          tone: "secondary" as TextColor,
+        },
+      ]
+    : states.map(({ asset, state }) => ({
+        key: asset.id,
+        icon: <PhaseIcon state={state} />,
+        title: `${t(`flows.row.kind.${asset.kind}`)} · ${asset.label}`,
+        status: shortStatus(state, asset, t),
+        spoken: statusLine(state, asset, t, lang) as string | undefined,
+        tone: (state.kind === "failed" ? "danger" : state.kind === "downloading" || state.kind === "verifying" ? "accent" : "secondary") as TextColor,
+      }));
   return (
     <Screen
       edges={["top", "bottom", "left", "right"]}
@@ -949,8 +982,9 @@ function InstallStep({
       <StepHeader
         titleRef={titleRef}
         stage={indexPhase === "waiting" ? 2 : 3}
-        title={ready ? t("flows.onboarding.doneTitle") : offline ? t("flows.onboarding.importTitle") : t("flows.onboarding.step3Title")}
-        subtitle={ready ? t("flows.onboarding.doneBody") : offline ? t("flows.onboarding.importSub") : t("flows.onboarding.step3Sub")}
+        // Once the files are in, the header describes the offline indexing, not the download (Harbor, iOS shot 04).
+        title={t(`flows.onboarding.${ready ? "doneTitle" : indexing ? "indexTitle" : offline ? "importTitle" : "step3Title"}`)}
+        subtitle={t(`flows.onboarding.${ready ? "doneBody" : indexing ? "indexSub" : offline ? "importSub" : "step3Sub"}`)}
       />
 
       {needsImport && !allPresent && (
@@ -967,35 +1001,25 @@ function InstallStep({
         </View>
       )}
 
-      {!allPresent && (
+      {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
+      {(!allPresent || (indexing && seed)) && (
         <Card style={{ gap: tokens.space.md }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
-            <Stat size="lg" label={t("flows.onboarding.totalLabel")} value={String(totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 100) : 0)} unit="%" />
+            <Stat size="lg" label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
             <Image
               source={require("../../assets/boar.png")}
               style={{ width: tokens.size.mascotSm, height: tokens.size.mascotSm, borderRadius: tokens.radius.full }}
               accessible={false}
             />
           </View>
-          <Progress
-            label={t("flows.onboarding.totalLabel")}
-            value={totalBytes > 0 ? doneBytes / totalBytes : 0}
-            valueText={t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })}
-          />
-          <MetaLine items={[t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })]} />
+          <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
+          <MetaLine items={hero.meta} />
         </Card>
       )}
 
       <Card padding="none">
         {[
-          ...states.map(({ asset, state }) => ({
-            key: asset.id,
-            icon: <PhaseIcon state={state} />,
-            title: `${t(`flows.row.kind.${asset.kind}`)} · ${asset.label}`,
-            status: shortStatus(state, asset, t),
-            spoken: statusLine(state, asset, t, lang),
-            tone: (state.kind === "failed" ? "danger" : state.kind === "downloading" || state.kind === "verifying" ? "accent" : "secondary") as TextColor,
-          })),
+          ...fileRows,
           {
             key: "index",
             icon: (
@@ -1007,8 +1031,7 @@ function InstallStep({
             title: t("flows.onboarding.indexRow"),
             status:
               indexPhase === "building" && seed
-                ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) +
-                  (seedEta != null ? ` · ${t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) })}` : "")
+                ? indexCounter
                 : indexPhase === "waiting"
                   ? t("flows.onboarding.waitingDownloads")
                   : indexPhase === "building"
@@ -1047,14 +1070,6 @@ function InstallStep({
               <Text variant="footnote" color={row.tone} numeric>
                 {row.status}
               </Text>
-            )}
-            {row.key === "index" && indexPhase === "building" && seed && (
-              <Progress
-                label={t("flows.onboarding.indexRow")}
-                value={seed.done / seed.total}
-                valueText={t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
-                tone="accent"
-              />
             )}
           </View>
         ))}
@@ -1108,9 +1123,17 @@ function InstallStep({
       )}
 
       {downloading && (
-        <Text variant="footnote" color="secondary">
-          {t("flows.onboarding.keepOpen")}
-        </Text>
+        <Card style={{ gap: tokens.space.xs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
+            <Text variant="label" color="warning">
+              {t("flows.onboarding.keepOpenTitle")}
+            </Text>
+          </View>
+          <Text variant="footnote" color="secondary">
+            {t("flows.onboarding.keepOpen")}
+          </Text>
+        </Card>
       )}
     </Screen>
   );

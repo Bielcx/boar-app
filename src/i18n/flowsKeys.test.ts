@@ -52,6 +52,7 @@ const DYNAMIC_KEYS = [
   ...expand("flows.onboarding.point", ["1", "2", "3"]),
   ...expand("flows.onboarding.package.", ["essential.name", "essential.body", "encyclopedia.name", "encyclopedia.body"]),
   ...expand("flows.onboarding.step", ["2Title", "3Title"]),
+  ...expand("flows.onboarding.", ["doneTitle", "indexTitle", "importTitle", "step3Title", "doneBody", "indexSub", "importSub", "step3Sub"]),
   ...expand("flows.onboarding.stage.", ["start", "choose", "install", "index"]),
   "flows.onboarding.languageAnnounce",
   ...expand("flows.onboarding.answerTier.", ["default", "compact"]),
