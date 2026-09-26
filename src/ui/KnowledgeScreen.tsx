@@ -144,7 +144,7 @@ export function KnowledgeScreen() {
   if (!catalog.loaded || collections === null) {
     return (
       <Screen>
-        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: 12 }}>
+        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={20} width="50%" />
           <Skeleton height={72} />
           <Skeleton height={72} />

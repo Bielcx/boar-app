@@ -5,7 +5,7 @@
  *
  * - Memory fit and pack removal are wired (estimateMemoryFit, removeCorpusPackIndex).
  * - Places: POI_REGIONS, poiCatalogEntries, worldPlacesEntry and
- *   searchPlaces are wired. Still interim: map tiles and the preparedness pack.
+ *   searchPlaces are wired. The preparedness pack is wired. Still interim: map tiles.
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
@@ -19,6 +19,8 @@ import { searchPlaces } from "../../rag/pois";
 import { POI_REGIONS, poiCatalogEntries, worldPlacesEntry } from "../../rag/poiRegions";
 import type { NativePosition } from "../../services/location.pure";
 import * as OfflineLocation from "offline-location";
+// Importing the module also registers the pack with the asset registry.
+import { PREPAREDNESS_PACK, PREPAREDNESS_SOURCES, preparednessEntry as bramblePreparednessEntry } from "../../rag/preparedness";
 
 /** Tusk's estimate against the RAM the OS says is available right now. */
 export function fitFor(model: CatalogModel): MemoryFit | undefined {
@@ -79,9 +81,9 @@ export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): Ca
   return null;
 }
 
-/** The Emergency & Preparedness pack (boar-preparedness). Interim: none until Bramble's export is integrated. */
+/** The Emergency & Preparedness pack (boar-preparedness). */
 export function preparednessEntry(): CatalogModel | undefined {
-  return undefined;
+  return bramblePreparednessEntry();
 }
 
 export interface PackSource {
@@ -90,7 +92,10 @@ export interface PackSource {
   url?: string;
 }
 
-/** Document count and attributed sources of the preparedness pack. Interim: nothing until Bramble's export is integrated. */
+/** Document count and attributed sources of the preparedness pack. */
 export function preparednessInfo(): { docCount: number; sources: PackSource[] } | undefined {
-  return undefined;
+  return {
+    docCount: PREPAREDNESS_PACK.docCount,
+    sources: PREPAREDNESS_SOURCES.map(({ name, license, url }) => ({ name, license, url })),
+  };
 }

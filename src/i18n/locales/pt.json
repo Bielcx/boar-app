@@ -539,6 +539,19 @@
     },
     "onboarding": {
       "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",
+      "brandSub": "Assistente de pesquisa offline",
+      "introLabel": "Como funciona",
+      "phoneLabel": "Este celular",
+      "phoneMemory": "Memória",
+      "phoneFree": "Espaço livre",
+      "sizeLabel": {
+        "download": "para baixar",
+        "import": "para importar"
+      },
+      "meta": {
+        "onDisk": "{{size}} no disco",
+        "time": "~{{minutes}} min a {{speed}}/s"
+      },
       "point1": "Funciona offline depois de configurado.",
       "point2": "Suas perguntas não saem do celular.",
       "point3": "Mostra as fontes de cada resposta.",
@@ -564,10 +577,7 @@
         }
       },
       "recommended": "Recomendado",
-      "download": "Download: {{size}}",
       "alreadyDownloaded": "Já baixado",
-      "diskAfter": "Espaço depois de instalar: {{size}}",
-      "time": "Cerca de {{minutes}} min a {{speed}}/s (estimativa)",
       "noSpace": "Falta espaço: são necessários mais {{size}}.",
       "install": "Baixar {{size}}",
       "continue": "Continuar",
@@ -581,6 +591,8 @@
       "totalValue": "{{done}} de {{total}}",
       "percentAnnounce": "{{pct}}% baixado",
       "queued": "Na fila",
+      "checking": "Conferindo",
+      "failedShort": "Falhou",
       "downloadingLine": "{{pct}}% · {{done}} de {{total}}",
       "ready": "Pronto",
       "indexRow": "Índice de busca no celular",
@@ -599,7 +611,6 @@
       "open": "Abrir o BOAR",
       "languageAnnounce": "Idioma: Português",
       "smallerPackage": "Escolher um pacote menor",
-      "importSize": "Arquivos para importar: {{size}}",
       "importTitle": "Importe os arquivos",
       "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
       "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",

@@ -6,7 +6,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Linking, Pressable, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, EmptyState, Icon, IconName, ListRow, Progress, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Progress, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
+import type { TextColor } from "./components/Text";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -147,7 +148,18 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
 
   return (
     <>
-      {step === 1 && <Welcome titleRef={titleRef} languageId={languageId} setLanguage={setLanguage} onNext={() => setStep(2)} onSkip={onSkip} />}
+      {step === 1 && (
+        <Welcome
+          titleRef={titleRef}
+          languageId={languageId}
+          setLanguage={setLanguage}
+          deviceRamBytes={catalog.deviceRamBytes}
+          freeBytes={catalog.freeBytes}
+          lang={lang}
+          onNext={() => setStep(2)}
+          onSkip={onSkip}
+        />
+      )}
       {step === 2 && (
         <PackageStep
           titleRef={titleRef}
@@ -231,11 +243,11 @@ function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefOb
       <Text variant="label" color="tertiary">
         {t("flows.onboarding.stepOf", { step, total: 3 })}
       </Text>
-      <Text ref={titleRef} variant="title1" header>
+      <Text ref={titleRef} variant="title2" header>
         {title}
       </Text>
       {subtitle && (
-        <Text variant="callout" color="secondary">
+        <Text variant="footnote" color="secondary">
           {subtitle}
         </Text>
       )}
@@ -253,7 +265,7 @@ function Stepper({ step }: { step: Step }) {
           key={n}
           style={{
             flex: 1,
-            height: 4,
+            height: tokens.space.xs,
             borderRadius: tokens.radius.full,
             backgroundColor: n <= step ? tokens.color.accent.solid : tokens.color.bg.sunken,
           }}
@@ -267,12 +279,18 @@ function Welcome({
   titleRef,
   languageId,
   setLanguage,
+  deviceRamBytes,
+  freeBytes,
+  lang,
   onNext,
   onSkip,
 }: {
   titleRef: React.RefObject<RNText | null>;
   languageId: LanguageId;
   setLanguage: (id: LanguageId) => Promise<void>;
+  deviceRamBytes: number;
+  freeBytes: number;
+  lang: string;
   onNext: () => void;
   onSkip?: () => void;
 }) {
@@ -284,6 +302,11 @@ function Welcome({
     { icon: "shield", key: "point2" },
     { icon: "book", key: "point3" },
   ];
+  // Measured on this phone; a value the OS would not give is left out, never guessed.
+  const phone = [
+    { key: "phoneMemory", bytes: deviceRamBytes },
+    { key: "phoneFree", bytes: freeBytes },
+  ].filter((r) => r.bytes > 0);
   return (
     <Screen
       ambient
@@ -295,27 +318,40 @@ function Welcome({
         </>
       }
     >
-      <View style={{ alignItems: "center", gap: tokens.space.md, paddingTop: tokens.space.xl }}>
-        <Image source={require("../../assets/boar.png")} style={{ width: 88, height: 88, borderRadius: tokens.radius.lg }} accessible={false} />
-        <Text ref={titleRef} variant="display" align="center" header>
-          BOAR
-        </Text>
-        <Text variant="title3" align="center" color="secondary">
-          {t("flows.onboarding.tagline")}
-        </Text>
+      <Stepper step={1} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
+        <Image
+          source={require("../../assets/boar.png")}
+          style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
+          accessible={false}
+        />
+        <View style={{ flex: 1, gap: tokens.space.xxs }}>
+          <Text ref={titleRef} variant="title1" header>
+            BOAR
+          </Text>
+          <Text variant="footnote" color="field">
+            {t("flows.onboarding.brandSub")}
+          </Text>
+        </View>
       </View>
-      <View style={{ gap: tokens.space.base }}>
-        {points.map((p) => (
-          <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.md, alignItems: "flex-start" }}>
-            <Icon name={p.icon} color={tokens.color.field.text} />
-            <Text variant="body" style={{ flex: 1 }}>
-              {t(`flows.onboarding.${p.key}`)}
-            </Text>
-          </View>
-        ))}
-      </View>
+      <Card style={{ gap: tokens.space.md }}>
+        <Text variant="label" color="field">
+          {t("flows.onboarding.introLabel")}
+        </Text>
+        <Text variant="body">{t("flows.onboarding.tagline")}</Text>
+        <View style={{ gap: tokens.space.sm }}>
+          {points.map((p) => (
+            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
+              <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+              <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+                {t(`flows.onboarding.${p.key}`)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
       <View style={{ gap: tokens.space.sm }}>
-        <Text variant="subhead" color="secondary">
+        <Text variant="label" color="secondary">
           {t("flows.settings.language")}
         </Text>
         <SegmentedControl<LanguageId>
@@ -331,6 +367,35 @@ function Welcome({
           ]}
         />
       </View>
+      {phone.length > 0 && (
+        <Card>
+          <Text variant="label" color="secondary">
+            {t("flows.onboarding.phoneLabel")}
+          </Text>
+          {phone.map((r, i) => (
+            <View
+              key={r.key}
+              accessible
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingTop: tokens.space.md,
+                paddingBottom: i < phone.length - 1 ? tokens.space.md : 0,
+                borderBottomWidth: i < phone.length - 1 ? tokens.size.hairline : 0,
+                borderBottomColor: tokens.color.line.hairline,
+              }}
+            >
+              <Text variant="footnote" color="secondary">
+                {t(`flows.onboarding.${r.key}`)}
+              </Text>
+              <Text variant="mono" numeric>
+                {formatBytes(r.bytes, lang)}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      )}
     </Screen>
   );
 }
@@ -444,7 +509,7 @@ function PackageStep({
       }
     >
       <StepHeader titleRef={titleRef} step={2} title={t("flows.onboarding.step2Title")} subtitle={t("flows.onboarding.step2Sub")} />
-      <Text variant="footnote" color="secondary" numeric>
+      <Text variant="mono" color="secondary" numeric>
         {deviceRamBytes > 0 || freeBytes > 0
           ? t("flows.onboarding.device", {
               ram: deviceRamBytes > 0 ? formatBytes(deviceRamBytes, lang) : t("flows.onboarding.unknown"),
@@ -455,13 +520,13 @@ function PackageStep({
       <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
         {plans.map((p) => {
           const isSelected = p.id === selected;
-          const facts = [
-            p.plan.downloadBytes > 0
-              ? t(offline ? "flows.onboarding.importSize" : "flows.onboarding.download", { size: formatBytes(p.plan.downloadBytes, lang) })
-              : t("flows.onboarding.alreadyDownloaded"),
-            t("flows.onboarding.diskAfter", { size: formatBytes(p.plan.installedBytes, lang) }),
+          // One big number (what this choice costs now), the rest as one line of metadata.
+          const sizeLabel =
+            p.plan.downloadBytes > 0 ? t(offline ? "flows.onboarding.sizeLabel.import" : "flows.onboarding.sizeLabel.download") : null;
+          const meta = [
+            t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
             !offline && p.seconds != null && p.plan.downloadBytes > 0
-              ? t("flows.onboarding.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) })
+              ? t("flows.onboarding.meta.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) })
               : null,
           ].filter(Boolean) as string[];
           const warning =
@@ -471,43 +536,66 @@ function PackageStep({
                 ? t(`flows.row.fit.${p.fit}`)
                 : null;
           const name = t(`flows.onboarding.package.${p.id}.name`);
+          const amount = p.plan.downloadBytes > 0 ? formatBytes(p.plan.downloadBytes, lang) : t("flows.onboarding.alreadyDownloaded");
           return (
             <Pressable
               key={p.id}
               accessibilityRole="radio"
               accessibilityState={{ checked: isSelected, disabled: p.shortfall > 0 }}
-              accessibilityLabel={[name, t(`flows.onboarding.package.${p.id}.body`), ...facts, warning].filter(Boolean).join(", ")}
+              accessibilityLabel={[
+                name,
+                p.id === recommended ? t("flows.onboarding.recommended") : null,
+                sizeLabel ? `${amount} ${sizeLabel}` : amount,
+                t(`flows.onboarding.package.${p.id}.body`),
+                ...meta,
+                warning,
+              ]
+                .filter(Boolean)
+                .join(", ")}
               onPress={() => {
                 impact(ImpactFeedbackStyle.Light);
                 onUserPackage(p.id);
               }}
               style={{
+                flexDirection: "row",
+                gap: tokens.space.md,
                 padding: tokens.space.base,
-                gap: tokens.space.sm,
                 borderRadius: tokens.radius.lg,
-                borderWidth: isSelected ? 2 : tokens.size.hairline,
+                borderWidth: isSelected ? tokens.size.focusRing : tokens.size.hairline,
                 borderColor: isSelected ? tokens.color.accent.solid : tokens.color.line.hairline,
-                backgroundColor: tokens.color.bg.surface,
+                backgroundColor: isSelected ? tokens.color.accent.soft : tokens.color.bg.surface,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, flexWrap: "wrap" }}>
-                <Icon name={isSelected ? "check-circle" : "circle"} color={isSelected ? tokens.color.accent.text : tokens.color.text.tertiary} />
-                <Text variant="headline">{name}</Text>
-                {p.id === recommended && <Badge label={t("flows.onboarding.recommended")} tone="accent" />}
+              <Icon name={isSelected ? "check-circle" : "circle"} color={isSelected ? tokens.color.accent.text : tokens.color.text.secondary} />
+              <View style={{ flex: 1, gap: tokens.space.xs }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.sm }}>
+                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.sm }}>
+                    <Text variant="headline">{name}</Text>
+                    {p.id === recommended && <Badge label={t("flows.onboarding.recommended")} tone="accent" />}
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text variant={sizeLabel ? "title3" : "footnote"} color={sizeLabel ? "primary" : "secondary"} numeric>
+                      {amount}
+                    </Text>
+                    {sizeLabel && (
+                      <Text variant="caption" color="secondary">
+                        {sizeLabel}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <Text variant="footnote" color="secondary">
+                  {t(`flows.onboarding.package.${p.id}.body`)}
+                </Text>
+                <Text variant="mono" color="secondary" numeric>
+                  {meta.join(" · ")}
+                </Text>
+                {warning && (
+                  <Text variant="footnote" color={p.shortfall > 0 || p.fit === "insufficient" ? "danger" : "warning"}>
+                    {warning}
+                  </Text>
+                )}
               </View>
-              <Text variant="callout" color="secondary">
-                {t(`flows.onboarding.package.${p.id}.body`)}
-              </Text>
-              {facts.map((f) => (
-                <Text key={f} variant="footnote" numeric>
-                  {f}
-                </Text>
-              ))}
-              {warning && (
-                <Text variant="footnote" color={p.shortfall > 0 || p.fit === "insufficient" ? "danger" : "warning"}>
-                  {warning}
-                </Text>
-              )}
             </Pressable>
           );
         })}
@@ -732,6 +820,24 @@ function statusLine(state: RowState, model: CatalogModel, t: ReturnType<typeof u
   }
 }
 
+/** The one-word status at the right of an install row; the full line is what a screen reader hears. */
+function shortStatus(state: RowState, model: CatalogModel, t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (state.kind) {
+    case "not-installed":
+      return t(canDownload(model) ? "flows.onboarding.queued" : "flows.onboarding.toImport");
+    case "downloading":
+      return `${Math.round(state.progress * 100)}%`;
+    case "verifying":
+      return t("flows.onboarding.checking");
+    case "failed":
+      return t("flows.onboarding.failedShort");
+    case "loading":
+      return t("flows.row.loading");
+    default:
+      return t("flows.onboarding.ready");
+  }
+}
+
 function InstallStep({
   titleRef,
   assets,
@@ -902,66 +1008,106 @@ function InstallStep({
       )}
 
       {!allPresent && (
-        <View style={{ gap: tokens.space.xs }}>
+        <Card style={{ gap: tokens.space.md }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: tokens.space.md }}>
+            <View style={{ flex: 1, gap: tokens.space.xxs }}>
+              <Text variant="label" color="field">
+                {t("flows.onboarding.totalLabel")}
+              </Text>
+              <Text variant="display" numeric>
+                {`${totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 100) : 0}%`}
+              </Text>
+            </View>
+            <Image
+              source={require("../../assets/boar.png")}
+              style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
+              accessible={false}
+            />
+          </View>
           <Progress
             label={t("flows.onboarding.totalLabel")}
             value={totalBytes > 0 ? doneBytes / totalBytes : 0}
             valueText={t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })}
           />
-          <Text variant="footnote" color="secondary" numeric>
+          <Text variant="mono" color="secondary" numeric>
             {t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })}
           </Text>
-        </View>
+        </Card>
       )}
 
-      <View style={{ gap: tokens.space.base }}>
-        {states.map(({ asset, state }) => (
-          <View key={asset.id} style={{ gap: tokens.space.xs }}>
+      <Card padding="none">
+        {[
+          ...states.map(({ asset, state }) => ({
+            key: asset.id,
+            icon: <PhaseIcon state={state} />,
+            title: `${t(`flows.row.kind.${asset.kind}`)} · ${asset.label}`,
+            status: shortStatus(state, asset, t),
+            spoken: statusLine(state, asset, t, lang),
+            tone: (state.kind === "failed" ? "danger" : state.kind === "downloading" || state.kind === "verifying" ? "accent" : "secondary") as TextColor,
+          })),
+          {
+            key: "index",
+            icon: (
+              <Icon
+                name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "circle"}
+                color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.secondary}
+              />
+            ),
+            title: t("flows.onboarding.indexRow"),
+            status:
+              indexPhase === "building" && seed
+                ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) +
+                  (seedEta != null ? ` · ${t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) })}` : "")
+                : indexPhase === "waiting"
+                  ? t("flows.onboarding.waitingDownloads")
+                  : indexPhase === "building"
+                    ? t("flows.onboarding.indexStarting")
+                    : indexPhase === "ready"
+                      ? t("flows.onboarding.ready")
+                      : t("flows.onboarding.indexFailed"),
+            spoken: undefined,
+            tone: (indexPhase === "error" ? "danger" : indexPhase === "building" ? "accent" : "secondary") as TextColor,
+          },
+        ].map((row, i, rows) => (
+          <View
+            key={row.key}
+            accessible
+            accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
+            style={{
+              gap: tokens.space.xs,
+              paddingHorizontal: tokens.space.base,
+              paddingVertical: tokens.space.md,
+              borderBottomWidth: i < rows.length - 1 ? tokens.size.hairline : 0,
+              borderBottomColor: tokens.color.line.hairline,
+            }}
+          >
             <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-              <PhaseIcon state={state} />
-              <Text variant="subhead" style={{ flex: 1 }}>
-                {t(`flows.row.kind.${asset.kind}`)} · {asset.label}
+              {row.icon}
+              <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
+                {row.title}
               </Text>
+              {row.key !== "index" && (
+                <Text variant="mono" color={row.tone} numeric>
+                  {row.status}
+                </Text>
+              )}
             </View>
-            <Text variant="footnote" color={state.kind === "failed" ? "danger" : "secondary"} numeric>
-              {statusLine(state, asset, t, lang)}
-            </Text>
-            {state.kind === "downloading" && (
+            {row.key === "index" && (
+              <Text variant="footnote" color={row.tone} numeric>
+                {row.status}
+              </Text>
+            )}
+            {row.key === "index" && indexPhase === "building" && seed && (
               <Progress
-                label={asset.label}
-                value={state.progress}
-                valueText={`${asset.label}, ${statusLine(state, asset, t, lang)}`}
+                label={t("flows.onboarding.indexRow")}
+                value={seed.done / seed.total}
+                valueText={t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
+                tone="field"
               />
             )}
           </View>
         ))}
-        <View style={{ gap: tokens.space.xs }}>
-          <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-            <Icon
-              name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "circle"}
-              color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.tertiary}
-            />
-            <Text variant="subhead" style={{ flex: 1 }}>
-              {t("flows.onboarding.indexRow")}
-            </Text>
-          </View>
-          <Text variant="footnote" color="secondary" numeric>
-            {indexPhase === "waiting"
-              ? t("flows.onboarding.waitingDownloads")
-              : indexPhase === "building" && seed
-                ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) +
-                  (seedEta != null ? ` · ${t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) })}` : "")
-                : indexPhase === "building"
-                  ? t("flows.onboarding.indexStarting")
-                  : indexPhase === "ready"
-                    ? t("flows.onboarding.ready")
-                    : t("flows.onboarding.indexFailed")}
-          </Text>
-          {indexPhase === "building" && seed && (
-            <Progress label={t("flows.onboarding.indexRow")} value={seed.done / seed.total} valueText={t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })} tone="field" />
-          )}
-        </View>
-      </View>
+      </Card>
 
       {failed.length > 0 && (
         <View
