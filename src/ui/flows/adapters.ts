@@ -7,8 +7,7 @@
  * - Places: POI_REGIONS and poiCatalogEntries (feat/knowledge,
  *   src/rag/poiRegions.ts). Interim: no regions, so the UI shows its empty
  *   state instead of made-up regions.
- * - Position: modules/offline-location ("offline-location") (feat/trust-offline, GPS only, no
- *   Google Play Services). Interim: unavailable.
+ * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
@@ -18,6 +17,7 @@ import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
 import type { PoiRegion } from "./poi";
 import type { NativePosition } from "../../services/location.pure";
+import * as OfflineLocation from "offline-location";
 
 /** Tusk's estimate against the RAM the OS says is available right now. */
 export function fitFor(model: CatalogModel): MemoryFit | undefined {
@@ -65,6 +65,7 @@ export interface DeviceLocationModule {
   getCurrentPosition(opts: { timeoutMs?: number; maxAgeMs?: number }): Promise<NativePosition>;
 }
 
+/** The GPS-only native module (modules/offline-location), or null in a build without it. */
 export function deviceLocation(): DeviceLocationModule | null {
-  return null;
+  return OfflineLocation.isOfflineLocationSupported() ? OfflineLocation : null;
 }

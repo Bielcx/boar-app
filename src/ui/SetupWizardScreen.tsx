@@ -707,7 +707,7 @@ function InstallStep({
 
       {offline && !allPresent && (
         <View style={{ gap: tokens.space.sm }}>
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} />
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
           <Text variant="footnote" color="secondary" selectable>
             {t("flows.onboarding.importHow")}
           </Text>

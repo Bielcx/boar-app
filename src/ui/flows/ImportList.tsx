@@ -9,6 +9,8 @@ import type { FileImport } from "./useCatalog";
 interface Props {
   imports: FileImport[];
   onPick: () => void;
+  /** Stops the import in progress. */
+  onCancel?: () => void;
   /** Label of the pick button; "Choose files" by default. */
   pickLabel?: string;
 }
@@ -18,7 +20,7 @@ interface Props {
  * verified as a catalog item, or why it was refused. Refusals stay on
  * screen with the file name until the next pick (Prism F8).
  */
-export function ImportList({ imports, onPick, pickLabel }: Props) {
+export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
   const { t } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
@@ -104,6 +106,14 @@ export function ImportList({ imports, onPick, pickLabel }: Props) {
           </View>
         );
       })}
+      {busy && onCancel && (
+        <Button
+          variant="outline"
+          label={t("common.cancel")}
+          accessibilityLabel={t("flows.import.cancelA11y", { name: imports.find((f) => f.status === "importing")?.name ?? "" })}
+          onPress={onCancel}
+        />
+      )}
       <Button ref={pickRef} label={pickLabel ?? t("flows.import.pick")} icon="file-plus" variant="secondary" onPress={onPick} loading={busy} />
     </View>
   );
