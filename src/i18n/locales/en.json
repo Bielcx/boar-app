@@ -800,8 +800,7 @@
       "q1": "Why do we have seasons on Earth?",
       "q2": "What is the difference between a pandemic and an epidemic?",
       "q3": "What is 30 °C in Fahrenheit?",
-      "q4": "How do I stop a nosebleed?",
-      "available": "q1,q2,q3,q4"
+      "q4": "How do I stop a nosebleed?"
     },
     "header": {
       "menu": "Open menu",
@@ -856,27 +855,32 @@
         "vegan": {
           "only": "Vegan",
           "yes": "Vegan options",
-          "limited": "Some vegan options"
+          "limited": "Some vegan options",
+          "tagged": "Tagged vegan"
         },
         "vegetarian": {
           "only": "Vegetarian",
           "yes": "Vegetarian options",
-          "limited": "Some vegetarian options"
+          "limited": "Some vegetarian options",
+          "tagged": "Tagged vegetarian"
         },
         "gluten_free": {
           "only": "Gluten-free",
           "yes": "Gluten-free options",
-          "limited": "Some gluten-free options"
+          "limited": "Some gluten-free options",
+          "tagged": "Tagged gluten-free"
         },
         "halal": {
           "only": "Halal",
           "yes": "Halal options",
-          "limited": "Some halal options"
+          "limited": "Some halal options",
+          "tagged": "Tagged halal"
         },
         "kosher": {
           "only": "Kosher",
           "yes": "Kosher options",
-          "limited": "Some kosher options"
+          "limited": "Some kosher options",
+          "tagged": "Tagged kosher"
         }
       },
       "open": "Open",
@@ -922,7 +926,8 @@
       "noneNear": "No places in the offline map near you",
       "noneNearFiltered": "No {{filter}} places in the offline map near you",
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
-      "searchHint": "Type a city first"
+      "searchHint": "Type a city first",
+      "dietToVerify": "OSM diet tag to double-check"
     },
     "assistantName": "boar"
   },

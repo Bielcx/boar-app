@@ -64,6 +64,7 @@ import { ChatEmptyState, SourceSheet, UserMessage } from "./chat/ChatPieces";
 import { Composer } from "./chat/Composer";
 import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
+import { suggestionsFor } from "./chat/suggestions";
 
 const VERBATIM_MESSAGE_COUNT = 6;
 
@@ -712,7 +713,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           ListEmptyComponent={
             ready ? (
               <ChatEmptyState
-                showSuggestions={showSuggestions}
+                suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language) : []}
                 onAsk={ask}
                 onFill={(q) => {
                   setInput(q);

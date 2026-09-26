@@ -5,7 +5,6 @@ import {
   itemsFromRecords,
   RESUME_WINDOW_MS,
   sessionToResume,
-  suggestionKeys,
   updateAnswer,
   type ChatItem,
 } from "./chatItems";
@@ -74,11 +73,3 @@ describe("sessionToResume", () => {
   });
 });
 
-describe("suggestionKeys", () => {
-  it("reads the per-language list and ignores anything else", () => {
-    expect(suggestionKeys("q1, q2,q3,q4")).toEqual(["q1", "q2", "q3", "q4"]);
-    expect(suggestionKeys("q3")).toEqual(["q3"]);
-    // A missing key comes back from i18next as the key itself: show nothing.
-    expect(suggestionKeys("chat.suggestions.available")).toEqual([]);
-  });
-});

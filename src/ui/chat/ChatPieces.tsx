@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
-import { suggestionKeys } from "./chatItems";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
@@ -90,11 +89,12 @@ export const UserMessage = memo(function UserMessage({
 
 /** A new chat: what the app does, and questions to start with (tap sends; long-press or the screen reader action fills the composer). */
 export function ChatEmptyState({
-  showSuggestions,
+  suggestions,
   onAsk,
   onFill,
 }: {
-  showSuggestions: boolean;
+  /** Keys (q1, q2…) validated for the active model and language; see suggestions.ts. */
+  suggestions: string[];
   onAsk: (question: string) => void;
   onFill: (question: string) => void;
 }) {
@@ -116,12 +116,12 @@ export function ChatEmptyState({
           {tr("chat.empty.body")}
         </Text>
       </View>
-      {showSuggestions && (
+      {suggestions.length > 0 && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>
             {tr("chat.empty.suggestionsLabel")}
           </Text>
-          {suggestionKeys(tr("chat.suggestions.available")).map((k) => {
+          {suggestions.map((k) => {
             const q = tr(`chat.suggestions.${k}`);
             return (
               <Card
