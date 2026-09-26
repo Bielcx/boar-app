@@ -100,14 +100,19 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
  * source has anything relevant, this returns [] — never a forced top-K of
  * whatever happened to be least-irrelevant.
  */
-export async function retrieve(query: string, topK = 6): Promise<RetrievedChunk[]> {
-  const queryVec = await embeddingEngine.embed(query);
+export async function retrieve(
+  query: string,
+  topK = 6,
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean } = {}
+): Promise<RetrievedChunk[]> {
+  const { includeWikiPacks = true } = opts;
+  const queryVec = opts.queryVec ?? (await embeddingEngine.embed(query));
   const [lexical, semantic, packs, wiki] = await Promise.all([
     lexicalSearch(query, topK * 2),
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
-    searchWikiPacks(query, { k: topK }).catch(() => []),
+    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec }).catch(() => []) : Promise.resolve([]),
   ]);
 
   // Large-pack passages from articles the question names come first, in the

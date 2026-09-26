@@ -8,6 +8,7 @@ import { applyCharBudget, leadParagraph, selectSentences, type WeightedTerm } fr
 import type { Passage, PassageOptions, PassageRetrieval } from "./passages.types";
 import { articleUrl, searchWikiPacks } from "./packs";
 import { retrieve } from "./retrieve";
+import { embeddingEngine } from "./embed";
 import { LONG_TAIL_VIEWS, prefixOf, type Stem } from "./wikiPack";
 
 export type { Passage, PassageOptions, PassageRetrieval } from "./passages.types";
@@ -25,9 +26,10 @@ const NAMED_BONUS = 0.2;
 export async function retrievePassages(query: string, opts: PassageOptions = {}): Promise<PassageRetrieval> {
   const { k = 6, charBudget = 4800, maxSentencesPerPassage = 3, titles, expand } = opts;
   const t0 = Date.now();
+  const queryVec = await embeddingEngine.embed(query).catch(() => undefined);
   const [wiki, base] = await Promise.all([
-    searchWikiPacks(query, { k, titles, expand }).catch(() => []),
-    retrieve(query, k).catch(() => []),
+    searchWikiPacks(query, { k, titles, expand, queryVec }).catch(() => []),
+    retrieve(query, k, { queryVec, includeWikiPacks: false }).catch(() => []),
   ]);
   const t1 = Date.now();
 
@@ -49,7 +51,7 @@ export async function retrievePassages(query: string, opts: PassageOptions = {})
       });
     }
   }
-  // Built-in corpus, user documents and format-1 packs (their large-pack hits are already above).
+  // Built-in corpus, user documents and format-1 packs.
   const baseTerms = lexicalTerms(query);
   for (const c of base) {
     if (passages.some((p) => p.id === c.chunkId)) continue;
