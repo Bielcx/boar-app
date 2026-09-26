@@ -465,7 +465,8 @@
       "sourceFooter": "Code, model list and build scripts are public.",
       "copy": "Copy link",
       "copyHint": "Copies the repository address",
-      "copied": "Link copied"
+      "copied": "Link copied",
+      "fontsTitle": "Fonts"
     },
     "onboarding": {
       "tagline": "AI research that runs entirely on your phone, without internet.",

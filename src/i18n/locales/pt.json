@@ -465,7 +465,8 @@
       "sourceFooter": "Código, lista de modelos e scripts de build são públicos.",
       "copy": "Copiar link",
       "copyHint": "Copia o endereço do repositório",
-      "copied": "Link copiado"
+      "copied": "Link copiado",
+      "fontsTitle": "Fontes tipográficas"
     },
     "onboarding": {
       "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",
