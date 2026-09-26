@@ -10,7 +10,7 @@ import { Badge, Button, EmptyState, Icon, IconName, ListRow, Progress, Screen, S
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
-import { LanguageId } from "../models/settings";
+import { getSetupProgress, LanguageId, setSetupProgress } from "../models/settings";
 import { CatalogModel, MODEL_CATALOG, TIERS } from "../models/manifest";
 import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
@@ -58,6 +58,24 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const [packageId, setPackageId] = useState<PackageId>("essential");
   const [backOpen, setBackOpen] = useState(false);
   const [travel, setTravel] = useState<PoiRegion | null>(null);
+  const [restored, setRestored] = useState(false);
+
+  // Resume where setup was: a font-size change recreates the Android Activity,
+  // and the process can be killed during a long download.
+  useEffect(() => {
+    getSetupProgress().then((p) => {
+      if (p) {
+        if (PACKAGES.some((x) => x.id === p.packageId)) setPackageId(p.packageId as PackageId);
+        const region = p.travelRegionId ? poiRegions().find((r) => r.id === p.travelRegionId) : undefined;
+        if (region) setTravel(region);
+        setStep(p.step);
+      }
+      setRestored(true);
+    });
+  }, []);
+  useEffect(() => {
+    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id });
+  }, [restored, step, packageId, travel]);
   const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
@@ -89,7 +107,20 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
     return () => sub.remove();
   }, [goBack]);
 
+  // Restored into step 3 (process killed mid-download): start what is still missing, once.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!restored || resumed.current || step !== 3 || !catalog.loaded || !networkAllowed()) return;
+    resumed.current = true;
+    for (const a of assets) {
+      const kind = catalog.view(a).state.kind;
+      if (!present[a.id] && kind !== "downloading" && kind !== "verifying") catalog.download(a);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, step, catalog.loaded]);
+
   const startInstall = () => {
+    resumed.current = true;
     impact(ImpactFeedbackStyle.Medium);
     setStep(3);
     // The offline build has no network: step 3 imports files instead.
@@ -124,7 +155,10 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           lang={lang}
           onBack={() => setBackOpen(true)}
           onChoosePackage={() => setStep(2)}
-          onReady={onReady}
+          onReady={() => {
+            setSetupProgress(null);
+            onReady();
+          }}
         />
       )}
       <Sheet
@@ -707,7 +741,7 @@ function InstallStep({
 
       {offline && !allPresent && (
         <View style={{ gap: tokens.space.sm }}>
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} />
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
           <Text variant="footnote" color="secondary" selectable>
             {t("flows.onboarding.importHow")}
           </Text>

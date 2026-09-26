@@ -619,7 +619,8 @@
       "checking": "Checking {{name}}",
       "checkingValue": "Checking, {{pct}}%",
       "verified": "Verified: {{item}}",
-      "checkingAnnounce": "{{name}}: {{pct}}% checked"
+      "checkingAnnounce": "{{name}}: {{pct}}% checked",
+      "cancelA11y": "Cancel importing {{name}}"
     }
   },
   "chat": {

@@ -100,7 +100,7 @@ export function ModelsScreen() {
       {(offline || catalog.imports.length > 0) && (
         <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
           <View style={{ padding: 16 }}>
-            <ImportList imports={catalog.imports} onPick={catalog.importFiles} />
+            <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
           </View>
         </Section>
       )}

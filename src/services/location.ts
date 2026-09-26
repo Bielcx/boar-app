@@ -1,12 +1,13 @@
 /**
  * The phone's position for offline places, on top of Ledger's
- * modules/offline-location ("offline-location") (GPS only, no Google Play Services). Never asks
+ * modules/offline-location (GPS only, no Google Play Services). Never asks
  * for permission itself: callers check the status and ask in context.
  * The routing layer (Tusk) receives getCurrentPoint through
  * registerGeoProviders, so this file is the one place that talks to the
  * native module.
  */
 import { deviceLocation } from "../ui/flows/adapters";
+import { requestLocationForQuestion } from "../location/locationPolicy";
 
 export type { PermissionStatus, PointResult, NativePosition } from "./location.pure";
 import { isFresh, permissionBlock, PermissionStatus, PointResult, toError, toPoint } from "./location.pure";
@@ -57,21 +58,14 @@ export async function getCurrentPoint({ timeoutMs = 10_000, maxAgeMs = 10 * 60_0
 }
 
 /**
- * For an explicit "use my location" tap: shows `explain` only while the
- * permission is undetermined, then the system dialog, then reads a fix.
- * After a "no" it does not ask again. Backed by Ledger's
- * requestLocationForQuestion once feat/trust-offline is integrated.
+ * For an explicit "use my location" tap: Ledger's policy shows `explain`
+ * only while the permission is undetermined, then the system dialog, and
+ * never asks again after a "no".
  */
 export async function locateForUser(explain: () => Promise<boolean>): Promise<LocationRequest> {
   const native = deviceLocation();
   if (!native) return { status: "unavailable" };
-  const status = await getLocationPermission();
-  if (status === "denied") return { status: "declined" };
-  if (status === "undetermined") {
-    if (!(await explain())) return { status: "declined" };
-    if ((await requestLocationPermission()) !== "granted") return { status: "declined" };
-  }
-  const point = await getCurrentPoint();
-  if ("error" in point) return point.error === "denied" ? { status: "declined" } : { status: "unavailable" };
-  return { status: "ok", lat: point.lat, lon: point.lon };
+  const outcome = await requestLocationForQuestion(native, explain);
+  if (outcome.status === "ok") return { status: "ok", lat: outcome.position.latitude, lon: outcome.position.longitude };
+  return { status: outcome.status };
 }

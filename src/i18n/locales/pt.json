@@ -619,7 +619,8 @@
       "checking": "Conferindo {{name}}",
       "checkingValue": "Conferindo, {{pct}}%",
       "verified": "Verificado: {{item}}",
-      "checkingAnnounce": "{{name}}: {{pct}}% conferido"
+      "checkingAnnounce": "{{name}}: {{pct}}% conferido",
+      "cancelA11y": "Cancelar a importação de {{name}}"
     }
   },
   "chat": {

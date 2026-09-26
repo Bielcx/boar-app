@@ -11,6 +11,7 @@ export type LanguageId = "en" | "pt";
 
 interface Settings {
   activeModelId: Partial<Record<AssetKind, string>>;
+  setupProgress?: SetupProgress;
   hidePromptIdeas?: boolean;
   personalityId?: PersonalityId;
   customSystemPrompt?: string;
@@ -353,5 +354,24 @@ export async function setAnswerSettings(patch: Partial<AnswerSettings>): Promise
   if (patch.quickFirst !== undefined) s.answerQuickFirst = patch.quickFirst;
   if (patch.alwaysComplete !== undefined) s.answerAlwaysComplete = patch.alwaysComplete;
   if ("deepModelId" in patch) s.deepModelId = patch.deepModelId;
+  await writeSettings(s);
+}
+
+/** Where first-run setup was, so a recreated Activity (font size change) or a killed process resumes there. */
+export interface SetupProgress {
+  step: 1 | 2 | 3;
+  packageId: string;
+  travelRegionId?: string;
+}
+
+export async function getSetupProgress(): Promise<SetupProgress | null> {
+  const s = await readSettings();
+  return s.setupProgress ?? null;
+}
+
+export async function setSetupProgress(progress: SetupProgress | null): Promise<void> {
+  const s = await readSettings();
+  if (progress) s.setupProgress = progress;
+  else delete s.setupProgress;
   await writeSettings(s);
 }

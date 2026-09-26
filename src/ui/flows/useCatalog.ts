@@ -3,7 +3,7 @@
  * what is downloading, which model fills which role, and the device limits.
  * Each screen renders rows from this instead of keeping its own copy.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import { getDeviceTotalRamBytes } from "ram-monitor";
 import { AssetStatus, ModelManager } from "../../models/ModelManager";
@@ -12,7 +12,7 @@ import { getActiveModelId, setActiveModelId } from "../../models/settings";
 import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discoveredModels";
 import { getDownloadState, importAssetFile, startDownload, subscribeDownloads } from "../../services/downloadManager";
 import * as DocumentPicker from "expo-document-picker";
-import { AssetIntegrityError, IntegrityErrorKind } from "../../models/integrity";
+import { AssetIntegrityError, IntegrityErrorKind, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { fitFor, poiCatalogEntry, poiRegions, removePackIndex } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
@@ -52,6 +52,8 @@ export interface CatalogState {
   imports: FileImport[];
   /** Opens the system file picker and imports each chosen file. A cancelled picker does nothing. */
   importFiles: () => Promise<void>;
+  /** Stops the import in progress; the cancelled file leaves the list without an error. */
+  cancelImports: () => void;
 }
 
 function defaultId(kind: "llm" | "embedding"): string | undefined {
@@ -163,6 +165,8 @@ export function useCatalog(): CatalogState {
   );
 
   const [imports, setImports] = useState<FileImport[]>([]);
+  const importAbort = useRef<AbortController | null>(null);
+  const cancelImports = useCallback(() => importAbort.current?.abort(), []);
   const importFiles = useCallback(async () => {
     const picked = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: false, type: "*/*" });
     if (picked.canceled || picked.assets.length === 0) return;
@@ -173,12 +177,27 @@ export function useCatalog(): CatalogState {
       ...prev.filter((f) => !files.some((p) => p.name === f.name)),
       ...files.map((f) => ({ name: f.name, status: "importing" as const, progress: 0 })),
     ]);
+    const controller = new AbortController();
+    importAbort.current = controller;
     // One at a time: each file is hashed in full.
     for (const file of files) {
+      if (controller.signal.aborted) {
+        setImports((prev) => prev.filter((f) => f.name !== file.name));
+        continue;
+      }
       try {
-        const asset = await importAssetFile(file.uri, (done, total) => patch(file.name, { progress: total > 0 ? done / total : 0 }));
+        const asset = await importAssetFile(
+          file.uri,
+          (done, total) => patch(file.name, { progress: total > 0 ? done / total : 0 }),
+          controller.signal
+        );
         patch(file.name, { status: "verified", progress: 1, assetId: asset.id });
       } catch (e: any) {
+        // Cancelled by the user: the file just leaves the list.
+        if (isAbortError(e)) {
+          setImports((prev) => prev.filter((f) => f.name !== file.name));
+          continue;
+        }
         patch(file.name, {
           status: "failed",
           errorKind: e instanceof AssetIntegrityError ? e.kind : "unknown",
@@ -186,6 +205,7 @@ export function useCatalog(): CatalogState {
         });
       }
     }
+    importAbort.current = null;
     await refresh();
   }, [refresh]);
 
@@ -210,5 +230,6 @@ export function useCatalog(): CatalogState {
     use,
     imports,
     importFiles,
+    cancelImports,
   };
 }
