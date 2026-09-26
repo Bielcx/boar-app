@@ -61,6 +61,7 @@ import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFor
 import { AssistantMessage } from "./chat/AssistantMessage";
 import { ChatEmptyState, ChatModelError, ChatModelLoading, SourceSheet, UserMessage } from "./chat/ChatPieces";
 import { Composer } from "./chat/Composer";
+import { modelStatus } from "./chat/composerState";
 import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
@@ -760,7 +761,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           onChange={setInput}
           onSend={() => ask(input)}
           onStop={stopActive}
-          ready={ready}
+          status={modelStatus(ready, loadError)}
           generating={generating}
           stopping={stopping}
           voiceEnabled={voiceInputEnabled}

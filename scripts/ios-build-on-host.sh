@@ -15,7 +15,8 @@
 #   IOS_SIM_DEVICE     simulator UDID for sim-run (default: an available iPhone 17 Pro, else any iPhone)
 #   IOS_MODELS_DIR     models for sim-run (default ~/boar/shared-models, else /Users/r4to/Script/boar/shared-models)
 #   IOS_OUT_DIR        copy the built BOAR.app to $IOS_OUT_DIR/<sdk>/ and delete ios/build
-#                      entirely (disk rule on the main Mac); unset = keep ios/build/Build/Products
+#                      except the pod-install codegen in ios/build/generated (disk rule on the
+#                      main Mac); unset = keep ios/build/Build/Products
 #   IOS_TEAM           Apple team id for device builds (required; never committed)
 #   IOS_DEVICE         device id for device-run (CoreDevice id or UDID, `xcrun devicectl list devices`)
 #   IOS_NO_QUEUE       1 = do not go through ~/boar/bin/heavy (on a Mac without the queue
@@ -69,14 +70,23 @@ case "$MODE" in
     DEV="${IOS_SIM_DEVICE:-}"
     if [[ -z "$DEV" ]]; then
       DEV=$(xcrun simctl list devices available | grep -E 'iPhone 17 Pro \(' | head -1 | grep -oE '[0-9A-F-]{36}' || true)
-      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}')
+      [[ -n "$DEV" ]] || DEV=$(xcrun simctl list devices available | grep iPhone | head -1 | grep -oE '[0-9A-F-]{36}' || true)
     fi
-    DEST="platform=iOS Simulator,id=$DEV"
+    if [[ -n "$DEV" ]]; then
+      DEST_ARGS=(-destination "platform=iOS Simulator,id=$DEV")
+    elif [[ "$MODE" == "sim" ]]; then
+      # A build host without any simulator runtime (the mini) still has the
+      # simulator SDK; the .app then runs on another Mac's runtime.
+      log "no simulator available: building with -sdk only"
+      DEST_ARGS=()
+    else
+      echo "sim-run needs an available simulator" >&2; exit 2
+    fi
     SIGN_ARGS=(ARCHS=arm64 ONLY_ACTIVE_ARCH=YES)
     ;;
   device|device-run)
     : "${IOS_TEAM:?set IOS_TEAM to the Apple team id (Xcode > Settings > Accounts)}"
-    SDK=iphoneos; DEST="generic/platform=iOS"
+    SDK=iphoneos; DEST_ARGS=(-destination "generic/platform=iOS")
     SIGN_ARGS=(-allowProvisioningUpdates DEVELOPMENT_TEAM="$IOS_TEAM" CODE_SIGN_STYLE=Automatic)
     ENT=ios/BOAR/BOAR.entitlements
     IFS=',' read -ra STRIP <<< "${IOS_STRIP_ENTITLEMENTS:-}"
@@ -91,7 +101,7 @@ esac
 
 log "xcodebuild $CONFIG $SDK"
 heavy xcodebuild -workspace ios/BOAR.xcworkspace -scheme BOAR -configuration "$CONFIG" \
-  -sdk "$SDK" -destination "$DEST" -derivedDataPath ios/build "${SIGN_ARGS[@]}" \
+  -sdk "$SDK" ${DEST_ARGS[@]+"${DEST_ARGS[@]}"} -derivedDataPath ios/build "${SIGN_ARGS[@]}" \
   > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -40; exit 65; }
 APP="$ROOT/ios/build/Build/Products/$CONFIG-$SDK/BOAR.app"
 log "built $APP ($(du -sh "$APP" | cut -f1))"
@@ -101,8 +111,10 @@ if [[ -n "${IOS_OUT_DIR:-}" ]]; then
   rm -rf "$IOS_OUT_DIR/$SDK/BOAR.app"
   cp -R "$APP" "$IOS_OUT_DIR/$SDK/"
   APP="$IOS_OUT_DIR/$SDK/BOAR.app"
-  rm -rf ios/build
-  log "kept only $APP"
+  # ios/build/generated holds the codegen written by pod install; keep it so
+  # an IOS_SKIP_DEPS=1 rebuild still finds it.
+  find ios/build -mindepth 1 -maxdepth 1 ! -name generated -exec rm -rf {} +
+  log "kept only $APP (+ ios/build/generated)"
 else
   # Keep the product, drop the heavy intermediates.
   rm -rf ios/build/Build/Intermediates.noindex ios/build/Index.noindex

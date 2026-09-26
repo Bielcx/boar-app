@@ -50,6 +50,8 @@ Run steps 4 and 5 once per model (switch in Settings), same two questions, and f
 | Qwen2.5-1.5B Q4_K_M (0.94 GB) | | | | | | |
 | Qwen3-4B-Instruct-2507 Q4_K_M (2.5 GB) | | | | | | |
 
+On this phone the rule already picks Compact (≤ 4.5 GB → 1.5B, n_ctx 2048 via `contextSizeForRam` in `src/inference/memoryFit.ts`), and the header-based fit predicts thrashing for the 4B (~0.7 GB buffers + 2.3 GB weights vs ~2 GB available). Select the 4B by hand in Settings and accept the warning; the point of the run is to confirm or refute that prediction.
+
 Also record `getDeviceTotalRamBytes()` on this phone (expected ~3.7–4 GB, below the 4.5 GB threshold, so the rule picks Compact today).
 
 ## Memory to record

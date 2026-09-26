@@ -695,7 +695,8 @@
       "send": "Enviar",
       "stop": "Parar resposta",
       "stopping": "Parando",
-      "notReady": "Carregando o modelo… você já pode digitar"
+      "notReady": "Carregando o modelo… você já pode digitar",
+      "modelError": "O modelo não carregou. Resolva acima para enviar."
     },
     "stage": {
       "searching": "Buscando nas fontes…",

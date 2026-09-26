@@ -33,12 +33,13 @@ Each pack keeps the license of its sources. Share-alike packs stay share-alike; 
 | `places/tiles/…` | The same places for the whole world as 1°×1° tiles (coming) | as above | as above |
 | `topics/boar-preparedness.sqlite` | Emergency and preparedness: first aid, survival, disasters, water, food preservation, self-sufficiency | Wikipedia, Wikibooks (First Aid, Outdoor Survival), Wikivoyage, [Appropedia](https://www.appropedia.org); Ready.gov and the US National Park Service; US Army FM 21-76 *Survival* (1992) | CC BY-SA 4.0 (wiki sources); public domain (US government works, 17 U.S.C. §105) |
 | `topics/boar-preparedness.manifest.json` | Every document in the preparedness pack with its source URL and license | — | — |
+| `topics/boar-crypto.sqlite` | Ethereum and cryptography: 3,141 documents | 591 EIPs and 617 ERCs ([ethereum/EIPs](https://github.com/ethereum/EIPs), [ethereum/ERCs](https://github.com/ethereum/ERCs)); 129 pages of the consensus specs, execution specs, execution APIs and Portal Network specs; the Ethereum Yellow Paper (27 sections); 228 [ethereum.org](https://ethereum.org) pages; 180 [Bitcoin BIPs](https://github.com/bitcoin/bips) whose header names a permissive license (BSD, MIT, CC0, public domain, CC BY; 33 without one left out); 1,369 Wikipedia articles from the cryptography, post-quantum, zero-knowledge, blockchain, Ethereum, cryptocurrency, smart contract and DeFi categories, relevance-filtered | CC0 1.0 (EIPs, ERCs, specs); CC BY-SA 4.0 (Yellow Paper, Wikipedia); MIT (ethereum.org); each BIP's own license. Per document in the pack. |
+| `topics/boar-crypto.manifest.json` | Every document in the crypto pack with its source URL and license | — | — |
 
 Coming next (listed here when uploaded):
 
 | Path | What | Sources | License |
 |---|---|---|---|
-| `topics/boar-crypto.sqlite` | Ethereum and cryptography | Ethereum EIPs and ERCs, consensus/execution specs (CC0 1.0); Ethereum Yellow Paper (CC BY-SA 4.0); ethereum.org content (MIT); Bitcoin BIPs whose header names a permissive license; Wikipedia cryptography and blockchain categories (CC BY-SA 4.0) | per document, recorded in the pack |
 | `wiki/en/boar-wiki-en-NN.sqlite` | English Wikipedia, sharded, plus Wikivoyage | Wikipedia via [HuggingFaceFW/finewiki](https://huggingface.co/datasets/HuggingFaceFW/finewiki); Wikivoyage dump | CC BY-SA 4.0 |
 
 ### Which cities have a places pack
