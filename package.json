@@ -21,6 +21,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
+    "fzstd": "^0.1.1",
     "i18next": "^26.4.2",
     "llama.rn": "^0.13.0-rc.4",
     "ram-monitor": "file:./modules/ram-monitor",
@@ -32,6 +33,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "hyparquet": "^1.31.1",
+    "hyparquet-compressors": "^1.1.2",
     "node-llama-cpp": "^3.21.1",
     "typescript": "~6.0.3",
     "vitest": "^5.0.1"
