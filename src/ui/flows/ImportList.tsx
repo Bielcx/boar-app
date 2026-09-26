@@ -1,7 +1,7 @@
-import React from "react";
-import { View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { AccessibilityInfo, findNodeHandle, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Button, Icon, Progress, Text } from "../components";
+import { Button, Icon, Progress, Text, useAnnounce } from "../components";
 import { useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import type { FileImport } from "./useCatalog";
@@ -21,7 +21,39 @@ interface Props {
 export function ImportList({ imports, onPick, pickLabel }: Props) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const announce = useAnnounce();
+  const pickRef = useRef<View>(null);
   const busy = imports.some((f) => f.status === "importing");
+
+  // Same contract as downloads (Prism F4/F5): polite on start, every quarter
+  // and when verified; assertive on a refusal, with focus on the pick button.
+  const spoken = useRef<Record<string, string>>({});
+  useEffect(() => {
+    let refused = false;
+    for (const f of imports) {
+      const key = f.status === "importing" ? `q${Math.floor(f.progress * 4)}` : f.status;
+      if (spoken.current[f.name] === key) continue;
+      spoken.current[f.name] = key;
+      if (f.status === "importing") {
+        const pct = Math.floor(f.progress * 4) * 25;
+        announce(pct === 0 ? t("flows.import.checking", { name: f.name }) : t("flows.import.checkingAnnounce", { name: f.name, pct }));
+      } else if (f.status === "verified") {
+        const asset = f.assetId ? MODEL_CATALOG.find((m) => m.id === f.assetId) : undefined;
+        announce(t("flows.import.verified", { item: asset?.label ?? f.assetId ?? f.name }));
+      } else {
+        announce(`${f.name}: ${t(`flows.row.error.${f.errorKind ?? "unknown"}`)}`, { assertive: true });
+        refused = true;
+      }
+    }
+    if (refused) {
+      setTimeout(() => {
+        const node = pickRef.current && findNodeHandle(pickRef.current);
+        if (node) AccessibilityInfo.setAccessibilityFocus(node);
+      }, 300);
+    }
+    // Forget files that left the list, so a re-pick announces again.
+    for (const name of Object.keys(spoken.current)) if (!imports.some((f) => f.name === name)) delete spoken.current[name];
+  }, [imports, announce, t]);
   return (
     <View style={{ gap: tokens.space.md }}>
       {imports.map((f) => {
@@ -72,7 +104,7 @@ export function ImportList({ imports, onPick, pickLabel }: Props) {
           </View>
         );
       })}
-      <Button label={pickLabel ?? t("flows.import.pick")} icon="file-plus" variant="secondary" onPress={onPick} loading={busy} />
+      <Button ref={pickRef} label={pickLabel ?? t("flows.import.pick")} icon="file-plus" variant="secondary" onPress={onPick} loading={busy} />
     </View>
   );
 }

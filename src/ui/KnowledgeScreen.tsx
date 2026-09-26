@@ -51,6 +51,7 @@ export function KnowledgeScreen() {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [indexStatus, setIndexStatus] = useState<Record<string, CollectionIndexStatus>>(getCollectionIndexStatus);
   const abortRef = useRef<AbortController | null>(null);
+  const [importingName, setImportingName] = useState("");
 
   const load = useCallback(async () => {
     await refresh();
@@ -98,6 +99,7 @@ export function KnowledgeScreen() {
     const collectionName = name.trim() || files[0].name;
     setPicked(null);
     setImporting({ stage: "reading" });
+    setImportingName(collectionName);
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -271,7 +273,13 @@ export function KnowledgeScreen() {
         <View style={{ gap: tokens.space.xs }}>
           <Text variant="subhead">{t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })}</Text>
           <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
-          <Button size="sm" variant="secondary" label={t("common.cancel")} onPress={() => abortRef.current?.abort()} />
+          <Button
+            size="sm"
+            variant="secondary"
+            label={t("common.cancel")}
+            accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
+            onPress={() => abortRef.current?.abort()}
+          />
         </View>
       )}
 
