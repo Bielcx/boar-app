@@ -270,7 +270,7 @@ function PackageStep({
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
     const plan = planPackage([...packageAssets(tier, MODEL_CATALOG), ...(travel ? [poiCatalogEntry(travel)] : [])], present);
-    const fit = plan.largestLlm ? fitFor(plan.largestLlm, deviceRamBytes) : undefined;
+    const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
     return { ...p, plan, fit, shortfall, seconds };

@@ -13,6 +13,7 @@ import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discov
 import { getDownloadState, startDownload, subscribeDownloads } from "../../services/downloadManager";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { fitFor, poiCatalogEntry, poiRegions, removePackIndex } from "./adapters";
+import type { MemoryFit } from "../../inference/memoryFit";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
 
 export const modelManager = new ModelManager();
@@ -30,6 +31,7 @@ export interface CatalogState {
   loadingId: string | null;
   loadErrors: Record<string, string>;
   view: (model: CatalogModel) => RowView;
+  fit: (model: CatalogModel) => MemoryFit | undefined;
   refresh: () => Promise<void>;
   download: (model: CatalogModel) => Promise<void>;
   remove: (model: CatalogModel) => Promise<void>;
@@ -92,7 +94,7 @@ export function useCatalog(): CatalogState {
         roles: model.kind === "corpus" ? [] : roles,
         loading: loadingId === model.id,
         loadError: loadErrors[model.id] ?? null,
-        fit: fitFor(model, deviceRamBytes),
+        fit: fitFor(model)?.verdict,
       });
     },
     // getDownloadState reads module state; the tick re-renders on each change.
@@ -158,6 +160,7 @@ export function useCatalog(): CatalogState {
     loadingId,
     loadErrors,
     view,
+    fit: fitFor,
     refresh,
     download,
     remove,

@@ -8,6 +8,7 @@ import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
 import { formatBytes } from "./format";
 import type { RowState, RowView } from "./modelRowState";
+import type { MemoryFit } from "../../inference/memoryFit";
 
 interface Props {
   model: CatalogModel;
@@ -23,6 +24,8 @@ interface Props {
   meta?: string;
   /** Extra lines under the meta line (e.g. cities covered). */
   details?: string[];
+  /** Memory estimate, for the numbers in the "won't fit" explanation. */
+  fit?: MemoryFit;
 }
 
 function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | null {
@@ -46,7 +49,7 @@ function badge(state: RowState, t: TFunction): { label: string; tone: Tone } | n
   }
 }
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -167,7 +170,17 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             />
           </>
         }
-      />
+      >
+        {fit && (
+          <Text variant="callout" numeric>
+            {t("flows.row.fitDetail", {
+              need: formatBytes(fit.anonBytes, i18n.language),
+              free: formatBytes(fit.availableBytes, i18n.language),
+              total: formatBytes(fit.totalBytes, i18n.language),
+            })}
+          </Text>
+        )}
+      </Sheet>
 
       <Sheet
         visible={confirmOpen}

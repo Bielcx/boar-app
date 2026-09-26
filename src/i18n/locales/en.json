@@ -361,7 +361,8 @@
       "removeBody": "Frees {{size}} on this phone. You can download it again later.",
       "removed": "{{name}} removed",
       "wontFitTitle": "{{name}} won't fit on this phone",
-      "downloadAnyway": "Download anyway ({{size}})"
+      "downloadAnyway": "Download anyway ({{size}})",
+      "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate."
     },
     "models": {
       "storage": "BOAR uses {{used}} · {{free}} free on this phone",

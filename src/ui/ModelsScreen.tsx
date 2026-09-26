@@ -70,6 +70,7 @@ export function ModelsScreen() {
         <CatalogRow
           model={m}
           view={catalog.view(m)}
+          fit={catalog.fit(m)}
           busy={catalog.loadingId !== null}
           onDownload={() => catalog.download(m)}
           onUse={() => use(m)}

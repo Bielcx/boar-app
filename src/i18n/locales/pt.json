@@ -361,7 +361,8 @@
       "removeBody": "Libera {{size}} neste celular. Dá para baixar de novo depois.",
       "removed": "{{name}} removido",
       "wontFitTitle": "{{name}} não cabe neste celular",
-      "downloadAnyway": "Baixar mesmo assim ({{size}})"
+      "downloadAnyway": "Baixar mesmo assim ({{size}})",
+      "fitDetail": "Ele precisa de cerca de {{need}} de memória de trabalho que não dá para ler do armazenamento; há cerca de {{free}} livres de {{total}}. Estimativa."
     },
     "models": {
       "storage": "O BOAR usa {{used}} · {{free}} livres no celular",
