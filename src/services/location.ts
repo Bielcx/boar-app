@@ -1,6 +1,6 @@
 /**
  * The phone's position for offline places, on top of Ledger's
- * modules/device-location (GPS only, no Google Play Services). Never asks
+ * modules/offline-location ("offline-location") (GPS only, no Google Play Services). Never asks
  * for permission itself: callers check the status and ask in context.
  * The routing layer (Tusk) receives getCurrentPoint through
  * registerGeoProviders, so this file is the one place that talks to the
@@ -9,7 +9,7 @@
 import { deviceLocation } from "../ui/flows/adapters";
 
 export type { PermissionStatus, PointResult, NativePosition } from "./location.pure";
-import { PermissionStatus, PointResult, toError, toPoint } from "./location.pure";
+import { isFresh, PermissionStatus, PointResult, toError, toPoint } from "./location.pure";
 
 /** What the "use my location" button gets back (Ledger's requestLocationForQuestion). */
 export type LocationRequest =
@@ -47,6 +47,8 @@ export async function getCurrentPoint({ timeoutMs = 10_000, maxAgeMs = 10 * 60_0
   if (!native) return { error: "unavailable" };
   if ((await getLocationPermission()) !== "granted") return { error: "denied" };
   try {
+    const last = await native.getLastKnownPosition?.().catch(() => null);
+    if (isFresh(last, Date.now(), maxAgeMs)) return toPoint(last, Date.now());
     return toPoint(await native.getCurrentPosition({ timeoutMs, maxAgeMs }), Date.now());
   } catch (e) {
     return toError(e);

@@ -11,7 +11,7 @@
  * - Places: POI_REGIONS and poiCatalogEntries (feat/knowledge,
  *   src/rag/poiRegions.ts). Interim: no regions, so the UI shows its empty
  *   state instead of made-up regions.
- * - Position: modules/device-location (feat/trust-offline, GPS only, no
+ * - Position: modules/offline-location ("offline-location") (feat/trust-offline, GPS only, no
  *   Google Play Services). Interim: unavailable.
  */
 import type { CatalogModel } from "../../models/manifest";
@@ -57,6 +57,7 @@ export function poiCatalogEntry(region: PoiRegion): CatalogModel {
 export interface DeviceLocationModule {
   getPermissionStatus(): Promise<"granted" | "denied" | "undetermined">;
   requestPermission(): Promise<"granted" | "denied">;
+  getLastKnownPosition?(): Promise<NativePosition | null>;
   getCurrentPosition(opts: { timeoutMs?: number; maxAgeMs?: number }): Promise<NativePosition>;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toError, toPoint } from "./location.pure";
+import { isFresh, toError, toPoint } from "./location.pure";
 
 describe("toPoint", () => {
   it("renames the fields and computes the fix age in seconds", () => {
@@ -20,5 +20,14 @@ describe("toError", () => {
     expect(toError({ code: "E_UNAVAILABLE" })).toEqual({ error: "unavailable" });
     expect(toError(new Error("boom"))).toEqual({ error: "unavailable" });
     expect(toError(null)).toEqual({ error: "unavailable" });
+  });
+});
+
+describe("isFresh", () => {
+  const pos = { latitude: 0, longitude: 0, accuracyM: 5, timestamp: 1000, source: "cached" as const };
+  it("accepts a fix within the age limit and rejects older or missing ones", () => {
+    expect(isFresh(pos, 1000 + 60_000, 60_000)).toBe(true);
+    expect(isFresh(pos, 1000 + 60_001, 60_000)).toBe(false);
+    expect(isFresh(null, 0, 60_000)).toBe(false);
   });
 });

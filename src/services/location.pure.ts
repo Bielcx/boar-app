@@ -6,7 +6,7 @@ export type PointResult =
   | { lat: number; lon: number; accuracyM: number; ageS: number }
   | { error: "denied" | "unavailable" | "timeout" };
 
-/** Shape returned by modules/device-location getCurrentPosition. */
+/** Shape returned by modules/offline-location ("offline-location") getCurrentPosition. */
 export interface NativePosition {
   latitude: number;
   longitude: number;
@@ -30,4 +30,9 @@ export function toError(e: unknown): PointResult {
   if (code === "E_PERMISSION") return { error: "denied" };
   if (code === "E_TIMEOUT") return { error: "timeout" };
   return { error: "unavailable" };
+}
+
+/** A last known fix is good enough when it is no older than `maxAgeMs`. */
+export function isFresh(pos: NativePosition | null | undefined, nowMs: number, maxAgeMs: number): pos is NativePosition {
+  return !!pos && nowMs - pos.timestamp <= maxAgeMs;
 }
