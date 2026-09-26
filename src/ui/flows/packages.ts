@@ -47,6 +47,12 @@ export function planPackage(assets: CatalogModel[], present: Record<string, bool
 }
 
 /**
+ * The speed a package card assumes for its time estimate, shown next to the
+ * estimate: 5 MB/s, roughly a 40 Mbit/s connection.
+ */
+export const REFERENCE_BYTES_PER_SEC = 5 * 1024 * 1024;
+
+/**
  * Seconds to move `bytes` at `bytesPerSec`. The card shows the speed it
  * assumed next to the result, so the estimate is a declared formula rather
  * than a promise. Undefined when the speed is unknown.

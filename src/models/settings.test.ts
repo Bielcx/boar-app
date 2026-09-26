@@ -8,7 +8,7 @@ vi.mock("expo-file-system/legacy", () => ({
   writeAsStringAsync: async (p: string, c: string) => void files.set(p, c),
 }));
 
-import { getVoiceInputEnabled, setVoiceInputEnabled } from "./settings";
+import { getLanguageId, getVoiceInputEnabled, languageForLocale, setLanguageId, setVoiceInputEnabled } from "./settings";
 
 describe("voice input setting", () => {
   beforeEach(() => files.clear());
@@ -20,5 +20,22 @@ describe("voice input setting", () => {
   it("keeps the user's choice", async () => {
     await setVoiceInputEnabled(true);
     expect(await getVoiceInputEnabled()).toBe(true);
+  });
+});
+
+describe("language", () => {
+  beforeEach(() => files.clear());
+
+  it("maps any Portuguese locale to pt and everything else to en", () => {
+    expect(languageForLocale("pt-BR")).toBe("pt");
+    expect(languageForLocale("pt-PT")).toBe("pt");
+    expect(languageForLocale("en-US")).toBe("en");
+    expect(languageForLocale("es-AR")).toBe("en");
+    expect(languageForLocale(undefined)).toBe("en");
+  });
+
+  it("prefers the saved choice over the device locale", async () => {
+    await setLanguageId("pt");
+    expect(await getLanguageId()).toBe("pt");
   });
 });

@@ -218,9 +218,23 @@ export async function setFontScale(scale: FontScale): Promise<void> {
   await writeSettings(s);
 }
 
+/** The UI language for a BCP 47 locale: Portuguese for any pt-* locale, English otherwise. */
+export function languageForLocale(locale: string | undefined): LanguageId {
+  return locale?.toLowerCase().startsWith("pt") ? "pt" : "en";
+}
+
+function deviceLocale(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The saved choice, or the device's language until the user picks one. Local only, no network. */
 export async function getLanguageId(): Promise<LanguageId> {
   const s = await readSettings();
-  return s.languageId ?? "en";
+  return s.languageId ?? languageForLocale(deviceLocale());
 }
 
 export async function setLanguageId(language: LanguageId): Promise<void> {

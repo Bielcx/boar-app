@@ -8,19 +8,15 @@ import pt from "./locales/pt.json";
 // performance, about). Every key they use must exist in both locales.
 const FLOW_FILES = [
   "SetupWizardScreen.tsx",
-  "ModelSetupScreen.tsx",
-  "ModelBrowser.tsx",
-  "CatalogItemCard.tsx",
-  "CorpusSettingsTab.tsx",
-  "KnowledgeBaseScreen.tsx",
-  "PersonalDocumentsManager.tsx",
-  "PersonalitySettings.tsx",
-  "MemorySettings.tsx",
-  "VoiceSettings.tsx",
-  "UsageStatsContent.tsx",
-  "ExecutionTelemetryScreen.tsx",
+  "SettingsScreen.tsx",
+  "SettingsSubscreens.tsx",
+  "ModelsScreen.tsx",
+  "KnowledgeScreen.tsx",
+  "PerformanceScreen.tsx",
   "EvaluationScreen.tsx",
   "AboutScreen.tsx",
+  "flows/CatalogRow.tsx",
+  "navigation/RootNavigator.tsx",
 ].map((f) => join(__dirname, "..", "ui", f));
 
 type Tree = { [key: string]: string | Tree };
@@ -45,12 +41,32 @@ function placeholders(text: string): string[] {
   return [...text.matchAll(/{{\s*(\w+)\s*}}/g)].map((m) => m[1]).sort();
 }
 
+// Keys built from template strings in the flow screens, expanded by hand.
+const expand = (prefix: string, parts: string[]) => parts.map((p) => `${prefix}${p}`);
+const DYNAMIC_KEYS = [
+  ...expand("flows.about.how", ["1", "2", "3"]),
+  ...expand("flows.knowledge.stage.", ["reading", "chunking", "embedding"]),
+  ...expand("flows.length.hint", ["256", "512", "1024", "2048"]),
+  ...expand("flows.onboarding.point", ["1", "2", "3"]),
+  ...expand("flows.onboarding.package.", ["essential.name", "essential.body", "encyclopedia.name", "encyclopedia.body"]),
+  ...expand("flows.onboarding.step", ["2Title", "3Title"]),
+  ...expand("flows.performance.band.", ["fast", "ok", "slow"]),
+  ...expand("flows.performance.outcome.", ["success", "failure", "cancelled"]),
+  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "offline-variant", "load", "unknown"]),
+  ...expand("flows.row.fit.", ["streaming", "thrashing", "insufficient"]),
+  ...expand("flows.row.kind.", ["llm", "embedding", "corpus"]),
+  ...expand("flows.row.role.", ["answer", "deep", "search"]),
+  ...expand("flows.settings.", ["eraseModels", "eraseKnowledge", "eraseHistory", "eraseSettings"]),
+  ...expand("flows.settings.answerMode.", ["quickModel", "quickComplete", "directModel", "directComplete"]),
+];
+
 function staticKeys(): string[] {
   const keys = new Set<string>();
   for (const file of FLOW_FILES) {
     const source = readFileSync(file, "utf8");
-    for (const m of source.matchAll(/\bt\(\s*"([\w.]+)"/g)) keys.add(m[1]);
+    for (const m of source.matchAll(/\b(?:t|tr)\(\s*"([\w.-]+)"/g)) keys.add(m[1]);
   }
+  for (const k of DYNAMIC_KEYS) keys.add(k);
   return [...keys].sort();
 }
 

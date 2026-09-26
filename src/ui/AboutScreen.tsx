@@ -1,173 +1,91 @@
-import React from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Image } from "react-native";
-import { impact, ImpactFeedbackStyle } from "../services/haptics";
+import React, { useCallback } from "react";
+import { Image, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { colors } from "./theme/colors";
-import { typography } from "./theme/typography";
-import { spacing, radii } from "./theme/spacing";
+import { Button, ListRow, Screen, Section, Text, useToast } from "./components";
+import { useTokens } from "./theme";
+import { useCatalog } from "./flows/useCatalog";
+import { formatBytes } from "./flows/format";
+import { MODEL_CATALOG } from "../models/manifest";
 import appConfig from "../../app.json";
 
-export function AboutScreen({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
-  const handleClose = () => {
-    impact(ImpactFeedbackStyle.Light);
-    onClose();
-  };
+const REPO_URL = "github.com/rferrari/boar-app";
+
+export function AboutScreen() {
+  const { t, i18n } = useTranslation();
+  const tokens = useTokens();
+  const toast = useToast();
+  const catalog = useCatalog();
+  const { refresh } = catalog;
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  const installed = [...MODEL_CATALOG, ...catalog.discovered].filter((m) => catalog.statuses[m.id]?.present);
+  const build = __DEV__ ? t("flows.about.buildDev") : t("flows.about.buildRelease");
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>🐗</Text>
-          <Text style={styles.title}>{t("aboutScreen.title")}</Text>
-        </View>
-        <Pressable onPress={handleClose} hitSlop={8} style={styles.closeBtn}>
-          <Text style={styles.closeBtnText}>{t("common.done")}</Text>
-        </Pressable>
+    <Screen>
+      <View style={{ alignItems: "center", gap: tokens.space.sm }}>
+        <Image
+          source={require("../../assets/boar.png")}
+          style={{ width: 72, height: 72, borderRadius: tokens.radius.lg }}
+          accessibilityIgnoresInvertColors
+          accessible={false}
+        />
+        <Text variant="title2" align="center">
+          BOAR
+        </Text>
+        <Text variant="callout" color="secondary" align="center">
+          {t("flows.about.tagline")}
+        </Text>
+        <Text variant="footnote" color="tertiary" align="center" numeric>
+          {t("flows.about.version", { version: appConfig.expo.version, build })}
+        </Text>
       </View>
-      <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.heroBox}>
-          <Image
-            source={require("../../assets/boar.png")}
-            style={styles.mascotImg}
-            resizeMode="contain"
-          />
-          <Text style={styles.heroTitle}>BOAR</Text>
-          <Text style={styles.heroSubtitle}>{t("aboutScreen.heroSubtitle")}</Text>
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>
-              {t("aboutScreen.versionBadge", {
-                version: appConfig.expo.version,
-                build: __DEV__ ? t("aboutScreen.buildDevelopment") : t("aboutScreen.buildRelease"),
-              })}
+
+      <Section title={t("flows.about.howTitle")}>
+        <View style={{ padding: tokens.space.base, gap: tokens.space.md }}>
+          {(["how1", "how2", "how3"] as const).map((k) => (
+            <Text key={k} variant="callout">
+              {t(`flows.about.${k}`)}
             </Text>
-          </View>
+          ))}
         </View>
+      </Section>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t("aboutScreen.airGappedTitle")}</Text>
-          <Text style={styles.paragraph}>{t("aboutScreen.airGappedBody")}</Text>
-        </View>
+      <Section title={t("flows.about.installedTitle")} footer={t("flows.about.installedFooter")}>
+        {installed.length === 0 ? (
+          <ListRow title={t("flows.about.nothingInstalled")} />
+        ) : (
+          installed.map((m) => (
+            <ListRow key={m.id} title={m.label} value={formatBytes(m.sizeBytes, i18n.language)} subtitle={m.license} />
+          ))
+        )}
+      </Section>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t("aboutScreen.hardwareTitle")}</Text>
-          <Text style={styles.paragraph}>{t("aboutScreen.hardwareBody")}</Text>
+      <Section title={t("flows.about.sourceTitle")} footer={t("flows.about.sourceFooter")}>
+        <View style={{ padding: tokens.space.base, gap: tokens.space.md }}>
+          <Text variant="mono" selectable>
+            {REPO_URL}
+          </Text>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="copy"
+            label={t("flows.about.copy")}
+            accessibilityHint={t("flows.about.copyHint")}
+            onPress={async () => {
+              await Clipboard.setStringAsync(`https://${REPO_URL}`);
+              toast({ message: t("flows.about.copied"), tone: "success" });
+            }}
+          />
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t("aboutScreen.benchmarkTitle")}</Text>
-          <Text style={styles.paragraph}>{t("aboutScreen.benchmarkBody")}</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t("aboutScreen.repoTitle")}</Text>
-          <Text style={styles.paragraph}>{t("aboutScreen.repoBody")}</Text>
-          <View style={styles.repoBox}>
-            <Text style={styles.repoText}>github.com/rferrari/boar-app</Text>
-          </View>
-        </View>
-      </ScrollView>
-    </View>
+      </Section>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg.surface },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-    backgroundColor: colors.bg.cardElevated,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  headerIcon: {
-    fontSize: 18,
-  },
-  title: {
-    ...typography.ui.titleSm,
-    color: colors.text.heading,
-  },
-  closeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.xs,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-  },
-  closeBtnText: {
-    ...typography.mono.xs,
-    color: colors.text.accentCyan,
-    fontWeight: "800",
-  },
-  body: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xxxl },
-  heroBox: {
-    alignItems: "center",
-    paddingVertical: spacing.md,
-    gap: 4,
-  },
-  mascotImg: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    marginBottom: 4,
-  },
-  heroTitle: {
-    ...typography.ui.headline,
-    color: colors.text.heading,
-  },
-  heroSubtitle: {
-    ...typography.mono.xs,
-    color: colors.text.accentEmerald,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  versionBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radii.xs,
-    marginTop: 4,
-  },
-  versionText: {
-    ...typography.mono.xs,
-    fontSize: 9,
-    color: colors.text.dim,
-  },
-  card: {
-    backgroundColor: colors.bg.cardElevated,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    padding: spacing.md,
-    gap: 6,
-  },
-  cardTitle: {
-    ...typography.mono.xs,
-    color: colors.text.accentCyan,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  paragraph: {
-    ...typography.ui.body,
-    color: colors.text.secondary,
-    lineHeight: 20,
-  },
-  repoBox: {
-    backgroundColor: colors.bg.terminal,
-    borderRadius: radii.sm,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-  },
-  repoText: {
-    ...typography.mono.xs,
-    color: colors.text.accentEmerald,
-  },
-});

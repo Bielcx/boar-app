@@ -7,10 +7,13 @@ import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
 import { Tokens, useTokens } from "../theme";
 import { ChatScreen } from "../ChatScreen";
-import { ModelSetupScreen } from "../ModelSetupScreen";
 import { SetupWizardScreen } from "../SetupWizardScreen";
-import { KnowledgeBaseScreen } from "../KnowledgeBaseScreen";
-import { ExecutionTelemetryScreen } from "../ExecutionTelemetryScreen";
+import { SettingsScreen } from "../SettingsScreen";
+import { SettingsHistoryScreen, SettingsLengthScreen, SettingsToneScreen } from "../SettingsSubscreens";
+import { ModelsScreen, ModelSearchScreen } from "../ModelsScreen";
+import { KnowledgeScreen } from "../KnowledgeScreen";
+import { PerformanceScreen, PerformanceLogsScreen } from "../PerformanceScreen";
+import { EvaluationScreen } from "../EvaluationScreen";
 import { AboutScreen } from "../AboutScreen";
 import { ComponentCatalogScreen } from "../dev/ComponentCatalogScreen";
 import { AppDrawerContent } from "./AppDrawerContent";
@@ -65,50 +68,31 @@ function ChatRoute() {
 function SetupRoute() {
   const navigation = useNavigation<RootNav>();
   return (
-    <Legacy>
-      <SetupWizardScreen
-        onReady={() => navigation.reset({ index: 0, routes: [{ name: "Main" }] })}
-        onSkip={navigation.canGoBack() ? () => navigation.goBack() : undefined}
-      />
-    </Legacy>
+    <SetupWizardScreen
+      onReady={() => navigation.reset({ index: 0, routes: [{ name: "Main" }] })}
+      onSkip={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+    />
   );
 }
 
-function SettingsRoute() {
-  const navigation = useNavigation<RootNav>();
-  return (
-    <Legacy>
-      <ModelSetupScreen mode="optional" onClose={() => navigation.goBack()} onRelaunchWizard={() => navigation.navigate("Setup")} />
-    </Legacy>
-  );
-}
-
-function KnowledgeRoute() {
-  const navigation = useNavigation<RootNav>();
-  return (
-    <Legacy>
-      <KnowledgeBaseScreen onClose={() => navigation.goBack()} />
-    </Legacy>
-  );
-}
-
-function PerformanceRoute() {
-  const navigation = useNavigation<RootNav>();
+function EvaluationRoute() {
   const { generating } = useChatBridge();
-  return (
-    <Legacy>
-      <ExecutionTelemetryScreen chatBusy={generating} onClose={() => navigation.goBack()} />
-    </Legacy>
-  );
+  return <EvaluationScreen chatBusy={generating} />;
 }
 
-function AboutRoute() {
-  const navigation = useNavigation<RootNav>();
-  return (
-    <Legacy>
-      <AboutScreen onClose={() => navigation.goBack()} />
-    </Legacy>
-  );
+/** Native header for the flow screens (Loom): large title on the canvas, back and gesture from the stack. */
+function flowHeader(t: Tokens, title: string, large = true) {
+  return {
+    headerShown: true,
+    title,
+    headerLargeTitle: large,
+    headerShadowVisible: false,
+    headerTintColor: t.color.accent.text,
+    headerTitleStyle: { color: t.color.text.primary },
+    headerLargeTitleStyle: { color: t.color.text.primary },
+    headerStyle: { backgroundColor: t.color.bg.canvas },
+    headerBackButtonDisplayMode: "minimal" as const,
+  };
 }
 
 function MainDrawer() {
@@ -146,10 +130,17 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
       >
         <Stack.Screen name="Main" component={MainDrawer} />
         <Stack.Screen name="Setup" component={SetupRoute} options={{ gestureEnabled: false, animation: "fade" }} />
-        <Stack.Screen name="Settings" component={SettingsRoute} />
-        <Stack.Screen name="Knowledge" component={KnowledgeRoute} />
-        <Stack.Screen name="Performance" component={PerformanceRoute} />
-        <Stack.Screen name="About" component={AboutRoute} />
+        <Stack.Screen name="Settings" component={SettingsScreen} options={flowHeader(t, tr("nav.settings"))} />
+        <Stack.Screen name="SettingsTone" component={SettingsToneScreen} options={flowHeader(t, tr("flows.settings.tone"), false)} />
+        <Stack.Screen name="SettingsLength" component={SettingsLengthScreen} options={flowHeader(t, tr("flows.settings.length"), false)} />
+        <Stack.Screen name="SettingsHistory" component={SettingsHistoryScreen} options={flowHeader(t, tr("flows.settings.history"), false)} />
+        <Stack.Screen name="Models" component={ModelsScreen} options={flowHeader(t, tr("flows.settings.models"))} />
+        <Stack.Screen name="ModelSearch" component={ModelSearchScreen} options={flowHeader(t, tr("flows.models.searchTitle"), false)} />
+        <Stack.Screen name="Knowledge" component={KnowledgeScreen} options={flowHeader(t, tr("nav.knowledge"))} />
+        <Stack.Screen name="Performance" component={PerformanceScreen} options={flowHeader(t, tr("nav.performance"))} />
+        <Stack.Screen name="PerformanceLogs" component={PerformanceLogsScreen} options={flowHeader(t, tr("flows.performance.logsTitle"), false)} />
+        <Stack.Screen name="Evaluation" component={EvaluationRoute} options={flowHeader(t, tr("flows.performance.evaluationTitle"), false)} />
+        <Stack.Screen name="About" component={AboutScreen} options={flowHeader(t, tr("nav.about"))} />
         <Stack.Screen
           name="Catalog"
           component={ComponentCatalogScreen}
