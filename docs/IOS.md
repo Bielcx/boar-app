@@ -78,6 +78,8 @@ New JS API: `excludeFromBackup()` in `bundled-assets`.
 - `icon`: `assets/icon-ios.png`, the Android icon flattened on the adaptive background color (iOS icons must be opaque). Splash comes from the shared `expo-splash-screen` config.
 - Info.plist: mic + speech usage strings (voice input), `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` (copy GGUF files into the app via Finder over USB or the Files app, the iOS analog of `adb push`), `ITSAppUsesNonExemptEncryption: false`.
 - Entitlements: `com.apple.developer.kernel.increased-memory-limit` and `com.apple.developer.kernel.extended-virtual-addressing` (needed to mmap multi-GB GGUFs).
+  - How they are applied: set unconditionally in `app.json` `ios.entitlements`, which Expo's prebuild writes into `ios/BOAR/BOAR.entitlements` for every build (both `EXPO_PUBLIC_BOAR_VARIANT` values; `app.config.js` does not touch `ios`). The llama.rn plugin runs with `enableEntitlements: false` on purpose: its own switch adds the same two keys only when `EAS_BUILD_PROFILE` is `production` or `NODE_ENV=production`, so local and preview builds would silently lack them.
+  - A signing team that cannot get a capability drops it at build time with `IOS_STRIP_ENTITLEMENTS` (see Apple account requirements); nothing in the repo changes.
 - Offline variant: same env as Android, `EXPO_PUBLIC_BOAR_VARIANT=offline` (read by JS and `app.config.ts`). iOS has no `INTERNET` permission, so the proof is the code path: in the offline variant the downloader throws before any fetch.
 
 ## Memory budget: 4GB iPhone (iPhone 13)
