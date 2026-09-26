@@ -232,3 +232,30 @@ export async function resolvePlaceIn(db: PackSql, name: string): Promise<PlaceMa
     population: row.population,
   };
 }
+
+export interface PlaceSuggestion {
+  /** GeoNames id. */
+  id: number;
+  name: string;
+  country?: string;
+  lat: number;
+  lon: number;
+  population: number;
+}
+
+/**
+ * Places whose name or alternate name starts with `query` (case-insensitive),
+ * most populous first, one row per place: the city search box ("Rom" → Rome).
+ */
+export async function searchPlacesIn(db: PackSql, query: string, limit = 10): Promise<PlaceSuggestion[]> {
+  const q = query.trim().replace(/\s+/g, " ");
+  if (!q) return [];
+  // A prefix range on the NOCASE index: name >= q AND name < q + U+FFFF.
+  const rows = await db.getAllAsync<{ id: number; name: string; country: string | null; lat: number; lon: number; population: number }>(
+    `SELECT p.id, p.name, p.country, p.lat, p.lon, p.population FROM places p
+     WHERE p.id IN (SELECT place_id FROM names WHERE name >= ? COLLATE NOCASE AND name < ? COLLATE NOCASE)
+     ORDER BY p.population DESC LIMIT ?`,
+    [q, `${q}￿`, limit]
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name, ...(r.country ? { country: r.country } : {}), lat: r.lat, lon: r.lon, population: r.population }));
+}

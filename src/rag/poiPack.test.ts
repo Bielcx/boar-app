@@ -10,7 +10,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { PoiPack, cellRanges, distanceM, resolvePlaceIn, searchPoiPacks } from "./poiPack";
+import { PoiPack, cellRanges, distanceM, resolvePlaceIn, searchPlacesIn, searchPoiPacks } from "./poiPack";
 import type { PackSql } from "./wikiPack";
 
 const C = { lat: 10, lon: 10 };
@@ -134,5 +134,15 @@ describe("resolvePlaceIn", () => {
     expect(await resolvePlaceIn(places, "Tville")).toMatchObject({ name: "Testville", country: "Testland" });
     expect(await resolvePlaceIn(places, "Otherton")).toMatchObject({ kind: "town" });
     expect(await resolvePlaceIn(places, "Atlantis")).toBeNull();
+  });
+});
+
+describe("searchPlacesIn", () => {
+  it("suggests places by name prefix, alternate names included, most populous first, one row per place", async () => {
+    const r = await searchPlacesIn(places, "test");
+    expect(r.map((p) => [p.name, p.country])).toEqual([["Testville", "Testland"], ["Testville", "Otherland"]]);
+    expect((await searchPlacesIn(places, "tvil")).map((p) => p.name)).toEqual(["Testville"]);
+    expect(await searchPlacesIn(places, "zzz")).toEqual([]);
+    expect(await searchPlacesIn(places, "  ")).toEqual([]);
   });
 });

@@ -71,6 +71,8 @@ for (const file of o.osm) {
     const lon = e.lon ?? e.center?.lon;
     const ref = `osm:${e.type}/${e.id}`;
     if (lat == null || seen.has(ref)) continue;
+    // --bbox also cuts: a city pack can be built from its region's OSM export.
+    if (lat < bbox[0] || lat > bbox[2] || lon < bbox[1] || lon > bbox[3]) continue;
     seen.add(ref);
     // A place without a name can't be named in an answer.
     if (!t.name) {
@@ -112,7 +114,7 @@ if (o.voyage && o["voyage-title"].length) {
         const exact = l.lat != null;
         const lat = exact ? l.lat : at?.[0];
         const lon = exact ? l.lon : at?.[1];
-        if (lat == null) continue;
+        if (lat == null || lat < bbox[0] || lat > bbox[2] || lon < bbox[1] || lon > bbox[3]) continue;
         const description = [l.content, l.price && `Price: ${l.price}`].filter(Boolean).join(" ");
         ins.run(`wikivoyage:${title}#${n}`, lat, lon, cellOf(lat, lon), l.name, "listing", l.section.toLowerCase(),
           null, null, null, null, null, l.address, l.hours, l.phone, l.url, description || null, exact ? 0 : 1, 1, `${title} (${l.section})`);
