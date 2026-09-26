@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
@@ -55,7 +55,7 @@ import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
 import { answerPhase, answerReducer, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
-import { historyTurns, itemsFromRecords, updateAnswer, type ChatItem } from "./chat/chatItems";
+import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type ChatItem } from "./chat/chatItems";
 import { phaseAnnouncement } from "./chat/presentation";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { AssistantMessage } from "./chat/AssistantMessage";
@@ -157,7 +157,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       pendingEvents.current.push({ messageId, event });
       if (!flushScheduled.current) {
         flushScheduled.current = true;
-        requestAnimationFrame(flushEvents);
+        // ~50 ms batches: a handful of renders per second of streaming instead of one per token.
+        setTimeout(flushEvents, 50);
       }
     },
     [flushEvents]
@@ -185,9 +186,19 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       setPersonalityIdState(await getPersonalityId());
       memorySettingsRef.current = await getMemorySettings();
       setVoiceInputEnabledState(await getVoiceInputEnabled());
-      await refreshSessions();
+      const list = await listSessions();
+      setSessions(list);
+      // Coming back soon after leaving (or after the system killed the app) continues the conversation.
+      const resume = sessionToResume(list, Date.now());
+      if (resume && itemsRef.current.length === 0 && !activeRef.current) {
+        const records = await getSessionMessages(resume.id);
+        if (itemsRef.current.length > 0 || activeRef.current) return;
+        setItems(itemsFromRecords(records));
+        setActiveSessionId(resume.id);
+        sessionSummaryRef.current = resume.summary;
+      }
     })();
-  }, [refreshSessions]);
+  }, []);
 
   const initModels = useCallback(async () => {
     try {
@@ -574,61 +585,79 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [toast]
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: ChatItem }) => {
-      if (item.kind === "user") {
-        return (
-          <UserMessage
-            text={item.text}
-            onCopy={() => copyText(item.text, t("chat.actions.questionCopied"))}
-            onEdit={() => {
-              setInput(item.text);
-              inputRef.current?.focus();
-            }}
-          />
-        );
-      }
+  // Row actions go through a ref so every row gets the same handler object:
+  // memoized rows then re-render only when their own item changes, not on
+  // every streamed frame of another answer.
+  const rowActions = useRef<RowActions>(null as unknown as RowActions);
+  rowActions.current = {
+    openSource: (id, index) => setOpenSource({ messageId: id, index }),
+    deepen: (id) => followUp(id, "deep"),
+    askModel: (id) => followUp(id, "fast"),
+    retry: (question) => ask(question),
+    rate: (id, r) => rate(id, r),
+    copy: (item) => copyText(copyBody(item) ?? formatForCopy(answerForCopy(item.answer), item.answer.sources, shareLabels), t("chat.actions.copied")),
+    share: (item) => {
       const a = item.answer;
-      const copyBody = () =>
-        a.places?.places.length
-          ? [
-              placesForCopy(a.places.places, a.places.area.kind === "near" ? new Date() : null, locale, t),
-              a.places.attribution.map((x) => `${sourceName(x.source, t)} (${x.license})`).join(" · "),
-            ].join("\n\n")
-          : null;
       const receipt = a.deep?.receipt ?? a.fast?.receipt ?? a.instantDone?.receipt;
-      return (
-        <AssistantMessage
-          answer={a}
-          active={active?.messageId === item.id}
-          stopping={stopping}
-          interrupted={item.interrupted}
-          feedback={item.feedback}
-          locale={locale}
-          onOpenSource={(index) => setOpenSource({ messageId: item.id, index })}
-          onDeepen={() => followUp(item.id, "deep")}
-          onAskModel={() => followUp(item.id, "fast")}
-          onRetry={() => ask(item.question)}
-          onRate={(r) => rate(item.id, r)}
-          onCopy={() =>
-            copyText(copyBody() ?? formatForCopy(answerForCopy(a), a.sources, shareLabels), t("chat.actions.copied"))
-          }
-          onShare={() => {
-            const places = copyBody();
-            Share.share({
-              message: places
-                ? formatForShare(item.question, places, [], receipt, shareLabels, locale)
-                : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
-            });
-          }}
-          onCity={(city) => followUp(item.id, { place: city })}
-          onUseLocation={locate ? () => locateAndAsk(item.id) : undefined}
-          onGetMap={openSettings}
-          onCopyReceipt={(text) => copyText(text, t("chat.receipt.copied"))}
-        />
-      );
+      const places = copyBody(item);
+      Share.share({
+        message: places
+          ? formatForShare(item.question, places, [], receipt, shareLabels, locale)
+          : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
+      });
     },
-    [active, stopping, locale, followUp, ask, rate, copyText, shareLabels, t, locateAndAsk, openSettings]
+    city: (id, city) => followUp(id, { place: city }),
+    useLocation: locate ? (id) => locateAndAsk(id) : undefined,
+    getMap: openSettings,
+    copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
+    copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
+    editQuestion: (text) => {
+      setInput(text);
+      inputRef.current?.focus();
+    },
+  };
+  function copyBody(item: Extract<ChatItem, { kind: "assistant" }>): string | null {
+    const a = item.answer;
+    if (!a.places?.places.length) return null;
+    return [
+      placesForCopy(a.places.places, a.places.area.kind === "near" ? new Date() : null, locale, t),
+      a.places.attribution.map((x) => `${sourceName(x.source, t)} (${x.license})`).join(" · "),
+    ].join("\n\n");
+  }
+  const actions = useMemo<RowActions>(
+    () => ({
+      openSource: (id, i) => rowActions.current.openSource(id, i),
+      deepen: (id) => rowActions.current.deepen(id),
+      askModel: (id) => rowActions.current.askModel(id),
+      retry: (q) => rowActions.current.retry(q),
+      rate: (id, r) => rowActions.current.rate(id, r),
+      copy: (item) => rowActions.current.copy(item),
+      share: (item) => rowActions.current.share(item),
+      city: (id, c) => rowActions.current.city(id, c),
+      useLocation: locate ? (id) => rowActions.current.useLocation?.(id) : undefined,
+      getMap: () => rowActions.current.getMap(),
+      copyReceipt: (text) => rowActions.current.copyReceipt(text),
+      copyQuestion: (text) => rowActions.current.copyQuestion(text),
+      editQuestion: (text) => rowActions.current.editQuestion(text),
+    }),
+    []
+  );
+
+  const activeId = active?.messageId ?? null;
+  const renderItem = useCallback(
+    ({ item }: { item: ChatItem }) =>
+      item.kind === "user" ? (
+        <UserRow text={item.text} actions={actions} />
+      ) : (
+        <AssistantRow
+          item={item}
+          active={activeId === item.id}
+          stopping={activeId === item.id && stopping}
+          locale={locale}
+          actions={actions}
+        />
+      ),
+    [actions, activeId, stopping, locale]
   );
 
   if (deviceEvalRequest) {
@@ -668,7 +697,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           data={items}
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
-          extraData={active}
+          extraData={renderItem}
           contentContainerStyle={{ padding: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
@@ -741,3 +770,71 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     </Screen>
   );
 }
+
+interface RowActions {
+  openSource: (id: string, index: number) => void;
+  deepen: (id: string) => void;
+  askModel: (id: string) => void;
+  retry: (question: string) => void;
+  rate: (id: string, rating: "up" | "down") => void;
+  copy: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
+  share: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
+  city: (id: string, city: string) => void;
+  useLocation?: (id: string) => void;
+  getMap: () => void;
+  copyReceipt: (text: string) => void;
+  copyQuestion: (text: string) => void;
+  editQuestion: (text: string) => void;
+}
+
+const UserRow = memo(function UserRow({ text, actions }: { text: string; actions: RowActions }) {
+  const onCopy = useCallback(() => actions.copyQuestion(text), [actions, text]);
+  const onEdit = useCallback(() => actions.editQuestion(text), [actions, text]);
+  return <UserMessage text={text} onCopy={onCopy} onEdit={onEdit} />;
+});
+
+/** One answer row; its callbacks are stable per item so AssistantMessage's memo holds while others stream. */
+const AssistantRow = memo(function AssistantRow({
+  item,
+  active,
+  stopping,
+  locale,
+  actions,
+}: {
+  item: Extract<ChatItem, { kind: "assistant" }>;
+  active: boolean;
+  stopping: boolean;
+  locale: string;
+  actions: RowActions;
+}) {
+  const itemRef = useRef(item);
+  itemRef.current = item;
+  const id = item.id;
+  const cb = useMemo(
+    () => ({
+      onOpenSource: (i: number) => actions.openSource(id, i),
+      onDeepen: () => actions.deepen(id),
+      onAskModel: () => actions.askModel(id),
+      onRetry: () => actions.retry(itemRef.current.question),
+      onRate: (r: "up" | "down") => actions.rate(id, r),
+      onCopy: () => actions.copy(itemRef.current),
+      onShare: () => actions.share(itemRef.current),
+      onCity: (city: string) => actions.city(id, city),
+      onUseLocation: actions.useLocation ? () => actions.useLocation!(id) : undefined,
+      onGetMap: actions.getMap,
+      onCopyReceipt: actions.copyReceipt,
+    }),
+    [actions, id]
+  );
+  return (
+    <AssistantMessage
+      answer={item.answer}
+      active={active}
+      stopping={stopping}
+      interrupted={item.interrupted}
+      feedback={item.feedback}
+      locale={locale}
+      {...cb}
+    />
+  );
+});
