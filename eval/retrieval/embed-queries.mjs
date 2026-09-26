@@ -11,7 +11,7 @@ const [input, output] = process.argv.slice(2);
 const model = process.env.BOAR_EMBEDDING_GGUF;
 if (!input || !output || !model) throw new Error("usage: BOAR_EMBEDDING_GGUF=... embed-queries.mjs questions.jsonl out.json");
 const questions = readFileSync(input, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
-const llama = await getLlama({ gpu: false });
+const llama = await getLlama({ gpu: process.env.BOAR_EMBED_GPU || false });
 const ctx = await (await llama.loadModel({ modelPath: model })).createEmbeddingContext({ contextSize: 512, threads: 4 });
 const out = {};
 for (const q of questions) out[q.id] = Array.from((await ctx.getEmbeddingFor(q.query)).vector);
