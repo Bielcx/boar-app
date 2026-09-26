@@ -41,11 +41,12 @@ export interface Poi {
   dietCheck?: number;
   dietCheckFor?: Diet;
   /**
-   * For the diet asked: "verify" = the OSM tag looks doubtful (check < 0.35;
-   * listed last, show "OSM tag to verify"); "uncertain" = 0.35-0.65 (normal
-   * order, but no strong diet badge). Absent = no doubt found or not checked.
+   * "verify" when, for the diet asked, the OSM tag looks doubtful (dietCheck
+   * < 0.35): listed last, shown as "OSM tag to verify". Otherwise absent, and
+   * the place is shown with the single label "vegan according to
+   * OpenStreetMap" (Boar, 2026-09-26: no stronger badge).
    */
-  dietFlag?: "verify" | "uncertain";
+  dietFlag?: "verify";
   /** When the source data was extracted (OSM replication timestamp or dump date), for attribution. */
   osmDate?: string;
   source: { kind: "osm" | "wikivoyage"; url: string; title?: string };

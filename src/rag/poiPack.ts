@@ -15,9 +15,8 @@ export const CELL_DEG = 0.01;
 const CELLS_PER_ROW = 36000;
 const RADII_M = [3000, 10000, 25000];
 const MIN_RESULTS = 3;
-/** diet_check bands (Boar, 2026-09-26): below 0.35 the tag is doubtful, 0.35-0.65 uncertain. */
+/** Below this diet_check the OSM diet tag is shown as doubtful (Boar, 2026-09-26). */
 export const DIET_DOUBTFUL = 0.35;
-export const DIET_CONFIDENT = 0.65;
 const EARTH_M = 6371000;
 
 export const FOOD_CATEGORIES = [
@@ -207,7 +206,6 @@ export async function searchPoiPacks(packs: PoiPack[], q: PoiQuery): Promise<Poi
   for (const p of found) {
     if (p.dietCheck == null || !p.dietCheckFor || !diets.includes(p.dietCheckFor)) continue;
     if (p.dietCheck < DIET_DOUBTFUL) p.dietFlag = "verify";
-    else if (p.dietCheck < DIET_CONFIDENT) p.dietFlag = "uncertain";
   }
   const exact = found
     .filter((p) => !p.approx && p.dietFlag !== "verify")

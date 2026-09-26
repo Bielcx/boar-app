@@ -162,11 +162,11 @@ describe("searchPlacesIn", () => {
 });
 
 describe("diet tag audit", () => {
-  it("lists a doubtful diet tag last with a verify flag, keeps an uncertain one in order without the strong badge", async () => {
+  it("lists a doubtful diet tag last with a verify flag and leaves the others unflagged", async () => {
     const r = await searchPoiPacks([pack], { center: C, diet: ["vegan"] });
     const last = r.pois[r.pois.length - 1];
     expect(last).toMatchObject({ name: "Burger Chain", dietFlag: "verify", dietCheck: 0.2, diet: { vegan: "only" } });
-    expect(r.pois.find((p) => p.name === "Unclear Vegan")).toMatchObject({ dietFlag: "uncertain" });
+    expect(r.pois.find((p) => p.name === "Unclear Vegan")!.dietFlag).toBeUndefined();
     expect(r.pois.find((p) => p.name === "Only Vegan")!.dietFlag).toBeUndefined();
     expect(r.criterion).toMatch(/doubtful are listed last/);
   });
