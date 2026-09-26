@@ -9,7 +9,7 @@
 import { deviceLocation } from "../ui/flows/adapters";
 
 export type { PermissionStatus, PointResult, NativePosition } from "./location.pure";
-import { isFresh, PermissionStatus, PointResult, toError, toPoint } from "./location.pure";
+import { isFresh, permissionBlock, PermissionStatus, PointResult, toError, toPoint } from "./location.pure";
 
 /** What the "use my location" button gets back (Ledger's requestLocationForQuestion). */
 export type LocationRequest =
@@ -45,7 +45,8 @@ export async function requestLocationPermission(): Promise<"granted" | "denied">
 export async function getCurrentPoint({ timeoutMs = 10_000, maxAgeMs = 10 * 60_000 } = {}): Promise<PointResult> {
   const native = deviceLocation();
   if (!native) return { error: "unavailable" };
-  if ((await getLocationPermission()) !== "granted") return { error: "denied" };
+  const blocked = permissionBlock(await getLocationPermission());
+  if (blocked) return blocked;
   try {
     const last = await native.getLastKnownPosition?.().catch(() => null);
     if (isFresh(last, Date.now(), maxAgeMs)) return toPoint(last, Date.now());

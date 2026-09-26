@@ -4,7 +4,8 @@ export type PermissionStatus = "granted" | "denied" | "undetermined";
 
 export type PointResult =
   | { lat: number; lon: number; accuracyM: number; ageS: number }
-  | { error: "denied" | "unavailable" | "timeout" };
+  /** "prompt": permission not decided yet; the caller asks in context, this module never does. */
+  | { error: "denied" | "unavailable" | "timeout" | "prompt" };
 
 /** Shape returned by modules/offline-location ("offline-location") getCurrentPosition. */
 export interface NativePosition {
@@ -35,4 +36,10 @@ export function toError(e: unknown): PointResult {
 /** A last known fix is good enough when it is no older than `maxAgeMs`. */
 export function isFresh(pos: NativePosition | null | undefined, nowMs: number, maxAgeMs: number): pos is NativePosition {
   return !!pos && nowMs - pos.timestamp <= maxAgeMs;
+}
+
+/** Why a point can't be read without asking, from the permission status; null when it can. */
+export function permissionBlock(status: PermissionStatus): PointResult | null {
+  if (status === "granted") return null;
+  return { error: status === "undetermined" ? "prompt" : "denied" };
 }
