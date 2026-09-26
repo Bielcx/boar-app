@@ -38,11 +38,21 @@ for (const file of targets) {
 const HF = /^https:\/\/huggingface\.co\/(datasets\/)?([^/]+\/[^/]+)\/resolve\/([0-9a-f]{40})\/(.+)$/;
 const SMALL_FILE_BYTES = 16 * 1024 * 1024;
 
+// The host rate-limits bursts (HTTP 429): wait and retry instead of failing the entry.
+async function fetchRetry(url, init, attempts = 4) {
+  for (let i = 1; ; i++) {
+    const res = await fetch(url, init);
+    if (i >= attempts || (res.status !== 429 && res.status < 500)) return res;
+    const wait = Number(res.headers.get("retry-after")) || 2 ** i;
+    await new Promise((r) => setTimeout(r, Math.min(wait, 30) * 1000));
+  }
+}
+
 async function check(e) {
   const hf = HF.exec(e.url);
   if (hf) {
     const [, dataset, repo, rev, path] = hf;
-    const res = await fetch(`https://huggingface.co/api/${dataset ? "datasets" : "models"}/${repo}/paths-info/${rev}`, {
+    const res = await fetchRetry(`https://huggingface.co/api/${dataset ? "datasets" : "models"}/${repo}/paths-info/${rev}`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ paths: path }),
@@ -58,14 +68,14 @@ async function check(e) {
   }
   if (e.size <= SMALL_FILE_BYTES) return hashDownload(e);
   // Large non-HF asset (release download): size only, to avoid a big download.
-  const res = await fetch(e.url, { method: "HEAD", redirect: "follow" });
+  const res = await fetchRetry(e.url, { method: "HEAD", redirect: "follow" });
   if (!res.ok) return `HTTP ${res.status}`;
   const len = Number(res.headers.get("content-length"));
   return len === e.size ? null : `size ${len} != manifest ${e.size} (sha256 not checked)`;
 }
 
 async function hashDownload(e) {
-  const res = await fetch(e.url);
+  const res = await fetchRetry(e.url);
   if (!res.ok) return `HTTP ${res.status}`;
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length !== e.size) return `size ${buf.length} != manifest ${e.size}`;
