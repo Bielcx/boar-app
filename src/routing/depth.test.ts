@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DepthInput, DepthModel, deepAutoIneligibility, measuredSpeeds, planAnswer, resolveDeepModel } from "./depth";
+import { DepthInput, DepthModel, deepAutoEligible, deepAutoIneligibility, measuredSpeeds, modelSpeedStats, planAnswer, resolveDeepModel } from "./depth";
 
 const GB = 1024 ** 3;
 const qwen15: DepthModel = { id: "qwen1.5", label: "Qwen 1.5B", sizeBytes: 1 * GB, roles: ["fast"] };
@@ -158,5 +158,23 @@ describe("measuredSpeeds", () => {
     ]);
     expect(m.get("a")).toBe(5);
     expect(m.has("b")).toBe(false);
+  });
+});
+
+describe("modelSpeedStats / deepAutoEligible (shared with the model picker)", () => {
+  it("reports median, samples and last date, deriving tok/s from latency when not recorded", () => {
+    const st = modelSpeedStats([
+      { modelId: "m", tokensGenerated: 100, generationLatencyMs: 10_000, outcome: "success", createdAt: 1 },
+      { modelId: "m", tokPerSec: 14, tokensGenerated: 100, outcome: "success", createdAt: 5 },
+      { modelId: "m", tokPerSec: 12, tokensGenerated: 100, outcome: "success", createdAt: 3 },
+    ]).get("m")!;
+    expect(st).toEqual({ medianTokPerSec: 12, samples: 3, lastAt: 5 });
+  });
+
+  it("is eligible only with >= 2 samples at >= 5 tok/s", () => {
+    expect(deepAutoEligible(null)).toBe(false);
+    expect(deepAutoEligible({ medianTokPerSec: 9, samples: 1 })).toBe(false);
+    expect(deepAutoEligible({ medianTokPerSec: 4.9, samples: 6 })).toBe(false);
+    expect(deepAutoEligible({ medianTokPerSec: 5, samples: 2 })).toBe(true);
   });
 });
