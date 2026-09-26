@@ -259,8 +259,10 @@ export function createAnswerer(deps: AnswerDeps) {
       const ranked = byDistance
         ? found.pois
         : [
-            ...found.pois.filter((p) => !p.approx && p.address),
-            ...found.pois.filter((p) => !p.approx && !p.address),
+            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && p.address),
+            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && !p.address),
+            // Doubtful diet tags stay after every trustworthy place, as the pack ranked them.
+            ...found.pois.filter((p) => !p.approx && p.dietFlag === "verify"),
             ...found.pois.filter((p) => p.approx),
           ];
       const sources = ranked.map(toSourceChunk);

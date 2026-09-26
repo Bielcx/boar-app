@@ -97,6 +97,12 @@ export interface Place {
   source: "osm" | "wikivoyage";
   /** Index into the answer's sources[] ("[n]" = sourceIndex + 1). */
   sourceIndex?: number;
+  /**
+   * Doubtful diet tag (checked when the pack was built): "verify" = likely
+   * wrong, listed last, show "OSM tag to verify"; "uncertain" = show the tag
+   * without the strong diet badge. Absent = no doubt or not checked.
+   */
+  dietFlag?: "verify" | "uncertain";
 }
 
 export interface PlacesArea {

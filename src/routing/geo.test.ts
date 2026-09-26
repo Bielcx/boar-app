@@ -186,6 +186,24 @@ describe("answer(): places path", () => {
     expect(r.text).toMatch(/OpenStreetMap \(extract 2026-08\), maintained by volunteers/);
   });
 
+  it("never gives a doubtful diet tag the strong label, and keeps 'verify' places last", async () => {
+    geo.searchPois = async () => ({
+      pois: [
+        poi("osm:node/1", "Tokyo Vegan", 420, "only"),
+        poi("osm:node/9", "Maybe Vegan", 500, "yes", { dietFlag: "uncertain", dietCheck: 0.5, dietCheckFor: "vegan", address: undefined }),
+        poi("osm:node/8", "MOS Burger", 600, "only", { dietFlag: "verify", dietCheck: 0.1, dietCheckFor: "vegan" }),
+      ],
+      radiusUsedM: 3000,
+      coverage: "full" as const,
+    });
+    const { places, r } = await ask("best vegan restaurants in São Paulo");
+    expect(places!.places.map((p) => p.name)).toEqual(["Tokyo Vegan", "Maybe Vegan", "MOS Burger"]);
+    expect(places!.places.map((p) => p.dietFlag)).toEqual([undefined, "uncertain", "verify"]);
+    expect(r.text).toMatch(/MOS Burger — Rua MOS Burger 1, São Paulo — OSM vegan tag to verify/);
+    expect(r.text).toMatch(/Maybe Vegan — vegan tag \(unconfirmed\)/);
+    expect(r.text).not.toMatch(/MOS Burger.*vegan: only/);
+  });
+
   it("says it has no offline data for an unknown city instead of listing anything", async () => {
     const { r, places } = await ask("best vegan restaurants in Ulaanbaatar");
     expect(places!.coverage).toBe("none");
