@@ -4,9 +4,9 @@
  * manifest (flows-spec §4.1); nothing is typed in by hand.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Linking, Pressable, Text as RNText, View } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Image, Linking, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Progress, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Text, useAnnounce } from "./components";
 import type { TextColor } from "./components/Text";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -48,6 +48,13 @@ interface Props {
 
 type Step = 1 | 2 | 3;
 type IndexPhase = "waiting" | "building" | "ready" | "error";
+
+/** Above this OS font scale the two language cards stack instead of sitting side by side. */
+const LARGE_TEXT = 1.15;
+const LANGUAGES: { id: LanguageId; name: string }[] = [
+  { id: "en", name: "English" },
+  { id: "pt", name: "Português" },
+];
 
 /** No progress for this long shows the "restart downloads" escape hatch. */
 const STALL_MS = 60_000;
@@ -234,43 +241,37 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   );
 }
 
-function StepHeader({ titleRef, step, title, subtitle }: { titleRef: React.RefObject<RNText | null>; step: Step; title: string; subtitle?: string }) {
+/** The four stages the user sees: step 3 covers both install and index. */
+const STAGES = ["start", "choose", "install", "index"] as const;
+
+/** The labelled stepper (the mockup's HARDWARE → MODEL TIER → INSTALL → INDEXING). */
+function SetupStepper({ stage }: { stage: number }) {
   const { t } = useTranslation();
-  const tokens = useTokens();
+  const names = STAGES.map((s) => t(`flows.onboarding.stage.${s}`));
   return (
-    <View style={{ gap: tokens.space.sm }}>
-      <Stepper step={step} />
-      <Text variant="label" color="tertiary">
-        {t("flows.onboarding.stepOf", { step, total: 3 })}
-      </Text>
-      <Text ref={titleRef} variant="title2" header>
-        {title}
-      </Text>
-      {subtitle && (
-        <Text variant="footnote" color="secondary">
-          {subtitle}
-        </Text>
-      )}
-    </View>
+    <Stepper
+      steps={names}
+      current={stage}
+      accessibilityLabel={t("flows.onboarding.stageOf", { n: stage + 1, total: STAGES.length, name: names[stage] })}
+    />
   );
 }
 
-/** Three bars, filled up to the current step (the mockup's stepper). The "Step n of 3" label carries the meaning for readers. */
-function Stepper({ step }: { step: Step }) {
+function StepHeader({ titleRef, stage, title, subtitle }: { titleRef: React.RefObject<RNText | null>; stage: number; title: string; subtitle?: string }) {
   const tokens = useTokens();
   return (
-    <View style={{ flexDirection: "row", gap: tokens.space.xs }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      {[1, 2, 3].map((n) => (
-        <View
-          key={n}
-          style={{
-            flex: 1,
-            height: tokens.space.xs,
-            borderRadius: tokens.radius.full,
-            backgroundColor: n <= step ? tokens.color.accent.solid : tokens.color.bg.sunken,
-          }}
-        />
-      ))}
+    <View style={{ gap: tokens.space.xl }}>
+      <SetupStepper stage={stage} />
+      <View style={{ gap: tokens.space.xs }}>
+        <Text ref={titleRef} variant="title2" header>
+          {title}
+        </Text>
+        {subtitle && (
+          <Text variant="footnote" color="secondary">
+            {subtitle}
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -297,6 +298,7 @@ function Welcome({
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
+  const { fontScale } = useWindowDimensions();
   const points: { icon: IconName; key: string }[] = [
     { icon: "wifi-off", key: "point1" },
     { icon: "shield", key: "point2" },
@@ -318,11 +320,11 @@ function Welcome({
         </>
       }
     >
-      <Stepper step={1} />
+      <SetupStepper stage={0} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
         <Image
           source={require("../../assets/boar.png")}
-          style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
+          style={{ width: tokens.size.mascotSm, height: tokens.size.mascotSm, borderRadius: tokens.radius.full }}
           accessible={false}
         />
         <View style={{ flex: 1, gap: tokens.space.xxs }}>
@@ -354,18 +356,22 @@ function Welcome({
         <Text variant="label" color="secondary">
           {t("flows.settings.language")}
         </Text>
-        <SegmentedControl<LanguageId>
-          label={t("flows.settings.language")}
-          value={languageId}
-          onChange={async (id) => {
-            await setLanguage(id);
-            announce(i18n.getFixedT(id)("flows.onboarding.languageAnnounce"));
-          }}
-          options={[
-            { value: "en", label: "English" },
-            { value: "pt", label: "Português" },
-          ]}
-        />
+        {/* Side by side like the mockup; stacked when large text would break "Português". */}
+        <View accessibilityRole="radiogroup" style={{ flexDirection: fontScale > LARGE_TEXT ? "column" : "row", gap: tokens.space.md }}>
+          {LANGUAGES.map((l) => (
+            <View key={l.id} style={fontScale > LARGE_TEXT ? undefined : { flex: 1 }}>
+              <OptionCard
+                title={l.name}
+                indicator="check"
+                selected={languageId === l.id}
+                onPress={async () => {
+                  await setLanguage(l.id);
+                  announce(i18n.getFixedT(l.id)("flows.onboarding.languageAnnounce"));
+                }}
+              />
+            </View>
+          ))}
+        </View>
       </View>
       {phone.length > 0 && (
         <Card>
@@ -508,7 +514,7 @@ function PackageStep({
         </>
       }
     >
-      <StepHeader titleRef={titleRef} step={2} title={t("flows.onboarding.step2Title")} subtitle={t("flows.onboarding.step2Sub")} />
+      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t("flows.onboarding.step2Sub")} />
       <Text variant="mono" color="secondary" numeric>
         {deviceRamBytes > 0 || freeBytes > 0
           ? t("flows.onboarding.device", {
@@ -519,115 +525,68 @@ function PackageStep({
       </Text>
       <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
         {plans.map((p) => {
-          const isSelected = p.id === selected;
-          // One big number (what this choice costs now), the rest as one line of metadata.
-          const sizeLabel =
-            p.plan.downloadBytes > 0 ? t(offline ? "flows.onboarding.sizeLabel.import" : "flows.onboarding.sizeLabel.download") : null;
-          const meta = [
-            t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
-            !offline && p.seconds != null && p.plan.downloadBytes > 0
-              ? t("flows.onboarding.meta.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) })
-              : null,
-          ].filter(Boolean) as string[];
           const warning =
             p.shortfall > 0
               ? t("flows.onboarding.noSpace", { size: formatBytes(p.shortfall, lang) })
               : p.fit === "insufficient" || p.fit === "thrashing" || p.fit === "streaming"
                 ? t(`flows.row.fit.${p.fit}`)
                 : null;
-          const name = t(`flows.onboarding.package.${p.id}.name`);
-          const amount = p.plan.downloadBytes > 0 ? formatBytes(p.plan.downloadBytes, lang) : t("flows.onboarding.alreadyDownloaded");
           return (
-            <Pressable
+            <OptionCard
               key={p.id}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected, disabled: p.shortfall > 0 }}
-              accessibilityLabel={[
-                name,
-                p.id === recommended ? t("flows.onboarding.recommended") : null,
-                sizeLabel ? `${amount} ${sizeLabel}` : amount,
-                t(`flows.onboarding.package.${p.id}.body`),
-                ...meta,
-                warning,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-              onPress={() => {
-                impact(ImpactFeedbackStyle.Light);
-                onUserPackage(p.id);
-              }}
-              style={{
-                flexDirection: "row",
-                gap: tokens.space.md,
-                padding: tokens.space.base,
-                borderRadius: tokens.radius.lg,
-                borderWidth: isSelected ? tokens.size.focusRing : tokens.size.hairline,
-                borderColor: isSelected ? tokens.color.accent.solid : tokens.color.line.hairline,
-                backgroundColor: isSelected ? tokens.color.accent.soft : tokens.color.bg.surface,
-              }}
+              title={t(`flows.onboarding.package.${p.id}.name`)}
+              selected={p.id === selected}
+              onPress={() => onUserPackage(p.id)}
+              badge={p.id === recommended ? <Badge label={t("flows.onboarding.recommended")} tone="accent" /> : undefined}
+              // The one number that decides: what this choice downloads (or imports) now.
+              trailing={p.plan.downloadBytes > 0 ? formatBytes(p.plan.downloadBytes, lang) : undefined}
+              description={t(`flows.onboarding.package.${p.id}.body`)}
+              meta={[
+                p.plan.downloadBytes === 0 && t("flows.onboarding.alreadyDownloaded"),
+                t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
+                !offline &&
+                  p.seconds != null &&
+                  p.plan.downloadBytes > 0 &&
+                  t("flows.onboarding.meta.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
+              ]}
             >
-              <Icon name={isSelected ? "check-circle" : "circle"} color={isSelected ? tokens.color.accent.text : tokens.color.text.secondary} />
-              <View style={{ flex: 1, gap: tokens.space.xs }}>
-                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.sm }}>
-                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.sm }}>
-                    <Text variant="headline">{name}</Text>
-                    {p.id === recommended && <Badge label={t("flows.onboarding.recommended")} tone="accent" />}
-                  </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text variant={sizeLabel ? "title3" : "footnote"} color={sizeLabel ? "primary" : "secondary"} numeric>
-                      {amount}
-                    </Text>
-                    {sizeLabel && (
-                      <Text variant="caption" color="secondary">
-                        {sizeLabel}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-                <Text variant="footnote" color="secondary">
-                  {t(`flows.onboarding.package.${p.id}.body`)}
+              {warning && (
+                <Text variant="footnote" color={p.shortfall > 0 || p.fit === "insufficient" ? "danger" : "warning"}>
+                  {warning}
                 </Text>
-                <Text variant="mono" color="secondary" numeric>
-                  {meta.join(" · ")}
-                </Text>
-                {warning && (
-                  <Text variant="footnote" color={p.shortfall > 0 || p.fit === "insufficient" ? "danger" : "warning"}>
-                    {warning}
-                  </Text>
-                )}
-              </View>
-            </Pressable>
+              )}
+            </OptionCard>
           );
         })}
       </View>
       {choices.compact && choices.default && (
-        <Section title={t("flows.onboarding.answerModelTitle")} footer={
-            compactSuggested
-              ? pick?.reason === "compact-low-ram"
-                ? t("flows.onboarding.compactLowRam", { ram: formatBytes(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
-                : t("flows.onboarding.compactWhy")
-              : t("flows.onboarding.answerModelFooter")
-          }>
-          <View accessibilityRole="radiogroup">
+        <View style={{ gap: tokens.space.md }}>
+          <Text variant="label" color="secondary">
+            {t("flows.onboarding.answerModelTitle")}
+          </Text>
+          <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
             {(["default", "compact"] as const).map((tierId) => {
               const m = choices[tierId]!;
               return (
-                <RadioRow
+                <OptionCard
                   key={tierId}
                   title={t(`flows.onboarding.answerTier.${tierId}`, { name: m.label })}
-                  subtitle={[
-                    formatBytes(m.sizeBytes, lang),
-                    tierId === recommendedTier ? t("flows.onboarding.suggestedHere") : undefined,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
                   selected={answerTier === tierId}
                   onPress={() => onUserAnswer(tierId)}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggestedHere")} tone="accent" /> : undefined}
+                  trailing={formatBytes(m.sizeBytes, lang)}
                 />
               );
             })}
           </View>
-        </Section>
+          <Text variant="footnote" color="secondary">
+            {compactSuggested
+              ? pick?.reason === "compact-low-ram"
+                ? t("flows.onboarding.compactLowRam", { ram: formatBytes(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                : t("flows.onboarding.compactWhy")
+              : t("flows.onboarding.answerModelFooter")}
+          </Text>
+        </View>
       )}
       <TravelCard selected={travel} onChange={onTravel} lang={lang} trip={trip} onTrip={onTrip} catalog={catalog} />
       <Text variant="footnote" color="tertiary">
@@ -988,7 +947,7 @@ function InstallStep({
     >
       <StepHeader
         titleRef={titleRef}
-        step={3}
+        stage={indexPhase === "waiting" ? 2 : 3}
         title={ready ? t("flows.onboarding.doneTitle") : offline ? t("flows.onboarding.importTitle") : t("flows.onboarding.step3Title")}
         subtitle={ready ? t("flows.onboarding.doneBody") : offline ? t("flows.onboarding.importSub") : t("flows.onboarding.step3Sub")}
       />
@@ -1009,18 +968,11 @@ function InstallStep({
 
       {!allPresent && (
         <Card style={{ gap: tokens.space.md }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: tokens.space.md }}>
-            <View style={{ flex: 1, gap: tokens.space.xxs }}>
-              <Text variant="label" color="field">
-                {t("flows.onboarding.totalLabel")}
-              </Text>
-              <Text variant="display" numeric>
-                {`${totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 100) : 0}%`}
-              </Text>
-            </View>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
+            <Stat size="lg" label={t("flows.onboarding.totalLabel")} value={String(totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 100) : 0)} unit="%" />
             <Image
               source={require("../../assets/boar.png")}
-              style={{ width: tokens.size.control, height: tokens.size.control, borderRadius: tokens.radius.full }}
+              style={{ width: tokens.size.mascotSm, height: tokens.size.mascotSm, borderRadius: tokens.radius.full }}
               accessible={false}
             />
           </View>
@@ -1029,9 +981,7 @@ function InstallStep({
             value={totalBytes > 0 ? doneBytes / totalBytes : 0}
             valueText={t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })}
           />
-          <Text variant="mono" color="secondary" numeric>
-            {t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })}
-          </Text>
+          <MetaLine items={[t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })]} />
         </Card>
       )}
 

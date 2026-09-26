@@ -544,10 +544,6 @@
       "phoneLabel": "Este celular",
       "phoneMemory": "Memória",
       "phoneFree": "Espaço livre",
-      "sizeLabel": {
-        "download": "para baixar",
-        "import": "para importar"
-      },
       "meta": {
         "onDisk": "{{size}} no disco",
         "time": "~{{minutes}} min a {{speed}}/s"
@@ -557,7 +553,6 @@
       "point3": "Mostra as fontes de cada resposta.",
       "start": "Começar",
       "backToApp": "Voltar ao app",
-      "stepOf": "Passo {{step}} de {{total}}",
       "stepAnnounce": "Passo {{step}} de 3, {{title}}",
       "step2Title": "Escolha o que instalar",
       "step2Sub": "Tudo é baixado uma vez e depois funciona offline.",
@@ -591,6 +586,13 @@
       "totalValue": "{{done}} de {{total}}",
       "percentAnnounce": "{{pct}}% baixado",
       "queued": "Na fila",
+      "stage": {
+        "start": "Início",
+        "choose": "Escolha",
+        "install": "Instalar",
+        "index": "Indexar"
+      },
+      "stageOf": "Passo {{n}} de {{total}}: {{name}}",
       "checking": "Conferindo",
       "failedShort": "Falhou",
       "downloadingLine": "{{pct}}% · {{done}} de {{total}}",
