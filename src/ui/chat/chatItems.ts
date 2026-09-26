@@ -50,3 +50,15 @@ export function sessionToResume(sessions: ChatSession[], now: number, windowMs =
   const latest = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   return latest && now - latest.updatedAt <= windowMs ? latest : null;
 }
+
+/**
+ * Suggested questions, per UI language: only those the default model answers
+ * correctly and safely in that language (Sextant, eval/results/suggestions).
+ * `chat.suggestions.available` lists them, e.g. "q1,q2,q3,q4".
+ */
+export function suggestionKeys(available: string): string[] {
+  return available
+    .split(",")
+    .map((k) => k.trim())
+    .filter((k) => /^q\d+$/.test(k));
+}

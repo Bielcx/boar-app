@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { ChatMessageRecord } from "../../services/chatHistory";
-import { historyTurns, itemsFromRecords, RESUME_WINDOW_MS, sessionToResume, updateAnswer, type ChatItem } from "./chatItems";
+import {
+  historyTurns,
+  itemsFromRecords,
+  RESUME_WINDOW_MS,
+  sessionToResume,
+  suggestionKeys,
+  updateAnswer,
+  type ChatItem,
+} from "./chatItems";
 
 const rec = (id: string, role: "user" | "assistant", text: string, meta: string | null = null): ChatMessageRecord => ({
   id,
@@ -63,5 +71,14 @@ describe("sessionToResume", () => {
     expect(sessionToResume([session("old", now - 2 * RESUME_WINDOW_MS), session("new", now - 1000)], now)?.id).toBe("new");
     expect(sessionToResume([session("stale", now - RESUME_WINDOW_MS - 1)], now)).toBeNull();
     expect(sessionToResume([], now)).toBeNull();
+  });
+});
+
+describe("suggestionKeys", () => {
+  it("reads the per-language list and ignores anything else", () => {
+    expect(suggestionKeys("q1, q2,q3,q4")).toEqual(["q1", "q2", "q3", "q4"]);
+    expect(suggestionKeys("q3")).toEqual(["q3"]);
+    // A missing key comes back from i18next as the key itself: show nothing.
+    expect(suggestionKeys("chat.suggestions.available")).toEqual([]);
   });
 });
