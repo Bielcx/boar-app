@@ -23,6 +23,9 @@ const UNIT_VARIANT = { xl: "title2", lg: "title3", md: "headline", sm: "footnote
 /** A number that leads: big, tabular, with its unit and an optional overline. One per card at most. */
 export function Stat({ value, unit, label, size = "md", align = "left", color = "primary" }: StatProps) {
   const t = useTokens();
+  // Mockup: a percentage is one run ("62%" at the figure's size); other units ("MB", "tok/s") sit smaller.
+  const joined = unit === "%";
+  const shown = joined ? `${value}%` : value;
   return (
     <View
       accessible
@@ -39,9 +42,9 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
           // xl: trim the extra leading of `hero` (kept so iOS doesn't clip the ascenders) from the layout.
           style={size === "xl" ? { marginVertical: -((t.type.hero.lineHeight ?? 0) - (t.type.hero.fontSize ?? 0)) / 2 } : undefined}
         >
-          {value}
+          {shown}
         </Text>
-        {unit ? (
+        {unit && !joined ? (
           <Text variant={UNIT_VARIANT[size]} color="secondary" numeric>
             {unit}
           </Text>
