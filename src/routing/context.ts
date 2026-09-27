@@ -849,6 +849,9 @@ export interface CompressedContext {
  * dropped — unless nothing scores at all, in which case the first sentences
  * of the top chunks are kept so the model still sees its best sources.
  */
+/** Tokens the best passage's other sentences may add after the ranked pick (prefill is the phone's bottleneck). */
+const FILL_MAX_TOKENS = 60;
+
 /** The shown relevance of an article the question names: the UI's 'high' band (Quill: >= 0.75). */
 const NAMED_ARTICLE_RELEVANCE = 0.75;
 
@@ -908,10 +911,14 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
   // word, and lost "The processes that result in plates and shape Earth's crust are called tectonics").
   // Only the MOST relevant chosen passage (Boar: prefill is the phone's bottleneck; filling every
   // chosen passage cost +14% context on the suggestions): a distractor never enters this way.
+  // At most FILL_MAX_TOKENS: on s32 the fill took long passages' long sentences (+20% context, Sextant).
   const top = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b)[0];
   if (top !== undefined) {
+    const fillEnd = Math.min(budget, used + FILL_MAX_TOKENS);
     for (const s of scored.filter((x) => x.chunkIndex === top).sort((a, b) => a.position - b.position)) {
       if (picked.get(top)!.size >= perChunk) break;
+      if (picked.get(top)!.has(s.position)) continue;
+      if (used + cost(s) > fillEnd) continue;
       tryAdd(s);
     }
   }
