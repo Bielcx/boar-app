@@ -539,6 +539,12 @@ describe("Prism RF-1: the suggested questions", () => {
 
 describe("onTopic: the article's own title (Sextant RF-1, plate boundaries)", () => {
   const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("gate ea21e82 s32: a title that merely contains a question word is not on topic", () => {
+    expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
+    expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+    expect(onTopic("What is the smallest country in South America by area?", c("Autonomy South", "Autonomy South is a political party."))).toBe(false);
+  });
+
   it("'Plate tectonics' for plate boundaries; a subtitle word still needs coverage", () => {
     const plates = c("Plate tectonics", "Plate tectonics is the scientific theory that Earth's lithosphere comprises a number of large tectonic plates.");
     expect(onTopic("Why do earthquakes happen near plate boundaries?", plates)).toBe(true);
