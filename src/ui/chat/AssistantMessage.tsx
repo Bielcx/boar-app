@@ -10,7 +10,7 @@ import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { previewText, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
 import { groupSources, sourceParts } from "./sourceLabel";
-import { needsEmergencyNote } from "./safetyNote";
+import { showsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -538,7 +538,13 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
 
       {answer.sources.length > 0 && !placesOnly && <SourceList answer={answer} onOpenSource={onOpenSource} />}
-      {hasText && !placesOnly && needsEmergencyNote(props.question ?? "", answer.sources) && <EmergencyNote />}
+      {showsEmergencyNote({
+        question: props.question ?? "",
+        sources: answer.sources,
+        hasModelText: !!(answer.fast?.text || answer.deep?.text),
+        hasSnippet: !!answer.instant,
+        placesOnly,
+      }) && <EmergencyNote />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, marginLeft: -t.space.sm }}>

@@ -737,12 +737,13 @@
     "stage": {
       "searching": "Searching sources…",
       "loadingModel": "Loading the model…",
-      "reading": "Reading {{count}} sources…",
       "thinking": "Thinking…",
       "verifying": "Checking the answer…",
       "synthesizing": "Putting it together…",
       "part": "Researching part {{index}} of {{count}}…",
-      "stopping": "Stopping…"
+      "stopping": "Stopping…",
+      "reading_one": "Reading {{count}} source…",
+      "reading_other": "Reading {{count}} sources…"
     },
     "announce": {
       "searching": "Searching sources",
@@ -860,7 +861,9 @@
       "suggestionsLabel": "Try asking",
       "ask": "Ask: {{question}}",
       "fill": "Put in the input to edit",
-      "tagline": "Answers from this phone, with sources"
+      "tagline": "Answers from this phone, with sources",
+      "addKnowledge": "Add a knowledge pack for more topics",
+      "addKnowledgeHint": "Opens Knowledge"
     },
     "suggestions": {
       "q1": "Why do we have seasons on Earth?",
