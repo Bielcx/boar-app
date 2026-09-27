@@ -27,7 +27,14 @@ export type SetupTier = "minimum" | "standard" | "full" | "encyclopedia";
 export interface CatalogModel {
   id: string;
   kind: AssetKind;
+  /** Technical name (model, size, quantization): for detail views, logs and the install list. */
   label: string;
+  /**
+   * Short name for the UI, without quantization or release tags ("Qwen3 4B",
+   * not "Qwen3-4B-Instruct-2507 (Q4_K_M)"). Set for every model; read it
+   * with displayNameOf(), which falls back to `label` for other assets.
+   */
+  displayName?: string;
   /** Relative path under FileSystem.documentDirectory once installed */
   filename: string;
   sizeBytes: number;
@@ -94,6 +101,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "phi-3.5-mini-instruct-q4km",
     kind: "llm",
     label: "Phi-3.5-mini-instruct (Q4_K_M)",
+    displayName: "Phi 3.5 Mini",
     filename: "models/primary-llm.gguf",
     sizeBytes: 2393232672,
     sha256: "e4165e3a71af97f1b4820da61079826d8752a2088e313af0c7d346796c38eff5",
@@ -108,6 +116,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "bge-small-en-v1.5-q8",
     kind: "embedding",
     label: "bge-small-en-v1.5 (Q8_0)",
+    displayName: "BGE Small",
     filename: "models/embedding.gguf",
     sizeBytes: 36806944,
     sha256: "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
@@ -122,6 +131,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "qwen3-4b-instruct-2507-q4km",
     kind: "llm",
     label: "Qwen3-4B-Instruct-2507 (Q4_K_M)",
+    displayName: "Qwen3 4B",
     filename: "models/qwen3-4b-instruct-2507-q4km.gguf",
     // The exact file the frontier evaluation measured (unsloth build; sha256
     // checked against a local copy on 2026-09-26).
@@ -139,6 +149,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "qwen2.5-1.5b-instruct-q4km",
     kind: "llm",
     label: "Qwen2.5-1.5B-Instruct (Q4_K_M)",
+    displayName: "Qwen2.5 1.5B",
     filename: "models/qwen2.5-1.5b-instruct-q4km.gguf",
     sizeBytes: 986048768,
     sha256: "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370",
@@ -159,6 +170,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "qwen2.5-7b-instruct-q4km",
     kind: "llm",
     label: "Qwen2.5-7B-Instruct (Q4_K_M)",
+    displayName: "Qwen2.5 7B",
     filename: "models/qwen2.5-7b-instruct-q4km.gguf",
     sizeBytes: 4683074240,
     sha256: "65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423",
@@ -177,6 +189,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "lfm2.5-8b-a1b-q4km",
     kind: "llm",
     label: "LFM2.5-8B-A1B (Q4_K_M)",
+    displayName: "LFM2.5 8B",
     filename: "models/hf-liquidai-lfm2-5-8b-a1b-gguf-lfm2-5-8b-a1b-q4-k-m-gguf.gguf",
     sizeBytes: 5155564768,
     sha256: "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0",
@@ -190,6 +203,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     id: "gemma-4-e4b-it-q4_0",
     kind: "llm",
     label: "Gemma 4 E4B (QAT Q4_0)",
+    displayName: "Gemma 4 E4B",
     filename: "models/hf-google-gemma-4-e4b-it-qat-q4-0-gguf-gemma-4-e4b-q4-0-it-gguf.gguf",
     sizeBytes: 5154941280,
     sha256: "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
@@ -313,3 +327,9 @@ const PINNED_SOURCE_URLS = [
 export function isPinnedSourceUrl(url: string): boolean {
   return PINNED_SOURCE_URLS.some((re) => re.test(url)) && !url.split("/").includes("..");
 }
+
+/** The name to show people: the short displayName of a model, else the asset's label. */
+export function displayNameOf(asset: Pick<CatalogModel, "label" | "displayName">): string {
+  return asset.displayName ?? asset.label;
+}
+

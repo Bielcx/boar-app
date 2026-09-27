@@ -10,6 +10,7 @@ import {
   STORAGE_BUDGET_BYTES,
   totalManifestBytes,
   isPinnedSourceUrl,
+  displayNameOf,
 } from "./manifest";
 
 describe("totalManifestBytes", () => {
@@ -115,3 +116,26 @@ describe("sourceUrl pinning", () => {
     }
   });
 });
+
+describe("display names (plain names in the UI, technical label in details)", () => {
+  const models = MODEL_CATALOG.filter((m) => m.kind === "llm" || m.kind === "embedding");
+
+  it("every model has a short name without quantization, release or format tags", () => {
+    for (const m of models) {
+      expect(m.displayName, m.id).toBeTruthy();
+      expect(m.displayName!.length, m.id).toBeLessThanOrEqual(16);
+      expect(m.displayName, m.id).not.toMatch(/Q\d|K_M|Instruct|GGUF|QAT|-it\b|\(|2507/i);
+    }
+  });
+
+  it("names are unique, so two models never look the same", () => {
+    const names = models.map((m) => m.displayName);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("displayNameOf falls back to the label for assets without one", () => {
+    expect(displayNameOf({ label: "Qwen3-4B-Instruct-2507 (Q4_K_M)", displayName: "Qwen3 4B" })).toBe("Qwen3 4B");
+    expect(displayNameOf({ label: "Berlin" })).toBe("Berlin");
+  });
+});
+
