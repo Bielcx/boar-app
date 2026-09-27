@@ -12,6 +12,7 @@ import { ChatScreen } from "../ChatScreen";
 import { SetupWizardScreen } from "../SetupWizardScreen";
 import { SettingsScreen } from "../SettingsScreen";
 import { SettingsHistoryScreen, SettingsLengthScreen, SettingsToneScreen } from "../SettingsSubscreens";
+import { SettingsAssistantScreen } from "../SettingsAssistantScreen";
 import { ModelsScreen, ModelSearchScreen } from "../ModelsScreen";
 import { KnowledgeScreen } from "../KnowledgeScreen";
 import { PerformanceScreen, PerformanceLogsScreen } from "../PerformanceScreen";
@@ -168,6 +169,7 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
         <Stack.Screen name="SettingsTone" component={SettingsToneScreen} options={flowHeader(t, tr("flows.settings.tone"), false)} />
         <Stack.Screen name="SettingsLength" component={SettingsLengthScreen} options={flowHeader(t, tr("flows.settings.length"), false)} />
         <Stack.Screen name="SettingsHistory" component={SettingsHistoryScreen} options={flowHeader(t, tr("flows.settings.history"), false)} />
+        <Stack.Screen name="SettingsAssistant" component={SettingsAssistantScreen} options={flowHeader(t, tr("flows.assistant.title"), false)} />
         <Stack.Screen name="Models" component={ModelsScreen} options={flowHeader(t, tr("flows.settings.models"))} />
         <Stack.Screen name="ModelSearch" component={ModelSearchScreen} options={flowHeader(t, tr("flows.models.searchTitle"), false)} />
         <Stack.Screen name="Knowledge" component={KnowledgeScreen} options={flowHeader(t, tr("nav.knowledge"))} />

@@ -255,7 +255,7 @@
       "importChecking": "Checking {{name}}",
       "importOther": "{{name}} is a different item, not this one. Choose this item's file.",
       "unverified": "Not checked",
-      "active": "Active",
+      "active": "In use",
       "usedFor": "Used for: {{roles}}",
       "role": {
         "answer": "Answers",
@@ -322,10 +322,10 @@
       "didNotOpenBefore": "BOAR closed the last time it loaded ",
       "mayCloseTitle": "Use this model?",
       "mayCloseBefore": "BOAR may close when it loads ",
-      "mayCloseAfter": ". Compact is the recommended one here.",
+      "mayCloseAfter": ". Fast is the recommended one here.",
       "showAll": "Show all",
       "showLess": "Show less",
-      "keepCompact": "Keep Compact",
+      "keepCompact": "Keep Fast",
       "useAnyway": "Use anyway",
       "fitWhy": {
         "streaming": "larger than this phone's memory",
@@ -475,8 +475,8 @@
         "resident": "model ready",
         "unknown": ""
       },
-      "startLabel": "Start",
-      "memoryLabel": "Memory"
+      "memoryLabel": "Memory",
+      "startLabel": "Start"
     },
     "about": {
       "tagline": "Offline research on your phone",
@@ -572,8 +572,8 @@
       "categoryA11y": "{{name}}, {{done}} of {{total}} files, {{pct}}%",
       "openWhenReady": "Available when every file is on the phone",
       "llmLabel": "Model",
-      "chooseAnswerTitle": "Answer model",
-      "chooseAnswerHint": "Choose Standard or Compact",
+      "chooseAnswerTitle": "Assistant",
+      "chooseAnswerHint": "Choose Fast or More accurate",
       "workingMemory": "needs ~{{size}} of memory",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
       "keepOpenTitle": "Keep BOAR open",
@@ -622,13 +622,13 @@
       "linkCopied": "Link copied",
       "toImport": "Not imported yet",
       "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file).",
-      "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
+      "compactWhy": "More accurate may not run well on this phone, so Fast is selected. You can still choose More accurate.",
       "answerTier": {
-        "default": "Standard",
-        "compact": "Compact"
+        "default": "More accurate",
+        "compact": "Fast"
       },
       "suggested": "Suggested",
-      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
+      "compactLowRam": "This phone has {{ram}} of memory or less, so Fast is selected. You can still choose More accurate."
     },
     "places": {
       "title": "Places (offline)",
@@ -698,6 +698,18 @@
         "corpus-full": "Full knowledge base (+4,000 topics)",
         "wiki-vital5": "Wikipedia Vital Articles"
       }
+    },
+    "assistant": {
+      "title": "Assistant",
+      "footer": "Both answer on this phone, offline. More accurate writes better answers but is slower and uses more memory.",
+      "sub": {
+        "compact": "Quicker answers, less memory",
+        "default": "Better answers, a bit slower"
+      },
+      "details": "Details",
+      "detailsA11y": "Technical model names",
+      "search": "Search",
+      "otherInUse": "Another model is in use. Change it in Models."
     }
   },
   "chat": {

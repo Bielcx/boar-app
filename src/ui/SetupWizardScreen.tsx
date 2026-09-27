@@ -585,7 +585,7 @@ function PackageStep({
           style={{ gap: tokens.space.sm }}
           // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
           onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
-          accessibilityLabel={[t(`flows.onboarding.answerTier.${answerTier}`), catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          accessibilityLabel={[catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
           accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
@@ -632,7 +632,8 @@ function PackageStep({
               return (
                 <OptionCard
                   key={tierId}
-                  title={t(`flows.onboarding.answerTier.${tierId}`)}
+                  title={catalogLabel(m, t)}
+                  description={t(`flows.assistant.sub.${tierId}`)}
                   selected={answerTier === tierId}
                   onPress={() => {
                     onUserAnswer(tierId);
@@ -640,7 +641,6 @@ function PackageStep({
                   }}
                   badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
-                  meta={[m.label]}
                 />
               );
             })}

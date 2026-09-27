@@ -11,6 +11,7 @@ export type RootStackParamList = {
   SettingsTone: undefined;
   SettingsLength: undefined;
   SettingsHistory: undefined;
+  SettingsAssistant: undefined;
   Models: undefined;
   ModelSearch: undefined;
   Knowledge: undefined;
