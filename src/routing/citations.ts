@@ -79,8 +79,10 @@ export const ATTRIBUTION_MIN_SUPPORT = 0.75;
 export function attributeCitations(answer: string, sources: RetrievedChunk[]): AttributedCitations {
   const added: number[] = [];
   if (!sources.length) return { text: answer, added };
-  const text = answer.replace(/[^.!?\n]+[.!?]*/g, (sentence) => {
+  const text = answer.replace(/[^.!?\n]+[.!?]*/g, (sentence: string, at: number) => {
     if (/\[\d+\]/.test(sentence)) return sentence;
+    // A citation right after the sentence's punctuation ("… Zone. [1]") is its own (Prism CIT-2: "[1]. [1]").
+    if (/^\s*\[\d+\]/.test(answer.slice(at + sentence.length))) return sentence;
     const key = [...new Set(tokenizeTerms(sentence))];
     if (key.length < MIN_KEY_TERMS) return sentence;
     let best = -1;
@@ -97,5 +99,10 @@ export function attributeCitations(answer: string, sources: RetrievedChunk[]): A
     const m = /^(.*?)(\s*)([.!?]*)(\s*)$/s.exec(sentence)!;
     return `${m[1]} [${best + 1}]${m[3]}${m[4]}`;
   });
-  return { text, added };
+  return { text: dedupeCitations(text), added };
+}
+
+/** The same [n] twice around one sentence end ("… Zone [1]. [1]", "… [1] [1].") is shown once (Prism CIT-2). */
+export function dedupeCitations(text: string): string {
+  return text.replace(/\[(\d+)\][ \t]*([.!?]?)[ \t]*\[\1\]/g, "[$1]$2");
 }
