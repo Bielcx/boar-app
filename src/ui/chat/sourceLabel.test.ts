@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupSources, sourceParts } from "./sourceLabel";
+import { groupSources, relevancePercents, sourceParts } from "./sourceLabel";
 
 describe("sourceParts", () => {
   it("splits the corpus 'Name — URL (license)' string (Prism S-2)", () => {
@@ -43,5 +43,20 @@ describe("groupSources", () => {
 
   it("never merges sources without an article id", () => {
     expect(groupSources([{ docId: "", title: "A" }, { docId: "", title: "A" }]).length).toBe(2);
+  });
+});
+
+describe("relevancePercents (measured bar, Boar)", () => {
+  it("normalizes the engine's relevance within the answer, the best = 100", () => {
+    expect(relevancePercents([{ relevance: 0.8 }, { relevance: 0.75 }, { relevance: 0.4 }])).toEqual([100, 94, 50]);
+  });
+
+  it("gives no bar to a source without a measured value", () => {
+    expect(relevancePercents([{ relevance: 0.5 }, {}, { relevance: 0 }])).toEqual([100, null, null]);
+    expect(relevancePercents([{}, {}])).toEqual([null, null]);
+  });
+
+  it("never rounds a measured source down to 0%", () => {
+    expect(relevancePercents([{ relevance: 1 }, { relevance: 0.001 }])).toEqual([100, 1]);
   });
 });
