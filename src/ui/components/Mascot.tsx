@@ -55,14 +55,15 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
   return (
     <View {...hidden} style={{ width: side, height: side, opacity: dim ? 0.55 : 1 }}>
       {glow && !dim && (
-        // Mockup: an ellipse 10% wider than the boar, 60% of its height, sinking 15% below it.
+        // An ellipse 10% wider than the boar whose peak (60% down the box) sits at its feet;
+        // the box spans 0.5..1.3 of the boar's height so the glow fades out inside it.
         <View
           style={{
             position: "absolute",
             left: -side * 0.05,
             right: -side * 0.05,
-            bottom: -side * 0.15,
-            height: side * 0.6,
+            top: side * 0.5,
+            height: side * 0.8,
             experimental_backgroundImage: mascotGlow(t.color.glow),
           }}
         />
