@@ -487,6 +487,13 @@ export const MIN_TERMS_FOR_COVERAGE = 3;
  * "Rainbow" and "McEliece" as signature standards; the compact model now
  * declines instead, see answer.ts).
  */
+/** Opens a knowledge answer that cites none of its sources (Boar, gate ea5978c): the reader must not take it as the library's. */
+export function uncitedPreface(pt: boolean): string {
+  return pt
+    ? "Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela."
+    : "This answer is not from an offline source on this phone; check it before relying on it.";
+}
+
 export const NO_SOURCE_INSTRUCTION =
   "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
   // s32 (ee1f2b7): "Only state what you are sure of" made the 4B drop list items (the Danube without

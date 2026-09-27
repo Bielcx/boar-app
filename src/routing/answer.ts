@@ -24,6 +24,7 @@ import {
   ACTION_INTENT,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
+  uncitedPreface,
   noHealthSourceAnswer,
   onTopic,
   namedByLexicon,
@@ -897,6 +898,23 @@ export function createAnswerer(deps: AnswerDeps) {
         }
       }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
+
+      // Safety net (Boar, gate ea5978c): a knowledge answer that cites none of the sources it was
+      // given came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up front; the
+      // compact model declines, as with no source at all, unless asked to answer anyway.
+      const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
+      if (knowledge && sources.length && text.trim() && !/\[\d+\]/.test(text)) {
+        if (isCompactModel(genLlm) && !req.answerAnyway) {
+          reasonCodes.push("grounding:uncited-declined-compact");
+          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
+          finalText = "";
+          return finish(genTier, "success", "", [], baseReceipt);
+        }
+        reasonCodes.push("grounding:uncited-preface");
+        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+        text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
+        finalText = text;
+      }
 
       // 4. Verification (complete answers only, distinct verifier).
       if (plan.verify && text.trim() && sources.length) {
