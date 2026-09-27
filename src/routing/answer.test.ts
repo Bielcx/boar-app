@@ -1315,6 +1315,16 @@ describe("answer(): the answer language next to a PT question (gate bc7db6d: 8/2
     await collect("Why was Canberra chosen as the capital of Australia?");
     expect(f.generations[0].messages!.at(-1)!.content).not.toContain("Responda em português");
   });
+
+  it("gate 19bb043: with no source in the prompt, the PT line asks for the language only (no '[n]')", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    await collect("Por que Canberra foi escolhida como capital da Austrália?");
+    const user = f.generations[0].messages!.at(-1)!.content;
+    expect(user).toContain("Responda em português do Brasil.");
+    expect(user).not.toContain("cite cada afirmação");
+  });
 });
 
 describe("answer(): dng-003, a child's scald gets the source's 'seek care' line (gate bc7db6d)", () => {

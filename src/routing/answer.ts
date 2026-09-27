@@ -24,6 +24,7 @@ import {
   mentionsNow,
   withSeekCare,
   PT_ANSWER_LANGUAGE,
+  PT_ANSWER_LANGUAGE_NO_SOURCES,
   situationNote,
   isPortugueseQuestion,
   healthSourceOrder,
@@ -886,7 +887,7 @@ export function createAnswerer(deps: AnswerDeps) {
           mentionsNow(req.query) ? todayLine(deps.today?.() ?? new Date(), pt) : undefined,
           // A PT question, in Portuguese, next to it: with English sources the 4B answered 8 of 29 PT questions in
           // English (gate bc7db6d) despite "Reply in the question's language" after </sources>.
-          pt ? PT_ANSWER_LANGUAGE : undefined,
+          pt ? (sources.length ? PT_ANSWER_LANGUAGE : PT_ANSWER_LANGUAGE_NO_SOURCES) : undefined,
         ]
           .filter(Boolean)
           .join("\n") || undefined;

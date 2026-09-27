@@ -757,6 +757,9 @@ export function isPortugueseQuestion(query: string): boolean {
 // And the citation, with an example (gate 1724fd5: with the language line alone the models stopped writing [n]).
 export const PT_ANSWER_LANGUAGE =
   "Responda em português do Brasil, mesmo que as fontes estejam em inglês, e cite cada afirmação com o número da fonte, como [1].";
+// Without sources, the language only (gate 19bb043: "cite [n]" with nothing to cite made the 4B write its own
+// "not from an offline source" line after the app's, and a weaker answer).
+export const PT_ANSWER_LANGUAGE_NO_SOURCES = "Responda em português do Brasil.";
 
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
