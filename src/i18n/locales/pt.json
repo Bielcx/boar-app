@@ -725,6 +725,7 @@
       "checking": "Conferindo {{name}}",
       "checkingValue": "Conferindo, {{pct}}%",
       "verified": "Verificado: {{item}}",
+      "missingCities": "Ainda falta o índice de cidades ({{name}}, {{size}}): perguntas com nome de cidade não funcionam até você importá-lo. Lugares perto de você pelo GPS já funcionam.",
       "checkingAnnounce": "{{name}}: {{pct}}% conferido",
       "cancelA11y": "Cancelar a importação de {{name}}"
     },

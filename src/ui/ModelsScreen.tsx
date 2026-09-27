@@ -116,7 +116,8 @@ export function ModelsScreen() {
 
       {answer && (
         <View style={{ gap: tokens.space.md }}>
-          <Text variant="label" color="secondary">
+          {/* Inset 14 like the Section titles above and below (the shot had it on the gutter). */}
+          <Text variant="label" color="secondary" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs }}>
             {t("flows.models.deepTitle")}
           </Text>
           <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
@@ -160,7 +161,7 @@ export function ModelsScreen() {
                 );
               })}
           </View>
-          <Text variant="footnote" color="secondary">
+          <Text variant="footnote" color="secondary" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs }}>
             {t("flows.models.deepFooter", { min: MIN_DEEP_TOK_PER_SEC })}
           </Text>
         </View>

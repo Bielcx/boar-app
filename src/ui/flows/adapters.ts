@@ -11,6 +11,7 @@
  */
 import type { CatalogModel } from "../../models/manifest";
 import * as Settings from "../../models/settings";
+import * as Downloads from "../../services/downloadManager";
 import * as FileSystem from "expo-file-system/legacy";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
 import { availableRamFrom, contextSizeForRam, MemoryFit } from "../../inference/memoryFit";
@@ -166,4 +167,15 @@ export async function largeModelConfirmedIds(): Promise<string[]> {
 /** "Use anyway": lets the engine load this model on a low-RAM phone. */
 export async function confirmLargeModel(id: string): Promise<void> {
   await lowRam.confirmLargeModel?.(id);
+}
+
+/**
+ * What an asset still needs on the phone (Ledger's missingRequirements, feat/trust-offline 8dfca20:
+ * a places pack requires the world-places city index). Feature-detected, like the low-RAM settings:
+ * until that commit is integrated it reports nothing missing.
+ */
+type RequirementsApi = { missingRequirements?: (asset: CatalogModel) => Promise<CatalogModel[]> };
+export async function missingRequirementsOf(asset: CatalogModel): Promise<CatalogModel[]> {
+  const api = Downloads as unknown as RequirementsApi;
+  return (await api.missingRequirements?.(asset).catch(() => [])) ?? [];
 }

@@ -8,6 +8,8 @@ export interface FileImport {
   progress: number;
   /** The picked file's size, when the system picker reports it. */
   sizeBytes?: number;
+  /** After a verified import: what the item still needs on the phone (e.g. the city index for a places pack). */
+  missing?: { label: string; sizeBytes: number }[];
   assetId?: string;
   errorKind?: IntegrityErrorKind;
   message?: string;
