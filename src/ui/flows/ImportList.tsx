@@ -6,7 +6,7 @@ import { useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
 import { worldPlacesEntry } from "./adapters";
-import { formatBytes } from "./format";
+import { formatBytes, readableErrorDetail } from "./format";
 
 function labelFor(assetId: string | undefined): string | undefined {
   if (!assetId) return undefined;
@@ -113,18 +113,31 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
                   {t("flows.import.missingCities", { name: m.label, size: formatBytes(m.sizeBytes, i18n.language) })}
                 </Text>
               ))}
-            {f.status === "failed" && (
-              <>
+            {f.status === "failed" &&
+              (f.sizeBytes === 0 ? (
+                // A 0 from the picker can be an empty file OR a >2 GiB file read wrong (IMP-2GB): say only what we know (Prism).
                 <Text variant="footnote" color="danger">
-                  {t(`flows.row.error.${f.errorKind ?? "unknown"}`)}
+                  {t("flows.import.sizeUnread")}
                 </Text>
-                {f.message && (
-                  <Text variant="caption" color="secondary" selectable>
-                    {f.message}
+              ) : (
+                <>
+                  <Text variant="footnote" color="danger">
+                    {t(`flows.row.error.${f.errorKind ?? "unknown"}`)}
                   </Text>
-                )}
-              </>
-            )}
+                  {f.errorKind === "unknown-file" ? (
+                    // What to do on the phone, not a path in the repository (Prism IM-3).
+                    <Text variant="caption" color="secondary">
+                      {t("flows.import.unknownHint")}
+                    </Text>
+                  ) : (
+                    f.message && (
+                      <Text variant="caption" color="secondary" selectable>
+                        {readableErrorDetail(f.message, i18n.language)}
+                      </Text>
+                    )
+                  )}
+                </>
+              ))}
           </View>
         );
       })}
