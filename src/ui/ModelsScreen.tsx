@@ -141,7 +141,10 @@ export function ModelsScreen() {
                     // The measured speed decides; nothing is shown that was not measured here.
                     trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
                     description={
-                      deepAutoEligible(sp, { model: m, totalRamBytes: catalog.deviceRamBytes })
+                      // Too big for this phone first: no number of answers will make it automatic here (Prism CR-2).
+                      catalog.view(m).mayCloseApp
+                        ? t("flows.models.lowRamNotAuto")
+                        : deepAutoEligible(sp, { model: m, totalRamBytes: catalog.deviceRamBytes })
                         ? undefined
                         : deepAutoEligible(sp)
                           ? // Fast enough, but above the compact size on a low-RAM phone (Tusk, CR-1).

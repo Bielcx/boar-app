@@ -6,13 +6,16 @@ import { useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
 import { worldPlacesEntry } from "./adapters";
-import { formatBytes } from "./format";
+import { formatBytes, readableErrorDetail } from "./format";
 
 function labelFor(assetId: string | undefined): string | undefined {
   if (!assetId) return undefined;
   return [...MODEL_CATALOG, ...poiCatalogEntries(), worldPlacesEntry()].find((m) => m.id === assetId)?.label;
 }
 import type { FileImport } from "./useCatalog";
+
+/** Kinds whose message says it all (Ledger's empty-file, unreadable-file): no raw detail under them. */
+const SELF_EXPLAINED = new Set<string>(["empty-file", "unreadable-file"]);
 
 interface Props {
   imports: FileImport[];
@@ -115,13 +118,22 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
               ))}
             {f.status === "failed" && (
               <>
+                {/* The error kind says it (Ledger 6f28763/7f57dad): empty-file, unreadable-file, unknown-file… */}
                 <Text variant="footnote" color="danger">
                   {t(`flows.row.error.${f.errorKind ?? "unknown"}`)}
                 </Text>
-                {f.message && (
-                  <Text variant="caption" color="secondary" selectable>
-                    {f.message}
+                {f.errorKind === "unknown-file" ? (
+                  // What to do on the phone, not a path in the repository (Prism IM-3).
+                  <Text variant="caption" color="secondary">
+                    {t("flows.import.unknownHint")}
                   </Text>
+                ) : (
+                  f.message &&
+                  !SELF_EXPLAINED.has(f.errorKind ?? "") && (
+                    <Text variant="caption" color="secondary" selectable>
+                      {readableErrorDetail(f.message, i18n.language)}
+                    </Text>
+                  )
                 )}
               </>
             )}
