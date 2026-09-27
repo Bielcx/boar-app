@@ -10,13 +10,6 @@ export const PREPAREDNESS_PACK_ID = "boar-preparedness";
 
 /** Word starts: "bleed" also matches "bleeding", "sangr" matches "sangramento". EN and PT. */
 const HEALTH_STEMS = [
-  // Disasters and emergencies (EQ-1), EN
-  "earthquake", "flood", "wildfire", "hurricane", "tornado", "tsunami", "evacuat", "disaster", "landslide",
-  "avalanche", "gas leak", "carbon monoxide", "lightning", "blizzard", "volcan", "survival",
-  // PT
-  "terremoto", "sismo", "enchente", "inunda", "incêndio", "incendio", "queimada", "furacão", "furacao", "tsunami",
-  "evacua", "desastre", "deslizamento", "avalanche", "vazamento de gás", "vazamento de gas", "monóxido",
-  "vulcão", "vulcao", "sobreviv", "perdido",
   "first aid", "emergency", "bleed", "blood", "nosebleed", "burn", "wound", "injur", "fractur",
   "broken bone", "sprain", "resuscitat", "chok", "poison", "overdose", "allerg", "anaphyla", "faint",
   "unconscious", "seizure", "heart attack", "stroke", "chest pain", "breath", "drown", "hypotherm",
@@ -28,18 +21,48 @@ const HEALTH_STEMS = [
   "remedio", "medicamento",
 ];
 
+/**
+ * Disasters count only with an action cue: "What should I do during an earthquake?" is safety,
+ * "Why do earthquakes happen near plate boundaries?" is geology (Sextant, RT-1 q6).
+ */
+const DISASTER_STEMS = [
+  "earthquake", "flood", "wildfire", "hurricane", "tornado", "tsunami", "disaster", "landslide", "avalanche",
+  "lightning", "blizzard", "volcan",
+  "terremoto", "sismo", "enchente", "inunda", "queimada", "furacão", "furacao",
+  "desastre", "deslizamento", "vulcão", "vulcao",
+];
+/** Disaster words that must be whole ("fire", not "firewall"; "raio", not "raio-x"). */
+const DISASTER_WORDS = ["fire", "fires", "raio", "raios"];
+const ACTION_CUES = [
+  "what should", "what to do", "what do i do", "how do i", "how to", "during", "survive", "stay safe", "safe",
+  "prepare", "protect", "escape", "help", "trapped", "caught in", "in case of", "hit by", "there is", "there's",
+  "o que fazer", "o que devo", "como agir", "como me proteger", "como sobreviver", "durante", "sobreviv", "preparar",
+  "proteger", "escapar", "ajuda", "preso", "em caso de", "tem um", "tem uma", "está pegando",
+];
+/** Always safety, with or without a cue. */
+const EMERGENCY_STEMS = [
+  "evacuat", "gas leak", "carbon monoxide", "survival", "evacua", "vazamento de gás", "vazamento de gas", "monóxido",
+  "perdido", "incêndio", "incendio",
+];
+
 /** Whole words only, where a prefix would catch everyday words ("pain" in "painting", "dor" in "Doral"). */
-const HEALTH_WORDS = ["fire", "fires", "raio", "raios", "pain", "dor", "dose", "cut", "shock", "choque", "bite", "sting", "cpr", "rcp", "avc", "dores", "cuts", "bites", "stings"];
+const HEALTH_WORDS = ["pain", "dor", "dose", "cut", "shock", "choque", "bite", "sting", "cpr", "rcp", "avc", "dores", "cuts", "bites", "stings"];
 
 
 const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const starts = (stems: string[]) => new RegExp(`(^|[^\\p{L}])(?:${stems.map(esc).join("|")})`, "iu");
+const DISASTER_RE = new RegExp(
+  `(^|[^\\p{L}])(?:(?:${DISASTER_STEMS.map(esc).join("|")})|(?:${DISASTER_WORDS.map(esc).join("|")})(?![\\p{L}-]))`,
+  "iu"
+);
+const CUE_RE = starts(ACTION_CUES);
 const HEALTH_RE = new RegExp(
-  `(^|[^\\p{L}])(?:(?:${HEALTH_STEMS.map(esc).join("|")})|(?:${HEALTH_WORDS.map(esc).join("|")})(?![\\p{L}-]))`,
+  `(^|[^\\p{L}])(?:(?:${[...HEALTH_STEMS, ...EMERGENCY_STEMS].map(esc).join("|")})|(?:${HEALTH_WORDS.map(esc).join("|")})(?![\\p{L}-]))`,
   "iu"
 );
 
 export function isHealthQuestion(question: string): boolean {
-  return HEALTH_RE.test(question);
+  return HEALTH_RE.test(question) || (DISASTER_RE.test(question) && CUE_RE.test(question));
 }
 
 type Src = { chunkId: string; docId?: string };

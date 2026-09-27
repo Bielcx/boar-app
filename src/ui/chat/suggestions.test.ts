@@ -7,9 +7,13 @@ const ALL = ["wiki-vital5", "boar-preparedness"];
 
 describe("suggestionsFor", () => {
   it("offers only what each model passed in each language (with every corpus installed)", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt", ALL)).toEqual(["q1", "q2", "q3", "q4"]);
-    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "pt-BR", ALL)).toEqual(["q3"]);
-    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q1", "q2", "q3", "q4"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ALL)).toEqual(["q1", "q2", "q3", "q4", "q5", "q7"]);
+    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q1", "q2", "q3", "q4", "q5", "q7"]);
+  });
+
+  it("offers no Portuguese suggestion until Sextant finds its source in Portuguese (PT search, Bramble PT-1)", () => {
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt", ALL)).toEqual([]);
+    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "pt-BR", ALL)).toEqual([]);
   });
 
   it("offers nothing for a model that wasn't validated", () => {
@@ -20,8 +24,8 @@ describe("suggestionsFor", () => {
 
 describe("coveredSuggestions (RT-1)", () => {
   it("hides a question whose on-topic source isn't installed ('seasons' on the builtin base)", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en")).toEqual(["q2"]);
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ["boar-preparedness"])).toEqual(["q2", "q4"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en")).toEqual(["q2", "q5", "q7"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ["boar-preparedness"])).toEqual(["q2", "q4", "q5", "q7"]);
   });
 
   it("keeps unknown keys out", () => {
