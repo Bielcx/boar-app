@@ -126,6 +126,14 @@ export interface PlacesArea {
   lastKnown?: { city: string; country?: string; ageS: number };
 }
 
+/**
+ * A source as shown. relevance (0..1): how well its best sentence answers the question,
+ * on one scale for all sources of an answer; absent when there is no comparable measure
+ * (a Deep Research answer, whose sub-questions each have their own). The UI normalizes
+ * by the answer's maximum for the relevance bar and shows no bar without it.
+ */
+export type SourceChunk = RetrievedChunk & { relevance?: number };
+
 export type AnswerEvent =
   | (Base & {
       type: "stage";
@@ -140,7 +148,7 @@ export type AnswerEvent =
       type: "sources";
       tier: AnswerTier;
       /** Global, deduplicated, stable numbering: "[n]" in the answer text refers to sources[n - 1]. */
-      sources: RetrievedChunk[];
+      sources: SourceChunk[];
     })
   | (Base & {
       type: "instant";
@@ -154,7 +162,18 @@ export type AnswerEvent =
       tier: AnswerTier;
       outcome: AnswerOutcome;
       receipt: AnswerReceipt;
-      error?: { code: AnswerErrorCode; message: string };
+      /** kind: why a model load failed (inference/loadError.ts), for the chat's card; the message has no RAM hint. */
+      error?: { code: AnswerErrorCode; message: string; kind?: "memory" | "engine" | "corrupt" | "missing" };
+      /**
+       * The answer text to show when it differs from the streamed tokens: citations
+       * the sources don't support were removed (CT-1). The UI replaces the text.
+       */
+      finalText?: string;
+      /**
+       * A health, first-aid or disaster question (the engine's classifier): the chat
+       * shows the "Not a substitute for emergency services" line.
+       */
+      safety?: boolean;
     })
   | (Base & {
       /** Emitted only after a fast-tier done: a deeper answer is possible for this question. */
@@ -201,6 +220,12 @@ export type AnswerEvent =
       /** weak_sources: no retrieved source covers the question well; show the sources as weak and suggest a knowledge pack. */
       code: "model_streams_from_storage" | "weak_sources";
       message: string;
+      /**
+       * weak_sources only: true = the compact model did NOT answer (it would answer
+       * from memory); the done that follows has no text. The UI offers "Answer
+       * anyway": answer({ query, answerAnyway: true }).
+       */
+      declined?: boolean;
     });
 
 export type AnswerEventHandler = (e: AnswerEvent) => void;
@@ -217,6 +242,8 @@ export interface AnswerRequest {
   reuseSources?: RetrievedChunk[];
   /** City the user typed after a "which city?" prompt (location denied/unavailable). */
   place?: string;
+  /** "Answer anyway" after a declined weak_sources: the compact model answers from memory, with the notice. */
+  answerAnyway?: boolean;
 }
 
 export interface AnswerResult {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickDefaultAnswerModel, rankAnswerModels } from "./defaultModel";
+import { pickDefaultAnswerModel, rankAnswerModels, tooBigForLowRam } from "./defaultModel";
 import { contextSizeForRam, estimateMemoryFit, parseGgufShape, toGb } from "../inference/memoryFit";
 
 const GiB = 1024 ** 3;
@@ -72,7 +72,9 @@ describe("pickDefaultAnswerModel", () => {
   });
 
   it("uses what is installed when only one tier is", () => {
-    expect(pickDefaultAnswerModel([{ id: "qwen3-4b", answerTier: "default", fit: "thrashing" }], 3.7 * GiB)?.id).toBe("qwen3-4b");
+    // CR-1: never the 4B on a 4 GB phone, not even as the only model.
+    expect(pickDefaultAnswerModel([{ id: "qwen3-4b", answerTier: "default", fit: "thrashing" }], 3.7 * GiB)).toBeNull();
+    expect(pickDefaultAnswerModel([{ id: "qwen3-4b", answerTier: "default", fit: "thrashing" }], 5.6 * GiB)?.id).toBe("qwen3-4b");
     expect(pickDefaultAnswerModel([{ id: "x" }], 8 * GiB)).toEqual({ id: "x", reason: "smallest-fallback" });
     expect(pickDefaultAnswerModel([], 8 * GiB)).toBeNull();
   });
@@ -127,5 +129,27 @@ describe("rankAnswerModels", () => {
   it("accepts candidates with no fit, size or speed (boot, before any measurement)", () => {
     expect(rankAnswerModels([{ id: "a" }, { id: "b" }], 0).pick).toEqual({ id: "a", reason: "smallest-fallback" });
     expect(rankAnswerModels([], 0)).toEqual({ pick: null, ranked: [] });
+  });
+});
+
+describe("CR-1: nothing above the compact model on a low-RAM phone", () => {
+  const GB = 1e9;
+  it("no automatic pick bigger than the compact size at <= 4.5 GB, even a fast one", () => {
+    const r = rankAnswerModels(
+      [
+        { id: "qwen3-4b", answerTier: "default", sizeBytes: 2.5 * GB },
+        { id: "lfm", sizeBytes: 4.8 * GB, tokPerSec: 14, fit: "resident" },
+      ],
+      3.8 * GiB
+    );
+    expect(r.pick).toBeNull();
+    expect(r.ranked.map((x) => x.reason)).toEqual(["low-ram", "low-ram"]);
+  });
+
+  it("small untiered models are still fine", () => {
+    expect(rankAnswerModels([{ id: "gemma-1b", sizeBytes: 0.8 * GB }], 3.8 * GiB).pick).toEqual({ id: "gemma-1b", reason: "smallest-fallback" });
+    expect(tooBigForLowRam({ sizeBytes: 0.8 * GB }, 3.8 * GiB)).toBe(false);
+    expect(tooBigForLowRam({ answerTier: "compact", sizeBytes: 1.1 * GB }, 3.8 * GiB)).toBe(false);
+    expect(tooBigForLowRam({ answerTier: "default", sizeBytes: 2.5 * GB }, 7.5 * GiB)).toBe(false);
   });
 });

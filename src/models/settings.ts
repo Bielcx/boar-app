@@ -36,6 +36,12 @@ interface Settings {
   answerAlwaysComplete?: boolean;
   /** null = explicitly no deep model; undefined = pick automatically (see src/routing/depth.ts). */
   deepModelId?: string | null;
+  /** Ids of models the user confirmed to run on a low-RAM phone (CR-1: above the compact size, risk of an OOM kill). */
+  largeModelConfirmedIds?: string[];
+  /** CR-2: models whose last load killed the app (cleared by a successful load). */
+  loadCrashedIds?: string[];
+  /** The last load crash, until the chat shows it once (src/inference/loadGuard.ts consumeLoadCrash). */
+  pendingLoadCrash?: StoredLoadCrash | null;
 }
 
 export interface MemorySettings {
@@ -339,6 +345,10 @@ export interface AnswerSettings {
   quickFirst: boolean;
   alwaysComplete: boolean;
   deepModelId: string | null | undefined;
+  /** Models the user confirmed for a low-RAM phone; anything else above the compact size is never chosen there. */
+  largeModelConfirmedIds?: string[];
+  /** Models whose last load killed the app: not loaded again unless confirmed after the crash. */
+  loadCrashedIds?: string[];
 }
 
 export async function getAnswerSettings(): Promise<AnswerSettings> {
@@ -347,7 +357,64 @@ export async function getAnswerSettings(): Promise<AnswerSettings> {
     quickFirst: s.answerQuickFirst ?? s.adaptiveRoutingEnabled ?? true,
     alwaysComplete: s.answerAlwaysComplete ?? s.deepResearchMode ?? false,
     deepModelId: s.deepModelId,
+    largeModelConfirmedIds: s.largeModelConfirmedIds ?? [],
+    loadCrashedIds: s.loadCrashedIds ?? [],
   };
+}
+
+export async function getLargeModelConfirmedIds(): Promise<string[]> {
+  return (await readSettings()).largeModelConfirmedIds ?? [];
+}
+
+/** Models whose last load killed the app (Models screen: "Didn't open here"). */
+export async function getLoadCrashedIds(): Promise<string[]> {
+  return (await readSettings()).loadCrashedIds ?? [];
+}
+
+/** Same shape as src/inference/loadMarker.ts LoadCrash (kept here to avoid an import cycle). */
+export interface StoredLoadCrash {
+  crashedModelId: string;
+  crashedLabel: string;
+  fallbackModelId: string;
+  fallbackLabel: string;
+  at: number;
+}
+
+/**
+ * A load killed the app (CR-2): remember it, and withdraw the user's low-RAM
+ * confirmation for that model so it is not loaded again on its own (crash loop).
+ */
+export async function recordLoadCrash(crash: StoredLoadCrash): Promise<void> {
+  const s = await readSettings();
+  s.loadCrashedIds = [...new Set([...(s.loadCrashedIds ?? []), crash.crashedModelId])];
+  s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => id !== crash.crashedModelId);
+  s.pendingLoadCrash = crash;
+  await writeSettings(s);
+}
+
+export async function recordLoadSuccess(modelId: string): Promise<void> {
+  const s = await readSettings();
+  if (!(s.loadCrashedIds ?? []).includes(modelId)) return;
+  s.loadCrashedIds = (s.loadCrashedIds ?? []).filter((id) => id !== modelId);
+  await writeSettings(s);
+}
+
+/** The pending crash notice, once. */
+export async function takePendingLoadCrash(): Promise<StoredLoadCrash | null> {
+  const s = await readSettings();
+  const crash = s.pendingLoadCrash ?? null;
+  if (crash) {
+    s.pendingLoadCrash = null;
+    await writeSettings(s);
+  }
+  return crash;
+}
+
+/** The UI's "run it anyway" on a low-RAM phone (Loom's confirmation). */
+export async function confirmLargeModel(id: string): Promise<void> {
+  const s = await readSettings();
+  s.largeModelConfirmedIds = [...new Set([...(s.largeModelConfirmedIds ?? []), id])];
+  await writeSettings(s);
 }
 
 export async function setAnswerSettings(patch: Partial<AnswerSettings>): Promise<void> {

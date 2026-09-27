@@ -18,19 +18,25 @@ import {
   INSTANT_FINAL_CONFIDENCE,
   HEALTH_GROUNDING_INSTRUCTION,
   isHealthQuestion,
+  isSafetyQuery,
+  ACTION_INTENT,
   MIN_TERM_COVERAGE,
-  noGoodSourceAnswer,
+  NO_SOURCE_INSTRUCTION,
   noHealthSourceAnswer,
   onTopic,
   PT_QUESTION,
   healthExtract,
   healthSourceIndex,
+  healthTopicTerms,
+  onHealthTopic,
   riskyHealthInstruction,
   termCoverage,
 } from "./context";
-import { englishSearchTerms } from "./ptQuery";
+import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
+import { checkCitations } from "./citations";
+import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
-import { pickDefaultAnswerModel } from "./defaultModel";
+import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
@@ -57,6 +63,7 @@ import type {
   AnswerResult,
   AnswerStageName,
   AnswerTier,
+  SourceChunk,
 } from "./events";
 import type { ModelRole } from "./types";
 import type { RetrievedChunk } from "../rag/retrieve.types";
@@ -79,7 +86,7 @@ export interface InstalledLlm {
 }
 
 export interface AnswerEngine {
-  load(filename: string): Promise<LoadResult>;
+  load(filename: string, opts?: { meta?: { modelId?: string; label?: string } }): Promise<LoadResult>;
   generate(opts: GenerateOptions): Promise<string>;
   stop(): Promise<void>;
   getModelInfo(): { filename: string } | null;
@@ -152,6 +159,69 @@ function errorCodeOf(message: string, stage: "load" | "generate"): AnswerErrorCo
   return stage === "load" ? "load_failed" : "generation_failed";
 }
 
+/**
+ * Which model answers, with the rules applied everywhere (the user's pick,
+ * CR-1 low RAM, CR-2 crashed loads, the device default). Shared by answer()
+ * and the chat header (effectiveAnswerModel), so they never disagree.
+ */
+async function selectAnswerModel(deps: AnswerDeps) {
+  let lowRamNote: string | null = null;
+  let lowRamBlocked = false;
+  const [settings, allInstalled, activeId, speeds] = await Promise.all([
+    deps.getSettings(),
+    deps.listInstalledLlms(),
+    deps.getActiveModelId(),
+    deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
+  ]);
+  let installed = allInstalled;
+  // CR-1: on a low-RAM phone, a model above the compact size is never used unless the
+  // user confirmed it: not as the saved pick, the default, a fallback, deep or verifier.
+  const ram = deps.deviceRamBytes?.() ?? 0;
+  const confirmed = new Set(settings.largeModelConfirmedIds ?? []);
+  // CR-2: a model whose load killed the app is not loaded again on its own (crash loop);
+  // the crash withdrew its confirmation, so only a new one lets it run.
+  const crashed = new Set(settings.loadCrashedIds ?? []);
+  const blocked = installed.filter((m) => (tooBigForLowRam(m, ram) || crashed.has(m.id)) && !confirmed.has(m.id));
+  const blockedActive = activeId ? blocked.find((m) => m.id === activeId) : undefined;
+  if (blocked.length) {
+    installed = installed.filter((m) => !blocked.includes(m));
+    lowRamBlocked = installed.length === 0;
+    if (blockedActive) lowRamNote = crashed.has(blockedActive.id) ? `model:load-crashed-${blockedActive.id}` : `model:low-ram-unconfirmed-${blockedActive.id}`;
+  }
+  const byId = new Map(installed.map((m) => [m.id, m]));
+  // The user's pick; without one (or if it was deleted), the device-dependent default:
+  // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
+  let fastLlm = activeId ? byId.get(activeId) : undefined;
+  if (!fastLlm && installed.length) {
+    // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
+    const candidates = await Promise.all(
+      installed.map(async (m) => {
+        const tokPerSec = speeds.get(m.id);
+        const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
+        return {
+          id: m.id,
+          answerTier: m.answerTier,
+          sizeBytes: m.sizeBytes,
+          tokPerSec,
+          fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+        };
+      })
+    );
+    const pick = pickDefaultAnswerModel(candidates, ram);
+    fastLlm = pick ? byId.get(pick.id) : undefined;
+    fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
+  }
+  return { settings, installed, speeds, fastLlm, blockedActive, lowRamNote, lowRamBlocked };
+}
+
+/** What the chat header shows before any question: the model that will answer, and the saved one it replaces. */
+export interface EffectiveAnswerModel {
+  id: string;
+  label: string;
+  /** The user's saved model, not used here (low RAM without confirmation, or its load killed the app). */
+  downgradedFrom?: { id: string; label: string; reason: "low-ram" | "load-crashed" };
+}
+
 export function createAnswerer(deps: AnswerDeps) {
   let current: AnswerHandle | null = null;
 
@@ -162,9 +232,11 @@ export function createAnswerer(deps: AnswerDeps) {
     // Resolves on stop(), so a wait (the GPS) ends at once instead of running out its timeout.
     let signalStop: () => void = () => {};
     const stopSignal = new Promise<"stopped">((r) => (signalStop = () => r("stopped")));
+    // Health, first aid or a disaster: the chat shows the emergency-services line (one classifier: this one).
+    const safety = isSafetyQuery(req.query);
     const emit = (e: AnswerEvent) => {
       try {
-        onEvent(e);
+        onEvent(e.type === "done" && safety ? { ...e, safety: true } : e);
       } catch (err) {
         console.warn("[answer] onEvent threw", err);
       }
@@ -403,35 +475,8 @@ export function createAnswerer(deps: AnswerDeps) {
           : detectGeoIntent(req.query);
       if (geoIntent) return runGeo(geoIntent as GeoIntent, t0, markVisible, () => firstVisibleAt);
 
-      const [settings, installed, activeId, speeds] = await Promise.all([
-        deps.getSettings(),
-        deps.listInstalledLlms(),
-        deps.getActiveModelId(),
-        deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
-      ]);
+      const { settings, installed, speeds, fastLlm, lowRamNote, lowRamBlocked } = await selectAnswerModel(deps);
       const byId = new Map(installed.map((m) => [m.id, m]));
-      // The user's pick; without one (or if it was deleted), the device-dependent default:
-      // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
-      let fastLlm = activeId ? byId.get(activeId) : undefined;
-      if (!fastLlm && installed.length) {
-        // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
-        const candidates = await Promise.all(
-          installed.map(async (m) => {
-            const tokPerSec = speeds.get(m.id);
-            const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
-            return {
-              id: m.id,
-              answerTier: m.answerTier,
-              sizeBytes: m.sizeBytes,
-              tokPerSec,
-              fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
-            };
-          })
-        );
-        const pick = pickDefaultAnswerModel(candidates, deps.deviceRamBytes?.() ?? 0);
-        fastLlm = pick ? byId.get(pick.id) : undefined;
-        fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
-      }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
         id: m.id,
         label: m.label,
@@ -464,7 +509,7 @@ export function createAnswerer(deps: AnswerDeps) {
         verifiers: depthModels.filter((m) => m.roles.includes("verifier") && deepAutoIneligibility(m) === null),
         hasReusedSources: !!req.reuseSources?.length,
       });
-      const reasonCodes = [`task:${taskType}`, ...plan.reasonCodes];
+      const reasonCodes = [`task:${taskType}`, ...plan.reasonCodes, ...(lowRamNote ? [lowRamNote] : [])];
       if (!deepModel && !settings.deepModelId) {
         for (const m of depthModels.filter((d) => d.roles.includes("reasoning"))) {
           const why = deepAutoIneligibility(m);
@@ -491,6 +536,8 @@ export function createAnswerer(deps: AnswerDeps) {
         reasonCodes,
         ...over,
       });
+      /** Set when the text differs from the streamed tokens (citations removed, CT-1). */
+      let finalText: string | undefined;
       const finish = (
         tier: AnswerTier,
         outcome: AnswerOutcome,
@@ -499,22 +546,25 @@ export function createAnswerer(deps: AnswerDeps) {
         r: AnswerReceipt,
         error?: { code: AnswerErrorCode; message: string }
       ): AnswerResult => {
-        emit({ type: "done", answerId, tier, outcome, receipt: r, error });
+        emit({ type: "done", answerId, tier, outcome, receipt: r, error, ...(finalText !== undefined ? { finalText } : {}) });
         return { answerId, tier, outcome, text, sources, receipt: r };
       };
 
       // 1. Sources. A Portuguese question searches the (English) packs with English words when it has known terms.
       const pt = PT_QUESTION.test(req.query);
-      const english = pt ? englishSearchTerms(req.query) : null;
+      const english = pt ? englishSearchTerms(req.query) : isHealthQuestion(req.query) ? canonicalHealthTerms(req.query) : null;
       if (english) reasonCodes.push("retrieve:pt-en-terms");
       /** What the sources are matched against: the English words for a translated PT question. */
       const matchQuery = english ?? req.query;
+      // The packs lift an article's Treatment/Management section only when the query asks what to
+      // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
+      const searchQuery = english && ACTION_INTENT.test(req.query) ? `${english} what to do` : matchQuery;
       let raw: RetrievedChunk[] = req.reuseSources ?? [];
       let retrievalMs: number | undefined;
       if (plan.retrieve && gen?.mode !== "multipass") {
         stage("retrieving", plan.instant !== "off" ? "instant" : genTier);
         const rs = deps.now();
-        raw = await deps.retrieve(matchQuery, gen?.retrieveK ?? 6).catch((e) => {
+        raw = await deps.retrieve(searchQuery, gen?.retrieveK ?? 6).catch((e) => {
           console.warn("[answer] retrieval failed, answering without sources:", e?.message ?? e);
           return [] as RetrievedChunk[];
         });
@@ -541,18 +591,31 @@ export function createAnswerer(deps: AnswerDeps) {
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
       // A PT question without English words can't be matched word for word against English sources: no guard.
       const guarded = gen?.mode !== "multipass" && (!pt || !!english);
-      let noGoodSource = false;
-      if (guarded && sources.length) {
+      // Health has its own, stricter topic filter below (the condition, lay sources allowed).
+      if (guarded && !health && sources.length) {
         const kept = sources.filter((c) => onTopic(matchQuery, c));
         if (kept.length < sources.length) reasonCodes.push(`grounding:off-topic-dropped-${sources.length - kept.length}`);
-        noGoodSource = kept.length === 0;
+        if (!kept.length) reasonCodes.push("grounding:no-good-source");
         sources = kept;
       }
-      if (noGoodSource) {
-        reasonCodes.push("grounding:no-good-source");
-        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+      if (health) {
+        reasonCodes.push("grounding:health-strict");
+        // Health: only sources whose title names the health topic (never a plant, a cave or a TV show).
+        const topic = healthTopicTerms(req.query, english);
+        const onTopicHealth = sources.filter((c) => onHealthTopic(topic, c));
+        if (onTopicHealth.length < sources.length) reasonCodes.push(`grounding:health-off-topic-dropped-${sources.length - onTopicHealth.length}`);
+        sources = onTopicHealth;
+        // The best source to quote may have been cut by compression (relative relevance): a
+        // first-aid book's section loses to the clinical article's wording. Bring it back.
+        const pool = raw.filter((c) => onHealthTopic(topic, c));
+        if (pool.length) {
+          const best = pool[healthSourceIndex(pool)];
+          if (!sources.some((c) => c.chunkId === best.chunkId)) {
+            sources = [...sources, best];
+            reasonCodes.push("grounding:health-best-restored");
+          }
+        }
       }
-      if (health) reasonCodes.push("grounding:health-strict");
       if (sources.length && gen?.mode !== "multipass") {
         emit({ type: "sources", answerId, tier: plan.instant !== "off" ? "instant" : genTier, sources });
       }
@@ -561,7 +624,11 @@ export function createAnswerer(deps: AnswerDeps) {
       if (plan.instant !== "off" && raw.length) {
         const snip = selectInstant(matchQuery, raw);
         const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === raw[snip.sourceIndex].chunkId) : -1;
-        const covers = !!snip && termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
+        // "From the source" only from an on-topic source (the same onTopic as the sources), and a sentence that covers the question.
+        const covers =
+          !!snip &&
+          onTopic(matchQuery, raw[snip.sourceIndex]) &&
+          termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();
@@ -582,9 +649,11 @@ export function createAnswerer(deps: AnswerDeps) {
       }
 
       // No good source: never an answer from memory (health: point to emergency services).
-      if ((health && gen?.mode !== "multipass" && sources.length === 0) || noGoodSource) {
-        reasonCodes.push(health ? "grounding:health-no-source" : "grounding:no-source-answer");
-        const text = health ? noHealthSourceAnswer(pt) : noGoodSourceAnswer(pt);
+      // Off-topic sources only = no source (Boar, RT-1): the model answers with the
+      // "not from the offline library" instruction below, never quoting them.
+      if (health && gen?.mode !== "multipass" && sources.length === 0) {
+        reasonCodes.push("grounding:health-no-source");
+        const text = noHealthSourceAnswer(pt);
         markVisible();
         emit({ type: "token", answerId, tier: genTier, text });
         return finish(genTier, "success", text, [], receipt({ modelId: "grounding-guard", modelLabel: "No offline source", retrievalMs }));
@@ -594,42 +663,74 @@ export function createAnswerer(deps: AnswerDeps) {
       // put cream on burns). "Deeper answer" (tier deep) lets the model summarize it, strictly.
       if (health && sources.length && req.tier !== "deep") {
         reasonCodes.push("grounding:health-extractive");
-        const i = healthSourceIndex(sources);
-        const full = raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i];
-        const text = healthExtract(full, i + 1, pt);
+        // Score on each source's full text: compression keeps the sentences matching the question
+        // words, which can leave out a first-aid text's instructions.
+        const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
+        const i = healthSourceIndex(fullSources);
+        const text = healthExtract(fullSources[i], i + 1, pt);
         markVisible();
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
       }
-      const styleReminder = [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
+      // A knowledge question with nothing retrieved: the model answers, but not as if it came from a source.
+      const fromMemory =
+        !health && plan.retrieve && gen?.mode !== "multipass" && sources.length === 0 && ["lookup", "research", "compare", "extract"].includes(taskType);
+      if (fromMemory && genLlm && isCompactModel(genLlm) && !req.answerAnyway) {
+        // Product decision (Iris/Boar): the compact model doesn't answer from memory unless asked to.
+        reasonCodes.push("grounding:declined-compact");
+        markVisible();
+        emit({
+          type: "warning",
+          answerId,
+          code: "weak_sources",
+          declined: true,
+          message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
+        });
+        return finish(genTier, "success", "", [], receipt({ retrievalMs }));
+      }
+      if (fromMemory) {
+        reasonCodes.push("grounding:no-source-memory");
+        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+      }
+      const styleReminder =
+        [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
 
       // 3. Generation.
       if (!gen || !genLlm) {
         return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
           code: "no_model",
-          message: "No language model is installed.",
+          message: lowRamBlocked
+            ? "The installed models are too large for this phone's memory. Install the Compact model, or confirm one in Models to run it anyway."
+            : "No language model is installed.",
         });
       }
 
       let loadMs = 0;
+      /** ModelLoadError.kind of the last failed load (memory | engine | corrupt | missing). */
+      let loadFailureKind: LoadFailureKind | undefined;
       const ensureLoaded = async (m: InstalledLlm, tier: AnswerTier): Promise<string | null> => {
         if (deps.engine.getModelInfo()?.filename === m.filename) return null;
         stage("loading_model", tier, m.id);
         const ls = deps.now();
         try {
-          const r = await deps.engine.load(m.filename);
+          const r = await deps.engine.load(m.filename, { meta: { modelId: m.id, label: m.label } });
           loadMs += deps.now() - ls;
           if (r.warning) emit({ type: "warning", answerId, code: "model_streams_from_storage", message: r.warning });
           if (r.backend?.kind === "cpu-fallback") reasonCodes.push("backend:cpu-fallback");
           return null;
         } catch (e: any) {
+          loadFailureKind = e?.kind;
           return e?.message ?? String(e);
         }
       };
 
       const loadError = await ensureLoaded(genLlm, genTier);
       if (loadError) {
-        return finish(genTier, "error", "", sources, receipt({ retrievalMs }), { code: errorCodeOf(loadError, "load"), message: loadError });
+        return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
+          code: errorCodeOf(loadError, "load"),
+          message: loadError,
+          ...(loadFailureKind ? { kind: loadFailureKind } : {}),
+        });
       }
       if (stopRequested) return finish(genTier, "stopped", "", sources, receipt({ retrievalMs, loadMs }));
 
@@ -665,7 +766,8 @@ export function createAnswerer(deps: AnswerDeps) {
               retrieveK: gen.retrieveK,
               onSources: (s) => {
                 sources = s;
-                emit({ type: "sources", answerId, tier: genTier, sources: s });
+                // Sub-questions score on their own scales: no comparable relevance.
+                emit({ type: "sources", answerId, tier: genTier, sources: s.map(({ relevance: _r, ...c }: SourceChunk) => c) });
               },
             }
           );
@@ -695,8 +797,9 @@ export function createAnswerer(deps: AnswerDeps) {
             const risky = riskyHealthInstruction(text);
             if (risky && sources.length) {
               reasonCodes.push(`grounding:health-unsafe-${risky}`);
-              const i = healthSourceIndex(sources);
-              text = healthExtract(raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i], i + 1, pt);
+              const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
+              const i = healthSourceIndex(fullSources);
+              text = healthExtract(fullSources[i], i + 1, pt);
             }
             markVisible();
             emit({ type: "token", answerId, tier: genTier, text });
@@ -722,6 +825,16 @@ export function createAnswerer(deps: AnswerDeps) {
         ctxTokens: timings?.promptTokens,
         cachedTokens: timings?.cachedTokens,
       });
+      // CT-1: a [n] stays only where source n supports its sentence.
+      if (/\[\d+\]/.test(text)) {
+        const cited = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
+        const checked = checkCitations(text, cited);
+        if (checked.removed.length) {
+          reasonCodes.push(`citations:removed-${checked.removed.join("-")}`);
+          text = checked.text;
+          finalText = text;
+        }
+      }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
 
       // 4. Verification (complete answers only, distinct verifier).
@@ -775,5 +888,24 @@ export function createAnswerer(deps: AnswerDeps) {
     return answer({ query, tier: "deep", reuseSources: sources }, onEvent, ctx);
   }
 
-  return { answer, deepen };
+  /** The model the next answer will use (same rules as answer()); null when none can run. */
+  async function effectiveModel(): Promise<EffectiveAnswerModel | null> {
+    const { fastLlm, blockedActive, settings } = await selectAnswerModel(deps);
+    if (!fastLlm) return null;
+    return {
+      id: fastLlm.id,
+      label: fastLlm.label,
+      ...(blockedActive && blockedActive.id !== fastLlm.id
+        ? {
+            downgradedFrom: {
+              id: blockedActive.id,
+              label: blockedActive.label,
+              reason: (settings.loadCrashedIds ?? []).includes(blockedActive.id) ? ("load-crashed" as const) : ("low-ram" as const),
+            },
+          }
+        : {}),
+    };
+  }
+
+  return { answer, deepen, effectiveModel };
 }
