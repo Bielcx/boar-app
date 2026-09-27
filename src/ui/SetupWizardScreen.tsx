@@ -28,7 +28,7 @@ import {
   storageShortfall,
   transferSeconds,
 } from "./flows/packages";
-import { formatBytes, formatCount, formatRam, minutesAbout, minutesLeft, readableErrorDetail } from "./flows/format";
+import { failureLines, formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
 import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
@@ -852,7 +852,7 @@ function InstallStep({
   useEffect(() => {
     if (failedKey && failedKey !== lastFailedKey.current) {
       const first = failed[0];
-      const reason = first.state.kind === "failed" ? t(`flows.row.error.${first.state.errorKind}`) : "";
+      const reason = first.state.kind === "failed" ? failureLines(first.state, t, lang).cause : "";
       announce(`${t("flows.onboarding.downloadFailed")}. ${first.asset.label}: ${reason}`, { assertive: true });
       setTimeout(() => {
         const node = retryRef.current && findNodeHandle(retryRef.current);
@@ -1209,18 +1209,20 @@ function InstallStep({
               {t("flows.onboarding.downloadFailed")}
             </Text>
           </View>
-          {failed.map((f) => (
-            <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
-              <Text variant="callout">
-                {f.asset.label}: {t(`flows.row.error.${f.state.kind === "failed" ? f.state.errorKind : "unknown"}`)}
-              </Text>
-              {f.state.kind === "failed" && (
-                <Text variant="caption" color="secondary" selectable>
-                  {readableErrorDetail(f.state.message, lang)}
+          {failed.map((f) => {
+            if (f.state.kind !== "failed") return null;
+            const lines = failureLines(f.state, t, lang);
+            return (
+              <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
+                <Text variant="callout">
+                  {f.asset.label}: {lines.cause}
                 </Text>
-              )}
-            </View>
-          ))}
+                <Text variant="caption" color="secondary" selectable>
+                  {lines.detail}
+                </Text>
+              </View>
+            );
+          })}
           <Button ref={retryRef} label={t("flows.row.retry")} icon="refresh-cw" onPress={() => failed.forEach((f) => catalog.download(f.asset))} />
           {noSpaceFailure && <Button label={t("flows.onboarding.smallerPackage")} variant="secondary" onPress={onChoosePackage} />}
         </View>

@@ -344,6 +344,7 @@
       },
       "error": {
         "network": "No connection. Connect and try again.",
+        "stalled": "The download stopped making progress.",
         "storage": "Not enough free space on the phone.",
         "hash-mismatch": "The file doesn't match the expected one. Get a fresh copy of the file and try again.",
         "size-mismatch": "The file is incomplete. Get a fresh copy of the file and try again.",
@@ -353,6 +354,10 @@
         "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item.",
         "too-large": "This file is larger than BOAR accepts for this kind of item.",
         "no-source": "This item isn't published for download yet. Import its file instead."
+      },
+      "errorDetail": {
+        "interrupted": "Stopped at {{done}} of {{total}}. Try again to continue from there.",
+        "paused": "No progress for {{seconds}} s. Tap Try again to continue."
       },
       "download": "Download {{size}}",
       "retry": "Try again",

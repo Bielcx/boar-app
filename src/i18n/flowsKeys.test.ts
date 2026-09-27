@@ -66,6 +66,8 @@ const DYNAMIC_KEYS = [
   ...expand("flows.row.kind.", ["llm", "embedding", "corpus"]),
   ...expand("flows.row.role.", ["answer", "deep", "search"]),
   ...expand("flows.row.fitWhy.", ["streaming", "thrashing", "insufficient"]),
+  ...expand("flows.row.errorDetail.", ["interrupted", "paused"]),
+  "flows.row.error.stalled",
   ...expand("flows.settings.", ["eraseModels", "eraseKnowledge", "eraseHistory", "eraseSettings"]),
   ...expand("flows.settings.answerMode.", ["quickModel", "quickComplete", "directModel", "directComplete"]),
 ];
