@@ -624,7 +624,8 @@
       "voiceCaveat": "A entrada por voz usa o reconhecedor do sistema, que pode não ser offline.",
       "tone": "Mudar tom",
       "offlineSeal": "Offline",
-      "offlineAnswersSeal": "Respostas offline"
+      "offlineAnswersSeal": "Respostas offline",
+      "offlineSealSpoken": "Offline: sem uso de rede"
     },
     "jumpToLatest": "Ir para a resposta mais recente",
     "share": {
