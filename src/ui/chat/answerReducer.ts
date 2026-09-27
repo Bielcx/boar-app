@@ -205,7 +205,8 @@ export function isAnswerActive(state: AnswerState): boolean {
 
 /** The Deepen button shows only after a successful fast pass, when the engine offered it. */
 export function canDeepen(state: AnswerState): boolean {
-  return !!state.deepAvailable && state.fast?.outcome === "success" && !state.deep;
+  // Not on a declined answer (Tusk a740a0b: the compact model declines after streaming, finalText ""), nor an empty one.
+  return !!state.deepAvailable && state.fast?.outcome === "success" && !!state.fast.text && !state.weakDeclined && !state.deep;
 }
 
 /**
