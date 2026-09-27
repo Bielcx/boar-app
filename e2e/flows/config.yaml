@@ -1,0 +1,14 @@
+# Maestro workspace. Run from the repo root: make -C e2e android   (see e2e/README.md)
+# Selectors are the app's visible text / accessibility labels in English; there are no testIDs.
+flows:
+  - "*.yaml"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - 01-setup-downloader
+    - 02-ask-with-sources
+    - 03-airplane-mode
+    - 04-places-berlin
+    - 05-switch-model
+    - 06-knowledge
+    - 99-reset
