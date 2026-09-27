@@ -350,11 +350,14 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     }
   });
 
-  it("Iris E-1: 'What should I do during an earthquake?' with only a heading + image caption: says the source has no steps, points to emergency services, no model, safety line", async () => {
+  it("Iris E-1: 'What should I do during an earthquake?' with only a heading + image caption: no model, emergency services, safety line", async () => {
+    // Since cry-012 the caption-only passage carries no content and is dropped: the no-source answer
+    // (emergency services), instead of quoting "Image" as what the source says.
     f.retrieved = [chunk("eq", "Earthquakes (Ready.gov)", "During an Earthquake > Protect Yourself During Earthquakes: Image")];
     const { events, result } = await collect("What should I do during an earthquake?");
     expect(f.generations).toHaveLength(0);
-    expect(result.text).toMatch(/^The offline source doesn't give first-aid steps for this\. In an emergency, call your local emergency number\./);
+    expect(result.text).toMatch(/emergency number/);
+    expect(result.receipt.reasonCodes).toContain("context:no-content-dropped-1");
     expect(events.find((e) => e.type === "done")).toMatchObject({ safety: true });
   });
 
@@ -1039,6 +1042,35 @@ describe("answer(): the page of an identifier the question names always reaches 
       expect(result.receipt.reasonCodes).toContain("context:pinned-1");
     });
   }
+});
+
+describe("answer(): Sextant cry-020 / cry-012", () => {
+  it("cry-020: a pointer sentence from the pinned EIP page is not the final answer; the model answers", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [
+      chunk("s", "Ethereum EIPs/ERCs: EIP-3675: Upgrade consensus to Proof-of-Stake", "Specification: Full specification of the beacon chain can be found in the `ethereum/consensus-specs` repository."),
+      chunk("r", "Ethereum EIPs/ERCs: EIP-3675: Upgrade consensus to Proof-of-Stake", "Rationale: The upgrade replaces proof-of-work with proof-of-stake, deprecating block mining."),
+    ];
+    f.deps.englishNames = () => ["Ethereum"];
+    const { result } = await collect("O que mudou no Ethereum com o Merge (EIP-3675)?");
+    expect(result.tier).not.toBe("instant");
+    expect(f.generations).toHaveLength(1);
+  });
+  it("cry-012: the EIP's metadata, hex example and stub never reach the prompt", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [
+      chunk("m", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Status: Final Type: Standards Track (Core) Created: 2016-10-14"),
+      chunk("x", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Example: ``` 0xf86c098504a817c800825208943535353535353535 ```"),
+      chunk("h", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Hard fork: Spurious Dragon"),
+      chunk("p", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Parameters: - FORK_BLKNUM: 2,675,000 - CHAIN_ID: 1 (main net). The chain ID is signed into each transaction so it cannot be replayed on another chain."),
+    ];
+    const { events, result } = await collect("What is EIP-155 and what attack does it prevent?");
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources.map((c) => c.chunkId)).toEqual(["p"]);
+    expect(result.receipt.reasonCodes).toContain("context:no-content-dropped-3");
+  });
 });
 
 describe("answer(): today's date (Prism TD-1)", () => {
