@@ -214,7 +214,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             </>
           ) : fileImport.status === "failed" ? (
             <Text variant="footnote" color="danger">
-              {`${fileImport.name}: ${fileImport.sizeBytes === 0 ? t("flows.import.sizeUnread") : t(`flows.row.error.${fileImport.errorKind ?? "unknown"}`)}`}
+              {`${fileImport.name}: ${t(`flows.row.error.${fileImport.errorKind ?? "unknown"}`)}`}
             </Text>
           ) : (
             <Text variant="footnote" color="warning">
