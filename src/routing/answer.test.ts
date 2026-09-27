@@ -585,7 +585,8 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     const SEASON = chunk("se", "Season", "A season is a division of the year based on changes in weather. Seasons result from Earth's axial tilt relative to the plane of its orbit around the Sun.");
     for (const q of ["Por que existem as estações do ano?", "Por que existem as estacoes do ano?"]) {
       f = makeFake();
-      f.retrieved = [WALIPINI, SEASON];
+      const HURRICANE = chunk("hs", "US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)", "Prepare before hurricane season starts. The Atlantic hurricane season starts June 1.");
+      f.retrieved = [HURRICANE, WALIPINI, SEASON];
       const queries: string[] = [];
       const retrieve = f.deps.retrieve;
       f.deps.retrieve = (query, k) => (queries.push(query), retrieve(query, k));

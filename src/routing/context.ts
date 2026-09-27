@@ -415,6 +415,23 @@ function sectionHeading(chunk: RetrievedChunk): string {
   return colon > 0 && colon <= 120 ? chunk.body.slice(0, colon) : "";
 }
 
+/**
+ * A source for a PT question matched by the lexicon's English article names (PT-1): its title, or
+ * its section heading, is one of the names. A multi-word name counts inside a longer title
+ * ("Greenhouse effect" in "Runaway greenhouse effect"); a one-word name must be the whole title
+ * ("Season", never "Hurricane Season Preparedness Digital Toolkit"). Text alone never counts.
+ */
+export function namedByLexicon(names: string[], chunk: RetrievedChunk): boolean {
+  const clean = (s: string) => s.replace(/^(Wikibooks|Wikivoyage|US government|Appropedia):\s*/, "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+  const heads = [clean(chunk.title), ...sectionHeading(chunk).split(">").map(clean)];
+  return names.some((n) => {
+    const name = clean(n);
+    if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);
+    const re = new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
+    return heads.some((h) => re.test(h));
+  });
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
   // The article title or the section heading names a question word.
