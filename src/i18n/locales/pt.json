@@ -255,7 +255,7 @@
       "importChecking": "Conferindo {{name}}",
       "importOther": "{{name}} é outro item, não este. Escolha o arquivo deste item.",
       "unverified": "Não conferido",
-      "active": "Ativo",
+      "active": "Em uso",
       "usedFor": "Usado para: {{roles}}",
       "role": {
         "answer": "Respostas",
@@ -322,10 +322,10 @@
       "didNotOpenBefore": "O BOAR fechou da última vez que carregou o ",
       "mayCloseTitle": "Usar este modelo?",
       "mayCloseBefore": "O BOAR pode fechar ao carregar o ",
-      "mayCloseAfter": ". O Compacto é o recomendado aqui.",
+      "mayCloseAfter": ". O Rápido é o recomendado aqui.",
       "showAll": "Mostrar tudo",
       "showLess": "Mostrar menos",
-      "keepCompact": "Manter Compacto",
+      "keepCompact": "Manter o Rápido",
       "useAnyway": "Usar mesmo assim",
       "fitWhy": {
         "streaming": "maior que a memória deste celular",
@@ -475,8 +475,8 @@
         "resident": "modelo já pronto",
         "unknown": ""
       },
-      "startLabel": "Início",
-      "memoryLabel": "Memória"
+      "memoryLabel": "Memória",
+      "startLabel": "Início"
     },
     "about": {
       "tagline": "Pesquisa offline no seu celular",
@@ -572,8 +572,8 @@
       "categoryA11y": "{{name}}, {{done}} de {{total}} arquivos, {{pct}}%",
       "openWhenReady": "Disponível quando todos os arquivos estiverem no celular",
       "llmLabel": "Modelo",
-      "chooseAnswerTitle": "Modelo de resposta",
-      "chooseAnswerHint": "Escolher Padrão ou Compacto",
+      "chooseAnswerTitle": "Assistente",
+      "chooseAnswerHint": "Escolher Rápido ou Mais preciso",
       "workingMemory": "precisa de ~{{size}} de memória",
       "currentItem": "Item {{n}} de {{total}} — {{name}}",
       "keepOpenTitle": "Mantenha o BOAR aberto",
@@ -622,13 +622,13 @@
       "linkCopied": "Link copiado",
       "toImport": "Ainda não importado",
       "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo).",
-      "compactWhy": "A estimativa de memória indica que o padrão pode não rodar bem neste celular, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
+      "compactWhy": "O Mais preciso pode não rodar bem neste celular, por isso o Rápido está selecionado. Você ainda pode escolher o Mais preciso.",
       "answerTier": {
-        "default": "Padrão",
-        "compact": "Compacto"
+        "default": "Mais preciso",
+        "compact": "Rápido"
       },
       "suggested": "Sugerido",
-      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão."
+      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o Rápido está selecionado. Você ainda pode escolher o Mais preciso."
     },
     "places": {
       "title": "Lugares (offline)",
@@ -698,6 +698,18 @@
         "corpus-full": "Base de conhecimento completa (+4.000 temas)",
         "wiki-vital5": "Artigos essenciais da Wikipédia"
       }
+    },
+    "assistant": {
+      "title": "Assistente",
+      "footer": "Os dois respondem neste celular, sem internet. O Mais preciso escreve respostas melhores, mas é mais lento e usa mais memória.",
+      "sub": {
+        "compact": "Respostas mais rápidas, menos memória",
+        "default": "Respostas melhores, um pouco mais lento"
+      },
+      "details": "Detalhes",
+      "detailsA11y": "Nomes técnicos dos modelos",
+      "search": "Busca",
+      "otherInUse": "Outro modelo está em uso. Troque em Modelos."
     }
   },
   "chat": {
