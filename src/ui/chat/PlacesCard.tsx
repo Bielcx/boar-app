@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { KeyboardController } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { Badge, Banner, Button, Card, EmptyState, Icon, Sheet, Text, TextField, useToast } from "../components";
 import { useTokens } from "../theme";
@@ -23,6 +24,7 @@ import {
   geoUri,
   filterName,
   deviceClockApplies,
+  formatDataMonth,
   showUseLocation,
   openStateAt,
   openStateLabel,
@@ -251,10 +253,25 @@ function CityPrompt({
     // Once, when the prompt appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const submit = () => city.trim() && onCity(city.trim());
+  const submit = () => {
+    if (!city.trim()) return;
+    // Close the keyboard before this field unmounts (the results replace the prompt): a focused
+    // input removed with the keyboard open is a likely trigger of Prism's K-2 (composer left floating).
+    KeyboardController.dismiss();
+    onCity(city.trim());
+  };
   return (
     <Card style={{ gap: t.space.md }}>
-      {locationStatus === "denied" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationDenied")} />}
+      {/* A permanent "no" on Android can only be undone in the system settings; offer the way there. */}
+      {locationStatus === "denied" && (
+        <Banner
+          tone="info"
+          icon="map-pin"
+          message={tr("chat.places.locationDenied")}
+          actionLabel={tr("chat.places.openSettings")}
+          onAction={() => Linking.openSettings()}
+        />
+      )}
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}
       <Text ref={titleRef} variant="headline" header>
         {tr("chat.places.whichCity")}
@@ -393,7 +410,12 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             <Icon name="map" size="sm" color={t.color.text.field} />
             <Text variant="caption" color="field" style={{ flex: 1 }}>
               {r.attribution
-                .map((a) => [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), a.date].filter(Boolean).join(" · "))
+                .map((a) => {
+                  const month = formatDataMonth(a.date, locale);
+                  return [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), month && tr("chat.places.dataFrom", { date: month })]
+                    .filter(Boolean)
+                    .join(" · ");
+                })
                 .join(" · ")}
             </Text>
           </Pressable>

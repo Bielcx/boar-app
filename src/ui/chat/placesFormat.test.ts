@@ -13,6 +13,8 @@ import {
   spokenDistance,
   deviceClockApplies,
   showUseLocation,
+  formatDataMonth,
+  placesEmptyTitle,
 } from "./placesFormat";
 
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -51,6 +53,14 @@ describe("dietLabels", () => {
       "chat.places.diet.vegetarian.only",
     ]);
     expect(dietLabels({ vegan: "no" }, t)).toEqual([]);
+  });
+
+  it("doesn't repeat 'Vegetarian' on a vegan-only place (Prism P-2)", () => {
+    expect(dietLabels({ vegan: "only", vegetarian: "only" }, t)).toEqual(["chat.places.diet.vegan.only"]);
+    expect(dietLabels({ vegan: "only", vegetarian: "yes", gluten_free: "yes" }, t)).toEqual([
+      "chat.places.diet.vegan.only",
+      "chat.places.diet.gluten_free.yes",
+    ]);
     expect(dietLabels(undefined, t)).toEqual([]);
   });
 });
@@ -150,5 +160,26 @@ describe("showUseLocation", () => {
   it("hides it when permission is denied or the app can't locate", () => {
     expect(showUseLocation(true, "denied")).toBe(false);
     expect(showUseLocation(false, "prompt")).toBe(false);
+  });
+});
+
+describe("formatDataMonth", () => {
+  it("turns the pack's ISO timestamp into month and year in the reader's language (Prism P-1)", () => {
+    expect(formatDataMonth("2026-09-26T20:27:59Z", "en-US")).toBe("Sep 2026");
+    expect(formatDataMonth("2026-09-26T20:27:59Z", "pt-BR")).toMatch(/^set\.? de 2026$/);
+  });
+
+  it("drops what it can't read", () => {
+    expect(formatDataMonth(undefined, "en-US")).toBeNull();
+    expect(formatDataMonth("soon", "en-US")).toBeNull();
+  });
+});
+
+describe("placesEmptyTitle filter wording", () => {
+  it("puts the diet filter in lower case inside the sentence (Prism P-4)", () => {
+    const tt = (key: string, opts?: Record<string, unknown>) =>
+      key === "chat.places.filter.vegan" ? "Vegan" : opts ? `${key}${JSON.stringify(opts)}` : key;
+    const r = { coverage: "none" as const, places: [], filters: ["vegan"], area: { place: { name: "Tokyo" } } };
+    expect(placesEmptyTitle(r, tt)).toBe('chat.places.noneInCityFiltered{"city":"Tokyo","filter":"vegan"}');
   });
 });

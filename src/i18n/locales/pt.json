@@ -968,7 +968,9 @@
       "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
       "searchHint": "Digite uma cidade primeiro",
       "dietToVerify": "Etiqueta de dieta do OSM a conferir",
-      "cityPlaceholder": "ex.: Berlim"
+      "cityPlaceholder": "ex.: Berlim",
+      "dataFrom": "dados de {{date}}",
+      "openSettings": "Abrir ajustes"
     },
     "assistantName": "boar",
     "suggestionTopics": {

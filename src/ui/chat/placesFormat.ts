@@ -33,6 +33,7 @@ const DIET_ORDER = ["vegan", "vegetarian", "gluten_free", "halal", "kosher"] as 
  * Honest diet labels from the tags: "only" is "Vegan", "yes" is "Vegan
  * options", "limited" is "Some vegan options"; "no" and missing say nothing.
  * A vegetarian-only place that also has vegan options reads "Vegetarian, vegan options".
+ * A vegan-only place doesn't repeat "Vegetarian" (implied); an uncertain vegan tag keeps it.
  */
 export function dietLabels(diet: Place["diet"], t: T, flag?: Place["dietFlag"]): string[] {
   // The engine doubts the tag (e.g. a burger chain tagged vegan-only): say it needs checking, no diet label.
@@ -42,6 +43,7 @@ export function dietLabels(diet: Place["diet"], t: T, flag?: Place["dietFlag"]):
   for (const key of DIET_ORDER) {
     const v: PlaceDiet | undefined = diet[key];
     if (v !== "only" && v !== "yes" && v !== "limited") continue;
+    if (key === "vegetarian" && diet.vegan === "only" && flag !== "uncertain") continue;
     // Uncertain: report the tag without the strong "only" claim.
     out.push(t(flag === "uncertain" && v === "only" ? `chat.places.diet.${key}.tagged` : `chat.places.diet.${key}.${v}`));
   }
@@ -235,7 +237,8 @@ export function placesEmptyTitle(
   if (r.coverage === "no_pack") return t("chat.places.noPackTitle");
   if (r.coverage === "ok" && r.places.length > 0) return null;
   const city = r.area.place?.name ?? r.area.label ?? "";
-  const filter = filterName(r.filters, t);
+  // Mid-sentence, the filter reads in lower case ("No vegan places…"), not as the title label ("Vegan").
+  const filter = filterName(r.filters, t)?.toLowerCase() ?? null;
   return city
     ? t(filter ? "chat.places.noneInCityFiltered" : "chat.places.noneInCity", { city, filter })
     : t(filter ? "chat.places.noneNearFiltered" : "chat.places.noneNear", { filter });
@@ -259,4 +262,12 @@ export function deviceClockApplies(area: { kind: "near" | "city"; deviceInside?:
  */
 export function showUseLocation(canLocate: boolean, status: string | undefined): boolean {
   return canLocate && status !== "denied";
+}
+
+/** When the map data was taken, as month and year in the reader's language ("Sep 2026", "set. de 2026"); null if unreadable. */
+export function formatDataMonth(iso: string | undefined, locale: string): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC" }).format(d);
 }
