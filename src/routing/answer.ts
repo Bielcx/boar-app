@@ -518,6 +518,7 @@ export function createAnswerer(deps: AnswerDeps) {
           const r = await deps.engine.load(m.filename);
           loadMs += deps.now() - ls;
           if (r.warning) emit({ type: "warning", answerId, code: "model_streams_from_storage", message: r.warning });
+          if (r.backend?.kind === "cpu-fallback") reasonCodes.push("backend:cpu-fallback");
           return null;
         } catch (e: any) {
           return e?.message ?? String(e);
