@@ -337,10 +337,30 @@ export function formatPlacesAnswer({ intent, places, areaLabel, byDistance, radi
   return lines.join("\n");
 }
 
-export function noDataAnswer(intent: GeoIntent, areaLabel: string): string {
-  return intent.lang === "pt"
-    ? `Não tenho dados offline de lugares em ${areaLabel}, então não vou listar restaurantes para não inventar.`
-    : `I don't have offline place data for ${areaLabel}, so I won't list any restaurants rather than guess.`;
+/** No installed map covers the area. `city` null = around the device ("near you", never a pack or tile id). */
+export function noDataAnswer(intent: GeoIntent, city: string | null): string {
+  if (intent.lang === "pt") {
+    return `Não tenho dados offline de lugares ${city ? `em ${city}` : "perto de você"}, então não vou listar restaurantes para não inventar.`;
+  }
+  return `I don't have offline place data ${city ? `for ${city}` : "near you"}, so I won't list any restaurants rather than guess.`;
+}
+
+/**
+ * A map covers the area but no record matches the filter within the widest
+ * radius searched: the data exists, so never "no data" (T2-6).
+ */
+export function noMatchAnswer(intent: GeoIntent, city: string | null, radiusM: number): string {
+  const pt = intent.lang === "pt";
+  const L = pt ? "pt" : "en";
+  const diet = intent.diet.map((d) => DIET_LABEL[L][d]).join(pt ? " ou " : " or ");
+  const text = intent.text?.trim();
+  const radius = formatDistance(radiusM);
+  if (pt) {
+    const what = diet ? `nenhum lugar marcado como ${diet}` : text ? `nenhum lugar com "${text}"` : "nenhum lugar para comer registrado";
+    return `O mapa offline ${city ? `de ${city}` : "perto de você"} não tem ${what} num raio de ${radius}, então não vou listar nenhum para não inventar.`;
+  }
+  const what = diet ? `no place tagged ${diet}` : text ? `no place matching "${text}"` : "no place to eat or drink recorded";
+  return `The offline map ${city ? `for ${city}` : "near you"} has ${what} within ${radius}, so I won't list any rather than guess.`;
 }
 
 export function needsPlaceAnswer(intent: GeoIntent): string {

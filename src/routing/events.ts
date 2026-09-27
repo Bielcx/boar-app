@@ -111,8 +111,12 @@ export interface PlacesArea {
   label?: string;
   origin?: { lat: number; lon: number; accuracyM?: number; ageS?: number };
   radiusM?: number;
-  /** Set when the area came from a city named in the question (or answer({ place })). */
-  place?: { name: string; country?: string };
+  /**
+   * Set when the area came from a city named in the question (or answer({ place })).
+   * lat/lon: the city's point, once the gazetteer resolved it, so an empty
+   * answer can offer the map covering it (tilesFor(lat, lon, km)).
+   */
+  place?: { name: string; country?: string; lat?: number; lon?: number };
   /**
    * City areas only: true when a recent device fix (no new permission prompt,
    * no GPS wait) lies within DEVICE_INSIDE_RADIUS_M of the city center, so the
@@ -214,8 +218,14 @@ export type AnswerEvent =
       filters?: string[];
       /** How "best" was decided; popularity is never claimed. */
       criterion: "distance" | "diet_match";
-      /** ok: places listed. none: no offline data for this area. no_pack: POI pack not installed. needs_place: no location and no city named. */
+      /** ok: places listed. none: nothing listed (see empty). no_pack: POI pack not installed. needs_place: no location and no city named. */
       coverage: "ok" | "none" | "no_pack" | "needs_place";
+      /**
+       * coverage "none" only, why: no_data = no installed map covers the area
+       * (or the city is unknown); no_match = a map covers it, but no record
+       * matches the filters within area.radiusM (the data exists).
+       */
+      empty?: "no_data" | "no_match";
       truncated?: boolean;
       /** Required attribution (ODbL for OpenStreetMap, CC BY-SA for Wikivoyage). */
       attribution: { source: "osm" | "wikivoyage"; date?: string; license: string }[];
