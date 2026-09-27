@@ -408,11 +408,11 @@ describe("import size limits", () => {
     expect(installed.id).toBe(a.id);
   });
 
-  it("tells a really empty file (0 bytes, measured natively) from one it can't read", async () => {
+  it("tells a really empty file (0 bytes, measured natively) from one it can't read, and both from an unknown one", async () => {
     put(SRC, Buffer.alloc(0));
     expect(await rejection(new ModelManager([asset()]).importFromFile(SRC))).toMatchObject({ kind: "empty-file", permanent: true });
     expect(await rejection(new ModelManager([asset()]).importFromFile("content://picker/gone"))).toMatchObject({
-      kind: "unknown-file",
+      kind: "unreadable-file",
       message: "The selected file could not be read.",
     });
   });

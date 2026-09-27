@@ -12,6 +12,8 @@ export type IntegrityErrorKind =
   | "unknown-file"
   /** The picked file really is 0 bytes (measured natively): copy it again. */
   | "empty-file"
+  /** The picked file couldn't be opened or measured (gone, a folder, a provider that won't say its size). */
+  | "unreadable-file"
   | "network"
   | "storage"
   | "offline-variant"
