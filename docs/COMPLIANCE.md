@@ -143,7 +143,13 @@ note: okhttp3 present (React Native core); inert without INTERNET
 RESULT: PASS (offline)
 ```
 
-Its manifest (`aapt2 dump xmltree`) has `allowBackup=false`,
+The same audit passes on an APK built from scratch by CI on GitHub's runners
+([run 36281067626](https://github.com/r4topunk/boar-app/actions/runs/36281067626),
+commit `2fdfd78`, 123,327,108 bytes, sha256
+`e80674063a725a361f40f72e977eff862b31d3ccb6c1e4edf1708e30f58a564a`, read with
+apkanalyzer): the same five permissions, `RESULT: PASS (offline)`.
+
+The device-lab APK's manifest (`aapt2 dump xmltree`) has `allowBackup=false`,
 `fullBackupContent=false`, `usesCleartextTraffic=false` and
 `dataExtractionRules=@xml/data_extraction_rules`.
 
