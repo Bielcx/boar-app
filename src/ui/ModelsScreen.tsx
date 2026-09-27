@@ -142,9 +142,12 @@ export function ModelsScreen() {
                     // The measured speed decides; nothing is shown that was not measured here.
                     trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
                     description={
-                      deepAutoEligible(sp)
+                      deepAutoEligible(sp, { model: m, totalRamBytes: catalog.deviceRamBytes })
                         ? undefined
-                        : (sp?.samples ?? 0) < MIN_SPEED_SAMPLES
+                        : deepAutoEligible(sp)
+                          ? // Fast enough, but above the compact size on a low-RAM phone (Tusk, CR-1).
+                            t("flows.models.lowRamNotAuto")
+                          : (sp?.samples ?? 0) < MIN_SPEED_SAMPLES
                           ? t("flows.models.notEnoughSamples", { min: MIN_SPEED_SAMPLES })
                           : t("flows.models.tooSlow")
                     }

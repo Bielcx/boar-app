@@ -434,6 +434,7 @@
       "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
       "deepNone": "None: always use the answer model",
       "notMeasured": "Not measured on this phone yet",
+      "lowRamNotAuto": "Not in automatic mode on this phone: too big for its memory.",
       "rate": "{{rate}} tok/s",
       "samples_one": "{{count}} answer measured here · {{date}}",
       "samples_other": "Median of {{count}} answers measured here · {{date}}",
@@ -562,19 +563,18 @@
       "packFooter": "Each passage in answers links to its source and license."
     },
     "onboarding": {
-      "tagline": "AI research that runs entirely on your phone, without internet.",
       "brandSub": "Offline research assistant",
       "introLabel": "How it works",
       "phoneLabel": "This phone",
       "phoneMemory": "Memory",
       "phoneFree": "Free space",
+      "phoneEngine": "Runs on",
+      "phoneEngineValue": "llama.cpp, on this phone",
+      "introBody": "AI research that runs entirely on your phone. Once it is set up it works without internet, your questions never leave the phone, and every answer shows the sources behind it.",
       "meta": {
         "onDisk": "{{size}} on disk after install",
         "time": "~{{minutes}} min at {{speed}}/s"
       },
-      "point1": "Works offline once it is set up.",
-      "point2": "Your questions never leave the phone.",
-      "point3": "Shows the sources behind each answer.",
       "start": "Get started",
       "backToApp": "Back to the app",
       "step2Title": "Choose what to install",
