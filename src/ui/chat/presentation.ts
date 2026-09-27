@@ -202,3 +202,18 @@ export function generatingSteps(state: AnswerState, t: T): GeneratingStep[] | nu
     { key: "write", label: write.label, short: t("chat.stepShort.write"), icon: write.icon, status: status(2) },
   ];
 }
+
+/**
+ * The mascot's entrance right after boot (Iris, transition splash → chat): wait, then fade in, so it never
+ * overlaps or jumps from the native splash's boar. Under reduce motion the wait stays (a delay is not
+ * motion, and it is what keeps the two boars apart) and the fade goes: it appears at once. Null = show at
+ * once: not the first mount after launch.
+ */
+export function bootEntranceTiming(
+  firstAfterBoot: boolean,
+  reduceMotion: boolean,
+  duration: { slow: number; base: number }
+): { delay: number; fade: number } | null {
+  if (!firstAfterBoot) return null;
+  return { delay: duration.slow, fade: reduceMotion ? 0 : duration.base };
+}
