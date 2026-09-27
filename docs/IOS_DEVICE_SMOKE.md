@@ -138,5 +138,9 @@ Next run (needs the phone):
    ~2.1 GB limit without increased-memory-limit, which needs a paid team with
    the capability on the App ID.
 
+What JS sees: only `Failed to load model` (llama.rn `cpp/jsi/RNLlamaJSI.cpp:715`).
+The Metal details stay in the native log, so any fallback or error UI has to
+key on that string, not on "Metal"/"MTL".
+
 UNKNOWN: whether the XPC compile failure is a full disk, memory pressure on the 4 GB phone,
 an iOS 26.6 issue, or caused by the debugger launch.
