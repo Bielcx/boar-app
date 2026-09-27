@@ -15,6 +15,7 @@ import {
   showUseLocation,
   formatDataMonth,
   placesEmptyTitle,
+  citySuggestions,
 } from "./placesFormat";
 
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -181,5 +182,21 @@ describe("placesEmptyTitle filter wording", () => {
       key === "chat.places.filter.vegan" ? "Vegan" : opts ? `${key}${JSON.stringify(opts)}` : key;
     const r = { coverage: "none" as const, places: [], filters: ["vegan"], area: { place: { name: "Tokyo" } } };
     expect(placesEmptyTitle(r, tt)).toBe('chat.places.noneInCityFiltered{"city":"Tokyo","filter":"vegan"}');
+  });
+});
+
+describe("citySuggestions", () => {
+  const cities = [{ name: "Berlin" }, { name: "Hamburg" }, { name: "berlin" }, { name: "Munich" }, { name: " " }];
+  it("keeps order, drops repeats and blanks (Prism L-2)", () => {
+    expect(citySuggestions(cities)).toEqual(["Berlin", "Hamburg", "Munich"]);
+  });
+
+  it("leaves out the city just asked, whatever its case (P-5)", () => {
+    expect(citySuggestions(cities, "BERLIN ")).toEqual(["Hamburg", "Munich"]);
+  });
+
+  it("caps the list and gives nothing without packs", () => {
+    expect(citySuggestions(cities, undefined, 2)).toEqual(["Berlin", "Hamburg"]);
+    expect(citySuggestions([])).toEqual([]);
   });
 });

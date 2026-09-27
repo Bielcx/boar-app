@@ -12,7 +12,8 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { KeyboardController } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, EmptyState, Icon, Sheet, Text, TextField, useToast } from "../components";
+import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, Sheet, Text, TextField, useToast } from "../components";
+import { installedPoiCities } from "../flows/adapters";
 import { useTokens } from "../theme";
 import type { Place } from "./answerEvents";
 import type { AnswerState, PlacesResult } from "./answerReducer";
@@ -29,6 +30,7 @@ import {
   openStateAt,
   openStateLabel,
   placesEmptyTitle,
+  citySuggestions,
   placeA11yLabel,
   sourceName,
 } from "./placesFormat";
@@ -223,6 +225,50 @@ function PlaceSheet({
   );
 }
 
+/** Biggest cities of the map packs installed on this phone (Loom's adapter); [] until read or without packs. */
+function usePackCities(): { name: string }[] {
+  const [cities, setCities] = useState<{ name: string }[]>([]);
+  useEffect(() => {
+    let alive = true;
+    installedPoiCities(8)
+      .then((c) => alive && setCities(c))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return cities;
+}
+
+/** One-tap cities the offline map covers (Prism L-2 / P-5). Nothing when no pack is installed. */
+function CityChips({ exclude, onPick }: { exclude?: string; onPick: (city: string) => void }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const names = citySuggestions(usePackCities(), exclude);
+  if (names.length === 0) return null;
+  return (
+    <View style={{ gap: t.space.sm }}>
+      <Text variant="label" color="secondary" header>
+        {tr("chat.places.coveredCities")}
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+        {names.map((name) => (
+          <Chip
+            key={name}
+            label={name}
+            icon="map-pin"
+            accessibilityHint={tr("chat.places.searchCityHint", { city: name })}
+            onPress={() => {
+              KeyboardController.dismiss();
+              onPick(name);
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 /** "Which city?" when there's no position and no city in the question. */
 function CityPrompt({
   locationStatus,
@@ -299,6 +345,7 @@ function CityPrompt({
           <Button label={tr("chat.places.useLocation")} variant="secondary" icon="navigation" onPress={onUseLocation} />
         )}
       </View>
+      <CityChips onPick={onCity} />
     </Card>
   );
 }
@@ -347,7 +394,13 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
     );
   }
   if (emptyTitle) {
-    return <EmptyState icon="map" title={emptyTitle} body={tr("chat.places.noneBody")} />;
+    return (
+      <View style={{ gap: t.space.md }}>
+        <EmptyState icon="map" title={emptyTitle} body={tr("chat.places.noneBody")} />
+        {/* What the map does cover, one tap away (Prism P-5). */}
+        <CityChips exclude={r.area.place?.name ?? r.area.label} onPick={onCity} />
+      </View>
+    );
   }
 
   const shown = expanded ? r.places : r.places.slice(0, VISIBLE);
