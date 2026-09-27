@@ -752,7 +752,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           refreshSessions();
           navigation.dispatch(DrawerActions.openDrawer());
         }}
-        onNewChat={resetToNewChat}
       />
       {/* automaticOffset: the view's onLayout y is relative to its parent (below the safe area and the
           header), so without it the padding came out short and the composer sat behind the keyboard

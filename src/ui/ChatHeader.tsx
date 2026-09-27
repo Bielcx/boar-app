@@ -13,17 +13,17 @@ interface Props {
   activeModelLabel?: string;
   voiceEnabled: boolean;
   onOpenDrawer: () => void;
-  onNewChat: () => void;
 }
 
 /**
- * Chat top bar: menu, title, the offline badge (tap for what "offline" means
- * in this build) and new chat. Tone lives in Settings > Personality (the mockup
+ * Chat top bar, as the mockup: menu, avatar, name + model, and the offline
+ * badge (tap for what "offline" means in this build). New chat lives in the
+ * drawer (first item), per Boar's fidelity decision. Tone lives in Settings > Personality (the mockup
  * has no tone button, and it cost the seal its text on 393-412pt phones). Name and model always stay readable:
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
  */
-export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNewChat }: Props) {
+export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
@@ -36,9 +36,9 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNew
     width,
     fontScale,
     touch: t.size.touch,
-    buttons: 2,
-    // Row padding + the gaps between its children (outer row: 2, title group: 2).
-    chrome: t.space.sm * 2 + t.space.xs * 2 + t.space.sm * 2,
+    buttons: 1,
+    // Row padding + the gaps between its children (outer row: menu | title group = 1, title group: 2).
+    chrome: t.space.sm * 2 + t.space.xs + t.space.sm * 2,
     avatar: t.size.avatar + t.space.sm,
     sealChars: sealLabel.length,
   });
@@ -66,7 +66,8 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNew
             boar
           </Text>
           {activeModelLabel && (
-            <Text variant="mono" color="secondary" numberOfLines={1}>
+            // The mockup's model line: caps, secondary (its 9.5 px rises to the 12 pt floor).
+            <Text variant="caption" color="secondary" numberOfLines={1} style={{ textTransform: "uppercase" }}>
               {activeModelLabel}
             </Text>
           )}
@@ -86,7 +87,6 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNew
           )}
         </Pressable>
       </View>
-      <IconButton icon="edit-3" label={tr("chat.header.newChat")} onPress={onNewChat} />
 
       <Sheet visible={offlineOpen} onClose={() => setOfflineOpen(false)} title={tr("chat.header.offlineTitle")}>
         <View style={{ gap: t.space.md }}>

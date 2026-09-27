@@ -117,7 +117,7 @@ export function ChatEmptyState({
         <Text variant="display" align="center" header accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}>
           {tr("chat.assistantName")}
         </Text>
-        <Text variant="subhead" color="field" align="center">
+        <Text variant="footnote" weight="medium" color="field" align="center">
           {tr("chat.empty.tagline")}
         </Text>
       </View>
@@ -141,10 +141,10 @@ export function ChatEmptyState({
                 onAccessibilityAction={() => onFill(q)}
                 style={{ gap: t.space.xs }}
               >
-                <Text variant="label" color="field">
+                <Text variant="caption" weight="semibold" color="field">
                   {tr(`chat.suggestionTopics.${k}`)}
                 </Text>
-                <Text variant="callout" numberOfLines={2}>
+                <Text variant="footnote" numberOfLines={2}>
                   {q}
                 </Text>
               </Card>
