@@ -463,3 +463,22 @@ describe("healthSourceIndex: Appropedia how-tos and the official source (EQ-2, p
     expect(healthSourceIndex(sources, water)).toBe(1);
   });
 });
+
+describe("shown relevance (Prism BAND-1)", () => {
+  const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+  // As on the AVD: the Monsoon passage doesn't say "cause"; other sources do, so the ranking's IDF
+  // made "monsoon" (in every sentence) nearly weightless and the exact article read "Low".
+  const chunks = [
+    c("m", "Monsoon", "A monsoon is a seasonal change in wind direction. The monsoon season brings heavy rain. Monsoon rains feed rivers."),
+    c("a", "Air mass", "Pressure differences cause winds. Temperature differences cause pressure differences. What causes weather is heat."),
+  ];
+  it("the article the question names reads high", () => {
+    const out = compressContext("What causes the monsoon?", chunks).chunks as any[];
+    expect(out.find((x) => x.chunkId === "m").relevance).toBeGreaterThanOrEqual(0.75);
+  });
+  it("another source: the share of the question's words its title and best sentence cover", () => {
+    const out = compressContext("What causes the monsoon?", chunks).chunks as any[];
+    const air = out.find((x) => x.chunkId === "a");
+    if (air) expect(air.relevance).toBe(0.5);
+  });
+});
