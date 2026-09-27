@@ -11,6 +11,8 @@ export interface OfflineSealProps {
   sublabel?: string;
   /** `pill` = ember pill with crossed wifi (header). `moon` = pill with a moon disc. `card` = two lines, below the header. */
   variant?: "pill" | "moon" | "card";
+  /** Longer spoken form when the visible label is terse (pill "OFFLINE" → "Answers are offline"). Defaults to the label. */
+  accessibilityLabel?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ export interface OfflineSealProps {
  * or the current state guarantees no network use (see the trust/offline
  * variant). It is a statement, not decoration.
  */
-export function OfflineSeal({ label, sublabel, variant = "pill" }: OfflineSealProps) {
+export function OfflineSeal({ label, sublabel, variant = "pill", accessibilityLabel }: OfflineSealProps) {
   const t = useTokens();
   const moonDisc = (
     <View
@@ -38,7 +40,7 @@ export function OfflineSeal({ label, sublabel, variant = "pill" }: OfflineSealPr
     return (
       <View
         accessible
-        accessibilityLabel={[label, sublabel].filter(Boolean).join(", ")}
+        accessibilityLabel={accessibilityLabel ?? [label, sublabel].filter(Boolean).join(", ")}
         style={{
           flexDirection: "row",
           alignItems: "center",
@@ -70,7 +72,7 @@ export function OfflineSeal({ label, sublabel, variant = "pill" }: OfflineSealPr
   return (
     <View
       accessible
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       style={{
         flexDirection: "row",
         alignItems: "center",

@@ -140,7 +140,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Stepper` | Linear flow progress: bar + short label per step | One progressbar stop with the caller's "Step 2 of 4: Model"; value is text ("2/4"), never a numeric range (iOS would speak a percentage) |
 | `Chip` | Filter/toggle/tag; `size="inline"` for citation `[n]` inside text | Button + `selected` when pressable; inline chip keeps a 44/48-tall hit area (horizontal slop is limited so adjacent citations stay separate) |
 | `Badge` | Status seal, pill, caps: `solid` = ACTIVE, `soft` = CACHED, `outline` = DOWNLOADING (tone) / NOT ON DISK (neutral); `dot` + `caps={false}` for compatibility seals | Text always present |
-| `OfflineSeal` | `pill` (ember, crossed wifi, header), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
+| `OfflineSeal` | `pill` (ember, crossed wifi, header; keep the visible label to one word, "OFFLINE", and put the full sentence in `accessibilityLabel`), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
 | `Ambient` | Light pattern behind hero screens (usually via `Screen ambient`) | Hidden from readers |
 | `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss | Live region (danger assertive) |
 | `Toast` | `useToast()({ message, tone, icon, actionLabel, onAction })` | Announced; ≥ 5s + 60ms/char (6s with action); sits above the composer |
