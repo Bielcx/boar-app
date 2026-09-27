@@ -66,3 +66,20 @@ describe("showsRawError", () => {
     expect(showsRawError("missing")).toBe(false);
   });
 });
+
+describe("engine errors with the engine's device hint (Harbor, iOS dc63525)", () => {
+  const hint = " (this device has ~16GB RAM, ~9.1GB free; the model needs ~1.2GB, likely the cause if those are close)";
+  it("ignores the RAM hint appended to every load error", () => {
+    expect(modelErrorKind(`Failed to load model${hint}`)).toBe("engine");
+    expect(modelErrorPrimary(modelErrorKind(`Failed to load model${hint}`))).toBe("retry");
+  });
+
+  it("calls a named Metal/backend failure engine even when it also mentions memory", () => {
+    expect(modelErrorKind("ggml_metal: failed to allocate buffer (out of memory)")).toBe("engine");
+    expect(modelErrorKind(`failed to initialize MTL0 backend${hint}`)).toBe("engine");
+  });
+
+  it("still reads a plain out-of-memory as memory", () => {
+    expect(modelErrorKind(`out of memory while loading${hint}`)).toBe("memory");
+  });
+});

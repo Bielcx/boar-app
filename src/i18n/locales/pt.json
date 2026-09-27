@@ -732,7 +732,9 @@
       "stopping": "Parando",
       "notReady": "Carregando o modelo… você já pode digitar",
       "modelError": "O modelo não carregou. Resolva acima para enviar.",
-      "placeholderLoading": "Digite enquanto o modelo carrega"
+      "placeholderLoading": "Digite enquanto o modelo carrega",
+      "placeholderIndexing": "Digite enquanto o acervo é indexado",
+      "indexing": "O envio libera quando o acervo offline terminar de indexar"
     },
     "stage": {
       "searching": "Buscando nas fontes…",
@@ -836,7 +838,7 @@
       "stopped": "Parado por você",
       "stoppedSnippet": "Parado — mostrando o trecho da fonte",
       "timeout": "Uma etapa demorou demais e foi interrompida",
-      "interrupted": "Interrompido quando o app foi para segundo plano",
+      "interrupted": "A resposta foi interrompida.",
       "streamsFromStorage": "Este modelo lê os pesos do armazenamento, então as respostas ficam mais lentas."
     },
     "error": {

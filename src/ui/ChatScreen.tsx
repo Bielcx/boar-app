@@ -113,6 +113,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     draftInput = input;
   }, [input]);
   const [ready, setReady] = useState(false);
+  // The model is loaded and the offline library is being indexed (first run): sending waits (IX-1).
+  const [indexing, setIndexing] = useState(false);
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
@@ -230,7 +232,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           progress: p.total > 0 ? p.done / p.total : undefined,
         })
       );
-      await seedKnowledgeBaseIfEmpty().finally(stopProgress);
+      setIndexing(true);
+      await seedKnowledgeBaseIfEmpty().finally(() => {
+        stopProgress();
+        setIndexing(false);
+      });
       setReady(true);
     } catch (e: any) {
       setLoadError(e?.message ?? String(e));
@@ -477,6 +483,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     },
     [ready, runInto, finish, activeSessionId]
   );
+
+  // A model error below a conversation is its last item: bring it into view.
+  useEffect(() => {
+    if (!loadError || itemsRef.current.length === 0) return;
+    followBottom.current = true;
+    scrollToBottom(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadError]);
 
   // Installed knowledge, so the empty chat only suggests questions with an on-topic source here (RT-1).
   // Re-read when the model state changes (setup and the Knowledge screen run before the chat is ready).
@@ -745,11 +759,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           (Prism K-1, Android offline 06f508b). The native window position fixes any offset above. */}
       <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
-        {items.length > 0 && loadError ? (
-          <View style={{ paddingHorizontal: tk.space.gutter }}>
-            <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-          </View>
-        ) : items.length > 0 && !ready ? (
+        {items.length > 0 && !loadError && !ready ? (
           <View style={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
             <Text variant="footnote" color="secondary">
               {loadStatus.label}
@@ -768,6 +778,13 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           contentContainerStyle={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
+          // With a conversation on screen, a model error comes in as the next message, above the composer: it
+          // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
+          ListFooterComponent={
+            items.length > 0 && loadError ? (
+              <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+            ) : null
+          }
           ListEmptyComponent={
             loadError ? (
               <ChatModelError error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
@@ -817,7 +834,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           onChange={setInput}
           onSend={() => ask(input)}
           onStop={stopActive}
-          status={modelStatus(ready, loadError)}
+          status={modelStatus(ready, loadError, indexing)}
           generating={generating}
           stopping={stopping}
           voiceEnabled={voiceInputEnabled}

@@ -3,11 +3,13 @@
  * always allowed; sending waits for a loaded model. A failed load is never
  * reported as "loading": the error card above says what to do.
  */
-export type ModelStatus = "ready" | "loading" | "error";
+/** "indexing": the model is loaded, the offline library is still being indexed (first run); sending waits for it. */
+export type ModelStatus = "ready" | "loading" | "indexing" | "error";
 
-export function modelStatus(ready: boolean, loadError: string | null | undefined): ModelStatus {
+export function modelStatus(ready: boolean, loadError: string | null | undefined, indexing = false): ModelStatus {
   if (loadError) return "error";
-  return ready ? "ready" : "loading";
+  if (ready) return "ready";
+  return indexing ? "indexing" : "loading";
 }
 
 /**
@@ -20,6 +22,9 @@ export function composerNotice(status: ModelStatus): { line: string | null; hint
   switch (status) {
     case "loading":
       return { line: null, hint: "chat.composer.notReady" };
+    case "indexing":
+      // Held until the library is indexed, so the first answer isn't missing its sources (Prism IX-1).
+      return { line: null, hint: "chat.composer.indexing" };
     case "error":
       return { line: null, hint: "chat.composer.modelError" };
     default:
@@ -29,5 +34,7 @@ export function composerNotice(status: ModelStatus): { line: string | null; hint
 
 /** The field's placeholder: while the model loads it says typing already works. */
 export function composerPlaceholderKey(status: ModelStatus): string {
-  return status === "loading" ? "chat.composer.placeholderLoading" : "chat.composer.placeholder";
+  if (status === "loading") return "chat.composer.placeholderLoading";
+  if (status === "indexing") return "chat.composer.placeholderIndexing";
+  return "chat.composer.placeholder";
 }

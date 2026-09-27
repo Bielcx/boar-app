@@ -732,7 +732,9 @@
       "stopping": "Stopping",
       "notReady": "Loading model… you can type meanwhile",
       "modelError": "The model didn't load. Fix it above to send.",
-      "placeholderLoading": "Type while the model loads"
+      "placeholderLoading": "Type while the model loads",
+      "placeholderIndexing": "Type while the library is indexed",
+      "indexing": "Sending starts once the offline library is indexed"
     },
     "stage": {
       "searching": "Searching sources…",
@@ -836,7 +838,7 @@
       "stopped": "Stopped by you",
       "stoppedSnippet": "Stopped — showing the source passage",
       "timeout": "A step took too long and was cut short",
-      "interrupted": "Interrupted when the app went to the background",
+      "interrupted": "The answer was interrupted.",
       "streamsFromStorage": "This model reads its weights from storage, so answers are slower."
     },
     "error": {
