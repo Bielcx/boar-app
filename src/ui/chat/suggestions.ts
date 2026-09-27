@@ -17,12 +17,14 @@ export const SUGGESTION_VALIDATION = {
   // cited); q8 PT fails ("monção" doesn't reach Monsoon); q9 fails in both languages (EN cited 2/3,
   // PT's on-topic source dropped by the guard). Rechecked on 98a47b4: the same (8c66bc2), q9 stays out.
   // On d7de156 with the PT lexicon (519b4c2): q8 PT finds and cites Monsoon, but answers with the English
-  // lead and no PT notice, failing the language rule; stays out until the instant path labels or translates.
-  evidence: "eval/results/suggestions/verdicts.v1.json + v2 + v3 (feat/eval-frontier 4655cbb, rechecks 8c66bc2, 519b4c2)",
+  // lead and no PT notice, failing the language rule. With Tusk 29d7e52 (candidate 7fd3242: the passage
+  // opens with "Da fonte offline (em inglês):") and "monção" in the lexicon (8fdb71c): PASS 3/3 on both
+  // models (Sextant 7566472). Needs 7fd3242 in the build.
+  evidence: "eval/results/suggestions/verdicts.v1.json + v2 + v3 (feat/eval-frontier 4655cbb, rechecks 8c66bc2, 519b4c2, 7566472)",
   byModel: {
-    "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q7", "q8"], pt: ["q1", "q2", "q3", "q4", "q7"] },
-    // 1.5B PT: q3 fails the source check (answer shows "Cold", "Absolute zero"); empty until PT-1.
-    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q7", "q8"], pt: [] },
+    "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q7", "q8"], pt: ["q1", "q2", "q3", "q4", "q7", "q8"] },
+    // 1.5B PT: q3 fails the source check (answer shows "Cold", "Absolute zero"); only q8 (v3) so far.
+    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q7", "q8"], pt: ["q8"] },
   } as Record<string, Record<"en" | "pt", string[]>>,
 };
 
@@ -60,8 +62,8 @@ export const SUGGESTION_SOURCES: SuggestionSource[] = [
   { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"], langs: ["en"] },
   { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius", "Temperature"], langs: ["en"] },
   { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis", "Emergency bleeding control"], langs: ["en", "pt"] },
-  // q8/q9 (v3): asked of what the builtin lead says. Top-3 (Sextant): q8 only in EN, q9 in both.
-  { key: "q8", corpus: ["builtin"], expect: ["Monsoon"], langs: ["en"] },
+  // q8/q9 (v3): asked of what the builtin lead says. Top-3 (Sextant): both languages (q8 PT with "monção").
+  { key: "q8", corpus: ["builtin"], expect: ["Monsoon"], langs: ["en", "pt"] },
   { key: "q9", corpus: ["builtin"], expect: ["Plate tectonics"], langs: ["en", "pt"] },
   { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"], langs: ["en"] },
 ];
