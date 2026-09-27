@@ -21,6 +21,11 @@ import {
   isSafetyQuery,
   isCurrentEventQuery,
   currentEventAnswer,
+  temperatureConversion,
+  mentionsNow,
+  isTodayInHistory,
+  historyDate,
+  todayLine,
   ACTION_INTENT,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
@@ -123,6 +128,8 @@ export interface AnswerDeps {
   assemblePrompt(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): string;
   assembleChatMessages(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): ChatMessage[];
   now(): number;
+  /** The device's calendar date (tests pass a fixed one). */
+  today?(): Date;
   /** Context window the model will be loaded with (LlamaEngine defaultContextSize). */
   contextSize?(): number;
   /** Total device RAM (0 = unknown), for the device-dependent default model. */
@@ -245,6 +252,9 @@ export interface EffectiveAnswerModel {
 /** The bundled PT->EN lexicon's names: every caller gets the PT topic guard (the eval runner passed no englishNames, gate ea5978c). */
 const defaultEnglishNames = (query: string) => englishNamesIn(query, ptLexicon());
 
+/** Receipts of answers no model wrote (fixed answers, source excerpts). */
+const NOT_A_MODEL = new Set(["grounding-guard", "extractive", "none", "places", "calculator"]);
+
 export function createAnswerer(deps: AnswerDeps) {
   let current: AnswerHandle | null = null;
 
@@ -257,7 +267,10 @@ export function createAnswerer(deps: AnswerDeps) {
     const stopSignal = new Promise<"stopped">((r) => (signalStop = () => r("stopped")));
     // Health, first aid or a disaster: the chat shows the emergency-services line (one classifier: this one).
     const safety = isSafetyQuery(req.query);
+    /** Whether the chat was already told that no strong source backs this answer. */
+    let weakSourcesSent = false;
     const emit = (e: AnswerEvent) => {
+      if (e.type === "warning" && e.code === "weak_sources") weakSourcesSent = true;
       try {
         onEvent(e.type === "done" && safety ? { ...e, safety: true } : e);
       } catch (err) {
@@ -575,6 +588,13 @@ export function createAnswerer(deps: AnswerDeps) {
         // shows no "Sources" card for this answer.
         const cited =
           citedOverride ?? [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].filter((n) => n >= 1 && n <= sources.length);
+        // One rule for the chat (Quill/Prism CT-5): a model's answer that cites nothing gets the
+        // weak_sources warning (the "general knowledge" seal), on every path: deep, multipass, PT,
+        // answer-anyway, and the 4B with an on-topic source that it didn't cite.
+        if (!weakSourcesSent && outcome === "success" && text.trim() && cited.length === 0 && !NOT_A_MODEL.has(r.modelId)) {
+          reasonCodes.push("grounding:uncited-warning");
+          emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source backs this answer." });
+        }
         emit({ type: "done", answerId, tier, outcome, receipt: r, error, cited, ...(finalText !== undefined ? { finalText } : {}) });
         return { answerId, tier, outcome, text, sources, receipt: r, cited };
       };
@@ -582,6 +602,15 @@ export function createAnswerer(deps: AnswerDeps) {
       // CT-3 (Prism/Piston, 34efdf8): "Who won the football match yesterday?" -> "Meath won... [1]"
       // with [1] a 2021 final. A current-events question is about what an offline snapshot can't
       // know: a fixed, honest answer, no model, no sources.
+      // A temperature conversion is arithmetic: the exact result, no model, no sources (Prism RF-1).
+      const converted = temperatureConversion(req.query, PT_QUESTION.test(req.query));
+      if (converted) {
+        reasonCodes.push("answer:temperature-conversion");
+        markVisible();
+        emit({ type: "token", answerId, tier: "instant", text: converted });
+        return finish("instant", "success", converted, [], receipt({ modelId: "calculator", modelLabel: "Calculator" }));
+      }
+
       if (isCurrentEventQuery(req.query)) {
         reasonCodes.push("grounding:current-event");
         const text = currentEventAnswer(PT_QUESTION.test(req.query));
@@ -592,15 +621,25 @@ export function createAnswerer(deps: AnswerDeps) {
 
       // 1. Sources. A Portuguese question searches the (English) packs with English words when it has known terms.
       const pt = PT_QUESTION.test(req.query);
-      const english = pt ? englishSearchTerms(req.query) : isHealthQuestion(req.query) ? canonicalHealthTerms(req.query) : null;
-      if (english) reasonCodes.push("retrieve:pt-en-terms");
+      // "Today in history": a question about the device's date ("September 27"); a source must name it (Boar R3).
+      const history = isTodayInHistory(req.query) ? historyDate(deps.today?.() ?? new Date()) : null;
+      if (history) reasonCodes.push("grounding:today-in-history");
+      const english = history
+        ? history.search
+        : pt
+          ? englishSearchTerms(req.query)
+          : isHealthQuestion(req.query)
+            ? canonicalHealthTerms(req.query)
+            : null;
+      if (english && !history) reasonCodes.push("retrieve:pt-en-terms");
       // Any other PT question: the English names it mentions, from the lexicon (PT-1, "estacoes do ano" -> Season).
       const names = pt && !english ? (deps.englishNames ?? defaultEnglishNames)(req.query) : [];
       if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
       const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
       // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
-      const onSubject = (c: RetrievedChunk) => (names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c));
+      const onSubject = (c: RetrievedChunk) =>
+        history ? history.isDateArticle(c.title) : names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c);
       // The packs lift an article's Treatment/Management section only when the query asks what to
       // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
       // Lexicon names aren't searched here: retrieve() already adds them to a PT question's search.
@@ -641,9 +680,10 @@ export function createAnswerer(deps: AnswerDeps) {
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
-      // A PT question without English words (dictionary or lexicon names) can't be matched word for
-      // word against English sources: no guard.
-      const guarded = gen?.mode !== "multipass" && (!pt || !!english || names.length > 0);
+      // Always on (Quill, 014c054: the chat reads "passages found, none cited" from a non-empty sources
+      // event, so no off-topic passage may reach it). A PT question without English words is matched
+      // by its own words: English sources rarely name them, so its noise ("Estrela, Lisbon") is dropped.
+      const guarded = gen?.mode !== "multipass";
       // Health has its own, stricter topic filter below (the condition, lay sources allowed).
       if (guarded && !health && sources.length) {
         const kept = sources.filter((c) => onSubject(c));
@@ -729,9 +769,7 @@ export function createAnswerer(deps: AnswerDeps) {
         const i = healthSourceIndex(fullSources, rules.procedure ?? null);
         const text = healthExtract(fullSources[i], i + 1, pt, rules);
         markVisible();
-        // The snippet is the quoted excerpt itself, from the source the answer cites.
-        const quoted = text.split("\n")[1]?.replace(/\s*\[\d+\]$/, "") ?? text;
-        if (plan.instant !== "off") emit({ type: "instant", answerId, snippet: { text: quoted, sourceIndex: i }, confidence: 1 });
+        // No separate instant event: the excerpt IS the answer (Quill/Prism DUP-1: the chat showed it twice).
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
       }
@@ -756,7 +794,14 @@ export function createAnswerer(deps: AnswerDeps) {
         emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
       }
       const styleReminder =
-        [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
+        [
+          ctx.styleReminder,
+          health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined,
+          // "today"/"hoje": the model gets the device's date instead of guessing one (Prism TD-1).
+          mentionsNow(req.query) ? todayLine(deps.today?.() ?? new Date(), pt) : undefined,
+        ]
+          .filter(Boolean)
+          .join("\n") || undefined;
 
       // 3. Generation.
       if (!gen || !genLlm) {
@@ -904,24 +949,30 @@ export function createAnswerer(deps: AnswerDeps) {
       }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
 
-      // Safety net (Boar, gate ea5978c): a knowledge answer that cites none of the sources it was
-      // given came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up front; the
-      // compact model declines, as with no source at all, unless asked to answer anyway.
+      // Safety net (Boar, gates ea5978c and be817b3): a knowledge answer that cites nothing, when no
+      // source was on topic, came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up
+      // front; the compact model declines unless asked to answer anyway. With an on-topic source it
+      // answers as written (s32: the line cost the 4B 4 right answers per wrong one caught, and the
+      // compact model declined 21 of 28 knowledge questions); the chat still gets weak_sources (finish).
       const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
       // Also with no source at all (the instruction asks for the line; a model may skip it).
       const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
       if (knowledge && text.trim() && !/\[\d+\]/.test(text) && !saysNotFromLibrary) {
-        if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
+        // Sources that passed the topic guard are on topic.
+        const onTopicSources = guarded ? sources.length : 0;
+        if (onTopicSources > 0) reasonCodes.push("grounding:uncited-on-topic");
+        else if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
           reasonCodes.push("grounding:uncited-declined-compact");
           emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
           finalText = "";
           return finish(genTier, "success", "", [], baseReceipt);
+        } else {
+          reasonCodes.push("grounding:uncited-preface");
+          // No source: the weak_sources warning already went out before generation.
+          if (sources.length) emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+          text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
+          finalText = text;
         }
-        reasonCodes.push("grounding:uncited-preface");
-        // No source: the weak_sources warning already went out before generation.
-        if (sources.length) emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
-        text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
-        finalText = text;
       }
 
       // 4. Verification (complete answers only, distinct verifier).

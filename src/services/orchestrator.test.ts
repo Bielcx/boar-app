@@ -75,6 +75,16 @@ describe("runDeepResearch citations", () => {
     expect(calls.map(text).join("\n")).not.toContain("Dean Lee");
   });
 
+  it("a PT question too (Quill 014c054): the off-topic source is not shown", async () => {
+    withOffTopic = true;
+    let emitted: RetrievedChunk[] = [];
+    await runDeepResearch("Compare as causas das duas revoluções", undefined, undefined, 256, undefined, undefined, undefined, {
+      onSources: (s) => (emitted = s),
+    });
+    expect(emitted.map((c) => c.title)).not.toContain("Dean Lee");
+    expect(emitted.map((c) => c.chunkId).sort()).toEqual(["eu", "fr", "ir"]);
+  });
+
   it("uses the model's chat template when the GGUF ships one, plain prompts otherwise", async () => {
     await runDeepResearch("Compare the causes of both revolutions", undefined, undefined, 256);
     expect(calls.every((c) => Array.isArray(c.messages) && c.prompt === undefined)).toBe(true);
