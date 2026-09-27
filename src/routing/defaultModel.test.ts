@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickDefaultAnswerModel } from "./defaultModel";
+import { pickDefaultAnswerModel, rankAnswerModels } from "./defaultModel";
 import { contextSizeForRam, estimateMemoryFit, parseGgufShape, toGb } from "../inference/memoryFit";
 
 const GiB = 1024 ** 3;
@@ -73,7 +73,59 @@ describe("pickDefaultAnswerModel", () => {
 
   it("uses what is installed when only one tier is", () => {
     expect(pickDefaultAnswerModel([{ id: "qwen3-4b", answerTier: "default", fit: "thrashing" }], 3.7 * GiB)?.id).toBe("qwen3-4b");
-    expect(pickDefaultAnswerModel([{ id: "x" }], 8 * GiB)).toEqual({ id: "x", reason: "first-installed" });
+    expect(pickDefaultAnswerModel([{ id: "x" }], 8 * GiB)).toEqual({ id: "x", reason: "smallest-fallback" });
     expect(pickDefaultAnswerModel([], 8 * GiB)).toBeNull();
+  });
+});
+
+describe("rankAnswerModels", () => {
+  const GB = 1e9;
+  const q4 = { id: "qwen3-4b", answerTier: "default" as const, sizeBytes: 2.5 * GB, fit: "resident" as const };
+  const q15 = { id: "qwen2.5-1.5b", answerTier: "compact" as const, sizeBytes: 1.1 * GB };
+  const lfm = { id: "lfm2.5-8b-a1b", sizeBytes: 4.8 * GB, fit: "resident" as const };
+  const gemma = { id: "gemma-1b", sizeBytes: 0.8 * GB };
+
+  it("ranks every installed model once, pick first, with a stable reason", () => {
+    const r = rankAnswerModels([gemma, lfm, q15, q4], 7.5 * GiB);
+    expect(r.pick).toEqual({ id: "qwen3-4b", reason: "default-tier" });
+    expect(r.ranked).toEqual([
+      { id: "qwen3-4b", picked: true, reason: "default-tier" },
+      { id: "qwen2.5-1.5b", picked: false, reason: "outranked" },
+      { id: "lfm2.5-8b-a1b", picked: false, reason: "unmeasured" },
+      { id: "gemma-1b", picked: false, reason: "unmeasured" },
+    ]);
+  });
+
+  it("passes over the 4B when it was measured under 6 tok/s on this phone", () => {
+    const r = rankAnswerModels([{ ...q4, tokPerSec: 4.1 }, q15], 7.5 * GiB);
+    expect(r.pick).toEqual({ id: "qwen2.5-1.5b", reason: "compact-default-too-slow" });
+    expect(r.ranked[1]).toEqual({ id: "qwen3-4b", picked: false, reason: "too-slow" });
+  });
+
+  it("an unmeasured 4B still wins: no measurement is not a slow measurement", () => {
+    expect(rankAnswerModels([q4, q15], 7.5 * GiB).pick?.id).toBe("qwen3-4b");
+  });
+
+  it("explains the 4B on a 4 GB phone as low RAM", () => {
+    const r = rankAnswerModels([q4, q15], 3.7 * GiB);
+    expect(r.pick).toEqual({ id: "qwen2.5-1.5b", reason: "compact-low-ram" });
+    expect(r.ranked[1]).toEqual({ id: "qwen3-4b", picked: false, reason: "low-ram" });
+  });
+
+  it("takes the largest fast model when neither tier can answer well", () => {
+    const r = rankAnswerModels([{ ...q4, tokPerSec: 3 }, { ...q15, tokPerSec: 5 }, { ...lfm, tokPerSec: 14 }, { ...gemma, tokPerSec: 30 }], 7.5 * GiB);
+    expect(r.pick).toEqual({ id: "lfm2.5-8b-a1b", reason: "largest-fast" });
+    expect(r.ranked.map((x) => x.reason)).toEqual(["largest-fast", "too-slow", "too-slow", "outranked"]);
+  });
+
+  it("falls back to the smallest model that fits", () => {
+    const r = rankAnswerModels([{ ...lfm, fit: "thrashing" }, gemma, { id: "big", sizeBytes: 3 * GB }], 7.5 * GiB);
+    expect(r.pick).toEqual({ id: "gemma-1b", reason: "smallest-fallback" });
+    expect(r.ranked.find((x) => x.id === "lfm2.5-8b-a1b")?.reason).toBe("wont-fit");
+  });
+
+  it("accepts candidates with no fit, size or speed (boot, before any measurement)", () => {
+    expect(rankAnswerModels([{ id: "a" }, { id: "b" }], 0).pick).toEqual({ id: "a", reason: "smallest-fallback" });
+    expect(rankAnswerModels([], 0)).toEqual({ pick: null, ranked: [] });
   });
 });

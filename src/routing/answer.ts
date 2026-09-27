@@ -11,13 +11,14 @@
  * a double send can never run two completions on one context.
  */
 import { classifyTask } from "./classify";
-import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./context";
+import { compressContext, selectInstant, instantFinalBlock, INSTANT_FINAL_CONFIDENCE } from "./context";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
   detectGeoIntent,
+  distanceMeters,
   formatPlacesAnswer,
   GeoIntent,
   GeoProviders,
@@ -100,6 +101,10 @@ export interface AnswerDeps {
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
+/** City path: only a fix that is already there (cached) counts for PlacesArea.deviceInside. */
+export const DEVICE_INSIDE_TIMEOUT_MS = 150;
+/** A named city's reach from its center for deviceInside (metro areas included). */
+export const DEVICE_INSIDE_RADIUS_M = 25_000;
 export const PLACES_LIMIT = 10;
 
 /** Max <think> tokens before an answer (reasoning models only; see LlamaEngine thinkingBudget). */
@@ -209,13 +214,29 @@ export function createAnswerer(deps: AnswerDeps) {
       emit({ type: "stage", answerId, stage: "retrieving", tier: "instant", at: deps.now() });
       const geo = deps.getGeoProviders?.() ?? null;
       const pt = intent.lang === "pt";
-      if (!geo) {
+      const packInstalled = geo ? await (geo.hasPlaces?.() ?? Promise.resolve(true)).catch(() => true) : false;
+      if (!geo || !packInstalled) {
         reasonCodes.push("places:no-pack");
         return finishPlaces("no_pack", noPackAnswer(intent), { kind: intent.near.kind === "device" ? "near" : "city" });
       }
 
+      // A city written in lower case or after "de" counts only when the gazetteer knows it.
+      if (intent.near.kind === "device" && intent.placeCandidates?.length) {
+        for (const c of intent.placeCandidates) {
+          const hit = await geo.resolvePlace(c).catch(() => null);
+          // An alternate-name match on a small town is too weak ("center" -> Ózd): a city, or the same name.
+          const fold = (x: string) => x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (hit && (hit.kind === "city" || fold(hit.name) === fold(c))) {
+            intent = { ...intent, near: { kind: "place", name: c } };
+            reasonCodes.push("places:gazetteer-name");
+            break;
+          }
+        }
+      }
+
       let center: { lat: number; lon: number };
       let area: Extract<AnswerEvent, { type: "places" }>["area"];
+      let deviceNow: Promise<Awaited<ReturnType<GeoProviders["getLocation"]>> | null> | null = null;
       if (intent.near.kind === "place") {
         const place = await geo.resolvePlace(intent.near.name).catch(() => null);
         if (!place) {
@@ -224,6 +245,11 @@ export function createAnswerer(deps: AnswerDeps) {
         }
         center = { lat: place.lat, lon: place.lon };
         area = { kind: "city", label: place.name, place: { name: place.name, country: place.country } };
+        // Runs alongside the POI search; never prompts (GeoProviders contract) and never waits for GPS.
+        deviceNow = Promise.race([
+          geo.getLocation({ timeoutMs: DEVICE_INSIDE_TIMEOUT_MS }).catch(() => null),
+          new Promise<null>((r) => setTimeout(() => r(null), DEVICE_INSIDE_TIMEOUT_MS + 50)),
+        ]);
       } else {
         const loc = await geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS }).catch(() => ({ error: "unavailable" as const }));
         if ("error" in loc) {
@@ -253,6 +279,13 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
+      if (deviceNow) {
+        const here = await deviceNow;
+        if (here && !("error" in here) && distanceMeters(here, center) <= DEVICE_INSIDE_RADIUS_M) {
+          area.deviceInside = true;
+          reasonCodes.push("places:device-inside");
+        }
+      }
       // Without a distance (city named), a place is only findable by its
       // address: exact places with an address come first, ranking kept
       // within each group; approximate guide listings stay last.
@@ -330,18 +363,22 @@ export function createAnswerer(deps: AnswerDeps) {
       // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
       let fastLlm = activeId ? byId.get(activeId) : undefined;
       if (!fastLlm && installed.length) {
-        const tiered = installed.filter((m) => m.answerTier);
-        if (tiered.length) {
-          const withFit = await Promise.all(
-            tiered.map(async (m) => ({
+        // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
+        const candidates = await Promise.all(
+          installed.map(async (m) => {
+            const tokPerSec = speeds.get(m.id);
+            const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
+            return {
               id: m.id,
               answerTier: m.answerTier,
-              fit: m.answerTier === "default" ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
-            }))
-          );
-          const pick = pickDefaultAnswerModel(withFit, deps.deviceRamBytes?.() ?? 0);
-          fastLlm = pick ? byId.get(pick.id) : undefined;
-        }
+              sizeBytes: m.sizeBytes,
+              tokPerSec,
+              fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+            };
+          })
+        );
+        const pick = pickDefaultAnswerModel(candidates, deps.deviceRamBytes?.() ?? 0);
+        fastLlm = pick ? byId.get(pick.id) : undefined;
         fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
       }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
@@ -449,7 +486,9 @@ export function createAnswerer(deps: AnswerDeps) {
         if (snip && sourceIndex >= 0) {
           markVisible();
           emit({ type: "instant", answerId, snippet: { text: snip.text, sourceIndex }, confidence: snip.confidence });
-          if (plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE) {
+          const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
+          if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
+          if (plan.instant === "may-finish" && block === null) {
             reasonCodes.push("instant:final");
             return finish(
               "instant",

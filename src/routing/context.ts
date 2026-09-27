@@ -108,9 +108,21 @@ export function scoreSentences(query: string, chunks: RetrievedChunk[]): ScoredS
   }
   const totalWeight = qTerms.reduce((acc, t) => acc + idf.get(t)!, 0);
 
+  // An article the question names ("EIP-4844: Shard Blob Transactions" for
+  // "What is EIP-4844?") rarely repeats its name in the body: a title
+  // segment whose words are all in the question counts for every sentence.
+  const named = chunks.map((c) => {
+    const terms = new Set<string>();
+    for (const seg of c.title.split(/:\s+/)) {
+      const st = tokenizeTerms(seg);
+      if (st.length && st.every((t) => qTerms.includes(t))) st.forEach((t) => terms.add(t));
+    }
+    return terms;
+  });
+
   return all.map((s) => {
     let covered = 0;
-    for (const t of qTerms) if (s.terms.has(t)) covered += idf.get(t)!;
+    for (const t of qTerms) if (s.terms.has(t) || named[s.chunkIndex].has(t)) covered += idf.get(t)!;
     // A sentence that also names the article title is on-topic even when it
     // uses a pronoun for the subject: small bonus, capped at 1.
     const titleTerms = tokenizeTerms(chunks[s.chunkIndex].title);
@@ -156,6 +168,30 @@ export function selectInstant(query: string, chunks: RetrievedChunk[]): InstantS
     if (next) text = `${text} ${next.text}`;
   }
   return { text, sourceIndex: best.chunkIndex, confidence: best.score };
+}
+
+/**
+ * Why a confident instant snippet still must not stand as the whole answer,
+ * or null when it may. One sentence answers a single fact; it does not
+ * answer a list ("Which signature algorithms are quantum resistant?"), a
+ * two-part question ("What is EIP-4844 and what does it add?"), or define a
+ * term it only mentions ("What is ML-DSA?" -> "EIP-8051 specifies only
+ * ML-DSA-44..."). A sentence opening with a pronoun ("It initially
+ * focuses...") needs the text before it.
+ */
+export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | null {
+  const q = query.trim().replace(/[?!.\s]+$/, "");
+  if (/^(it|its|this|that|these|those|they|their|he|she|his|her|such|both)\b/i.test(snippet.trim())) return "anaphora";
+  if (/\b(and|or)\s+(what|how|why|which|who|when|where)\b/i.test(q)) return "compound";
+  if (/^(which|what)\b.*\b(are|were)\b/i.test(q)) return "list";
+  // "What is X?" for a short term X: the sentence must say what X is.
+  const term = q.match(/^(?:what|who)\s+(?:is|was)\s+(?:an?\s+)?(.+)$/i)?.[1];
+  if (term && term.split(/\s+/).length <= 3 && !/^the\b/i.test(term)) {
+    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const defines = new RegExp(`(^|[^\\w-])${esc}(?![\\w-])[^.]{0,60}?\\b(is|are|was|were|refers to|stands for|means)\\b`, "i");
+    if (!defines.test(snippet)) return "not-definition";
+  }
+  return null;
 }
 
 /** A chunk whose best sentence scores under this share of the best chunk's is dropped. */

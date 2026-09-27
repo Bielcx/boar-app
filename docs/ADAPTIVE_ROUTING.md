@@ -75,7 +75,11 @@ Concurrency: a new `answer()` stops the previous one and waits for it; `LlamaEng
 ```
 detectGeoIntent(query)       # place words (restaurant, café, padaria, "onde comer"), or food words + location/diet;
                              # never explanatory questions ("What food did the Romans eat?")
+                             # or a diet + place noun ("best vegan places in Tokyo"); "places" alone is not food
   ├─ city named ("in Lisbon", "em São Paulo") or answer({ place }) → resolvePlace → center, no distances
+  │    └─ getLocation({ timeoutMs: 150 }) in parallel: a fix within 25 km → area.deviceInside (device clock valid)
+  ├─ city in lower case / after PT "de" ("in berlin", "veganos de Roma") → placeCandidates, longest first;
+  │    used only if resolvePlace gives a city (≥100k) or the same name; else the device path
   └─ else device: getLocation({ timeoutMs: 700 })   # never prompts; denied/unavailable → coverage "needs_place"
 searchPois({ center, diet, text, limit: 10 })       # pack ranks: diet tag only > yes > limited, then distance
   ├─ coverage none / 0 hits → "I don't have offline place data for X" (never a generic list)
@@ -84,7 +88,8 @@ searchPois({ center, diet, text, limit: 10 })       # pack ranks: diet tag only 
 
 - `criterion` is `diet_match` when a diet was asked, else `distance`; "best" says so and states that ratings/popularity are not available offline.
 - Events: `stage retrieving` → `location` (device only) → `sources` → `places` → `done` (tier `instant`, `receipt.modelId` `"places"`). `places.attribution` carries ODbL (OSM, with extract date) and CC BY-SA (Wikivoyage).
-- Providers are injected with `registerGeoProviders({ getLocation, resolvePlace, searchPois })` (`answerService.ts`): POI pack from the knowledge layer (`src/rag/pois.ts`), location from the UI layer (`src/services/location.ts`). Without them the answer is "places pack not installed".
+- `places.area.deviceInside` (city areas only): true when a recent device fix lies within 25 km of the named city's center, so the UI may compute open/closed with the device clock. It is never set by a new permission prompt or a GPS wait.
+- Providers are injected with `registerGeoProviders({ hasPlaces, getLocation, resolvePlace, searchPois })` (`answerService.ts`): POI pack from the knowledge layer (`src/rag/pois.ts`), location from the UI layer (`src/services/location.ts`). Without them the answer is "places pack not installed".
 
 ## Context compression (`src/routing/context.ts`)
 
@@ -102,6 +107,8 @@ Kept chunks are ordered by relevance (that order is the `[n]` numbering) and a c
 Token counts are approximate (4 chars/token) in tests; on device `receipt.ctxTokens` is llama.cpp's own count.
 
 **KV reuse of the system prompt:** already automatic. llama.rn keeps the last completion's KV cache and re-evaluates from the first differing token (`find_common_prefix_length`, `cpp/rn-completion.cpp`). With the current prompt layout, ~156 of 220 tokens of a follow-up question's prompt are a shared prefix (`prompt.test.ts`). Putting sources after the history was tried and gained ~6%, not worth the change. Loading another model (deep tier, verifier) drops the cache.
+
+**Tried and not adopted (v1.1 item 5): sources in the user's turn.** Moving the sources out of the system message into the user's turn (branch `feat/prompt-cache`, `src/routing/prompt.ts`) makes the system prompt static, so llama.rn's prefix reuse keeps more of each follow-up prompt. Measured (llama-server prompt cache, Qwen2.5-1.5B, M4 CPU 4 threads, 6-question conversation): total prefill −15% (turns 4–6 −29% to −38%, turn 1 +3%, turn 2 +16%). But the blind s32 A/B against the current layout regressed on the default model, Qwen3-4B, in three prompt variants (Jev score 0.14 → 0.22 → 0.27, correct answers 50% → 22% / 31% / 38%): it refused when sources missed, answered Portuguese in English, and wrote shorter, less complete answers. Qwen2.5-1.5B did not regress. The v1.1 rule was "merge only if TTFT improves and quality does not regress", so it stays out; further prompt tweaking on the same 32 questions would overfit the evaluation set. Reports: `eval/reports/ab-sources-layout-*.md` (feat/eval-frontier).
 
 ## Memory check (`src/inference/memoryFit.ts`)
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { detectGeoIntent, formatDistance, GeoProviders, PoiRecord } from "./geo";
-import { createAnswerer, AnswerDeps } from "./answer";
+import { createAnswerer, AnswerDeps, DEVICE_INSIDE_TIMEOUT_MS } from "./answer";
 import type { AnswerEvent } from "./events";
 
 describe("detectGeoIntent", () => {
@@ -37,9 +37,42 @@ describe("detectGeoIntent", () => {
       "How is coffee made?",
       "Why do vegans avoid honey?",
       "What is the history of pizza in Naples?",
+      // Prism V1: diet + place noun is places, a place noun alone is not; a yes/no diet question is not.
+      "What are the most historic places in Rome?",
+      "Is honey vegan in Europe?",
     ]) {
       expect(detectGeoIntent(q)).toBeNull();
     }
+  });
+});
+
+describe("detectGeoIntent: Prism V1 cases (city in any case, PT 'de', diet + place noun)", () => {
+  it("V1-A: a lower-case city becomes a gazetteer candidate, not a GPS search", () => {
+    const i = detectGeoIntent("tell me the best vegan restaurants in berlin")!;
+    expect(i.near).toEqual({ kind: "device" });
+    expect(i.placeCandidates?.[0]).toBe("berlin");
+    expect(detectGeoIntent("melhores restaurantes veganos em são paulo")!.placeCandidates?.[0]).toBe("são paulo");
+    expect(detectGeoIntent("restaurantes veganos em sao paulo")!.placeCandidates?.[0]).toBe("sao paulo");
+    expect(detectGeoIntent("vegan restaurants in new york city")!.placeCandidates?.slice(0, 2)).toEqual(["new york city", "new york"]);
+  });
+
+  it("V1-B: PT 'de <Cidade>'", () => {
+    const i = detectGeoIntent("Quais os melhores restaurantes veganos de Roma?")!;
+    expect(i).toMatchObject({ near: { kind: "device" }, diet: ["vegan"], lang: "pt" });
+    expect(i.placeCandidates).toContain("Roma");
+  });
+
+  it("V1-C: diet + place noun + city is a places question, never the LLM", () => {
+    expect(detectGeoIntent("best vegan places in Tokyo")).toMatchObject({ near: { kind: "place", name: "Tokyo" }, diet: ["vegan"] });
+    expect(detectGeoIntent("best vegan places in tokyo")!.placeCandidates?.[0]).toBe("tokyo");
+    expect(detectGeoIntent("lugares veganos em lisboa")!.placeCandidates?.[0]).toBe("lisboa");
+    expect(detectGeoIntent("good vegetarian spots")!.near).toEqual({ kind: "device" });
+  });
+
+  it("no candidates for the device phrasings or for non-place words after 'in'", () => {
+    expect(detectGeoIntent("Tell me the best vegan restaurants in the city I am currently in")!.placeCandidates).toBeUndefined();
+    expect(detectGeoIntent("vegan restaurants in my area")!.placeCandidates).toBeUndefined();
+    expect(detectGeoIntent("best vegan restaurants in the area")!.placeCandidates).toBeUndefined();
   });
 });
 
@@ -165,9 +198,60 @@ describe("answer(): places path", () => {
     expect(r.receipt.ttftMs).toBeLessThan(1000);
   });
 
-  it("uses a named city without GPS and without distances", async () => {
+  it("V1-A/B: a lower-case or 'de' city counts once the gazetteer knows it", async () => {
+    const { places } = await ask("melhores restaurantes veganos em são paulo");
+    expect(geo.calls).toEqual(["resolve:são paulo", "resolve:são paulo", "location", "search"]);
+    expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo" });
+    expect(places!.places.every((p) => p.distanceM === undefined)).toBe(true);
+    geo = makeGeo();
+    const de = await ask("restaurantes veganos de sao paulo");
+    expect(de.places!.area.kind).toBe("city");
+  });
+
+  it("ignores a weak gazetteer hit: a small town under another name", async () => {
+    geo.resolvePlace = async (name: string) => {
+      geo.calls.push(`resolve:${name}`);
+      return { name: "Ózd", lat: 48.2, lon: 20.3, country: "HU", kind: "town" };
+    };
+    const { places } = await ask("vegan restaurants in midtown");
+    expect(places!.area.kind).toBe("near");
+    expect(detectGeoIntent("vegan restaurants in downtown")!.placeCandidates).toBeUndefined();
+    expect(detectGeoIntent("vegan restaurants in asia")!.placeCandidates).toBeUndefined();
+  });
+
+  it("G-3: deviceInside when a recent fix is within the named city, so the UI can use the device clock", async () => {
+    const inSp = await ask("vegan restaurants in São Paulo");
+    expect(inSp.places!.area).toMatchObject({ kind: "city", deviceInside: true });
+    expect(inSp.events.some((e) => e.type === "location")).toBe(false);
+
+    geo = makeGeo();
+    geo.getLocation = async () => ({ lat: 52.52, lon: 13.4, accuracyM: 20, ageS: 5 }); // Berlin
+    expect((await ask("vegan restaurants in São Paulo")).places!.area.deviceInside).toBeUndefined();
+
+    geo = makeGeo();
+    geo.getLocation = async () => ({ error: "prompt" as const });
+    expect((await ask("vegan restaurants in São Paulo")).places!.area.deviceInside).toBeUndefined();
+  });
+
+  it("G-3: a GPS that doesn't answer at once never delays the city list", async () => {
+    geo.getLocation = () => new Promise(() => {});
+    const t = Date.now();
+    const { places } = await ask("vegan restaurants in São Paulo");
+    expect(places!.area.deviceInside).toBeUndefined();
+    expect(Date.now() - t).toBeLessThan(DEVICE_INSIDE_TIMEOUT_MS + 300);
+  });
+
+  it("a candidate the gazetteer doesn't know falls back to the device, never to the model", async () => {
+    const { r, places } = await ask("best vegan restaurants in xyzzy");
+    expect(geo.calls).toEqual(["resolve:xyzzy", "location", "search"]);
+    expect(places!.area.kind).toBe("near");
+    expect(r.receipt.modelId).toBe("places");
+    expect(loads).toBe(0);
+  });
+
+  it("uses a named city without distances (a cached fix only sets deviceInside)", async () => {
     const { r, places } = await ask("melhores restaurantes veganos em São Paulo");
-    expect(geo.calls).toEqual(["resolve:São Paulo", "search"]);
+    expect(geo.calls).toEqual(["resolve:São Paulo", "location", "search"]);
     expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo", place: { name: "São Paulo", country: "BR" } });
     expect(places!.places.every((p) => p.distanceM === undefined)).toBe(true);
     expect(r.text).toMatch(/^Lugares com opção vegano em São Paulo/);
@@ -235,6 +319,13 @@ describe("answer(): places path", () => {
     const { places, r } = await ask("vegan near me", {}, d);
     expect(places!.coverage).toBe("no_pack");
     expect(r.text).toMatch(/not installed/);
+  });
+
+  it("reports a missing pack when providers are registered but no pack is installed", async () => {
+    geo.hasPlaces = async () => false;
+    const { places } = await ask("best vegan restaurants in São Paulo");
+    expect(places!.coverage).toBe("no_pack");
+    expect(geo.calls).toEqual([]);
   });
 
   it("leaves ordinary questions to the normal pipeline", async () => {
