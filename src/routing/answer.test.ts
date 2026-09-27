@@ -622,11 +622,24 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(events.find((e) => e.type === "instant")).toBeUndefined();
   });
 
+  it("Boar, gate 9ef80f9: an uncited sentence an on-topic source supports gets its [n]; an unsupported one never", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "Canberra is the capital city of Australia and its largest inland city. It was chosen by a referendum in 1911.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("Canberra is the capital city of Australia and its largest inland city [1]. It was chosen by a referendum in 1911.");
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.finalText).toBe(result.text);
+    expect(done.cited).toEqual([1]);
+    expect(result.receipt.reasonCodes).toContain("citations:added-1");
+  });
+
   it("Boar, s32: a 4B answer with an on-topic source gets no line even uncited", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
     f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    f.deps.engine.generate = async () => "It was chosen by a referendum in 1911.";
     const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
     expect((events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
     expect(result.receipt.reasonCodes).toContain("grounding:uncited-on-topic");
@@ -675,9 +688,9 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
 
   it("Boar (B): the compact model with an on-topic source answers uncited, and the chat gets weak_sources", async () => {
     f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    f.deps.engine.generate = async () => "It was chosen by a referendum in 1911.";
     const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
-    expect(result.text).toBe("It was a compromise between Sydney and Melbourne.");
+    expect(result.text).toBe("It was chosen by a referendum in 1911.");
     expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["grounding:uncited-on-topic", "grounding:uncited-warning"]));
     const warning = events.find((e) => e.type === "warning") as any;
     expect(warning).toMatchObject({ code: "weak_sources" });

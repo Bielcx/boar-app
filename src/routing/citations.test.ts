@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkCitations, citationSupport } from "./citations";
+import { attributeCitations, checkCitations, citationSupport } from "./citations";
 import type { RetrievedChunk } from "../rag/retrieve.types";
 
 const src = (title: string, body: string): RetrievedChunk => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" });
@@ -33,5 +33,28 @@ describe("checkCitations (CT-1)", () => {
   it("support is the share of the sentence's key words found in the source", () => {
     expect(citationSupport("Earth's axial tilt causes the seasons", WALIPINI)).toBeLessThan(0.5);
     expect(citationSupport("apply pressure by pinching the soft part of the nose", NOSEBLEED)).toBeGreaterThan(0.8);
+  });
+});
+
+describe("attributeCitations (the inverse of CT-1)", () => {
+  const src = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  const MONSOON = src("Monsoon", "A monsoon is a seasonal reversing wind accompanied by changes in precipitation.");
+  const GREEN = src("Greenhouse effect", "The greenhouse effect occurs when greenhouse gases in the atmosphere trap heat radiated by the surface.");
+  it("adds the [n] of the source that supports a sentence, the best one", () => {
+    const r = attributeCitations("A monsoon is a seasonal reversing wind. Greenhouse gases trap heat in the atmosphere.", [MONSOON, GREEN]);
+    expect(r.text).toBe("A monsoon is a seasonal reversing wind [1]. Greenhouse gases trap heat in the atmosphere [2].");
+    expect(r.added).toEqual([1, 2]);
+  });
+  it("gate 9ef80f9, real answer: a wrong sentence that shares half its words with the source gets no [n]", () => {
+    const pqc = src("Post-quantum cryptography", "Post-quantum cryptography refers to cryptographic algorithms that are secure against an attack by a quantum computer. Most widely used public-key algorithms rely on the integer factorization problem or the discrete logarithm problem, which a quantum computer could break. The Open Quantum Safe project provides liboqs, an open source library of quantum-resistant signature algorithms.");
+    const wrong = "Quantum-resistant signature algorithms include those based on elliptic curve cryptography (ECC).";
+    expect(attributeCitations(wrong, [pqc]).added).toEqual([]);
+    expect(attributeCitations("Liboqs, an open-source library, integrates several quantum-resistant signature algorithms.", [pqc]).added).toEqual([1]);
+  });
+
+  it("never without support, never to a short sentence, never twice", () => {
+    expect(attributeCitations("Ice cream is sold on beaches.", [MONSOON]).added).toEqual([]);
+    expect(attributeCitations("Monsoon.", [MONSOON]).added).toEqual([]);
+    expect(attributeCitations("A monsoon is a seasonal reversing wind [1].", [MONSOON]).text).toBe("A monsoon is a seasonal reversing wind [1].");
   });
 });

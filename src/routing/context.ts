@@ -448,6 +448,11 @@ function properNounTerms(query: string): string[] {
     .flatMap((w) => tokenizeTerms(w));
 }
 
+/** A title's first segment, past a source label: "Scary Stories" for "Scary Stories: Dark Web", "Water" for "Wikivoyage: Water". */
+function mainTitle(title: string): string {
+  return title.replace(/^(Wikipedia|Wikibooks|Wikivoyage|US government|Appropedia|ethereum\.org|Ethereum EIPs\/ERCs|Ethereum specs|Bitcoin BIPs):\s*/, "").split(/:\s+/)[0];
+}
+
 /** Every word of one title segment is a question term ("Monsoon"; "Ethereum EIPs/ERCs: EIP-4844: …" by its "EIP-4844" part). */
 function titleSegmentNamed(title: string, q: Set<string>): boolean {
   return title.split(/:\s+/).some((seg) => {
@@ -471,8 +476,11 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   // segment is in the question) is on topic even when this passage doesn't repeat the question's
   // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
   if (titleSegmentNamed(chunk.title, q)) return true;
-  // The article title or the section heading names a question word, and the source covers
-  // the question ("Scary Stories: Dark Web" names "dark", not the latest theory of dark matter).
+  // The article's own title names a question word ("Plate tectonics" for "…near plate boundaries?",
+  // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"): a subtitle
+  // word ("Scary Stories: Dark Web" for dark matter) or a section heading needs the coverage below.
+  if (titleNames(mainTitle(chunk.title), q)) return true;
+  // A subtitle or the section heading names a question word, and the source covers the question.
   if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
     return termCoverage(query, text) >= (q.size < MIN_TERMS_FOR_COVERAGE ? 1 : TITLE_MIN_COVERAGE);
   }
