@@ -625,6 +625,7 @@
       "categoryStatus": {
         "failed": "Falhou",
         "moving": "Baixando",
+        "importing": "Importando",
         "ready": "Pronto",
         "queued": "Na fila",
         "import": "Importar"

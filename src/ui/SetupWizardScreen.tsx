@@ -1064,8 +1064,18 @@ function InstallStep({
         meta: [indexCounter, seedEta != null ? t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) }) : null].filter((x): x is string => !!x),
       };
   // One row per category, like the mockup (Iris, Prism): aggregated honestly, files one tap away.
+  // The file being copied belongs to an item only once verified; matching the picked file's name to the
+  // item's file lets its category read "Importing" in ember meanwhile (the mockup's STREAMING row).
+  const importingItem = (asset: CatalogModel) =>
+    !!activeImport && asset.filename.split("/").pop() === activeImport.name && !catalog.statuses[asset.id]?.present;
   const categories = installCategories(
-    states.map(({ asset, state }) => ({ id: asset.id, kind: asset.kind, sizeBytes: asset.sizeBytes, state, importOnly: !canDownload(asset) }))
+    states.map(({ asset, state }) => ({
+      id: asset.id,
+      kind: asset.kind,
+      sizeBytes: asset.sizeBytes,
+      state: importingItem(asset) ? ({ kind: "downloading", phase: "copying", progress: activeImport!.progress } as const) : state,
+      importOnly: !canDownload(asset),
+    }))
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
@@ -1226,6 +1236,7 @@ function InstallStep({
             onToggle={() => setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }))}
             onRetry={(asset) => catalog.download(asset)}
             lang={lang}
+            importing={offline}
           />
         ))}
         {[
@@ -1422,6 +1433,7 @@ function CategoryRow({
   onToggle,
   onRetry,
   lang,
+  importing,
 }: {
   row: ReturnType<typeof installCategories>[number];
   first: boolean;
@@ -1430,13 +1442,15 @@ function CategoryRow({
   onToggle: () => void;
   onRetry: (asset: CatalogModel) => void;
   lang: string;
+  /** Offline build: bytes arrive by import, so a moving row reads "Importing". */
+  importing?: boolean;
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
   const name = t(`flows.onboarding.category.${row.category}`);
   const failedItem = row.items.find((i) => i.state.kind === "failed");
   const reason = failedItem && failedItem.state.kind === "failed" ? failureLines(failedItem.state, t, lang).cause : undefined;
-  const status = t(`flows.onboarding.categoryStatus.${row.status}`);
+  const status = t(`flows.onboarding.categoryStatus.${row.status === "moving" && importing ? "importing" : row.status}`);
   const pct = Math.floor(row.fraction * 100);
   const icon: IconName = row.status === "failed" ? "alert-octagon" : row.status === "moving" ? "download" : row.status === "ready" ? "check-circle" : CATEGORY_ICON[row.category];
   const iconColor =
