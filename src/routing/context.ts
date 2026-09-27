@@ -738,6 +738,17 @@ export function titleHasIdentifier(title: string, ids: string[]): boolean {
   return ids.some((id) => own.includes(id));
 }
 
+/** A Portuguese question: its interrogatives (PT_QUESTION) or, failing those, its function words ("É esperado dar
+ * gorjeta em restaurantes em Portugal?" has neither "como" nor "o que", and was answered in English, trv-009). */
+const PT_ONLY = /(?<![\p{L}])(é|são|não|em|uma|umas|dos|das|nos|nas|pelo|pela|com|sem|isso|isto|está|estão|também|você|vocês|meu|minha|seus|suas|dar|fazer|que|para|da|lá|alguns|algumas)(?![\p{L}])/giu;
+export function isPortugueseQuestion(query: string): boolean {
+  if (PT_QUESTION.test(query)) return true;
+  // Words English doesn't use ("do", "a", "no" are both): two, or one plus an accent in a lowercase word.
+  const strong = query.match(PT_ONLY)?.length ?? 0;
+  const accent = /(^|[^\p{L}])[a-zà-ÿ]*[ãõçâêôáéíóú]/u.test(query);
+  return strong >= 2 || (strong >= 1 && accent);
+}
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */

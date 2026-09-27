@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  isPortugueseQuestion,
   excerptRules,
   withAfterPart,
   imperativeSteps,
@@ -754,5 +755,12 @@ describe("dng-005: making water safe, the excerpt stops before 'drink something 
     expect(text).toMatch(/Boil the water before drinking/);
     expect(text).toMatch(/Use iodine tablets/);
     expect(text).not.toMatch(/tea|Milk|Coffee|sea water/);
+  });
+});
+
+describe("isPortugueseQuestion (trv-009 PT)", () => {
+  it("PT without interrogatives; never a short English question", () => {
+    expect(isPortugueseQuestion("É esperado dar gorjeta em restaurantes em Portugal?")).toBe(true);
+    for (const q of ["How do I stop a nosebleed?", "Is tipping expected in restaurants in Portugal?", "What is a monsoon?", "Is São Paulo safe at night?", "Do I need a visa for Brazil?"]) expect(isPortugueseQuestion(q), q).toBe(false);
   });
 });
