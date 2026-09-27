@@ -883,7 +883,8 @@
       "noModelTitle": "Nenhum modelo instalado",
       "noModelBody": "Baixe ou importe um modelo para começar a perguntar.",
       "setup": "Configurar modelo",
-      "loadErrorTitle": "O modelo não carregou"
+      "loadErrorTitle": "O modelo não carregou",
+      "preparing": "Preparando o modelo…"
     },
     "empty": {
       "title": "Pergunte qualquer coisa",
