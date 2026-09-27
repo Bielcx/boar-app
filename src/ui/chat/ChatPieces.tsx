@@ -2,10 +2,11 @@ import React, { memo } from "react";
 import { Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Mascot, Progress, Sheet, Text, useToast } from "../components";
+import { Badge, Button, Card, Icon, Mascot, Progress, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError } from "./modelError";
+import { showsKnowledgeHint } from "./suggestions";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
@@ -97,11 +98,14 @@ export function ChatEmptyState({
   suggestions,
   onAsk,
   onFill,
+  onAddKnowledge,
 }: {
   /** Keys (q1, q2…) validated for the active model and language; see suggestions.ts. */
   suggestions: string[];
   onAsk: (question: string) => void;
   onFill: (question: string) => void;
+  /** With fewer than 3 suggestions, a neutral card says why and opens Knowledge (Iris). Omit when suggestions are turned off. */
+  onAddKnowledge?: () => void;
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
@@ -117,11 +121,13 @@ export function ChatEmptyState({
           {tr("chat.empty.tagline")}
         </Text>
       </View>
-      {suggestions.length > 0 && (
+      {(suggestions.length > 0 || (onAddKnowledge && showsKnowledgeHint(suggestions.length))) && (
         <View style={{ gap: t.space.md }}>
-          <Text variant="label" color="secondary" header>
-            {tr("chat.empty.suggestionsLabel")}
-          </Text>
+          {suggestions.length > 0 && (
+            <Text variant="label" color="secondary" header>
+              {tr("chat.empty.suggestionsLabel")}
+            </Text>
+          )}
           {suggestions.map((k) => {
             const q = tr(`chat.suggestions.${k}`);
             return (
@@ -144,6 +150,17 @@ export function ChatEmptyState({
               </Card>
             );
           })}
+          {/* Few questions are covered by the knowledge on this phone: say why, and where to get more. */}
+          {onAddKnowledge && showsKnowledgeHint(suggestions.length) && (
+            <Card onPress={onAddKnowledge} accessibilityLabel={tr("chat.empty.addKnowledge")} accessibilityHint={tr("chat.empty.addKnowledgeHint")}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+                <Icon name="book-open" size="sm" color={t.color.text.secondary} />
+                <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+                  {tr("chat.empty.addKnowledge")}
+                </Text>
+              </View>
+            </Card>
+          )}
         </View>
       )}
     </View>

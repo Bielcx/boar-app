@@ -843,7 +843,9 @@
       "suggestionsLabel": "Try asking",
       "ask": "Ask: {{question}}",
       "fill": "Put in the input to edit",
-      "tagline": "Answers from this phone, with sources"
+      "tagline": "Answers from this phone, with sources",
+      "addKnowledge": "Add a knowledge pack for more topics",
+      "addKnowledgeHint": "Opens Knowledge"
     },
     "suggestions": {
       "q1": "Why do we have seasons on Earth?",

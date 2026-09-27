@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { coveredSuggestions, SUGGESTION_SOURCES, suggestionsFor } from "./suggestions";
+import { coveredSuggestions, showsKnowledgeHint, SUGGESTION_SOURCES, suggestionsFor } from "./suggestions";
 
 const ALL = ["wiki-vital5", "boar-preparedness"];
 
@@ -53,5 +53,11 @@ describe("coveredSuggestions (RT-1)", () => {
         expect(chat.suggestionTopics[s.key], `${lang} topic ${s.key}`).toBeTruthy();
       }
     }
+  });
+});
+
+describe("showsKnowledgeHint (Iris)", () => {
+  it("adds the knowledge-pack card below three suggestions, including none", () => {
+    expect([0, 1, 2, 3, 4].map(showsKnowledgeHint)).toEqual([true, true, true, false, false]);
   });
 });

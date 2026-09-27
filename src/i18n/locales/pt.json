@@ -843,7 +843,9 @@
       "suggestionsLabel": "Experimente perguntar",
       "ask": "Perguntar: {{question}}",
       "fill": "Colocar no campo para editar",
-      "tagline": "Respostas deste celular, com fontes"
+      "tagline": "Respostas deste celular, com fontes",
+      "addKnowledge": "Adicione um pacote para mais temas",
+      "addKnowledgeHint": "Abre Conhecimento"
     },
     "suggestions": {
       "q1": "Por que existem estações do ano na Terra?",

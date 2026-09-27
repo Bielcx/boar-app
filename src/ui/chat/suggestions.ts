@@ -63,3 +63,10 @@ export function suggestionsFor(modelId: string | undefined, language: string | u
   if (!byLang) return [];
   return coveredSuggestions(byLang[language?.startsWith("pt") ? "pt" : "en"] ?? [], installed);
 }
+
+/** Below this many suggestions, the empty chat adds "Add a knowledge pack for more topics" (Iris). */
+export const MIN_SUGGESTIONS = 3;
+
+export function showsKnowledgeHint(count: number): boolean {
+  return count < MIN_SUGGESTIONS;
+}

@@ -748,6 +748,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             ) : (
               <ChatEmptyState
                 suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language, knowledge) : []}
+                onAddKnowledge={showSuggestions ? () => navigation.navigate("Knowledge") : undefined}
                 onAsk={ask}
                 onFill={(q) => {
                   setInput(q);
