@@ -25,7 +25,7 @@ import {
   geoUri,
   filterName,
   deviceClockApplies,
-  formatDataMonth,
+  formatDataDate,
   showUseLocation,
   openStateAt,
   openStateLabel,
@@ -96,7 +96,8 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
             <Text variant="footnote" color="secondary">
               {tags}
               {tags && state ? " · " : ""}
-              {state && <Text variant="footnote" color={state.open ? "secondary" : "warning"}>{openStateLabel(state, tr)}</Text>}
+              {/* Neutral either way: the words carry it, and amber here competed with the OSM credit (Iris). */}
+              {state && <Text variant="footnote" color="secondary">{openStateLabel(state, tr)}</Text>}
             </Text>
           )}
           {!distance && place.address && (
@@ -464,8 +465,8 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             <Text variant="caption" color="field" style={{ flex: 1 }}>
               {r.attribution
                 .map((a) => {
-                  const month = formatDataMonth(a.date, locale);
-                  return [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), month && tr("chat.places.dataFrom", { date: month })]
+                  const date = formatDataDate(a.date, locale);
+                  return [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), date && tr("chat.places.dataFrom", { date })]
                     .filter(Boolean)
                     .join(" · ");
                 })
