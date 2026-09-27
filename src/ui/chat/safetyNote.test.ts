@@ -62,3 +62,9 @@ describe("showsEmergencyNote (EQ-1)", () => {
     }
   });
 });
+
+describe("engine safety flag (Tusk 2e88300)", () => {
+  it("shows the note when the engine marked the answer safety, whatever the wording", () => {
+    expect(showsEmergencyNote({ question: "hmm", sources: [], hasModelText: false, hasSnippet: true, placesOnly: false, safety: true })).toBe(true);
+  });
+});

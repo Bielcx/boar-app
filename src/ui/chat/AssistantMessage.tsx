@@ -724,6 +724,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         hasModelText: !!(answer.fast?.text || answer.deep?.text),
         hasSnippet: !!answer.instant,
         placesOnly,
+        safety: answer.safety,
       }) && <EmergencyNote />}
 
       {done && hasText && (

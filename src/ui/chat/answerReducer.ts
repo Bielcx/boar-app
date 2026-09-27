@@ -47,6 +47,8 @@ export interface AnswerState {
   weakSources?: boolean;
   /** …and the compact model declined to answer without a source (weak-sources state A); "Answer anyway" asks again. */
   weakDeclined?: boolean;
+  /** The engine classified the question as health/safety (done.safety): literal passage, emergency note. */
+  safety?: boolean;
 }
 
 export function initialAnswer(answerId: string): AnswerState {
@@ -109,6 +111,7 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       return updateTier(state, event.tier, (t) => ({ ...t, stage: "generating", text: t.text + event.text }));
 
     case "done":
+      if (event.safety) state = { ...state, safety: true };
       if (event.tier === "instant") {
         if (state.instantDone) return state;
         return { ...state, instantDone: { outcome: event.outcome, receipt: event.receipt, error: event.error } };
