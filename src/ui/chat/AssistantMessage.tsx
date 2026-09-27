@@ -600,7 +600,15 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
         </Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-        {onAnswerAnyway && <Button label={tr("chat.weak.answerAnyway")} variant="secondary" size="sm" onPress={onAnswerAnyway} />}
+        {onAnswerAnyway && (
+          <Button
+            label={tr("chat.weak.answerAnyway")}
+            accessibilityHint={tr("chat.weak.answerAnywayHint")}
+            variant="secondary"
+            size="sm"
+            onPress={onAnswerAnyway}
+          />
+        )}
         {groups.length > 0 && (
           <Button
             label={found ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length }) : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
@@ -611,6 +619,12 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           />
         )}
       </View>
+      {/* The warning lives under the button, not inside it (Boar copy rule). */}
+      {onAnswerAnyway && (
+        <Text variant="caption" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
+          {tr("chat.weak.answerAnywayHint")}
+        </Text>
+      )}
       {open && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>

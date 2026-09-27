@@ -16,79 +16,9 @@
     "hoursAgo": "{{count}}h ago",
     "daysAgo": "{{count}}d ago"
   },
-  "drawer": {
-    "subtitle": "Adaptive Local Intelligence",
-    "newChat": "New Research Session",
-    "recentSessions": "RECENT SESSIONS"
-  },
-  "modelLoadErrorCard": {
-    "corrupt": {
-      "title": "Integrity Check Failed",
-      "detail": "The downloaded model file is truncated or corrupted (likely due to background network interruption).",
-      "recommendation": "Re-download the model file cleanly or switch to a cached model in Settings."
-    },
-    "missing": {
-      "title": "Model Asset Missing",
-      "detail": "The designated GGUF model binary is not present in local device storage.",
-      "recommendation": "Relaunch the Setup Wizard or select an installed model from the catalog."
-    },
-    "memory": {
-      "title": "Hardware RAM Exceeded",
-      "detail": "Insufficient resident memory to mmap the GGUF model weights and initialize KV cache.",
-      "recommendation": "Close background apps or switch to a lighter model (e.g., Compact 1.2GB) in Settings."
-    },
-    "general": {
-      "title": "Engine Initialization Halted",
-      "detailFallback": "Llama.rn engine failed to bind to the local GGUF context.",
-      "recommendation": "Review model settings or re-run the Setup Wizard to restore defaults."
-    },
-    "actionRequired": "ACTION REQUIRED",
-    "settings": "Settings",
-    "setupWizard": "Setup Wizard"
-  },
-  "drawerFooterStats": {
-    "ram": "RAM",
-    "disk": "DISK",
-    "lastQuery": "{{rate}} tok/s last query"
-  },
   "chatScreen": {
     "initializingCore": "Initializing local offline core…",
-    "mountingWeights": "Mounting local GGUF weights…",
-    "indexingKnowledgeBase": "Indexing offline knowledge base…",
-    "reasoningElapsed": "💭 Reasoning… {{seconds}}s",
-    "reasoningUnfinished": "Reasoning didn't finish before the reply ended (stopped or out of tokens). Tap 💭 to read it.",
-    "showReasoning": "Show reasoning",
-    "hideReasoning": "Hide reasoning",
-    "messageReused": "Message copied to the input",
-    "stopping": "Stopping… (finishing the current step)",
-    "modelDownloadComplete": "✅ \"{{label}}\" download complete",
-    "drawerItems": {
-      "prompts": "Prompt Ideas",
-      "myDocuments": "My Documents",
-      "settings": "Settings",
-      "telemetry": "Execution Telemetry",
-      "about": "About & Info"
-    },
-    "inputPlaceholder": "Ask an offline research question…",
-    "stopGeneration": "Stop generation",
-    "sendMessage": "Send message",
-    "research": {
-      "decomposing": "🔬 Breaking question into sub-questions…",
-      "researching": "🔬 Researching sub-question {{index}}/{{count}}…",
-      "synthesizing": "🔬 Synthesizing offline findings…"
-    },
-    "roleYou": "YOU",
-    "roleAssistant": "🐗 BOAR",
-    "stoppedByUser": "Stopped by user",
-    "deepResearchBanner": "MIXTURE-OF-AGENTS: DECOMPOSE ➔ LOCAL EMBEDDINGS ➔ SYNTHESIS",
-    "copyResponse": "Copy response",
-    "copied": "Copied",
-    "rateUp": "Good response",
-    "rateDown": "Bad response",
-    "rateHelpful": "Helpful",
-    "rateUnhelpful": "Unhelpful",
-    "stageTimedOut": "A research step took too long and was cut short",
-    "interruptedByBackground": "Paused — app was backgrounded. Ask again to continue."
+    "modelDownloadComplete": "✅ \"{{label}}\" download complete"
   },
   "sourceFootnotes": {
     "title": "OFFLINE VERIFIED SOURCES",
@@ -820,8 +750,12 @@
       "groupLabel_one": "Source {{numbers}}: {{title}}, {{origin}}",
       "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages",
       "relevance": "relevance {{band}}",
-      "band": { "high": "High", "medium": "Medium", "low": "Low" },
-      "related": "Related in your library · {{count}}",
+      "band": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "related": "Related ({{count}})",
       "hideRelated": "Hide related",
       "found_one": "Found {{count}} passage",
       "found_other": "Found {{count}} passages"
@@ -859,8 +793,8 @@
       "helpful": "Helpful answer",
       "unhelpful": "Unhelpful answer",
       "deepen": "Deeper answer",
-      "deepenEst": "Deeper answer · ~{{time}}",
-      "askModel": "Answer with the model",
+      "deepenEst": "Go deeper · ~{{time}}",
+      "askModel": "Answer with AI",
       "retry": "Try again",
       "copyQuestion": "Copy question",
       "editQuestion": "Edit and resend",
@@ -882,11 +816,11 @@
       "stoppedSnippet": "Stopped — showing the source passage",
       "timeout": "A step took too long and was cut short",
       "interrupted": "The answer was interrupted.",
-      "streamsFromStorage": "This model reads its weights from storage, so answers are slower."
+      "streamsFromStorage": "This model is big for this phone, so answers are slower."
     },
     "error": {
       "generic": "Couldn't generate the answer.",
-      "oom": "Not enough memory for this model. Pick a smaller one in Settings.",
+      "oom": "Not enough memory. Pick a smaller model in Settings.",
       "no_model": "No model is installed.",
       "load_failed": "The model failed to load.",
       "generation_failed": "Couldn't generate the answer.",
@@ -971,7 +905,7 @@
       "nearYou": "Near you",
       "inCity": "In {{city}}",
       "byDistance": "Sorted by distance",
-      "byDiet": "Sorted by diet tag, then distance",
+      "byDiet": "Diet match first, then distance",
       "staleLocation": "Using your location from {{minutes}} min ago",
       "m": "{{value}} metres",
       "km": "{{value}} kilometres",
@@ -979,32 +913,32 @@
         "vegan": {
           "only": "Vegan",
           "yes": "Vegan options",
-          "limited": "Some vegan options",
-          "tagged": "Tagged vegan"
+          "limited": "Vegan: some",
+          "tagged": "Listed vegan"
         },
         "vegetarian": {
           "only": "Vegetarian",
           "yes": "Vegetarian options",
-          "limited": "Some vegetarian options",
-          "tagged": "Tagged vegetarian"
+          "limited": "Vegetarian: some",
+          "tagged": "Listed vegetarian"
         },
         "gluten_free": {
           "only": "Gluten-free",
           "yes": "Gluten-free options",
-          "limited": "Some gluten-free options",
-          "tagged": "Tagged gluten-free"
+          "limited": "Gluten-free: some",
+          "tagged": "Listed gluten-free"
         },
         "halal": {
           "only": "Halal",
           "yes": "Halal options",
-          "limited": "Some halal options",
-          "tagged": "Tagged halal"
+          "limited": "Halal: some",
+          "tagged": "Listed halal"
         },
         "kosher": {
           "only": "Kosher",
           "yes": "Kosher options",
-          "limited": "Some kosher options",
-          "tagged": "Tagged kosher"
+          "limited": "Kosher: some",
+          "tagged": "Listed kosher"
         }
       },
       "open": "Open",
@@ -1021,8 +955,8 @@
       "showMore_one": "Show {{count}} more",
       "showMore_other": "Show {{count}} more",
       "truncated": "More places match; ask a narrower question to see them.",
-      "openInMaps": "Open in a maps app",
-      "noMapsApp": "No maps app can open this place.",
+      "openInMaps": "Open in Maps",
+      "noMapsApp": "No maps app can open this.",
       "copyCoordinates": "Copy coordinates",
       "coordinatesCopied": "Coordinates copied",
       "address": "Address",
@@ -1031,10 +965,10 @@
       "website": "Website",
       "description": "From the travel guide",
       "coordinates": "Coordinates",
-      "viewPassage": "View the guide passage",
+      "viewPassage": "Open guide passage",
       "whichCity": "Which city?",
       "search": "Search",
-      "useLocation": "Use my location",
+      "useLocation": "Near me",
       "typeCity": "Type the city",
       "locationDenied": "Location is off. Type the city instead.",
       "locationUnavailable": "Couldn't get a GPS fix. Type the city instead.",
@@ -1043,14 +977,14 @@
       "locationAllow": "Continue",
       "noPackTitle": "Offline map not installed",
       "noPackBody": "Install a region's offline map to look up restaurants and places without internet.",
-      "getMap": "Get the offline map",
+      "getMap": "See offline maps",
       "noneInCity": "No places in the offline map for {{city}}",
-      "noneInCityFiltered": "No {{filter}} places in the offline map for {{city}}",
+      "noneInCityFiltered": "No {{filter}} places on the map for {{city}}",
       "noneNear": "No places in the offline map near you",
-      "noneNearFiltered": "No {{filter}} places in the offline map near you",
+      "noneNearFiltered": "No {{filter}} places near you on the map",
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
       "searchHint": "Type a city first",
-      "dietToVerify": "OSM diet tag to double-check",
+      "dietToVerify": "Diet unconfirmed",
       "cityPlaceholder": "e.g. Berlin",
       "dataFrom": "data from {{date}}",
       "openSettings": "Open settings",
@@ -1058,7 +992,7 @@
       "searchCityHint": "Shows places in {{city}}",
       "staleTitle": "Your last location was in {{city}}, {{ago}} ago",
       "staleBody": "No fresh position right now. Use that city, or choose where you are.",
-      "useCity": "Use {{city}}",
+      "useCity": "Use this city",
       "chooseCity": "Choose a city",
       "ago": {
         "min_one": "{{count}} min",
@@ -1070,8 +1004,9 @@
       },
       "locating": "Finding your location…",
       "locatingBody": "Or type the city:",
-      "byDietCity": "Sorted by diet tag, then distance from the centre",
-      "byDistanceCity": "Sorted by distance from the centre"
+      "byDietCity": "Diet match first, then distance from the centre",
+      "byDistanceCity": "Sorted by distance from the centre",
+      "copyShort": "Copy"
     },
     "assistantName": "boar",
     "suggestionTopics": {
@@ -1086,7 +1021,7 @@
     "modelError": {
       "overline": "Action needed",
       "settings": "Settings",
-      "setup": "Set up the model",
+      "setup": "Set up",
       "memory": {
         "title": "Not enough memory",
         "body": "This phone didn’t have enough free memory to open the model.",
@@ -1094,7 +1029,7 @@
       },
       "corrupt": {
         "title": "The model file is damaged",
-        "body": "The model file on this phone is incomplete or changed since it was installed.",
+        "body": "The model file on this phone is incomplete or has changed.",
         "hint": "Install the model again from setup."
       },
       "missing": {
@@ -1116,39 +1051,41 @@
       },
       "status": "{{model}} not loaded",
       "details": "Details",
-      "hideDetails": "Hide details"
+      "hideDetails": "Hide details",
+      "retry": "Try again"
     },
     "safety": {
       "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."
     },
     "loadCrash": {
-      "message": "{{model}} closed the app: this phone doesn’t have enough memory for it. We switched back to {{fallback}}.",
+      "message": "Not enough memory for {{model}}. Back to {{fallback}}.",
       "seeModels": "See models",
       "dismiss": "Dismiss",
-      "messageNoFallback": "{{model}} closed the app: this phone doesn’t have enough memory for it. Choose a smaller model."
+      "messageNoFallback": "Not enough memory for {{model}}. Pick a smaller model."
     },
     "weak": {
       "title": "No strong source on this phone",
       "titleUncited": "No source cited",
-      "bodyUncited": "None of the passages found on this phone is cited, so this answer can't be checked against them. It can be wrong.",
-      "body": "Answered from the model's general knowledge, which can be wrong. Nothing in this phone's library matched closely.",
-      "showClosest": "Show closest passages",
-      "showFound": "Show passages found · {{count}}",
-      "hideFound": "Hide passages found",
+      "bodyUncited": "It cites none of the passages found, so it can't be checked. It can be wrong.",
+      "body": "No close match in this phone's library. This comes from the model and can be wrong.",
+      "showClosest": "Closest passages",
+      "showFound": "Passages ({{count}})",
+      "hideFound": "Hide passages",
       "foundTitle": "Passages found",
-      "hideClosest": "Hide closest passages",
+      "hideClosest": "Hide passages",
       "closestTitle": "Closest passages (weak match)",
       "weakMatch": "weak match",
       "receipt": "general knowledge",
       "receiptUncited": "no source cited",
       "declinedTitle": "I couldn't find this in this phone's library",
       "unsupportedTitle": "The passages found don't back this answer",
-      "unsupportedBody": "The compact model's answer cited passages that don't say what it wrote, so it was held back.",
-      "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
-      "answerAnyway": "Answer anyway (may be wrong)",
+      "unsupportedBody": "The compact model cited passages that don't say this, so the answer was held back.",
+      "declinedBody": "Without a source, the compact model often gets this wrong, so it didn't guess.",
+      "answerAnyway": "Answer anyway",
       "declinedTitleIncomplete": "This phone’s library isn’t complete",
       "declinedBodyIncomplete": "Indexing stopped before the end, so the answer may be in the part that’s missing.",
-      "bodyIncomplete": "Answered from the model’s general knowledge, which can be wrong. This phone’s library didn’t finish indexing, so a source may be missing."
+      "bodyIncomplete": "Library incomplete, so a source may be missing. The model's answer can be wrong.",
+      "answerAnywayHint": "It may be wrong."
     },
     "stepShort": {
       "search": "Searching…",
@@ -1158,7 +1095,7 @@
       "prepare": "Preparing…"
     },
     "library": {
-      "incomplete": "The offline library didn’t finish indexing. Some answers may be missing their source."
+      "incomplete": "Library incomplete: some answers may lack a source."
     }
   },
   "location": {

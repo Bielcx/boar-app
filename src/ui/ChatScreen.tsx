@@ -791,7 +791,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       followUp(id, { place: city });
     },
     useLocation: (id) => locateAndAsk(id),
-    getMap: openSettings,
+    // The offline maps live in Knowledge › Places (the button said "Get the map" and opened Settings).
+    getMap: () => navigation.navigate("Knowledge"),
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
     editQuestion: (text) => {

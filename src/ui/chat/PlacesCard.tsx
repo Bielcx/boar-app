@@ -179,7 +179,7 @@ function PlaceSheet({
                   message: tr("chat.places.noMapsApp"),
                   tone: "danger",
                   // No maps app (e.g. GrapheneOS): the coordinates still work anywhere.
-                  actionLabel: tr("chat.places.copyCoordinates"),
+                  actionLabel: tr("chat.places.copyShort"),
                   onAction: async () => {
                     await Clipboard.setStringAsync(coords);
                     toast({ message: tr("chat.places.coordinatesCopied"), icon: "check" });
