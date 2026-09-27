@@ -907,9 +907,10 @@ describe("answer(): today in history (Boar/Piston R3)", () => {
     expect(f.generations).toHaveLength(0);
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
   });
-  it("a source naming the date is on topic, in PT too", async () => {
+  it("only the date's own article is on topic, in PT too (not a text that mentions the date)", async () => {
     f.deps.today = () => new Date(2026, 8, 27);
-    f.retrieved = [TITANIC, SEP27];
+    const WEBINAR = chunk("w", "US government: Quake Prep (Ready.gov)", "Are You Ready?: Recorded September 27, 2011. View the transcript.");
+    f.retrieved = [TITANIC, WEBINAR, SEP27];
     for (const query of [q, "O que aconteceu hoje na história?"]) {
       const { events } = await collect(query);
       const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];

@@ -624,7 +624,7 @@ export function createAnswerer(deps: AnswerDeps) {
       const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
       // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
       const onSubject = (c: RetrievedChunk) =>
-        history ? history.mentioned.test(`${c.title} ${c.body}`) : names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c);
+        history ? history.isDateArticle(c.title) : names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c);
       // The packs lift an article's Treatment/Management section only when the query asks what to
       // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
       // Lexicon names aren't searched here: retrieve() already adds them to a PT question's search.
