@@ -98,7 +98,9 @@ function flowHeader(t: Tokens, title: string, large = true) {
     // iOS's UINavigationBar looks fonts up by PostScript name, not by expo-font's alias: with the alias the
     // large title drew nothing (an empty 80 pt band; Prism LT-1). Android's header is RN text (alias works).
     headerTitleStyle: { color: t.color.text.primary, fontFamily: navFont(t.type.headline.fontFamily, "Baloo2-Bold"), fontSize: t.type.headline.fontSize },
-    headerLargeTitleStyle: { color: t.color.text.primary, fontFamily: navFont(t.type.title1.fontFamily, "Baloo2-ExtraBold"), fontSize: t.type.title1.fontSize },
+    // LT-1 test 3: the large title drew nothing with a custom font (alias or PostScript) and size;
+    // colour only, to see whether the style is the cause (Harbor 777979f: the font resolves fine).
+    headerLargeTitleStyle: { color: t.color.text.primary },
     headerStyle: { backgroundColor: t.color.bg.canvas },
     headerBackButtonDisplayMode: "minimal" as const,
   };
