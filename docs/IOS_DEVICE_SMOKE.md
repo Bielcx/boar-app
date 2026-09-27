@@ -117,9 +117,9 @@ common_init_: failed to create context with model '.../embedding.gguf'
 
 This affects both models. The 1.5B loaded with `offloaded 0/29 layers to GPU`
 (934.69 MiB CPU_Mapped), and its context still needs the Metal backend. The app
-retried the load four times, then the user's "model does not download" report
-was the app sending them back to setup after the load error. It is not a network,
-URL, space or sha problem. The simulator is not affected (bge indexed on the
+retried the load four times. The user's "model does not download" report is
+most likely the load-error card sending them to setup (not verified on screen);
+the log shows no network, URL, space or sha error. The simulator is not affected (bge indexed on the
 simulator's Metal).
 
 Next run (needs the phone):
