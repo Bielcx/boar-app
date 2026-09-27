@@ -955,6 +955,19 @@ describe("answer(): PT questions against English sources (Sextant sugval3 q9)", 
   });
 });
 
+describe("answer(): PT questions naming identifiers (ea21e82 v2-pt)", () => {
+  it("'O que a EIP-1559 muda nas taxas…?' keeps the EIP-1559 source even when the lexicon names only 'Ethereum'", async () => {
+    const EIP = chunk("e", "Ethereum EIPs/ERCs: EIP-1559: Fee market change for ETH 1.0 chain", "Abstract: A transaction pricing mechanism that includes fixed-per-block network fee that is burned.");
+    const HURRICANE = chunk("h", "US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)", "Prepare before hurricane season starts.");
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [EIP, HURRICANE];
+    f.deps.englishNames = () => ["Ethereum"];
+    const { events } = await collect("O que a EIP-1559 muda nas taxas de transação do Ethereum?");
+    expect(((events.find((e) => e.type === "sources") as any)?.sources ?? []).map((c: RetrievedChunk) => c.chunkId)).toEqual(["e"]);
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
