@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Icon, Mascot, Progress, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
-import { modelErrorKind, modelErrorPrimary, showsRawError } from "./modelError";
+import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
 import { showsKnowledgeHint } from "./suggestions";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
@@ -215,12 +215,15 @@ export function ChatModelLoading({ label, progress }: { label: string; progress?
  */
 export function ChatModelError({
   error,
+  kind: engineKind,
   onOpenSettings,
   onRelaunchWizard,
   onRetry,
   compact,
 }: {
   error: string;
+  /** The engine's classified cause (ModelLoadError.kind); without it the text is read (modelErrorKind). */
+  kind?: ModelErrorKind;
   /** Above a conversation: no mascot, no vertical centring. */
   compact?: boolean;
   onOpenSettings: () => void;
@@ -229,7 +232,7 @@ export function ChatModelError({
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
-  const kind = modelErrorKind(error);
+  const kind = engineKind ?? modelErrorKind(error);
   const setupLeads = modelErrorPrimary(kind) === "setup" && !!onRelaunchWizard;
   return (
     <View style={compact ? undefined : { flexGrow: 1, justifyContent: "center", gap: t.space.xl, paddingVertical: t.space.xl }}>

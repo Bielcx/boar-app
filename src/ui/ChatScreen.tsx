@@ -59,6 +59,8 @@ import { loadCrashMessage, phaseAnnouncement } from "./chat/presentation";
 import { consumeLoadCrash } from "./chat/loadCrashApi";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { AssistantMessage } from "./chat/AssistantMessage";
+import { ModelLoadError } from "../inference/loadError";
+import type { ModelErrorKind } from "./chat/modelError";
 import { ChatEmptyState, ChatModelError, ChatModelLoading, SourceSheet, UserMessage } from "./chat/ChatPieces";
 import { Composer } from "./chat/Composer";
 import { modelStatus } from "./chat/composerState";
@@ -118,6 +120,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [indexing, setIndexing] = useState(false);
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The engine's own cause for a failed load (Tusk 9ec677e: ModelLoadError.kind), when it gives one.
+  const [loadErrorKind, setLoadErrorKind] = useState<ModelErrorKind | undefined>(undefined);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
   const [voiceInputEnabled, setVoiceInputEnabledState] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -240,7 +244,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       });
       setReady(true);
     } catch (e: any) {
-      setLoadError(e?.message ?? String(e));
+      // The native message is the one worth showing (the RAM estimate is only in the log now).
+      setLoadErrorKind(e instanceof ModelLoadError ? e.kind : undefined);
+      setLoadError(e instanceof ModelLoadError ? e.native || e.message : e?.message ?? String(e));
     }
   }, [t, locale]);
 
@@ -821,12 +827,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
           ListFooterComponent={
             items.length > 0 && loadError ? (
-              <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : null
           }
           ListEmptyComponent={
             loadError ? (
-              <ChatModelError error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : !ready ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
