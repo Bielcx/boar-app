@@ -287,6 +287,30 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
   return `${lead}\n${text} [${sourceNumber}]`;
 }
 
+// First-aid instructions the sources call wrong (NHS, CDC, Ready.gov), as a model might phrase them.
+const RISKY_HEALTH: Array<[string, RegExp]> = [
+  ["blow-nose", /\bblow\w*\b[^.]{0,20}\bnose\b/i],
+  ["head-back", /\b(tilt|lean|put|tip|throw)\w*\b[^.]{0,25}\bhead\b[^.]{0,10}\bback(wards?)?\b/i],
+  ["lie-down-nosebleed", /\b(lie|lay)\b[^.]{0,10}\b(down|flat)\b[^.]{0,40}\bnose/i],
+  ["tourniquet", /\btourniquet|torniquete|garrote/i],
+  ["suck-venom", /\bsuck\w*[^.]{0,30}venom|chup\w*[^.]{0,30}veneno/i],
+  ["cut-wound", /\b(cut|slice|incise)\w*\b[^.]{0,30}\b(bite|wound|fang)/i],
+  ["ice", /\b(apply|use|put)\w*\b[^.]{0,20}\bice\b|\bice[- ](pack|cold)|\bgelo\b/i],
+  ["butter-toothpaste", /\bbutter\b|toothpaste|manteiga|pasta de dente/i],
+  ["burn-cream", /\b(cream|ointment|lotion)s?\b[^.]{0,30}\bburn|\bburn\w*\b[^.]{0,40}\b(cream|ointment|lotion)|pomada/i],
+  ["doorway", /\bdoorway|batente|v[ãa]o da porta/i],
+  ["run-outside-quake", /\b(run|rush)\w* (outside|outdoors)/i],
+];
+const NEGATED = /\b(do not|don't|dont|never|avoid|not|no|instead of|rather than|without)\b|n[ãa]o\b|nunca|evite/i;
+
+/** The first known-dangerous instruction in a generated health answer (not negated in its sentence), or null. */
+export function riskyHealthInstruction(answer: string): string | null {
+  for (const sentence of splitSentences(answer)) {
+    for (const [id, re] of RISKY_HEALTH) if (re.test(sentence) && !NEGATED.test(sentence)) return id;
+  }
+  return null;
+}
+
 /** Health question without a good source: fixed text, no model. */
 export function noHealthSourceAnswer(pt: boolean): string {
   return pt

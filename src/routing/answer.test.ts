@@ -260,6 +260,22 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(f.generations[0].messages!.at(-1)!.content).toContain(HEALTH_GROUNDING_INSTRUCTION);
   });
 
+  it("'Deeper answer' on health: temperature 0, nothing streamed, and a dangerous model line falls back to the source", async () => {
+    f.installed = [qwen15, moe];
+    f.retrieved = [NOSEBLEED];
+    const seen: any[] = [];
+    f.deps.engine.generate = async (o) => {
+      seen.push(o);
+      o.onToken?.("streamed");
+      return "Pinch the soft part of your nose and blow your nose gently [1].";
+    };
+    const { events, result } = await collect("How do I stop a nosebleed?", "deep");
+    expect(seen[0].temperature).toBe(0);
+    expect(events.filter((e) => e.type === "token").map((e: any) => e.text)).toEqual([result.text]);
+    expect(result.text).toMatch(/^From the offline source:\nA nosebleed is bleeding from the nose\./);
+    expect(result.receipt.reasonCodes).toContain("grounding:health-unsafe-blow-nose");
+  });
+
   it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
     for (const [q, retrieved] of [
       ["What should I do after a snake bite?", []],

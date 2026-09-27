@@ -6,6 +6,7 @@ import {
   INSTANT_FINAL_CONFIDENCE,
   instantFinalBlock,
   isHealthQuestion,
+  riskyHealthInstruction,
   mergeSources,
   scoreSentences,
   selectInstant,
@@ -258,5 +259,17 @@ describe("isHealthQuestion", () => {
     for (const q of ["Which signature algorithms are quantum resistant?", "What is the capital of Australia?", "How do noise-cancelling headphones work?"]) {
       expect(isHealthQuestion(q), q).toBe(false);
     }
+  });
+});
+
+describe("riskyHealthInstruction", () => {
+  it("flags the device answers (Iris, 173c9f8) and lets negated advice through", () => {
+    expect(riskyHealthInstruction("To stop a nosebleed, apply pressure by pinching the soft part of your nose and blowing your nose gently.")).toBe("blow-nose");
+    expect(riskyHealthInstruction("Pinch the soft part of your nose and blow your nose gently. Hold for 5-10 minutes.")).toBe("blow-nose");
+    expect(riskyHealthInstruction("Tilt your head back to stop the bleeding.")).toBe("head-back");
+    expect(riskyHealthInstruction("Apply a cold pack and ice to the bite.")).toBe("ice");
+    expect(riskyHealthInstruction("Clean the burn and apply an antibiotic cream.")).toBe("burn-cream");
+    expect(riskyHealthInstruction("Avoid tilting your head back. Lean forward and pinch the soft part of the nose.")).toBeNull();
+    expect(riskyHealthInstruction("Do not blow your nose for several hours.")).toBeNull();
   });
 });

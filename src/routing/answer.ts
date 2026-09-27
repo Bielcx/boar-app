@@ -25,6 +25,7 @@ import {
   PT_QUESTION,
   healthExtract,
   healthSourceIndex,
+  riskyHealthInstruction,
   termCoverage,
 } from "./context";
 import { englishSearchTerms } from "./ptQuery";
@@ -645,7 +646,9 @@ export function createAnswerer(deps: AnswerDeps) {
             // Reasoning models think before answering: bounded on the fast tier, off on the streaming MoE.
             thinkingBudget: gen.thinking ? (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET) : undefined,
             enableThinking: gen.thinking ? undefined : false,
-            onToken,
+            // Health: no sampling noise, and nothing reaches the screen before the safety check below.
+            ...(health ? { temperature: 0 } : {}),
+            onToken: health ? () => {} : onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };
           text = await deps.engine.generate(
@@ -653,6 +656,17 @@ export function createAnswerer(deps: AnswerDeps) {
               ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
               : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
           );
+          if (health) {
+            // A known-dangerous instruction the model added ("blow your nose", "tilt the head back"): show the source instead.
+            const risky = riskyHealthInstruction(text);
+            if (risky && sources.length) {
+              reasonCodes.push(`grounding:health-unsafe-${risky}`);
+              const i = healthSourceIndex(sources);
+              text = healthExtract(raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i], i + 1, pt);
+            }
+            markVisible();
+            emit({ type: "token", answerId, tier: genTier, text });
+          }
         }
       } catch (e: any) {
         const message = e?.message ?? String(e);
