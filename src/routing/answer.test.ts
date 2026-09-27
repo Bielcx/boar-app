@@ -408,6 +408,34 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     }
   });
 
+  it("gate 2329dc0: a disaster answer never cites an article about one event (Marash, Kamchatka)", async () => {
+    for (const q of ["An earthquake starts while I'm inside a hotel room. What should I do?", "O que fazer durante um terremoto?"]) {
+      f = makeFake();
+      f.retrieved = [
+        chunk("m", "The 1513 Marash earthquake", "The 1513 Marash earthquake struck southern Anatolia. During the earthquake many buildings collapsed."),
+        chunk("k", "1952 Kamchatka earthquake", "The 1952 Kamchatka earthquake caused a tsunami. After the earthquake, people moved to high ground."),
+      ];
+      const { events, result } = await collect(q);
+      expect(events.some((e) => e.type === "sources"), q).toBe(false);
+      expect(result.text, q).toMatch(/emergency|emergência/);
+      expect(f.generations, q).toHaveLength(0);
+    }
+  });
+
+  it("…while a generic safety article or a pack action section still counts", async () => {
+    for (const on of [
+      chunk("g", "Wikivoyage: Earthquake safety", "During an earthquake: Drop, cover, and hold on until the shaking stops."),
+      chunk("r", "US government: Earthquakes (Ready.gov)", "During an Earthquake: Drop, cover, and hold on."),
+      { ...chunk("a", "Emergency shelter", "During an earthquake: drop, cover and hold on under a sturdy table."), action: true },
+    ]) {
+      f = makeFake();
+      f.retrieved = [on as any];
+      const { result } = await collect("What should I do during an earthquake?");
+      expect(result.sources.map((c) => c.title), on.title).toEqual([on.title]);
+      expect(result.text).toMatch(/Drop, cover,? and hold on/i);
+    }
+  });
+
   it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
     for (const [q, retrieved] of [
       ["What should I do after a snake bite?", []],

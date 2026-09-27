@@ -326,9 +326,31 @@ const LAY_SOURCE = /^(Wikibooks|Wikivoyage|US government):/;
 // Technical specifications are never first-aid sources ("EIP-7775: BURN opcode" for a burn).
 const NON_HEALTH_SOURCE = /^(Ethereum EIPs\/ERCs|Ethereum specs|ethereum\.org|Bitcoin BIPs):/;
 
+// Disasters (gate 2329dc0): an article about one event ("The 1513 Marash earthquake", "1952
+// Kamchatka earthquake") names the topic but tells nobody what to do. For them, only a
+// generic title counts ("Earthquake safety", "Earthquakes (Ready.gov)"), or a pack action section.
+const DISASTER_TOPIC = /^(earthquak|flood|tsunami|fire|wildfire|hurricane|tornado|cyclone|typhoon|landslide|avalanche|volcan|eruption|blizzard|storm)/;
+const SAFETY_TITLE_WORDS = new Set(
+  tokenizeTerms("safety safe preparedness prepare preparing survival survive response emergency emergencies guide tips what do during after before protect yourself staying")
+);
+
+/** "Earthquake safety", "Earthquakes (Ready.gov)": the topic word plus safety words only, no year or place. */
+function genericDisasterTitle(title: string, topic: Set<string>): boolean {
+  const bare = title.replace(/^[^:]{1,30}:\s*/, "").replace(/\([^)]*\)/g, " ");
+  const words = tokenizeTerms(bare);
+  const inTopic = (w: string) => [...topic].some((t) => sameTerm(w, t));
+  return words.some(inTopic) && words.every((w) => inTopic(w) || SAFETY_TITLE_WORDS.has(w));
+}
+
 export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolean {
   if (NON_HEALTH_SOURCE.test(chunk.title)) return false;
   const action = (chunk as { action?: boolean }).action;
+  // Drinking water after a flood is about the water (contamination, boiling), not the disaster itself.
+  const waterSafety = [...topic].some((t) => /^(contaminat|purif|disinfect|boil)/.test(t));
+  if (!waterSafety && [...topic].some((t) => DISASTER_TOPIC.test(t))) {
+    if (genericDisasterTitle(chunk.title, topic)) return true;
+    return action === true && titleNames(`${sectionHeading(chunk)} ${chunk.body}`, topic);
+  }
   // The article title names the condition; or the section heading does ("Stay healthy" ›
   // "... > Water contamination") and the pack didn't mark it as background
   // ("Hog Butchering and Smoking › SCALDING" is not about scalds on people).
