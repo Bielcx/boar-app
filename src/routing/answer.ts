@@ -42,6 +42,7 @@ import {
   needsPlaceAnswer,
   noDataAnswer,
   noPackAnswer,
+  staleLocationAnswer,
   toPlace,
   toSourceChunk,
 } from "./geo";
@@ -118,6 +119,10 @@ export interface AnswerDeps {
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
+/** "Near me" without a fix of 5 minutes or less: how long to wait for a new one (a cold GPS takes seconds). */
+export const LOCATION_WAIT_MS = 10_000;
+/** A fix that isn't in by then is not a cached one: tell the UI we're locating. */
+export const LOCATING_SIGNAL_MS = 150;
 /** City path: a fix that is not in by the end of the POI search is ignored for PlacesArea.deviceInside. */
 export const DEVICE_INSIDE_TIMEOUT_MS = 150;
 /** A named city's reach from its center for deviceInside (metro areas included). */
@@ -154,6 +159,9 @@ export function createAnswerer(deps: AnswerDeps) {
     const answerId = newAnswerId();
     const previous = current;
     let stopRequested = false;
+    // Resolves on stop(), so a wait (the GPS) ends at once instead of running out its timeout.
+    let signalStop: () => void = () => {};
+    const stopSignal = new Promise<"stopped">((r) => (signalStop = () => r("stopped")));
     const emit = (e: AnswerEvent) => {
       try {
         onEvent(e);
@@ -184,6 +192,7 @@ export function createAnswerer(deps: AnswerDeps) {
       answerId,
       async stop() {
         stopRequested = true;
+        signalStop();
         await deps.engine.stop();
       },
       done,
@@ -268,11 +277,36 @@ export function createAnswerer(deps: AnswerDeps) {
         deviceNow = pending;
         geo.getLocation({ timeoutMs: DEVICE_INSIDE_TIMEOUT_MS }).then((v) => (pending.value = v), () => {});
       } else {
-        const loc = await geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS }).catch(() => ({ error: "unavailable" as const }));
+        // A fix of 5 minutes or less comes back at once; otherwise wait for a new one (cold GPS),
+        // telling the UI, which offers "Type the city" meanwhile. stop() ends the wait.
+        const request = (
+          geo.getLocationFix
+            ? geo.getLocationFix({ timeoutMs: LOCATION_WAIT_MS })
+            : geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS })
+        ).catch(() => ({ error: "unavailable" as const }));
+        const quick = await Promise.race([request, new Promise<"pending">((r) => setTimeout(() => r("pending"), LOCATING_SIGNAL_MS)), stopSignal]);
+        if (quick === "pending") {
+          emit({ type: "location", answerId, status: "locating" });
+          reasonCodes.push("location:locating");
+        }
+        const loc = quick === "pending" ? await Promise.race([request, stopSignal]) : quick;
+        if (loc === "stopped") {
+          reasonCodes.push("location:stopped");
+          const r = receipt();
+          emit({ type: "done", answerId, tier: "instant", outcome: "stopped", receipt: r });
+          return { answerId, tier: "instant", outcome: "stopped", text: "", sources: [], receipt: r };
+        }
         if ("error" in loc) {
+          reasonCodes.push(`location:${loc.error}`);
+          if (loc.error === "stale") {
+            // Never list the old area by itself (a traveler would get the city they left): offer it.
+            emit({ type: "location", answerId, status: "stale", ageS: loc.last.ageS });
+            const city = await geo.nearestCity?.(loc.last).catch(() => null);
+            const area: Extract<AnswerEvent, { type: "places" }>["area"] = { kind: "near", ...(city ? { lastKnown: { city: city.name, country: city.country, ageS: loc.last.ageS } } : {}) };
+            return finishPlaces("needs_place", staleLocationAnswer(intent, city?.name ?? null, loc.last.ageS), area);
+          }
           const status = loc.error === "timeout" ? "unavailable" : loc.error;
           emit({ type: "location", answerId, status });
-          reasonCodes.push(`location:${loc.error}`);
           return finishPlaces("needs_place", needsPlaceAnswer(intent), { kind: "near" });
         }
         emit({ type: "location", answerId, status: "granted", accuracyM: loc.accuracyM, ageS: loc.ageS });
