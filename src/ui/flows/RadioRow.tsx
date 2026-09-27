@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Icon, Text } from "../components";
+import { Icon, Text, useOpticalLine } from "../components";
 import { useTokens } from "../theme";
 import { selection } from "../../services/haptics";
 
@@ -14,6 +14,7 @@ interface Props {
 /** One option of a single-choice list. Wrap a group in a View with accessibilityRole="radiogroup". */
 export function RadioRow({ title, subtitle, selected, onPress }: Props) {
   const t = useTokens();
+  const line = useOpticalLine("body");
   return (
     <Pressable
       accessibilityRole="radio"
@@ -25,7 +26,7 @@ export function RadioRow({ title, subtitle, selected, onPress }: Props) {
       }}
       style={({ pressed }) => [
         styles.row,
-        { minHeight: t.size.touch + 4, paddingHorizontal: t.space.base, paddingVertical: t.space.md, gap: t.space.md },
+        { minHeight: t.size.touch + 4, paddingHorizontal: t.space.md + t.space.xxs, paddingVertical: t.space.md, gap: t.space.md },
         pressed && { backgroundColor: t.color.bg.sunken },
       ]}
     >
@@ -37,12 +38,15 @@ export function RadioRow({ title, subtitle, selected, onPress }: Props) {
           </Text>
         )}
       </View>
-      <View style={{ width: t.size.iconLg }}>{selected && <Icon name="check" color={t.color.accent.text} />}</View>
+      {/* The check sits on the title's optical line, at the row's end edge (icon-align). */}
+      <View style={{ width: line.iconSize, height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
+        {selected && <Icon name="check" size={line.iconSize} color={t.color.accent.text} edge="end" />}
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center" },
+  row: { flexDirection: "row", alignItems: "flex-start" },
   body: { flex: 1 },
 });
