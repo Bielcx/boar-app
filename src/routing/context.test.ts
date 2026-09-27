@@ -436,3 +436,30 @@ describe("onTopic: a question's year and proper nouns (Sextant, gate a9f156c)", 
     expect(onTopic("What is dark matter?", c("Dark matter", "Dark matter is a hypothetical form of matter that does not interact with light."))).toBe(true);
   });
 });
+
+describe("healthSourceIndex: Appropedia how-tos and the official source (EQ-2, pack v3)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title + body.slice(0, 9), docId: title, title, body, score: 1, matchType: "lexical" as const, action: true });
+  const quake = coreProcedure(healthTopicTerms("What should I do during an earthquake?", null));
+  it("Appropedia's Drop, Cover and Hold On beats Wikivoyage's 'If you are outdoors'", () => {
+    const sources = [
+      c("Wikivoyage: Earthquake safety", "During an earthquake > If you are outdoors: If outdoors, move away from buildings. Get down as soon as possible, cover yourself and hold on."),
+      c("Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! - Drop to the floor. - Take cover under a sturdy table. - Hold on until the shaking stops."),
+    ];
+    expect(healthSourceIndex(sources, quake)).toBe(1);
+  });
+  it("Ready.gov wins a tie on the core procedure", () => {
+    const sources = [
+      c("Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! - Drop to the floor. - Take cover under a sturdy table. - Hold on until the shaking stops."),
+      c("US government: Earthquakes (Ready.gov)", "During an Earthquake > Protect Yourself: - 1. Drop (or Lock): Drop where you are onto hands and knees. - 2. Cover: Cover your head and neck. - 3. Hold On: Hold until the shaking stops."),
+    ];
+    expect(healthSourceIndex(sources, quake)).toBe(1);
+  });
+  it("safety-005: disinfecting what got wet is not making water safe to drink", () => {
+    const water = coreProcedure(healthTopicTerms("After a flood the tap water might be contaminated. How do I make water safe to drink?", "safe drinking water flood"));
+    const sources = [
+      c("Appropedia: Are You Ready?/Floods", "Take Protective Measures: - Listen for news reports. - Clean and disinfect everything that got wet."),
+      c("Wikivoyage: Water", "Buy: If there is no trustworthy supply, boil the water before drinking."),
+    ];
+    expect(healthSourceIndex(sources, water)).toBe(1);
+  });
+});
