@@ -479,7 +479,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         finish();
       }
     },
-    [activeSessionId, ready, cancelBackgroundTask, runInto, refreshSessions, scrollToBottom, finish]
+    // canAsk, not ready: asking works while the model loads (a stale closure here swallowed the first tap, Harbor).
+    [activeSessionId, canAsk, cancelBackgroundTask, runInto, refreshSessions, scrollToBottom, finish]
   );
 
   /**
@@ -522,7 +523,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         finish();
       }
     },
-    [ready, runInto, finish, activeSessionId]
+    [canAsk, runInto, finish, activeSessionId]
   );
 
   // A model error below a conversation is its last item: bring it into view.
