@@ -198,6 +198,8 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
   );
 
   it("Q-1 without the crypto pack: off-topic sources are dropped; the model answers as 'not from the offline library'", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
     f.retrieved = [DEAN_LEE, PUBLIC_KEY];
     const { events, result } = await collect("Which signature algorithms are quantum resistant?");
     expect(events.some((e) => e.type === "instant")).toBe(false);
@@ -361,6 +363,17 @@ describe("answer(): CR-1 low-RAM phone (3.8 GB)", () => {
     expect(f.loads.every((l) => l === compact.filename)).toBe(true);
   });
 
+  it("effectiveModel tells the header what will answer, and what it replaces", async () => {
+    f.installed = [qwen4, compact];
+    f.activeId = "qwen4";
+    const { effectiveModel } = createAnswerer(f.deps);
+    expect(await effectiveModel()).toEqual({ id: compact.id, label: compact.label, downgradedFrom: { id: "qwen4", label: "Qwen3 4B", reason: "low-ram" } });
+    f.settings = { ...f.settings, largeModelConfirmedIds: ["qwen4"] };
+    expect(await effectiveModel()).toEqual({ id: "qwen4", label: "Qwen3 4B" });
+    f.settings = { ...f.settings, largeModelConfirmedIds: [], loadCrashedIds: ["qwen4"] };
+    expect((await effectiveModel())?.downgradedFrom?.reason).toBe("load-crashed");
+  });
+
   it("only big models installed: a clear error instead of an OOM kill", async () => {
     f.installed = [qwen4];
     f.activeId = null;
@@ -394,10 +407,43 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
   });
 
   it("only the incidental page: no snippet, and the model is told it's not from the library", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
     f.retrieved = [WALIPINI];
     const { events } = await collect("Why do we have seasons on Earth?");
     expect(events.some((e) => e.type === "instant")).toBe(false);
     expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
+  });
+
+  it("compact model, no on-topic source: declines (no model call), and answers when asked anyway", async () => {
+    f.retrieved = [WALIPINI];
+    const { events, result } = await collect("Why do we have seasons on Earth?");
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "I didn't find this in this phone's library." });
+    expect(events.at(-1)).toMatchObject({ type: "done", outcome: "success" });
+    expect(result.text).toBe("");
+    expect(result.receipt.reasonCodes).toContain("grounding:declined-compact");
+
+    f = makeFake();
+    f.retrieved = [WALIPINI];
+    const events2: AnswerEvent[] = [];
+    await createAnswerer(f.deps).answer({ query: "Why do we have seasons on Earth?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect(f.generations).toHaveLength(1);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
+    expect(events2.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+    expect((events2.find((e) => e.type === "warning") as any).declined).toBeUndefined();
+  });
+
+  it("CT-1: a citation the source doesn't support is removed, and done carries the corrected text", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async (o) => {
+      o.onToken?.("x");
+      return "Canberra is the capital of Australia [1]. Mold grows in damp bathrooms [1].";
+    };
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("Canberra is the capital of Australia [1]. Mold grows in damp bathrooms.");
+    expect(events.find((e) => e.type === "done")).toMatchObject({ finalText: result.text });
+    expect(result.receipt.reasonCodes).toContain("citations:removed-1");
   });
 });
 

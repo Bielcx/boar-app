@@ -53,7 +53,7 @@ async function listInstalledLlms(): Promise<InstalledLlm[]> {
     }));
 }
 
-export const { answer, deepen } = createAnswerer({
+export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAnswerer({
   engine: llamaEngine,
   retrieve: (q, k) => retrieve(q, k),
   getSettings: getAnswerSettings,

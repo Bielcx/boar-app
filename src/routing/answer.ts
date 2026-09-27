@@ -31,8 +31,9 @@ import {
   termCoverage,
 } from "./context";
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
+import { checkCitations } from "./citations";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
-import { pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
+import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
@@ -152,6 +153,69 @@ const newAnswerId = () => `ans-${Date.now().toString(36)}-${(answerSeq++).toStri
 function errorCodeOf(message: string, stage: "load" | "generate"): AnswerErrorCode {
   if (/cannot be streamed|out of memory|oom/i.test(message)) return "oom";
   return stage === "load" ? "load_failed" : "generation_failed";
+}
+
+/**
+ * Which model answers, with the rules applied everywhere (the user's pick,
+ * CR-1 low RAM, CR-2 crashed loads, the device default). Shared by answer()
+ * and the chat header (effectiveAnswerModel), so they never disagree.
+ */
+async function selectAnswerModel(deps: AnswerDeps) {
+  let lowRamNote: string | null = null;
+  let lowRamBlocked = false;
+  const [settings, allInstalled, activeId, speeds] = await Promise.all([
+    deps.getSettings(),
+    deps.listInstalledLlms(),
+    deps.getActiveModelId(),
+    deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
+  ]);
+  let installed = allInstalled;
+  // CR-1: on a low-RAM phone, a model above the compact size is never used unless the
+  // user confirmed it: not as the saved pick, the default, a fallback, deep or verifier.
+  const ram = deps.deviceRamBytes?.() ?? 0;
+  const confirmed = new Set(settings.largeModelConfirmedIds ?? []);
+  // CR-2: a model whose load killed the app is not loaded again on its own (crash loop);
+  // the crash withdrew its confirmation, so only a new one lets it run.
+  const crashed = new Set(settings.loadCrashedIds ?? []);
+  const blocked = installed.filter((m) => (tooBigForLowRam(m, ram) || crashed.has(m.id)) && !confirmed.has(m.id));
+  const blockedActive = activeId ? blocked.find((m) => m.id === activeId) : undefined;
+  if (blocked.length) {
+    installed = installed.filter((m) => !blocked.includes(m));
+    lowRamBlocked = installed.length === 0;
+    if (blockedActive) lowRamNote = crashed.has(blockedActive.id) ? `model:load-crashed-${blockedActive.id}` : `model:low-ram-unconfirmed-${blockedActive.id}`;
+  }
+  const byId = new Map(installed.map((m) => [m.id, m]));
+  // The user's pick; without one (or if it was deleted), the device-dependent default:
+  // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
+  let fastLlm = activeId ? byId.get(activeId) : undefined;
+  if (!fastLlm && installed.length) {
+    // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
+    const candidates = await Promise.all(
+      installed.map(async (m) => {
+        const tokPerSec = speeds.get(m.id);
+        const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
+        return {
+          id: m.id,
+          answerTier: m.answerTier,
+          sizeBytes: m.sizeBytes,
+          tokPerSec,
+          fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+        };
+      })
+    );
+    const pick = pickDefaultAnswerModel(candidates, ram);
+    fastLlm = pick ? byId.get(pick.id) : undefined;
+    fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
+  }
+  return { settings, installed, speeds, fastLlm, blockedActive, lowRamNote, lowRamBlocked };
+}
+
+/** What the chat header shows before any question: the model that will answer, and the saved one it replaces. */
+export interface EffectiveAnswerModel {
+  id: string;
+  label: string;
+  /** The user's saved model, not used here (low RAM without confirmation, or its load killed the app). */
+  downgradedFrom?: { id: string; label: string; reason: "low-ram" | "load-crashed" };
 }
 
 export function createAnswerer(deps: AnswerDeps) {
@@ -405,52 +469,8 @@ export function createAnswerer(deps: AnswerDeps) {
           : detectGeoIntent(req.query);
       if (geoIntent) return runGeo(geoIntent as GeoIntent, t0, markVisible, () => firstVisibleAt);
 
-      let lowRamNote: string | null = null;
-      let lowRamBlocked = false;
-      let [settings, installed, activeId, speeds] = await Promise.all([
-        deps.getSettings(),
-        deps.listInstalledLlms(),
-        deps.getActiveModelId(),
-        deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
-      ]);
-      // CR-1: on a low-RAM phone, a model above the compact size is never used unless the
-      // user confirmed it: not as the saved pick, the default, a fallback, deep or verifier.
-      const ram = deps.deviceRamBytes?.() ?? 0;
-      const confirmed = new Set(settings.largeModelConfirmedIds ?? []);
-      // CR-2: a model whose load killed the app is not loaded again on its own (crash loop);
-      // the crash withdrew its confirmation, so only a new one lets it run.
-      const crashed = new Set(settings.loadCrashedIds ?? []);
-      const blocked = installed.filter((m) => (tooBigForLowRam(m, ram) || crashed.has(m.id)) && !confirmed.has(m.id));
-      if (blocked.length) {
-        installed = installed.filter((m) => !blocked.includes(m));
-        lowRamBlocked = installed.length === 0;
-        if (activeId && blocked.some((m) => m.id === activeId)) {
-          lowRamNote = crashed.has(activeId) ? `model:load-crashed-${activeId}` : `model:low-ram-unconfirmed-${activeId}`;
-        }
-      }
+      const { settings, installed, speeds, fastLlm, lowRamNote, lowRamBlocked } = await selectAnswerModel(deps);
       const byId = new Map(installed.map((m) => [m.id, m]));
-      // The user's pick; without one (or if it was deleted), the device-dependent default:
-      // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
-      let fastLlm = activeId ? byId.get(activeId) : undefined;
-      if (!fastLlm && installed.length) {
-        // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
-        const candidates = await Promise.all(
-          installed.map(async (m) => {
-            const tokPerSec = speeds.get(m.id);
-            const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
-            return {
-              id: m.id,
-              answerTier: m.answerTier,
-              sizeBytes: m.sizeBytes,
-              tokPerSec,
-              fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
-            };
-          })
-        );
-        const pick = pickDefaultAnswerModel(candidates, ram);
-        fastLlm = pick ? byId.get(pick.id) : undefined;
-        fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
-      }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
         id: m.id,
         label: m.label,
@@ -510,6 +530,8 @@ export function createAnswerer(deps: AnswerDeps) {
         reasonCodes,
         ...over,
       });
+      /** Set when the text differs from the streamed tokens (citations removed, CT-1). */
+      let finalText: string | undefined;
       const finish = (
         tier: AnswerTier,
         outcome: AnswerOutcome,
@@ -518,7 +540,7 @@ export function createAnswerer(deps: AnswerDeps) {
         r: AnswerReceipt,
         error?: { code: AnswerErrorCode; message: string }
       ): AnswerResult => {
-        emit({ type: "done", answerId, tier, outcome, receipt: r, error });
+        emit({ type: "done", answerId, tier, outcome, receipt: r, error, ...(finalText !== undefined ? { finalText } : {}) });
         return { answerId, tier, outcome, text, sources, receipt: r };
       };
 
@@ -631,6 +653,19 @@ export function createAnswerer(deps: AnswerDeps) {
       // A knowledge question with nothing retrieved: the model answers, but not as if it came from a source.
       const fromMemory =
         !health && plan.retrieve && gen?.mode !== "multipass" && sources.length === 0 && ["lookup", "research", "compare", "extract"].includes(taskType);
+      if (fromMemory && genLlm && isCompactModel(genLlm) && !req.answerAnyway) {
+        // Product decision (Iris/Boar): the compact model doesn't answer from memory unless asked to.
+        reasonCodes.push("grounding:declined-compact");
+        markVisible();
+        emit({
+          type: "warning",
+          answerId,
+          code: "weak_sources",
+          declined: true,
+          message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
+        });
+        return finish(genTier, "success", "", [], receipt({ retrievalMs }));
+      }
       if (fromMemory) {
         reasonCodes.push("grounding:no-source-memory");
         emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
@@ -759,6 +794,16 @@ export function createAnswerer(deps: AnswerDeps) {
         ctxTokens: timings?.promptTokens,
         cachedTokens: timings?.cachedTokens,
       });
+      // CT-1: a [n] stays only where source n supports its sentence.
+      if (/\[\d+\]/.test(text)) {
+        const cited = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
+        const checked = checkCitations(text, cited);
+        if (checked.removed.length) {
+          reasonCodes.push(`citations:removed-${checked.removed.join("-")}`);
+          text = checked.text;
+          finalText = text;
+        }
+      }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
 
       // 4. Verification (complete answers only, distinct verifier).
@@ -812,5 +857,24 @@ export function createAnswerer(deps: AnswerDeps) {
     return answer({ query, tier: "deep", reuseSources: sources }, onEvent, ctx);
   }
 
-  return { answer, deepen };
+  /** The model the next answer will use (same rules as answer()); null when none can run. */
+  async function effectiveModel(): Promise<EffectiveAnswerModel | null> {
+    const { fastLlm, blockedActive, settings } = await selectAnswerModel(deps);
+    if (!fastLlm) return null;
+    return {
+      id: fastLlm.id,
+      label: fastLlm.label,
+      ...(blockedActive && blockedActive.id !== fastLlm.id
+        ? {
+            downgradedFrom: {
+              id: blockedActive.id,
+              label: blockedActive.label,
+              reason: (settings.loadCrashedIds ?? []).includes(blockedActive.id) ? ("load-crashed" as const) : ("low-ram" as const),
+            },
+          }
+        : {}),
+    };
+  }
+
+  return { answer, deepen, effectiveModel };
 }

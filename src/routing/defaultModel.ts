@@ -31,6 +31,12 @@ export function tooBigForLowRam(m: { answerTier?: "default" | "compact"; sizeByt
   return m.answerTier === "default" || (m.sizeBytes ?? Number.POSITIVE_INFINITY) > LOW_RAM_MAX_MODEL_BYTES;
 }
 
+/** The compact tier, or an untiered model no bigger than it: too small to answer from memory unasked. */
+export function isCompactModel(m: { answerTier?: "default" | "compact"; sizeBytes?: number }): boolean {
+  if (m.answerTier) return m.answerTier === "compact";
+  return (m.sizeBytes ?? Number.POSITIVE_INFINITY) <= LOW_RAM_MAX_MODEL_BYTES;
+}
+
 /** Measured median decode speed under which a model is too slow to be the automatic default. */
 export const DEFAULT_MIN_TOK_PER_SEC = 6;
 
