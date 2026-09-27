@@ -32,14 +32,16 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer }: Pro
   // the downloader build keeps "Answers offline" (HQ honesty rule R9). Readers hear the long form.
   const sealLabel = tr(OFFLINE_BUILD ? "chat.header.offlineSeal" : "chat.header.offlineAnswersSeal");
   const sealSpoken = tr(OFFLINE_BUILD ? "chat.header.offlineSealSpoken" : "chat.header.offlineAnswersSeal");
+  // The mockup's header: padding 4/16/10, 10 between items, 42 pt discs (touch comes from hitSlop).
+  const itemGap = t.space.sm + t.space.xxs;
   const fit = headerFit({
     width,
     fontScale,
-    touch: t.size.touch,
+    touch: t.size.headerDisc,
     buttons: 1,
-    // Row padding + the gaps between its children (outer row: menu | title group = 1, title group: 2).
-    chrome: t.space.sm * 2 + t.space.xs + t.space.sm * 2,
-    avatar: t.size.avatar + t.space.sm,
+    // Row padding + the gaps menu|title and title|seal; the avatar brings its own gap.
+    chrome: t.space.gutterChat * 2 + itemGap * 2,
+    avatar: t.size.avatar + itemGap,
     sealChars: sealLabel.length,
   });
 
@@ -49,25 +51,22 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer }: Pro
       style={{
         flexDirection: "row",
         alignItems: "flex-start",
-        gap: t.space.xs,
-        paddingHorizontal: t.space.sm,
-        paddingVertical: t.space.xs,
+        gap: itemGap,
+        paddingHorizontal: t.space.gutterChat,
+        paddingTop: t.space.xs,
+        paddingBottom: itemGap,
       }}
     >
-      <IconButton icon="menu" variant="surface" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
-      <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", gap: t.space.sm }}>
-        {fit.avatar && (
-          <View style={{ height: t.size.touch, justifyContent: "center" }}>
-            <Mascot size="avatar" />
-          </View>
-        )}
-        <View style={{ flexShrink: 1, flexGrow: 1, minHeight: t.size.touch, justifyContent: "center" }}>
-          <Text variant="headline" header numberOfLines={1}>
+      <IconButton icon="menu" variant="surface" size="header" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
+      <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", gap: itemGap }}>
+        {fit.avatar && <Mascot size="avatar" />}
+        <View style={{ flexShrink: 1, flexGrow: 1, minHeight: t.size.headerDisc, justifyContent: "center", gap: t.space.xxs }}>
+          <Text variant="title2" header numberOfLines={1}>
             boar
           </Text>
           {activeModelLabel && (
-            // The mockup's model line, secondary, raised from 9.5 px to the 12 pt floor; the app's own case (Prism).
-            <Text variant="caption" color="secondary" numberOfLines={1}>
+            // The mockup's model line: caps, secondary, raised from 9.5 px to the 12 pt floor.
+            <Text variant="capsMeta" color="secondary" numberOfLines={1}>
               {activeModelLabel}
             </Text>
           )}
