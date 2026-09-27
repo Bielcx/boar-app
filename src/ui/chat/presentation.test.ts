@@ -258,7 +258,9 @@ describe("receiptTagKey (Iris CT-5)", () => {
   const src = [{ chunkId: "c", docId: "d", title: "T", body: "b", score: 1, matchType: "hybrid" as const }];
   const base = { answerIds: ["a"], sources: src, fast: { text: "x", stage: null, outcome: "success", receipt } } as AnswerState;
   it("general knowledge only when nothing covered the question; no source cited when found passages weren't cited", () => {
-    expect(receiptTagKey({ ...base, weakSources: true, cited: [] })).toBe("chat.weak.receipt");
+    expect(receiptTagKey({ ...base, sources: [], weakSources: true, cited: [] })).toBe("chat.weak.receipt");
+    // a428bb6: the engine also flags the uncited case with weak_sources; the found passages decide.
+    expect(receiptTagKey({ ...base, weakSources: true, cited: [] })).toBe("chat.weak.receiptUncited");
     expect(receiptTagKey({ ...base, cited: [] })).toBe("chat.weak.receiptUncited");
     expect(receiptTagKey({ ...base, cited: [1] })).toBeNull();
     expect(receiptTagKey(base)).toBeNull();
@@ -272,8 +274,12 @@ describe("tag and note together (Prism: the tag changes, the warning never goes)
     const a = { ...base, cited: [] };
     expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receiptUncited", "uncited"]);
   });
-  it("weak_sources → 'general knowledge' + note B", () => {
-    const a = { ...base, weakSources: true };
+  it("cited = [] with passages AND weak_sources (a428bb6) → still 'no source cited' + the CT-5 note", () => {
+    const a = { ...base, cited: [], weakSources: true };
+    expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receiptUncited", "uncited"]);
+  });
+  it("weak_sources with nothing on the topic → 'general knowledge' + note B", () => {
+    const a = { ...base, sources: [], weakSources: true };
     expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receipt", "weak"]);
   });
   it("a cited answer has neither; a decline and a places list have their own cards", () => {

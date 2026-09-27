@@ -207,14 +207,16 @@ export function isAnswerActive(state: AnswerState): boolean {
 const MODEL_FREE_IDS = new Set(["extractive", "grounding-guard", "places"]);
 
 /**
- * The model's answer rests on no source of this phone (Prism CT-5, Tusk): the engine flagged it
- * (weak_sources), or the model's finished text cites nothing (done.cited = []). The 4B on an
- * on-topic but uncited answer carries no preface in its text, so this marker is the reader's only
- * warning. Never inferred while streaming (cited arrives with done).
+ * Why a model's answer rests on no source of this phone (Prism CT-5, Tusk a428bb6): the engine flags
+ * both cases with weak_sources (and done.cited = []), so the sources tell them apart, since the engine
+ * drops off-topic passages before sending them:
+ * - "weak": nothing on the topic (no sources): "general knowledge" is true there;
+ * - "uncited": passages on the topic were found but none is cited: the model may have used them.
+ * A finished uncited model answer counts too without weak_sources (older engines).
  */
-export function isGeneralKnowledge(state: AnswerState): boolean {
-  if (state.weakSources) return true;
-  return uncitedModelAnswer(state);
+export function noSourceKind(state: AnswerState): "weak" | "uncited" | null {
+  if (!state.weakSources && !uncitedModelAnswer(state)) return null;
+  return state.sources.length > 0 ? "uncited" : "weak";
 }
 
 /** A finished model answer whose text cites none of the sources (engine's done.cited = []). */
