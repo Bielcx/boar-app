@@ -6,6 +6,8 @@ export interface FileImport {
   status: "importing" | "verified" | "failed";
   /** 0..1 of the file hashed so far. */
   progress: number;
+  /** The picked file's size, when the system picker reports it. */
+  sizeBytes?: number;
   assetId?: string;
   errorKind?: IntegrityErrorKind;
   message?: string;

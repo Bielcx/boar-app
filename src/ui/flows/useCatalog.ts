@@ -190,7 +190,7 @@ export function useCatalog(): CatalogState {
       setImports((prev) => prev.map((f) => (f.name === name ? { ...f, ...next } : f)));
     setImports((prev) => [
       ...prev.filter((f) => !files.some((p) => p.name === f.name)),
-      ...files.map((f) => ({ name: f.name, status: "importing" as const, progress: 0, forIds })),
+      ...files.map((f) => ({ name: f.name, status: "importing" as const, progress: 0, forIds, sizeBytes: f.size ?? undefined })),
     ]);
     const controller = new AbortController();
     importAbort.current = controller;
