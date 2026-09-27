@@ -429,7 +429,9 @@ function titledByLexicon(names: string[], chunk: RetrievedChunk): boolean {
   return names.some((n) => {
     const name = clean(n);
     if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);
-    const re = new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
+    // A multi-word name opens the title or heading ("Greenhouse effect", "Chiang Mai"): at its end it
+    // is a place in another subject's title ("Consulate-General of China, Chiang Mai", ea21e82 v2-pt).
+    const re = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
     return heads.some((h) => re.test(h));
   });
 }
@@ -460,6 +462,12 @@ function properNounTerms(query: string): string[] {
     .flatMap((w) => tokenizeTerms(w));
 }
 
+/** The title's first word is a question term ("Plate" of "Plate tectonics"). */
+function leadsTitle(title: string, q: Set<string>): boolean {
+  const first = tokenizeTerms(title)[0];
+  return !!first && [...q].some((t) => sameTerm(first, t));
+}
+
 /** A title's first segment, past a source label: "Scary Stories" for "Scary Stories: Dark Web", "Water" for "Wikivoyage: Water". */
 function mainTitle(title: string): string {
   return title.replace(/^(Wikipedia|Wikibooks|Wikivoyage|US government|Appropedia|ethereum\.org|Ethereum EIPs\/ERCs|Ethereum specs|Bitcoin BIPs):\s*/, "").split(/:\s+/)[0];
@@ -488,10 +496,15 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   // segment is in the question) is on topic even when this passage doesn't repeat the question's
   // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
   if (titleSegmentNamed(chunk.title, q)) return true;
-  // The article's own title names a question word ("Plate tectonics" for "…near plate boundaries?",
-  // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"): a subtitle
-  // word ("Scary Stories: Dark Web" for dark matter) or a section heading needs the coverage below.
-  if (titleNames(mainTitle(chunk.title), q)) return true;
+  // The title's acronym ("Maximal extractable value (MEV)") named by the question ("O que é MEV…?").
+  const acronym = /\(([A-Z][A-Z0-9-]{1,9})\)\s*$/.exec(chunk.title)?.[1];
+  if (acronym && q.has(tokenizeTerms(acronym)[0] ?? "")) return true;
+  // The article's own title OPENS with a question word ("Plate tectonics" for "…near plate boundaries?",
+  // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"), and its first
+  // word only: any word let in the s32 noise ("United States Northern Command" for the northern lights,
+  // "Black Down and Sampford Common" for the commons, "Autonomy South"; gate ea21e82). A subtitle word
+  // ("Scary Stories: Dark Web") or a section heading needs the coverage below.
+  if (leadsTitle(mainTitle(chunk.title), q)) return true;
   // A subtitle or the section heading names a question word, and the source covers the question.
   if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
     return termCoverage(query, text) >= (q.size < MIN_TERMS_FOR_COVERAGE ? 1 : TITLE_MIN_COVERAGE);

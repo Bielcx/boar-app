@@ -16,6 +16,7 @@
  */
 
 import { cosineSimilarityInt8 } from "./pure";
+import { EXPLAIN_INTENT } from "./explain";
 
 export interface PackSql {
   getAllAsync<T>(sql: string, params: any[]): Promise<T[]>;
@@ -85,6 +86,8 @@ export interface PackSearchOptions {
    * question searched by its English names ("Earthquake"), or a canonical query. Default: read from the query.
    */
   action?: boolean;
+  /** The question asks why or what causes something (same reason as `action`). Default: read from the query. */
+  explain?: boolean;
   /**
    * Called only when the keyword search finds fewer than `minHits` passages:
    * returns extra titles or keywords (e.g. from one short LLM turn), which are
@@ -535,7 +538,7 @@ export class WikiPack {
   }
 
   /** The article's lead chunk plus its `nSections` chunks that best cover the question. */
-  async articlePassages(articleId: number, stems: Stem[], nSections = 2, action = false): Promise<PackHit[]> {
+  async articlePassages(articleId: number, stems: Stem[], nSections = 2, action = false, explain = false): Promise<PackHit[]> {
     const a = await this.article(articleId);
     const rows = await this.db.getAllAsync<{ id: number; start: number; end: number }>(
       "SELECT id, start, end FROM chunks WHERE article_id = ? ORDER BY id",
@@ -564,10 +567,23 @@ export class WikiPack {
       .filter((x, i, all) => all.findIndex((y) => sectionAt(a.text, y.r.start) === sectionAt(a.text, x.r.start)) === i);
     const ordered = action ? stepsFirst(scored, (x) => sectionAt(a.text, x.r.start)) : scored;
     const picked = ordered.slice(0, nSections).filter((x) => x.s > 0.15);
-    return Promise.all([
-      this.hit(articleId, lead.id, lead.start, lead.end, 1, "title", true),
-      ...picked.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
-    ]);
+    const leadHit = () => this.hit(articleId, lead.id, lead.start, lead.end, 1, "title", true);
+    if (explain) {
+      // A why/what-causes question (RF-1): the section with more of the question's words that aren't the title
+      // ("earthquake", "boundary" in Plate tectonics) goes before the lead, which usually just defines the subject.
+      const beyond = stems.filter((s) => countAtBoundary(prefixOf(s.stem), a.title.toLowerCase(), true) === 0);
+      const cover = (start: number, end: number) =>
+        beyond.filter((s) => countAtBoundary(prefixOf(s.stem), a.text.slice(start, end).toLowerCase(), true) > 0).length;
+      const best = [...picked].sort((x, y) => cover(y.r.start, y.r.end) - cover(x.r.start, x.r.end))[0];
+      if (best && cover(best.r.start, best.r.end) > cover(lead.start, lead.end)) {
+        return Promise.all([
+          this.hit(articleId, best.r.id, best.r.start, best.r.end, best.s, "title"),
+          leadHit(),
+          ...picked.filter((x) => x !== best).map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
+        ]);
+      }
+    }
+    return Promise.all([leadHit(), ...picked.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title"))]);
   }
 
   /** Whole-index BM25 (column weights and popularity prior from `tuning`); at most `perArticle` per article. */
@@ -677,7 +693,7 @@ export class WikiPack {
     }
     const action = opts.action ?? ACTION_INTENT.test(query);
     let lay = 0;
-    let hits = await this.titleHits(ids, stems, 5, action);
+    let hits = await this.titleHits(ids, stems, 5, action, opts.explain ?? EXPLAIN_INTENT.test(query));
     const limit = Math.max(k, ids.length * 2);
     const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
     const seen = new Set(hits.map((h) => h.chunkId));
@@ -772,9 +788,9 @@ export class WikiPack {
     return { hits: hits.slice(0, limit + lay), stems };
   }
 
-  private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false): Promise<PackHit[]> {
+  private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false, explain = false): Promise<PackHit[]> {
     const perTitle: PackHit[][] = [];
-    for (const id of ids) perTitle.push(await this.articlePassages(id, stems, 2, action));
+    for (const id of ids) perTitle.push(await this.articlePassages(id, stems, 2, action, !action && explain));
     const hits: PackHit[] = [];
     const seen = new Set<number>();
     const add = (h: PackHit) => {
