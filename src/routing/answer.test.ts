@@ -247,18 +247,18 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.text).toMatch(/^From the offline source:\nTreatment: (Most anterior nosebleeds .*)?Pinch the soft part of the nose and lean forward for 10 to 15 minutes\. \[\d\]\n\nIn an emergency, call your local emergency number/);
   });
 
-  it("EQ-2: the instant snippet of a health answer is the quoted excerpt, from the cited source", async () => {
+  it("EQ-2/DUP-1: a health answer is the excerpt with its steps, from the cited source, and no separate instant event", async () => {
     const run = { ...chunk("wv", "Wikivoyage: Earthquake safety", "During an earthquake: Do not run during the quake! Running around during the quake is dangerous."), action: true };
     const drop = { ...chunk("ap", "Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! Drop to the floor. Take cover under a sturdy table. Hold on until the shaking stops."), action: true };
     f.retrieved = [run, drop] as any;
     const { events, result } = await collect("What should I do during an earthquake?");
-    const instants = events.filter((e) => e.type === "instant") as any[];
-    expect(instants).toHaveLength(1);
-    expect(instants[0].snippet.text).toMatch(/Drop, cover, and hold on!/);
-    expect(instants[0].snippet.text).not.toMatch(/Do not run/);
+    // DUP-1: no instant event at all; the answer is the excerpt, with its steps, citing the source it quotes.
+    expect(events.filter((e) => e.type === "instant")).toHaveLength(0);
+    expect(result.text).toMatch(/Drop, cover, and hold on! Drop to the floor\. Take cover under a sturdy table\. Hold on until the shaking stops\./);
+    expect(result.text).not.toMatch(/Do not run/);
     const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
-    expect(sources[instants[0].snippet.sourceIndex].chunkId).toBe("ap");
-    expect(result.text).toContain(instants[0].snippet.text);
+    const cited = (events.find((e) => e.type === "done") as any).cited as number[];
+    expect(sources[cited[0] - 1].chunkId).toBe("ap");
   });
 
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
