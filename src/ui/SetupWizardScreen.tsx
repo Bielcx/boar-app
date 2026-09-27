@@ -326,8 +326,9 @@ function Welcome({
       <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
         <Mascot size="brand" />
         <View style={{ flex: 1, gap: tokens.space.xxs }}>
+          {/* The identity's wordmark is lowercase (chat header, splash). */}
           <Text ref={titleRef} variant="title1" header>
-            BOAR
+            boar
           </Text>
           <Text variant="footnote" color="field">
             {t("flows.onboarding.brandSub")}
@@ -541,7 +542,8 @@ function PackageStep({
               description={t(`flows.onboarding.package.${p.id}.body`)}
               meta={[
                 p.plan.downloadBytes === 0 && t("flows.onboarding.alreadyDownloaded"),
-                t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
+                // Only when it differs from the figure on the right (import, part already downloaded).
+                p.plan.installedBytes !== p.plan.downloadBytes && t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
                 !offline &&
                   p.seconds != null &&
                   p.plan.downloadBytes > 0 &&
@@ -571,7 +573,7 @@ function PackageStep({
                   title={t(`flows.onboarding.answerTier.${tierId}`)}
                   selected={answerTier === tierId}
                   onPress={() => onUserAnswer(tierId)}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggestedHere")} tone="accent" emphasis="solid" /> : undefined}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
                   meta={[m.label]}
                 />

@@ -624,7 +624,7 @@
         "default": "Standard",
         "compact": "Compact"
       },
-      "suggestedHere": "suggested for this phone",
+      "suggested": "Suggested",
       "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
     },
     "places": {
