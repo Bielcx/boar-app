@@ -49,6 +49,14 @@ const rows = [
       "## History", "", "Scalds from boiling water were described in ancient medicine. " + filler("History"),
     ].join("\n"),
   },
+  // Official guidance on the same topic, whose words the question repeats less than the encyclopedia's.
+  {
+    page_id: 4e9 + 1, title: "Burns and scalds (Ready.gov)", source: "usgov", url: "https://www.ready.gov/burns", license: "Public domain",
+    text: [
+      "# Burns and scalds (Ready.gov)", "", "Guidance for families. " + filler("Guide"), "",
+      "## Treat a burn", "", "Cool the burn under cool running water. Remove rings and tight clothing. Cover it with a clean cloth. Do not use ice. " + filler("Care"),
+    ].join("\n"),
+  },
 ];
 
 let pack: WikiPack;
@@ -105,5 +113,15 @@ describe("topic-pack sources", () => {
     // A question that isn't asking what to do keeps the plain word-overlap order.
     const plain = await pack.search("Why do boiling water spills scald children?", { titles: ["Scald"] });
     expect(plain.filter((h) => h.title === "Scald" && !h.lead)[0]?.section).toBe("Prevention");
+  });
+
+  // Behavior guard; this small index can't reproduce the ranking competition, so the rule itself was measured on the
+  // real preparedness pack (Ready.gov 'Protect Yourself During Earthquakes': 8th -> 2nd/3rd, EN and PT).
+  it("puts official what-to-do guidance among the first passages of a what-to-do question", async () => {
+    // Tusk's canonical form of a first-aid question.
+    const hits = await pack.search("burn scald what to do", { k: 3 });
+    const official = hits.findIndex((h) => h.source === "usgov" && h.action);
+    expect(official).toBeGreaterThanOrEqual(0);
+    expect(official).toBeLessThan(3);
   });
 });
