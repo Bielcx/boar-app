@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useOpticalLine, useToast } from "../components";
+import { Badge, Button, IconName, LARGE_TEXT_SCALE, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useOpticalLine, useToast } from "../components";
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
@@ -101,6 +101,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   }, [state.kind, announce, catalogLabel(model, t), t]);
 
   const metaLine = useOpticalLine("mono");
+  // Large text: the size goes under the name, which gets the full width ('Emerg/ency' beside
+  // '16.5 MB' at AX-XL, Harbor 6eb9ca7). No flex: 1 on the name then, or the column collapses it.
+  const stackTitle = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
   const progress =
     state.kind === "downloading" ? state.progress : state.kind === "verifying" ? state.progress ?? undefined : undefined;
 
@@ -117,8 +120,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         </View>
       )}
       <View style={{ gap: tokens.space.xs }}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
-          <Text variant="headline" style={{ flex: 1 }}>
+        <View style={stackTitle ? { gap: tokens.space.xxs } : { flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
+          <Text variant="headline" style={stackTitle ? undefined : { flex: 1 }}>
             {title ?? catalogLabel(model, t)}
           </Text>
           <Text variant="headline" numeric>
