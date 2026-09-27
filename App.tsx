@@ -73,7 +73,7 @@ function AppContent() {
   }, [ready, hideNative]);
 
   if (!ready) {
-    return <BootSplash onFirstLayout={hideNative} />;
+    return <BootSplash onFirstLayout={hideNative} textReady={fontsLoaded || !!fontError} />;
   }
   return <RootNavigator initialRoute={initialRoute!} />;
 }
