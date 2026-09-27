@@ -51,6 +51,11 @@ describe("setup progress", () => {
     expect(await getSetupProgress()).toBeNull();
   });
 
+  it("keeps the trip chosen in step 2 by its catalog ids (Ledger FS-1)", async () => {
+    await setSetupProgress({ step: 2, packageId: "essential", trip: { label: "Rome", assetIds: ["poi-rome", "poi-world-places"] } });
+    expect((await getSetupProgress())?.trip).toEqual({ label: "Rome", assetIds: ["poi-rome", "poi-world-places"] });
+  });
+
   it("keeps whether the package and answer model were picked by the user", async () => {
     await setSetupProgress({ step: 2, packageId: "essential", answerTier: "compact", packageChosen: false, answerChosen: true });
     expect(await getSetupProgress()).toMatchObject({ packageChosen: false, answerChosen: true });

@@ -364,6 +364,8 @@ export interface SetupProgress {
   packageId: string;
   travelRegionId?: string;
   answerTier?: "default" | "compact";
+  /** The trip chosen in step 2 (label + catalog ids), so a remounted screen keeps it (Ledger FS-1). */
+  trip?: { label: string; assetIds: string[] };
   /** The user picked these; absent = still the automatic recommendation, which may be recomputed. */
   packageChosen?: boolean;
   answerChosen?: boolean;

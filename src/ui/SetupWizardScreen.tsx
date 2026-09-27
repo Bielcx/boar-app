@@ -13,6 +13,7 @@ import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } f
 import { useLanguage } from "../i18n/LanguageContext";
 import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
 import { CatalogModel, MODEL_CATALOG, TIERS } from "../models/manifest";
+import { findAsset } from "../models/assetRegistry";
 import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
 import { embeddingEngine } from "../rag/embed";
@@ -91,14 +92,26 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
         setAnswerChosen(!!p.answerChosen);
         const region = p.travelRegionId ? poiRegions().find((r) => r.id === p.travelRegionId) : undefined;
         if (region) setTravel(region);
+        // The trip's items back from their ids; one that no longer exists drops the trip rather than half of it.
+        const tripAssets = p.trip?.assetIds.map((id) => findAsset(id));
+        if (p.trip && tripAssets?.every(Boolean)) setTrip({ label: p.trip.label, assets: tripAssets as CatalogModel[] });
         setStep(p.step);
       }
       setRestored(true);
     });
   }, []);
   useEffect(() => {
-    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id, answerTier, packageChosen, answerChosen });
-  }, [restored, step, packageId, travel, answerTier, packageChosen, answerChosen]);
+    if (restored)
+      setSetupProgress({
+        step,
+        packageId,
+        travelRegionId: travel?.id,
+        trip: trip ? { label: trip.label, assetIds: trip.assets.map((a) => a.id) } : undefined,
+        answerTier,
+        packageChosen,
+        answerChosen,
+      });
+  }, [restored, step, packageId, travel, trip, answerTier, packageChosen, answerChosen]);
   const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
