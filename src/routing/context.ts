@@ -676,6 +676,19 @@ export function sourceLanguageLead(questionPt: boolean, passage: string): string
   return null;
 }
 
+const IDENTIFIER = /\b(EIP|ERC|BIP|RFC)[-\s]?(\d{1,5})\b/gi;
+
+/** Standard identifiers a question names ("EIP-7251", "ERC 4337"), normalized as "EIP-7251". */
+export function identifiersIn(text: string): string[] {
+  return [...new Set([...text.matchAll(IDENTIFIER)].map((m) => `${m[1].toUpperCase()}-${m[2]}`))];
+}
+
+/** Whether a source's title carries one of these identifiers ("Ethereum EIPs/ERCs: EIP-7251: Increase …"). */
+export function titleHasIdentifier(title: string, ids: string[]): boolean {
+  const own = identifiersIn(title);
+  return ids.some((id) => own.includes(id));
+}
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */
@@ -876,6 +889,12 @@ export interface CompressOptions {
   maxSentencesPerChunk?: number;
   /** Real tokenizer when available (llama.rn tokenize); approxTokens otherwise. */
   countTokens?: (s: string) => number;
+  /**
+   * Chunks that always get a place, first, whatever their relative relevance: the page of an identifier the
+   * question names ("EIP-7251"; Sextant dddd8a8: the Ethereum articles out-scored it and the 4B said the EIP
+   * doesn't exist).
+   */
+  pinned?: ReadonlySet<string>;
 }
 
 export interface CompressedContext {
@@ -919,12 +938,19 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
   // dropped so the budget goes to the sources that answer.
   const chunkBest = chunks.map((_, ci) => Math.max(0, ...scored.filter((s) => s.chunkIndex === ci).map((s) => s.score)));
   const topBest = Math.max(0, ...chunkBest);
-  const relevant = (ci: number) => !anyMatch || chunkBest[ci] >= RELATIVE_RELEVANCE_FLOOR * topBest;
+  const pinnedIdx = new Set(chunks.map((c, i) => (opts.pinned?.has(c.chunkId) ? i : -1)).filter((i) => i >= 0));
+  const relevant = (ci: number) => pinnedIdx.has(ci) || !anyMatch || chunkBest[ci] >= RELATIVE_RELEVANCE_FLOOR * topBest;
   // Rank: matching sentences by score (ties → retrieval rank, then position);
   // with no match at all, fall back to each chunk's opening sentence.
   const ranked = (anyMatch ? scored.filter((s) => s.score > 0 && relevant(s.chunkIndex)) : scored.filter((s) => s.position === 0)).sort(
     (a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex || a.position - b.position
   );
+  // Pinned chunks first: their opening sentence (and best ones) before anything else competes for the budget.
+  if (pinnedIdx.size) {
+    const opening = scored.filter((s) => pinnedIdx.has(s.chunkIndex) && s.position === 0);
+    const pinnedRanked = [...opening, ...ranked.filter((s) => pinnedIdx.has(s.chunkIndex) && s.position !== 0)];
+    ranked.splice(0, ranked.length, ...pinnedRanked, ...ranked.filter((s) => !pinnedIdx.has(s.chunkIndex)));
+  }
 
   const picked = new Map<number, Set<number>>();
   let used = 0;
@@ -974,7 +1000,7 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
     }
   }
 
-  const keptIndices = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b);
+  const keptIndices = [...picked.keys()].sort((a, b) => Number(pinnedIdx.has(b)) - Number(pinnedIdx.has(a)) || chunkBest[b] - chunkBest[a] || a - b);
   const qTerms = [...new Set(tokenizeTerms(query))];
   const shownRelevance = (ci: number) => {
     const best = scored.filter((x) => x.chunkIndex === ci).sort((a, b) => b.score - a.score)[0];
