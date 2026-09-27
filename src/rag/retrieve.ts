@@ -151,7 +151,9 @@ async function retrieveOne(
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
-    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec, ...(titles ? { titles } : {}) }).catch(() => []) : Promise.resolve([]),
+    includeWikiPacks
+      ? searchWikiPacks(query, { k: topK, queryVec, ...(titles ? { titles } : {}), ...(opts.action !== undefined ? { action: opts.action } : {}) }).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   // Large-pack passages from articles the question names come first, in the

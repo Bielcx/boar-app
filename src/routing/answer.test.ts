@@ -16,6 +16,7 @@ const chunk = (chunkId: string, title: string, body: string): RetrievedChunk => 
   score: 1,
   matchType: "hybrid",
 });
+const WALIPINI_KB = chunk("wk", "Walipini", "A Walipini is an earth-sheltered cold frame. A greenhouse can be built by digging a hole in the ground. It uses the heat stored in the earth during the cold season.");
 const CANBERRA = chunk(
   "c1",
   "Canberra",
@@ -246,18 +247,18 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.text).toMatch(/^From the offline source:\nTreatment: (Most anterior nosebleeds .*)?Pinch the soft part of the nose and lean forward for 10 to 15 minutes\. \[\d\]\n\nIn an emergency, call your local emergency number/);
   });
 
-  it("EQ-2: the instant snippet of a health answer is the quoted excerpt, from the cited source", async () => {
+  it("EQ-2/DUP-1: a health answer is the excerpt with its steps, from the cited source, and no separate instant event", async () => {
     const run = { ...chunk("wv", "Wikivoyage: Earthquake safety", "During an earthquake: Do not run during the quake! Running around during the quake is dangerous."), action: true };
     const drop = { ...chunk("ap", "Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! Drop to the floor. Take cover under a sturdy table. Hold on until the shaking stops."), action: true };
     f.retrieved = [run, drop] as any;
     const { events, result } = await collect("What should I do during an earthquake?");
-    const instants = events.filter((e) => e.type === "instant") as any[];
-    expect(instants).toHaveLength(1);
-    expect(instants[0].snippet.text).toMatch(/Drop, cover, and hold on!/);
-    expect(instants[0].snippet.text).not.toMatch(/Do not run/);
+    // DUP-1: no instant event at all; the answer is the excerpt, with its steps, citing the source it quotes.
+    expect(events.filter((e) => e.type === "instant")).toHaveLength(0);
+    expect(result.text).toMatch(/Drop, cover, and hold on! Drop to the floor\. Take cover under a sturdy table\. Hold on until the shaking stops\./);
+    expect(result.text).not.toMatch(/Do not run/);
     const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
-    expect(sources[instants[0].snippet.sourceIndex].chunkId).toBe("ap");
-    expect(result.text).toContain(instants[0].snippet.text);
+    const cited = (events.find((e) => e.type === "done") as any).cited as number[];
+    expect(sources[cited[0] - 1].chunkId).toBe("ap");
   });
 
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
@@ -621,36 +622,67 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(events.find((e) => e.type === "instant")).toBeUndefined();
   });
 
-  it("gate ea5978c: an answer that cites none of its sources opens with the not-from-the-library line (4B)", async () => {
+  it("Boar, s32: a 4B answer with an on-topic source gets no line even uncited", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
     f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async (o) => {
-      o.onToken?.("It was a compromise between Sydney and Melbourne.");
-      return "It was a compromise between Sydney and Melbourne.";
-    };
+    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
     const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
-    const done = events.find((e) => e.type === "done") as any;
-    expect(done.cited).toEqual([]);
-    expect(done.finalText).toBe("This answer is not from an offline source on this phone; check it before relying on it.\n\nIt was a compromise between Sydney and Melbourne.");
-    expect(result.receipt.reasonCodes).toContain("grounding:uncited-preface");
-    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+    expect((events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-on-topic");
   });
 
-  it("gate ea5978c: the compact model's uncited answer becomes the decline; answerAnyway keeps it with the line", async () => {
-    f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async () => "It was a compromise.";
-    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+  it("gate ea5978c: a PT question whose only passage is off topic: no sources shown, the 4B's answer gets the line", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [WALIPINI_KB];
+    f.deps.englishNames = () => [];
+    f.deps.engine.generate = async () => "As estações existem por causa da inclinação do eixo.";
+    const { events } = await collect("Por que existem as estacoes do ano?");
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
+    expect((events.find((e) => e.type === "done") as any).finalText).toBe("Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nAs estações existem por causa da inclinação do eixo.");
+  });
+
+  it("gate ea5978c: the compact model with no on-topic source declines; answerAnyway keeps the answer with the line", async () => {
+    const q = "Por que existem as estacoes do ano?";
+    f.retrieved = [WALIPINI_KB];
+    f.deps.englishNames = () => [];
+    const { events } = await collect(q);
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
-    expect((events.find((e) => e.type === "done") as any).finalText).toBe("");
-    expect(result.receipt.reasonCodes).toContain("grounding:uncited-declined-compact");
 
     f = makeFake();
-    f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async () => "A compromise.";
+    f.retrieved = [WALIPINI_KB];
+    f.deps.englishNames = () => [];
+    f.deps.engine.generate = async () => "Por causa da inclinação.";
     const events2: AnswerEvent[] = [];
-    await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
-    expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
+    await createAnswerer(f.deps).answer({ query: q, answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^Esta resposta não vem de uma fonte offline/);
+  });
+
+  it("Quill 014c054: an off-topic passage never reaches the sources event, EN or PT, single pass or multipass", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [WALIPINI_KB, CANBERRA];
+    f.deps.englishNames = () => [];
+    for (const q of ["Por que Canberra foi escolhida como capital da Austrália?", "Why was Canberra chosen as the capital of Australia?"]) {
+      const { events } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any)?.sources ?? [];
+      expect(sources.map((c: RetrievedChunk) => c.title), q).toEqual(["Canberra"]);
+    }
+  });
+
+  it("Boar (B): the compact model with an on-topic source answers uncited, and the chat gets weak_sources", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("It was a compromise between Sydney and Melbourne.");
+    expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["grounding:uncited-on-topic", "grounding:uncited-warning"]));
+    const warning = events.find((e) => e.type === "warning") as any;
+    expect(warning).toMatchObject({ code: "weak_sources" });
+    expect(warning.declined).toBeUndefined();
+    expect(types(events).indexOf("warning")).toBeLessThan(types(events).indexOf("done"));
   });
 
   it("no source at all: a 4B answer that skipped the instruction still gets the line; one that said it doesn't twice", async () => {
@@ -828,6 +860,82 @@ describe("answer(): current events (Prism CT-3)", () => {
       expect(result.text, q).not.toMatch(/Meath|\[\d\]/);
       expect((events.find((e) => e.type === "done") as any).cited, q).toEqual([]);
     }
+  });
+});
+
+describe("answer(): current events on every path (Prism CT-4)", () => {
+  it("'Answer with the model' (tier fast), Deeper answer (deep) and answer-anyway get the same fixed answer", async () => {
+    f.retrieved = [chunk("f", "2021 All-Ireland Senior Ladies' Football Championship final", "Meath won the 2021 All-Ireland Senior Ladies' Football Championship final against Dublin.")];
+    const q = "Who won the football match yesterday?";
+    const runs = [
+      await collect(q, "fast"),
+      await collect(q, "deep"),
+      await (async () => {
+        const events: AnswerEvent[] = [];
+        const result = await createAnswerer(f.deps).answer({ query: q, answerAnyway: true }, (e) => events.push(e), ctx).done;
+        return { events, result };
+      })(),
+      await (async () => {
+        const events: AnswerEvent[] = [];
+        const result = await createAnswerer(f.deps).deepen(q, f.retrieved, (e) => events.push(e), ctx).done;
+        return { events, result };
+      })(),
+    ];
+    expect(f.generations).toHaveLength(0);
+    for (const { result } of runs) {
+      expect(result.text).toMatch(/offline/);
+      expect(result.receipt.reasonCodes).toContain("grounding:current-event");
+    }
+  });
+});
+
+describe("answer(): today in history (Boar/Piston R3)", () => {
+  const TITANIC = chunk("t", "Sinking of the Titanic", "RMS Titanic sank in the North Atlantic Ocean on 15 April 1912, after striking an iceberg. It was the largest ship afloat at the time.");
+  const SEP27 = chunk("s", "September 27", "September 27 is the 270th day of the year. Events: 1825 - The Stockton and Darlington Railway opens, the world's first public railway to use steam locomotives.");
+  const q = "What happened today in history?";
+  it("searches the device's date; a source without it is not on topic: the 4B's answer gets the line", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.deps.today = () => new Date(2026, 8, 27);
+    const queries: string[] = [];
+    f.deps.retrieve = async (query) => (queries.push(query), [TITANIC]);
+    f.deps.engine.generate = async () => "On this day the US commemorates the 100th anniversary of the sinking of the RMS Titanic, April 15, 1912.";
+    const { events, result } = await collect(q);
+    expect(queries).toEqual(["September 27"]);
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
+    expect(result.receipt.reasonCodes).toContain("grounding:today-in-history");
+    expect((events.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
+  });
+  it("the compact model with no source naming the date: no model call, the decline", async () => {
+    f.deps.today = () => new Date(2026, 8, 27);
+    f.retrieved = [TITANIC];
+    const { events } = await collect(q);
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+  });
+  it("only the date's own article is on topic, in PT too (not a text that mentions the date)", async () => {
+    f.deps.today = () => new Date(2026, 8, 27);
+    const WEBINAR = chunk("w", "US government: Quake Prep (Ready.gov)", "Are You Ready?: Recorded September 27, 2011. View the transcript.");
+    f.retrieved = [TITANIC, WEBINAR, SEP27];
+    for (const query of [q, "O que aconteceu hoje na história?"]) {
+      const { events } = await collect(query);
+      const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+      expect(sources.map((c) => c.title), query).toEqual(["September 27"]);
+    }
+  });
+});
+
+describe("answer(): today's date (Prism TD-1)", () => {
+  it("a question about today gets the device's date next to it; others don't", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.today = () => new Date(2026, 8, 27);
+    await collect("What happened today in history?");
+    expect(f.generations[0].messages!.at(-1)!.content).toContain("Today is Sunday, 27 September 2026 (this device's date).");
+    f.generations.length = 0;
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.generations[0].messages!.at(-1)!.content).not.toContain("Today is");
   });
 });
 
