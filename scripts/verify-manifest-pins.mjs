@@ -97,12 +97,17 @@ if (placesPacks.length && !gazetteer) placeProblems.push(`${placesPacks.length} 
 if (placesPacks.length && gazetteer && !gazetteer.url && strict) placeProblems.push(`${GAZETTEER_FILE} is not hosted`);
 for (const file of targets) {
   const src = readFileSync(new URL(file, root), "utf8");
+  // The gazetteer id, written as the string or as a constant declared in the file (WORLD_PLACES_ID).
+  const names = [`"${GAZETTEER_ID}"`, ...[...src.matchAll(new RegExp(`const\\s+(\\w+)\\s*=\\s*"${GAZETTEER_ID}"`, "g"))].map((c) => c[1])];
+  const mentions = (text) => names.some((n) => new RegExp(n.startsWith('"') ? n : `\\b${n}\\b`).test(text));
   for (const m of src.matchAll(/format:\s*"poi-pack"/g)) {
     // The object literal around this entry: from the nearest "{" before it to the next closing "}" at its level.
     const start = src.lastIndexOf("{", m.index);
     const end = src.indexOf("\n  }", m.index);
     const obj = src.slice(start, end < 0 ? m.index + 600 : end);
-    if (!obj.includes(GAZETTEER_ID) && !/filename:\s*"poi\/world-places\.sqlite"/.test(obj)) {
+    const isGazetteer = /id:\s*([^,\n]+)/.test(obj) && mentions(/id:\s*([^,\n]+)/.exec(obj)[1]);
+    const requiresIt = /requires:\s*\[([^\]]*)\]/.test(obj) && mentions(/requires:\s*\[([^\]]*)\]/.exec(obj)[1]);
+    if (!isGazetteer && !requiresIt && !/filename:\s*"poi\/world-places\.sqlite"/.test(obj)) {
       placeProblems.push(`${file.split("/").pop()}: a places-pack entry doesn't require ${GAZETTEER_ID}`);
     }
   }
