@@ -528,6 +528,20 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A question sent while the model loads or indexes goes out as soon as it is ready (Harbor, cold boot).
+  // Editing the field cancels it.
+  const [queued, setQueued] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ready || !queued) return;
+    const q = queued;
+    setQueued(null);
+    ask(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, queued]);
+  useEffect(() => {
+    if (queued !== null && input.trim() !== queued) setQueued(null);
+  }, [input, queued]);
+
   // A city typed during "Finding your location…" runs as soon as the stopped answer has finished.
   const pendingCity = useRef<{ id: string; city: string } | null>(null);
   useEffect(() => {
@@ -880,6 +894,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           value={input}
           onChange={setInput}
           onSend={() => ask(input)}
+          queued={queued !== null}
+          onQueue={() => setQueued(input.trim())}
           onStop={stopActive}
           status={modelStatus(ready, loadError, indexing)}
           generating={generating}

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { IconButton, Text } from "../components";
 import { useTokens } from "../theme";
 import { VoiceInputButton } from "../VoiceInputButton";
-import { composerNotice, composerPlaceholderKey, type ModelStatus } from "./composerState";
+import { composerNotice, composerPlaceholderKey, sendMode, type ModelStatus } from "./composerState";
 
 interface Props {
   value: string;
@@ -18,6 +18,9 @@ interface Props {
   generating: boolean;
   stopping: boolean;
   voiceEnabled: boolean;
+  /** A question is waiting for the model to be ready (sent by the chat as soon as it is). */
+  queued?: boolean;
+  onQueue?: () => void;
 }
 
 /**
@@ -25,7 +28,7 @@ interface Props {
  * the next question can be written; only sending waits.
  */
 export const Composer = forwardRef<TextInput, Props>(function Composer(
-  { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled },
+  { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled, queued = false, onQueue },
   ref
 ) {
   const t = useTokens();
@@ -34,6 +37,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   const field = useRef<TextInput>(null);
   useImperativeHandle(ref, () => field.current as TextInput);
   const empty = value.trim().length === 0;
+  const mode = sendMode(status, empty, queued);
   const insets = useSafeAreaInsets();
   // The mockup ends the composer 30 pt above the screen's bottom (into the home-indicator inset by 4);
   // the screen leaves the bottom edge to the composer. Small insets (Android gestures) keep at least sm.
@@ -60,9 +64,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
         gap: t.space.xs,
       }}
     >
-      {line && (
-        <Text variant="caption" color="secondary">
-          {line}
+      {(queued || line) && (
+        <Text variant="caption" color="secondary" accessibilityLiveRegion="polite">
+          {queued ? tr("chat.composer.queued") : line}
         </Text>
       )}
       {/* In the model-error state the whole composer is dimmed, as the mockup: the card above is where to act (E-5). */}
@@ -137,9 +141,11 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             variant="filled"
             size="lg"
             label={tr("chat.composer.send")}
-            accessibilityHint={!ready ? hint : empty ? tr("chat.composer.focusHint") : undefined}
-            disabled={!ready}
-            onPress={() => (empty ? field.current?.focus() : onSend())}
+            accessibilityHint={
+              mode === "queue" ? tr("chat.composer.queueHint") : mode === "focus" ? tr("chat.composer.focusHint") : mode === "disabled" ? hint : undefined
+            }
+            disabled={mode === "disabled"}
+            onPress={() => (mode === "send" ? onSend() : mode === "queue" ? onQueue?.() : field.current?.focus())}
           />
         )}
       </View>

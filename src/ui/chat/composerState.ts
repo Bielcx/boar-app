@@ -38,3 +38,16 @@ export function composerPlaceholderKey(status: ModelStatus): string {
   if (status === "indexing") return "chat.composer.placeholderIndexing";
   return "chat.composer.placeholder";
 }
+
+/**
+ * What tapping send does (Harbor, cold boot: the question waited ~49 s in the field and was not sent when
+ * the model got ready). While the model loads or indexes, a written question is queued and goes out as
+ * soon as it is ready.
+ */
+export type SendMode = "send" | "focus" | "queue" | "disabled";
+
+export function sendMode(status: ModelStatus, empty: boolean, queued: boolean): SendMode {
+  if (status === "error" || queued) return "disabled";
+  if (status === "ready") return empty ? "focus" : "send";
+  return empty ? "disabled" : "queue";
+}

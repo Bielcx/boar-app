@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { composerNotice, composerPlaceholderKey, modelStatus } from "./composerState";
+import { composerNotice, composerPlaceholderKey, modelStatus, sendMode } from "./composerState";
 
 describe("modelStatus", () => {
   it("puts a load error ahead of the loading flag (iOS shot e927016: both showed at once)", () => {
@@ -45,5 +45,23 @@ describe("indexing (Prism IX-1)", () => {
     expect(modelStatus(false, "boom", true)).toBe("error");
     expect(composerPlaceholderKey("indexing")).toBe("chat.composer.placeholderIndexing");
     expect(composerNotice("indexing")).toEqual({ line: null, hint: "chat.composer.indexing" });
+  });
+});
+
+describe("sendMode (Harbor, cold boot)", () => {
+  it("sends when ready, focuses an empty field", () => {
+    expect(sendMode("ready", false, false)).toBe("send");
+    expect(sendMode("ready", true, false)).toBe("focus");
+  });
+
+  it("queues a written question while the model loads or indexes", () => {
+    expect(sendMode("loading", false, false)).toBe("queue");
+    expect(sendMode("indexing", false, false)).toBe("queue");
+    expect(sendMode("loading", true, false)).toBe("disabled");
+  });
+
+  it("is off once queued, and on a model error", () => {
+    expect(sendMode("loading", false, true)).toBe("disabled");
+    expect(sendMode("error", false, false)).toBe("disabled");
   });
 });
