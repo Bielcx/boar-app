@@ -303,7 +303,9 @@ export function healthTopicTerms(query: string, articleTerms: string | null): Se
 const NON_HEALTH_SOURCE = /^(Ethereum EIPs\/ERCs|Ethereum specs|ethereum\.org|Bitcoin BIPs):/;
 
 export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolean {
-  return !NON_HEALTH_SOURCE.test(chunk.title) && titleNames(chunk.title, topic);
+  if (NON_HEALTH_SOURCE.test(chunk.title)) return false;
+  // The article title, or the section heading ("Stay healthy" › "... > Water contamination").
+  return titleNames(chunk.title, topic) || titleNames(sectionHeading(chunk), topic);
 }
 
 /** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
@@ -328,9 +330,16 @@ function titleNames(title: string, terms: Iterable<string>): boolean {
   return false;
 }
 
+/** A pack chunk's section path ("During your trip > ... > Water contamination"), or "". */
+function sectionHeading(chunk: RetrievedChunk): string {
+  const colon = chunk.body.indexOf(":");
+  return colon > 0 && colon <= 120 ? chunk.body.slice(0, colon) : "";
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
-  if (titleNames(chunk.title, q)) return true;
+  // The article title or the section heading names a question word.
+  if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) return true;
   // With one or two content words, any page that mentions them somewhere "covers" the
   // question (Walipini, an earth-sheltered greenhouse, for "Why do we have seasons on
   // Earth?"). Then the passage must open with them: "Canberra is the capital city of

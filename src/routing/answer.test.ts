@@ -263,6 +263,12 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
   it("uses the pack's action flag (Bramble b4becc5): an action section wins, a background one is never quoted over it", async () => {
     const quality = { ...chunk("wq", "Wikivoyage: Water", "Quality by country or region: Pinch tap water is safe to drink in most of the EU, keep an eye on it."), action: false };
     const contamination = { ...chunk("wc", "Wikivoyage: Water", "Water contamination: boil water for one minute at a rolling boil before you drink it."), action: true };
+    const stayHealthy = { ...chunk("sh", "Wikivoyage: Stay healthy", "During your trip > Precautions against disease > Water contamination: After a flood, boil water for one minute at a rolling boil before you drink it."), action: true };
+    f.retrieved = [stayHealthy, quality] as any;
+    const first = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
+    // Topic named by the section heading, not the article title (gate 5e70bbd, safety-005).
+    expect(first.result.text).toMatch(/Water contamination: After a flood, boil water .* \[\d\]$/);
+    f = makeFake();
     f.retrieved = [quality, contamination] as any;
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
     expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[2\]$/);
