@@ -67,7 +67,10 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
         {generating ? (
           <IconButton
             icon="square"
-            variant="tonal"
+            // While generating, Stop is the screen's accent (send is gone): ember ring and square, as in the mockup.
+            variant="plain"
+            color={t.color.accent.solid}
+            style={{ borderWidth: t.size.border * 1.5, borderColor: t.color.accent.solid }}
             label={stopping ? tr("chat.composer.stopping") : tr("chat.composer.stop")}
             accessibilityState={{ busy: stopping }}
             disabled={stopping}

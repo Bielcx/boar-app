@@ -844,6 +844,7 @@ const AssistantRow = memo(function AssistantRow({
   return (
     <AssistantMessage
       answer={item.answer}
+      question={item.question}
       active={active}
       fresh={fresh}
       stopping={stopping}

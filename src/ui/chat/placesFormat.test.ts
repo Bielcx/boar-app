@@ -13,7 +13,7 @@ import {
   spokenDistance,
   deviceClockApplies,
   showUseLocation,
-  formatDataMonth,
+  formatDataDate,
   placesEmptyTitle,
   citySuggestions,
 } from "./placesFormat";
@@ -164,15 +164,16 @@ describe("showUseLocation", () => {
   });
 });
 
-describe("formatDataMonth", () => {
-  it("turns the pack's ISO timestamp into month and year in the reader's language (Prism P-1)", () => {
-    expect(formatDataMonth("2026-09-26T20:27:59Z", "en-US")).toBe("Sep 2026");
-    expect(formatDataMonth("2026-09-26T20:27:59Z", "pt-BR")).toMatch(/^set\.? de 2026$/);
+describe("formatDataDate", () => {
+  it("turns the pack's ISO timestamp into a date in the reader's language (Prism P-1, Iris)", () => {
+    expect(formatDataDate("2026-09-26T20:27:59Z", "en-GB")).toMatch(/^26 Sept? 2026$/); // ICU versions differ on "Sep"/"Sept"
+    expect(formatDataDate("2026-09-26T20:27:59Z", "en-US")).toBe("Sep 26, 2026");
+    expect(formatDataDate("2026-09-26T20:27:59Z", "pt-BR")).toMatch(/^26 de set\.? de 2026$/);
   });
 
   it("drops what it can't read", () => {
-    expect(formatDataMonth(undefined, "en-US")).toBeNull();
-    expect(formatDataMonth("soon", "en-US")).toBeNull();
+    expect(formatDataDate(undefined, "en-US")).toBeNull();
+    expect(formatDataDate("soon", "en-US")).toBeNull();
   });
 });
 

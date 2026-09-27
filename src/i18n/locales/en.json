@@ -757,7 +757,12 @@
       "openHint": "Opens the passage",
       "heading": "Sources on this phone",
       "expandHint": "Shows where the passage comes from",
-      "fullPassage": "Full passage"
+      "fullPassage": "Full passage",
+      "passages_one": "{{count}} passage",
+      "passages_other": "{{count}} passages",
+      "fullPassageN": "Full passage {{n}}",
+      "groupLabel_one": "Source {{numbers}}: {{title}}, {{origin}}",
+      "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages"
     },
     "receipt": {
       "sourcePassage": "Source passage",
@@ -1013,6 +1018,9 @@
         "body": "The model file is on this phone, but the engine couldn’t start it here (first on the GPU, then on the CPU).",
         "hint": "Try again. If it keeps failing, try a smaller model in Settings (this can also be a memory limit). The engine said:"
       }
+    },
+    "safety": {
+      "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."
     }
   },
   "location": {

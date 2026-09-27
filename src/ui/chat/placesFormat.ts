@@ -264,12 +264,12 @@ export function showUseLocation(canLocate: boolean, status: string | undefined):
   return canLocate && status !== "denied";
 }
 
-/** When the map data was taken, as month and year in the reader's language ("Sep 2026", "set. de 2026"); null if unreadable. */
-export function formatDataMonth(iso: string | undefined, locale: string): string | null {
+/** When the map data was taken, as a date in the reader's language ("26 Sep 2026", "26 de set. de 2026"); null if unreadable. */
+export function formatDataDate(iso: string | undefined, locale: string): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return new Intl.DateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC" }).format(d);
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(d);
 }
 
 /**
