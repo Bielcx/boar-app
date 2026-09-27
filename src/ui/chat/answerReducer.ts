@@ -97,12 +97,7 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
 
     case "warning":
       if (event.code === "model_streams_from_storage") return { ...state, streamsFromStorage: true };
-      // Read as a string until the engine's code union has "weak_sources" (Tusk bdcbf8b).
-      if ((event.code as string) === "weak_sources") {
-        // declined: PROVISIONAL field proposed to Tusk (the compact model didn't generate).
-        const declined = (event as { declined?: boolean }).declined === true;
-        return { ...state, weakSources: true, weakDeclined: declined || undefined };
-      }
+      if (event.code === "weak_sources") return { ...state, weakSources: true, weakDeclined: event.declined === true || undefined };
       return state;
 
     case "stage":
@@ -121,6 +116,8 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       if (state[event.tier]?.outcome) return state;
       return updateTier(state, event.tier, (t) => ({
         ...t,
+        // CT-1: the engine removed [n] the sources don't support; its final text replaces the streamed one.
+        text: event.finalText ?? t.text,
         stage: null,
         outcome: event.outcome,
         receipt: event.receipt,

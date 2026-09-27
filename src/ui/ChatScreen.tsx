@@ -470,12 +470,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             ? runDeepen(item.question, item.answer.sources, onEvent, ctx)
             : kind === "fast"
               ? runAnswer({ query: item.question, tier: "fast" }, onEvent, ctx)
-              : runAnswer(
-                  // answerAnyway: PROVISIONAL field proposed to Tusk (weak-sources state A → B).
-                  { query: item.question, place: kind.place, ...(kind.answerAnyway ? { answerAnyway: true } : {}) } as Parameters<typeof runAnswer>[0],
-                  onEvent,
-                  ctx
-                )
+              : runAnswer({ query: item.question, place: kind.place, answerAnyway: kind.answerAnyway }, onEvent, ctx)
         );
         // A redo replaces the answer: keep the saved text in step (Deepen only adds to it).
         if (typeof kind === "object" && sessionId) await upsertMessage(sessionId, "assistant", answerTextForHistory(final), messageId);
