@@ -14,7 +14,6 @@ import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
 import { initialRoute as bootRoute } from "./src/ui/flows/boot";
-import { BootSplash } from "./src/ui/flows/BootSplash";
 import { registerGeoProviders } from "./src/routing/answerService";
 import { geoProvidersFrom } from "./src/routing/geoWiring";
 import { getCurrentPoint, getLocationFix } from "./src/services/location";
@@ -62,9 +61,9 @@ function AppContent() {
   }, []);
 
   const ready = !!initialRoute && (fontsLoaded || !!fontError);
-  // The native splash (a static image) hands over to BootSplash, the same image plus the tagline
-  // and an indeterminate bar, as soon as it has drawn; boot measured ~1.0 s on iOS (Harbor), long
-  // enough for the bar to be seen. If the app is ready before BootSplash mounts, hide on ready.
+  // The native splash stays until the first screen can draw, then cuts straight to it. BootSplash (the
+  // same art + tagline + bar) was measured on screen for 0-90 ms on iOS and Android (Harbor, Piston,
+  // 1c09215): too short to read, it only flashed the tagline. Kept in src/ui/flows for a slower boot.
   const nativeHidden = useRef(false);
   // `via` says which path released the native splash: "image" (BootSplash drew) or "ready" (the app was
   // ready first, so BootSplash never showed). Ready minus hide = how long BootSplash was on screen.
@@ -75,7 +74,6 @@ function AppContent() {
     console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms via=${via}`);
     SplashScreen.hideAsync().catch(() => {});
   }, []);
-  const onBootSplashDrawn = useCallback(() => hideNative("image"), [hideNative]);
   useEffect(() => {
     if (!ready) return;
     console.info(`[boot] ready after=${Date.now() - BOOT_T0}ms`);
@@ -83,7 +81,8 @@ function AppContent() {
   }, [ready, hideNative]);
 
   if (!ready) {
-    return <BootSplash onFirstLayout={onBootSplashDrawn} textReady={fontsLoaded || !!fontError} />;
+    // Under the native splash: the same canvas colour, in case the OS reveals this frame.
+    return <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]} />;
   }
   return <RootNavigator initialRoute={initialRoute!} />;
 }
