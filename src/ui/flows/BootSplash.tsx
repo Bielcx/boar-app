@@ -11,9 +11,9 @@ import { useTranslation } from "react-i18next";
 import { Progress, Text } from "../components";
 import { useTokens } from "../theme";
 
-// The native splash's image (app.json: expo-splash-screen, imageWidth 340, contain), centred in the window.
-const SPLASH_W = 340;
-const SPLASH_H = 368;
+// The native splash's image (app.json: expo-splash-screen, imageWidth 360, contain), centred in the window.
+const SPLASH_W = 360;
+const SPLASH_H = 366;
 // The mockup's splash (393×852): tagline at y571, i.e. 145 pt below the window's centre;
 // bar 140×4 at y762 and status at y776, i.e. 90 and 76 pt from the bottom.
 const TAGLINE_FROM_CENTRE = 145;
