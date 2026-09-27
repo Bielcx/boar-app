@@ -124,4 +124,11 @@ describe("topic-pack sources", () => {
     expect(official).toBeGreaterThanOrEqual(0);
     expect(official).toBeLessThan(3);
   });
+
+  it("doesn't let the words that ask for steps ('stop', 'treat') take the subject away from a named article", async () => {
+    const q = "Scald stop treat help";
+    const named = await pack.titlesInQuestion(q, await pack.stems(q));
+    const scald = await pack.resolveTitle("Scald");
+    expect(named.find((t) => t.id === scald)?.share ?? 0).toBeGreaterThanOrEqual(0.5);
+  });
 });

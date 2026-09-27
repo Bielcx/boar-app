@@ -193,6 +193,9 @@ const FOREIGN_FUNCTION_WORDS = new Set(
   "o os a as um uma uns umas de do da dos das em no na nos nas num numa por para com sem que como qual quais quando onde porque se ao aos el la los las un una del al en con por para que como cual cuando donde es son y e ou".split(" ")
 );
 
+/** Stems of words that only make a question a what-to-do one; they carry no subject. */
+const ACTION_WORDS = new Set(["stop", "treat", "help", "first", "aid", "handl", "respond", "surviv"]);
+
 const STOPWORDS = new Set(
   (
     "a about above after again against all also am an and any are as at be because been before being below " +
@@ -610,7 +613,8 @@ export class WikiPack {
   async titlesInQuestion(query: string, stems: Stem[], max = 4): Promise<Array<{ id: number; share: number }>> {
     const rare = new Set(stems.filter((s) => s.idf >= Math.log(1 / 0.002)).map((s) => s.stem));
     // Portuguese/Spanish function words carry no subject; some packs index them (Appropedia's pages in those languages).
-    const content = stems.filter((s) => !FOREIGN_FUNCTION_WORDS.has(s.stem));
+    // Nor do the words that only say the question wants steps ("nosebleed stop", "burn treat").
+    const content = stems.filter((s) => !FOREIGN_FUNCTION_WORDS.has(s.stem) && !ACTION_WORDS.has(s.stem));
     const weight = new Map(content.map((s) => [s.stem, s.idf]));
     const total = content.reduce((n, s) => n + s.idf, 0) || 1;
     const sources: PackSource[] = [
@@ -708,7 +712,9 @@ export class WikiPack {
           // steps ("Drop, Cover and Hold") sit in the next one or in a subsection.
           if (action) {
             const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId));
-            if (acts.length && (!h.action || !acts.some((p) => p.chunkId === h.chunkId))) {
+            // Swapped unless this passage already is the article's best what-to-do section: a subsection the keywords
+            // found ("Treatment > Nasal packing") brings its article's main one ("Treatment") first.
+            if (acts.length && acts[0].chunkId !== h.chunkId) {
               for (const act of acts.slice(0, 3 - perArticle)) {
                 hits.push({ ...act, via: "bm25", score: h.score });
                 seen.add(act.chunkId);
