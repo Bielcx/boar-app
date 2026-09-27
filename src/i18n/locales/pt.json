@@ -976,7 +976,7 @@
       "cityPlaceholder": "ex.: Berlim",
       "dataFrom": "dados de {{date}}",
       "openSettings": "Abrir ajustes",
-      "coveredCities": "Cidades no seu mapa offline",
+      "coveredCities": "Áreas no seu mapa offline",
       "searchCityHint": "Mostra lugares em {{city}}",
       "staleTitle": "Sua última localização foi em {{city}}, há {{ago}}",
       "staleBody": "Sem posição recente agora. Use essa cidade ou escolha onde você está.",
