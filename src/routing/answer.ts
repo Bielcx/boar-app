@@ -82,6 +82,7 @@ import {
   GeoProviders,
   needsPlaceAnswer,
   noDataAnswer,
+  noMatchAnswer,
   noPackAnswer,
   staleLocationAnswer,
   toPlace,
@@ -357,10 +358,11 @@ export function createAnswerer(deps: AnswerDeps) {
         coverage: "ok" | "none" | "no_pack" | "needs_place",
         text: string,
         area: Extract<AnswerEvent, { type: "places" }>["area"],
-        retrievalMs?: number
+        retrievalMs?: number,
+        empty?: "no_data" | "no_match"
       ): AnswerResult => {
         markVisible();
-        emit({ type: "places", answerId, tier: "instant", places: [], area, filters, criterion, coverage, attribution: [] });
+        emit({ type: "places", answerId, tier: "instant", places: [], area, filters, criterion, coverage, ...(empty ? { empty } : {}), attribution: [] });
         const r = receipt(retrievalMs);
         emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r });
         return { answerId, tier: "instant", outcome: "success", text, sources: [], receipt: r };
@@ -396,10 +398,17 @@ export function createAnswerer(deps: AnswerDeps) {
         const place = await geo.resolvePlace(intent.near.name).catch(() => null);
         if (!place) {
           reasonCodes.push("places:unknown-place");
-          return finishPlaces("none", noDataAnswer(intent, intent.near.name), { kind: "city", label: intent.near.name, place: { name: intent.near.name } });
+          return finishPlaces(
+            "none",
+            noDataAnswer(intent, intent.near.name),
+            { kind: "city", label: intent.near.name, place: { name: intent.near.name } },
+            undefined,
+            "no_data"
+          );
         }
         center = { lat: place.lat, lon: place.lon };
-        area = { kind: "city", label: place.name, place: { name: place.name, country: place.country } };
+        // The point too: an empty answer can then offer the map covering the city (T2-8).
+        area = { kind: "city", label: place.name, place: { name: place.name, country: place.country, lat: place.lat, lon: place.lon } };
         // Runs alongside the POI search; never prompts (GeoProviders contract). Read only if it
         // has already answered when the search ends: the list never waits for it.
         const pending = { value: null as Awaited<ReturnType<GeoProviders["getLocation"]>> | null };
@@ -453,8 +462,14 @@ export function createAnswerer(deps: AnswerDeps) {
       const retrievalMs = deps.now() - rs;
       if (!found || found.coverage === "none" || found.pois.length === 0) {
         reasonCodes.push(found ? `places:coverage-${found.coverage}` : "places:search-failed");
-        const label = area.kind === "city" ? area.label! : found?.region ?? (pt ? "sua região" : "your area");
-        return finishPlaces("none", noDataAnswer(intent, label), area, retrievalMs);
+        // Near the device the area is "near you", never the pack or tile id ("t-N41E012").
+        const city = area.kind === "city" ? area.label! : null;
+        if (found && found.coverage !== "none") {
+          // A map covers the area but nothing matches the filters: the data exists, so not "no data" (T2-6).
+          reasonCodes.push("places:no-match");
+          return finishPlaces("none", noMatchAnswer(intent, city, found.radiusUsedM), { ...area, radiusM: found.radiusUsedM }, retrievalMs, "no_match");
+        }
+        return finishPlaces("none", noDataAnswer(intent, city), area, retrievalMs, found ? "no_data" : undefined);
       }
 
       const byDistance = intent.near.kind === "device";

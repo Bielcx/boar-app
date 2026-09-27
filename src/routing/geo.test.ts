@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { detectGeoIntent, formatDistance, GeoProviders, PoiRecord } from "./geo";
+import { detectGeoIntent, formatDistance, GeoProviders, noMatchAnswer, PoiRecord } from "./geo";
 import { createAnswerer, AnswerDeps, DEVICE_INSIDE_TIMEOUT_MS, LOCATING_SIGNAL_MS } from "./answer";
 import type { AnswerEvent } from "./events";
 
@@ -81,6 +81,19 @@ describe("formatDistance", () => {
     expect(formatDistance(347)).toBe("350 m");
     expect(formatDistance(1260)).toBe("1.3 km");
     expect(formatDistance(12_400)).toBe("12 km");
+  });
+});
+
+describe("noMatchAnswer (T2-6)", () => {
+  const intent = (q: string) => detectGeoIntent(q)!;
+  it("names the filter asked: diet, else the dish, else any place to eat", () => {
+    expect(noMatchAnswer(intent("best ramen restaurants in Rome"), "Rome", 10_000)).toBe(
+      'The offline map for Rome has no place matching "ramen" within 10 km, so I won\'t list any rather than guess.'
+    );
+    expect(noMatchAnswer(intent("restaurants in Rome"), "Rome", 25_000)).toBe(
+      "The offline map for Rome has no place to eat or drink recorded within 25 km, so I won't list any rather than guess."
+    );
+    expect(noMatchAnswer(intent("vegan or halal restaurants in Rome"), "Rome", 25_000)).toMatch(/no place tagged vegan or halal within 25 km/);
   });
 });
 
@@ -299,11 +312,48 @@ describe("answer(): places path", () => {
     expect(r.text).toBe("I don't have offline place data for Ulaanbaatar, so I won't list any restaurants rather than guess.");
   });
 
-  it("says so when the area has no records", async () => {
-    geo.searchPois = async () => ({ pois: [], radiusUsedM: 25_000, coverage: "none", region: "Ushuaia" });
+  it("says so when no map covers the area near the device, naming no pack or tile id (T2-7)", async () => {
+    geo.searchPois = async () => ({ pois: [], radiusUsedM: 25_000, coverage: "none", region: "t-N41E012" });
     const { r, places } = await ask("vegan near me");
-    expect(places!.coverage).toBe("none");
-    expect(r.text).toMatch(/Ushuaia/);
+    expect(places!).toMatchObject({ coverage: "none", empty: "no_data" });
+    expect(r.text).toBe("I don't have offline place data near you, so I won't list any restaurants rather than guess.");
+    expect(r.text).not.toMatch(/t-N41E012/);
+  });
+
+  it("marks an unknown city as no_data", async () => {
+    const { places } = await ask("best vegan restaurants in Ulaanbaatar");
+    expect(places!.empty).toBe("no_data");
+  });
+
+  it("T2-6: a map covering the city with nothing tagged says so, never 'no data'", async () => {
+    geo.searchPois = async () => ({ pois: [], radiusUsedM: 25_000, coverage: "full", region: "t-N41E012" });
+    const { r, places } = await ask("best vegan restaurants in São Paulo");
+    expect(places!).toMatchObject({ coverage: "none", empty: "no_match", places: [] });
+    expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo", radiusM: 25_000 });
+    expect(r.text).toBe("The offline map for São Paulo has no place tagged vegan within 25 km, so I won't list any rather than guess.");
+    expect(r.text).not.toMatch(/don't have offline place data|t-N41E012/);
+    expect(r.receipt.reasonCodes).toContain("places:no-match");
+    expect(loads).toBe(0);
+  });
+
+  it("T2-6: the same in Portuguese, and near the device (partial coverage counts as covered)", async () => {
+    geo.searchPois = async () => ({ pois: [], radiusUsedM: 25_000, coverage: "full" });
+    const pt = await ask("melhores restaurantes veganos em São Paulo");
+    expect(pt.places!.empty).toBe("no_match");
+    expect(pt.r.text).toBe("O mapa offline de São Paulo não tem nenhum lugar marcado como vegano num raio de 25 km, então não vou listar nenhum para não inventar.");
+
+    geo = makeGeo();
+    geo.searchPois = async () => ({ pois: [], radiusUsedM: 25_000, coverage: "partial", region: "t-N41E012" });
+    const near = await ask("vegan near me");
+    expect(near.places!).toMatchObject({ coverage: "none", empty: "no_match" });
+    expect(near.r.text).toBe("The offline map near you has no place tagged vegan within 25 km, so I won't list any rather than guess.");
+  });
+
+  it("T2-8: a resolved city carries its point, so an empty answer can offer the map covering it", async () => {
+    geo.searchPois = async () => ({ pois: [], radiusUsedM: 3000, coverage: "none" });
+    const { places } = await ask("best vegan restaurants in São Paulo");
+    expect(places!).toMatchObject({ coverage: "none", empty: "no_data" });
+    expect(places!.area.place).toMatchObject({ name: "São Paulo", lat: expect.any(Number), lon: expect.any(Number) });
   });
 
   it("asks for the city when location is denied, then answers with answer({ place })", async () => {
