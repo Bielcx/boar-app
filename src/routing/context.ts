@@ -890,6 +890,19 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
     tryAdd(s);
   }
 
+  // Budget left: the best passage's other sentences, in order, up to perChunk (Boar/Sextant RF-1: the
+  // Plate tectonics passage reached the prompt with 2 of its 4 sentences, the ones naming a question
+  // word, and lost "The processes that result in plates and shape Earth's crust are called tectonics").
+  // Only the MOST relevant chosen passage (Boar: prefill is the phone's bottleneck; filling every
+  // chosen passage cost +14% context on the suggestions): a distractor never enters this way.
+  const top = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b)[0];
+  if (top !== undefined) {
+    for (const s of scored.filter((x) => x.chunkIndex === top).sort((a, b) => a.position - b.position)) {
+      if (picked.get(top)!.size >= perChunk) break;
+      tryAdd(s);
+    }
+  }
+
   const keptIndices = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b);
   const qTerms = [...new Set(tokenizeTerms(query))];
   const shownRelevance = (ci: number) => {
