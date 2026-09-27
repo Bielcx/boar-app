@@ -298,7 +298,7 @@ export class ModelManager {
       throw new AssetIntegrityError("empty-file", "The selected file is empty (0 bytes). Copy it to the phone again.", true);
     }
     if (measured.kind === "unreadable") {
-      throw new AssetIntegrityError("unknown-file", "The selected file could not be read.", true);
+      throw new AssetIntegrityError("unreadable-file", "The selected file could not be read.", true);
     }
     const size = measured.bytes;
     // Before anything is copied: nothing installable is this big.
