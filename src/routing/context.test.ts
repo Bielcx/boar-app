@@ -417,7 +417,9 @@ describe("namedByLexicon (PT-1: lexicon names are article titles)", () => {
     expect(namedByLexicon(["Season"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)"))).toBe(false);
     expect(namedByLexicon(["Season"], c("Hunting", "Seasons > Season: Hunting season is regulated."))).toBe(true);
     expect(namedByLexicon(["Nuclear fission"], c("Potassium iodide", "Volatile nuclear fission products are released."))).toBe(false);
-    expect(namedByLexicon(["Greenhouse effect"], c("Runaway greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Greenhouse effect"], c("Greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Chiang Mai"], c("Consulate-General of China, Chiang Mai"))).toBe(false);
+    expect(namedByLexicon(["Chiang Mai"], c("Wikivoyage: Chiang Mai"))).toBe(true);
     expect(namedByLexicon(["Georgia (country)"], c("Georgia (country)"))).toBe(true);
   });
   it("two or more names: a passage whose first sentence names them all (PT suggestion q1)", () => {
@@ -591,5 +593,13 @@ describe("compressContext keeps the rest of a chosen passage when the budget all
     const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large plates. The model builds on continental drift and many other long ideas from the twentieth century. Plates meet at boundaries where earthquakes occur.");
     const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates], { tokenBudget: 30 }).chunks;
     expect(out[0].body).not.toContain("continental drift");
+  });
+});
+
+describe("onTopic: a title's acronym", () => {
+  it("'Maximal extractable value (MEV)' for a question naming MEV", () => {
+    const c = { chunkId: "m", docId: "m", title: "ethereum.org: Maximal extractable value (MEV)", body: "Maximal extractable value refers to the maximum value that can be extracted from block production.", score: 1, matchType: "lexical" as const };
+    expect(onTopic("O que é MEV e o que é a separação entre proponente e construtor?", c)).toBe(true);
+    expect(onTopic("What is the minimum wage?", c)).toBe(false);
   });
 });

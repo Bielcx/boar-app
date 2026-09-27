@@ -429,7 +429,9 @@ function titledByLexicon(names: string[], chunk: RetrievedChunk): boolean {
   return names.some((n) => {
     const name = clean(n);
     if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);
-    const re = new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
+    // A multi-word name opens the title or heading ("Greenhouse effect", "Chiang Mai"): at its end it
+    // is a place in another subject's title ("Consulate-General of China, Chiang Mai", ea21e82 v2-pt).
+    const re = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
     return heads.some((h) => re.test(h));
   });
 }
@@ -494,6 +496,9 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   // segment is in the question) is on topic even when this passage doesn't repeat the question's
   // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
   if (titleSegmentNamed(chunk.title, q)) return true;
+  // The title's acronym ("Maximal extractable value (MEV)") named by the question ("O que é MEV…?").
+  const acronym = /\(([A-Z][A-Z0-9-]{1,9})\)\s*$/.exec(chunk.title)?.[1];
+  if (acronym && q.has(tokenizeTerms(acronym)[0] ?? "")) return true;
   // The article's own title OPENS with a question word ("Plate tectonics" for "…near plate boundaries?",
   // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"), and its first
   // word only: any word let in the s32 noise ("United States Northern Command" for the northern lights,
