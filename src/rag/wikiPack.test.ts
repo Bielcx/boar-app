@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decompress } from "fzstd";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { WikiPack, countAtBoundary, coverage, sectionAt, titleCandidates } from "./wikiPack";
+import { WikiPack, countAtBoundary, coverage, nearDuplicate, sectionAt, titleCandidates } from "./wikiPack";
 
 // A pack built by the real builder from a fixture of six made-up, test-only
 // articles (src/rag/testing/fixtures/mini-wiki.jsonl), read back with fzstd,
@@ -22,6 +22,13 @@ beforeAll(async () => {
 }, 60000);
 
 describe("pure helpers", () => {
+  it("flags a paragraph copied between articles as a near duplicate, not two passages on one topic", () => {
+    const nsa = "In August 2015, NSA announced that it is planning to transition in the not distant future to a new cipher suite that is resistant to quantum attacks.";
+    const suiteB = "In August 2015, NSA announced that it is planning to transition in the not too distant future to a new cipher suite that is resistant to quantum attacks.";
+    expect(nearDuplicate(nsa, suiteB)).toBe(true);
+    expect(nearDuplicate(nsa, "Post-quantum cryptography develops algorithms thought to be secure against an attack by a quantum computer.")).toBe(false);
+  });
+
   it("finds the heading path at an offset", () => {
     const text = "# T\n\nlead\n\n## A\n\na\n\n### B\n\nb\n\n## C\n\nc";
     expect(sectionAt(text, text.indexOf("lead"))).toBe("");

@@ -171,6 +171,25 @@ export function countAtBoundary(prefix: string, text: string, firstOnly = false)
 }
 
 /** Share of the question's idf mass whose terms occur in `text`. */
+/**
+ * Whether two passages say nearly the same thing (one article copying another's paragraph:
+ * "NSA cryptography" and "NSA Suite B Cryptography"): Jaccard similarity of their word 5-grams.
+ */
+export function nearDuplicate(a: string, b: string, threshold = 0.5): boolean {
+  const grams = (t: string) => {
+    const w = t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    const out = new Set<string>();
+    for (let i = 0; i + 5 <= w.length; i++) out.add(w.slice(i, i + 5).join(" "));
+    return out;
+  };
+  const ga = grams(a);
+  const gb = grams(b);
+  if (!ga.size || !gb.size) return false;
+  let both = 0;
+  for (const g of ga) if (gb.has(g)) both++;
+  return both / (ga.size + gb.size - both) >= threshold;
+}
+
 export function coverage(text: string, stems: Stem[]): number {
   const low = text.toLowerCase();
   const total = stems.reduce((s, x) => s + x.idf, 0) || 1;
@@ -582,7 +601,7 @@ export class WikiPack {
         const h = await this.materialize(c);
         const relevant =
           coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5 || (sem?.get(c.articleId) ?? 0) >= SEMANTIC_KEEP;
-        if (relevant) {
+        if (relevant && !hits.some((x) => nearDuplicate(x.text, h.text))) {
           hits.push(h);
           seen.add(c.chunkId);
         }
