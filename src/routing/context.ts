@@ -393,11 +393,14 @@ export const MIN_TERMS_FOR_COVERAGE = 3;
  * Next to the question when a knowledge question found no offline source at
  * all: the model may answer, but says so and only states what it is sure of
  * (the post-quantum question without a pack: the 1.5B otherwise named
- * "Rainbow" and "McEliece" as signature standards).
+ * "Rainbow" and "McEliece" as signature standards; the compact model now
+ * declines instead, see answer.ts).
  */
 export const NO_SOURCE_INSTRUCTION =
   "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
-  "Only state what you are sure of; if you are not sure, say so.";
+  // s32 (ee1f2b7): "Only state what you are sure of" made the 4B drop list items (the Danube without
+  // Moldova). The compact model no longer answers from memory unasked (6e5e9b7), so ask for a full answer.
+  "Then answer completely; if you are unsure of a specific detail, say which one.";
 
 /** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
