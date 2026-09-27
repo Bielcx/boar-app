@@ -109,6 +109,11 @@ export const SEMANTIC_KEEP = 0.7;
 /** Monthly views below which a topic is "long tail": answer from the sources, not the model's memory. */
 export const LONG_TAIL_VIEWS = 5000;
 
+/** Portuguese and Spanish function words, left out of a question's subject weight (not of its search terms). */
+const FOREIGN_FUNCTION_WORDS = new Set(
+  "o os a as um uma uns umas de do da dos das em no na nos nas num numa por para com sem que como qual quais quando onde porque se ao aos el la los las un una del al en con por para que como cual cuando donde es son y e ou".split(" ")
+);
+
 const STOPWORDS = new Set(
   (
     "a about above after again against all also am an and any are as at be because been before being below " +
@@ -491,8 +496,10 @@ export class WikiPack {
    */
   async titlesInQuestion(query: string, stems: Stem[], max = 4): Promise<Array<{ id: number; share: number }>> {
     const rare = new Set(stems.filter((s) => s.idf >= Math.log(1 / 0.002)).map((s) => s.stem));
-    const weight = new Map(stems.map((s) => [s.stem, s.idf]));
-    const total = stems.reduce((n, s) => n + s.idf, 0) || 1;
+    // Portuguese/Spanish function words carry no subject; some packs index them (Appropedia's pages in those languages).
+    const content = stems.filter((s) => !FOREIGN_FUNCTION_WORDS.has(s.stem));
+    const weight = new Map(content.map((s) => [s.stem, s.idf]));
+    const total = content.reduce((n, s) => n + s.idf, 0) || 1;
     const sources: PackSource[] = [
       ...(TRAVEL_INTENT.test(query) ? ["enwikivoyage", "enwiki"] as const : ["enwiki", "enwikivoyage"] as const),
       ...this.topicSources,
@@ -504,8 +511,9 @@ export class WikiPack {
       const lower = cand.toLowerCase();
       if (used.some((u) => u.includes(lower))) continue; // inside a longer title already found
       const single = !cand.includes(" ");
-      // A lone word only counts when it's capitalized in the question or rare in the index.
-      if (single && !/^\p{Lu}/u.test(cand) && !(await this.isRare(lower, rare))) continue;
+      // A lone word only counts when it's capitalized in the question, rare in the index, or not in the index at all
+      // (then only an exact title or alias can match it: "queimadura" -> Burn through its Portuguese alias).
+      if (single && !/^\p{Lu}/u.test(cand) && !(await this.isRare(lower, rare)) && (await this.stems(lower)).length) continue;
       const ids: Array<{ id: number; primary: boolean }> = [];
       for (const source of sources) {
         const id =
@@ -515,8 +523,10 @@ export class WikiPack {
       }
       if (!ids.length) continue;
       const own = await this.stems(cand);
-      // A name none of whose words are in the index (an alias like "ERC20") matched a title exactly: it's the subject.
-      const share = own.length ? own.reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total : 1;
+      const words = new Set((lower.match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length > 1 && !STOPWORDS.has(w)));
+      // A name with a word the index doesn't know ("ERC20", "sangramento nasal") can only have matched an exact
+      // title or alias: it's the subject, whatever else the question says.
+      const share = own.length < words.size ? 1 : own.reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total;
       // So is an exact title or alias of a primary source in a topic pack ("ERC-20", "BIP 32"), however common its words are there.
       for (const { id, primary } of ids) found.push({ id, share: primary ? 1 : share });
       used.push(lower);

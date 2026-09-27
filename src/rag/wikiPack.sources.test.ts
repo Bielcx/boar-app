@@ -29,6 +29,16 @@ const rows = [
     page_id: 5e9 + n, title: `ERC-${n}: Vault extension ${n}`, source: "eips", url: `https://ercs.ethereum.org/ERCS/erc-${n}`, license: "CC0-1.0",
     text: `# ERC-${n}: Vault extension ${n}\n\n${"Vaults hold ERC-20 tokens; users approve the vault, which calls transfer and transferFrom on the ERC-20 token. ".repeat(4)}`,
   })),
+  // A first-aid article with Portuguese aliases, and an indexed Portuguese page (as Appropedia has) that puts
+  // "como", "uma", "de" and a rare verb in the index.
+  {
+    page_id: 900, title: "Burn", source: "enwiki", aliases: ["Queimadura", "Queimaduras"],
+    text: `# Burn\n\nA burn is an injury to skin caused by heat. Cool the burn with running water for twenty minutes. ${filler("Burn")}`,
+  },
+  {
+    page_id: 3e9 + 7, title: "Horta comunitária", source: "appropedia", url: "https://www.appropedia.org/Horta", license: "CC BY-SA 4.0",
+    text: `# Horta comunitária\n\nComo plantar uma horta de verduras e parar de comprar. Como regar uma horta de manhã. ${filler("Horta")}`,
+  },
 ];
 
 let pack: WikiPack;
@@ -68,5 +78,12 @@ describe("topic-pack sources", () => {
   it("puts the document a question names by its alias first", async () => {
     const hits = await pack.search("What is ERC20?");
     expect(hits[0]?.title).toBe("ERC-20: Token Standard");
+  });
+
+  it("finds an article by its Portuguese alias in a Portuguese question", async () => {
+    for (const q of ["O que fazer em caso de queimadura?", "Como tratar uma queimadura?", "Como parar de sentir a queimadura?"]) {
+      const hits = await pack.search(q);
+      expect(hits[0]?.title, q).toBe("Burn");
+    }
   });
 });
