@@ -154,3 +154,14 @@ describe("load crash and confirmation (CR-2)", () => {
     expect(row({})).toMatchObject({ didNotOpen: false, mayCloseApp: false, confirmUse: false });
   });
 });
+
+describe("won't fit on this phone (CR-1)", () => {
+  it("offers no download and replaces the memory warnings", () => {
+    const v = modelRowView({ present: false, roles: [], wontFit: true, fit: "thrashing", mayCloseApp: true });
+    expect(v).toMatchObject({ wontFit: true, primary: "none", fitWarning: null, mayCloseApp: false });
+  });
+
+  it("an installed model is not hidden behind it (it can still be removed)", () => {
+    expect(modelRowView({ present: true, roles: [], wontFit: true }).wontFit).toBe(false);
+  });
+});

@@ -19,6 +19,7 @@ import { fitFor, largeModelConfirmedIds, loadCrashedIds, poiCatalogEntry, poiReg
 import type { MemoryFit } from "../../inference/memoryFit";
 import { mayCloseApp, ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
+import { wontFitHere } from "./fit";
 import { FileImport, importFor } from "./fileImport";
 export type { FileImport };
 
@@ -126,6 +127,7 @@ export function useCatalog(): CatalogState {
         mayCloseApp: mayCloseApp(model, answerModelChoices(MODEL_CATALOG).compact?.sizeBytes, deviceRamBytes),
         loadCrashed: crashedIds.includes(model.id),
         largeConfirmed: confirmedIds.includes(model.id),
+        wontFit: wontFitHere(model, fitFor(model)),
       });
     },
     // getDownloadState reads module state; the tick re-renders on each change.

@@ -128,7 +128,11 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
               items={[
                 state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
                 // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
-                view.mayCloseApp ? t("flows.row.mayCloseWhy") : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
+                view.wontFit
+              ? t("flows.row.wontFitWhy")
+              : view.mayCloseApp
+                ? t("flows.row.mayCloseWhy")
+                : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
                 meta ?? model.license,
               ]}
             />
@@ -147,7 +151,11 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           </View>
         )}
       </View>
-      {view.mayCloseApp ? (
+      {view.wontFit ? (
+        <View style={{ flexDirection: "row" }}>
+          <Badge label={t("flows.row.wontFitHere")} tone="danger" dot caps={false} />
+        </View>
+      ) : view.mayCloseApp ? (
         <View style={{ flexDirection: "row" }}>
           <Badge label={t(view.didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} />
         </View>

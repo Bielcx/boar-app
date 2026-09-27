@@ -50,6 +50,8 @@ export interface RowInput {
   loadCrashed?: boolean;
   /** The user already chose "Use anyway" for it. */
   largeConfirmed?: boolean;
+  /** It can't open on this phone (wontFitHere): no download is offered. */
+  wontFit?: boolean;
 }
 
 export type RowState =
@@ -83,6 +85,8 @@ export interface RowView {
   didNotOpen: boolean;
   /** Use asks for confirmation first (risky and not confirmed yet, or it already crashed). */
   confirmUse: boolean;
+  /** Can't open on this phone: "Won't fit on this phone", and no download button (CR-1). */
+  wontFit: boolean;
 }
 
 /**
@@ -141,9 +145,19 @@ export function modelRowView(input: RowInput): RowView {
   const fitWarning = !closes && input.fit && input.fit !== "resident" ? input.fit : null;
   // A crash withdraws the confirmation (Tusk), so it asks again even if confirmed before.
   const confirmUse = didNotOpen || (closes && !input.largeConfirmed);
-  const base = { removeBlocked: state.kind === "in-use", fitWarning, mayCloseApp: closes, didNotOpen, confirmUse };
+  const wontFit = (input.wontFit ?? false) && state.kind === "not-installed";
+  const base = {
+    removeBlocked: state.kind === "in-use",
+    // The row says it can't fit; no second memory warning.
+    fitWarning: wontFit ? null : fitWarning,
+    mayCloseApp: wontFit ? false : closes,
+    didNotOpen,
+    confirmUse,
+    wontFit,
+  };
   switch (state.kind) {
     case "not-installed":
+      if (wontFit) return { ...base, state, primary: "none", tone: "danger" };
       return { ...base, state, primary: fitWarning === "insufficient" ? "explain" : "download", tone: "neutral" };
     case "downloading":
     case "verifying":
