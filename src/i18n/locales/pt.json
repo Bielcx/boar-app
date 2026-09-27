@@ -766,7 +766,8 @@
       "placesFound_one": "{{count}} lugar encontrado",
       "placesFound_other": "{{count}} lugares encontrados",
       "placesFound_zero": "Nenhum lugar encontrado",
-      "locating": "Procurando sua localização. Você também pode digitar a cidade."
+      "locating": "Procurando sua localização. Você também pode digitar a cidade.",
+      "readyNoSource": "Resposta pronta, sem fonte do acervo deste celular"
     },
     "snippet": {
       "fromSource": "Da fonte",
@@ -897,7 +898,12 @@
       "voiceCaveat": "A entrada por voz usa o reconhecedor do sistema, que pode não ser offline.",
       "offlineSeal": "Offline",
       "offlineAnswersSeal": "Respostas offline",
-      "offlineSealSpoken": "Offline: sem uso de rede"
+      "offlineSealSpoken": "Offline: sem uso de rede",
+      "downgraded": {
+        "low-ram": "Respondendo com {{model}}. O {{from}} precisa da sua confirmação neste celular",
+        "load-crashed": "Respondendo com {{model}}. O {{from}} fechou o app neste celular",
+        "hint": "Abre Modelos"
+      }
     },
     "jumpToLatest": "Ir para a resposta mais recente",
     "share": {
@@ -1073,6 +1079,24 @@
     },
     "safety": {
       "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."
+    },
+    "loadCrash": {
+      "message": "O {{model}} fechou o app: este celular não tem memória para ele. Voltamos ao {{fallback}}.",
+      "seeModels": "Ver modelos",
+      "dismiss": "Dispensar",
+      "messageNoFallback": "O {{model}} fechou o app: este celular não tem memória para ele. Escolha um modelo menor."
+    },
+    "weak": {
+      "title": "Sem fonte forte neste celular",
+      "body": "Respondido com o conhecimento geral do modelo, que pode errar. Nada no acervo deste celular bateu de perto.",
+      "showClosest": "Ver trechos mais próximos",
+      "hideClosest": "Ocultar trechos mais próximos",
+      "closestTitle": "Trechos mais próximos (correspondência fraca)",
+      "weakMatch": "fraca",
+      "receipt": "conhecimento geral",
+      "declinedTitle": "Não encontrei isso no acervo deste celular",
+      "declinedBody": "Sem uma fonte, o modelo compacto costuma errar perguntas assim, então ele não chutou.",
+      "answerAnyway": "Responder mesmo assim (pode errar)"
     }
   },
   "location": {

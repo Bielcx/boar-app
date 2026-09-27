@@ -11,6 +11,13 @@ const OFFLINE_BUILD = process.env.EXPO_PUBLIC_BOAR_VARIANT?.trim().toLowerCase()
 
 interface Props {
   activeModelLabel?: string;
+  /**
+   * The model that will actually answer is not the one saved (CR-1: a large model on a low-RAM
+   * phone without confirmation, or one that closed the app). The header names the real one and
+   * the model line opens Models.
+   */
+  downgradedFrom?: { label: string; reason: "low-ram" | "load-crashed" };
+  onOpenModels?: () => void;
   voiceEnabled: boolean;
   onOpenDrawer: () => void;
 }
@@ -23,7 +30,7 @@ interface Props {
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
  */
-export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer }: Props) {
+export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voiceEnabled, onOpenDrawer }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
@@ -64,11 +71,26 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer }: Pro
           <Text variant="title2" header numberOfLines={1}>
             boar
           </Text>
-          {activeModelLabel && (
+          {activeModelLabel && !downgradedFrom && (
             // The mockup's model line: caps, secondary, raised from 9.5 px to the 12 pt floor.
             <Text variant="capsMeta" color="secondary" numberOfLines={1}>
               {activeModelLabel}
             </Text>
+          )}
+          {activeModelLabel && downgradedFrom && (
+            <Pressable
+              onPress={onOpenModels}
+              accessibilityRole="button"
+              accessibilityLabel={tr(`chat.header.downgraded.${downgradedFrom.reason}`, { model: activeModelLabel, from: downgradedFrom.label })}
+              accessibilityHint={tr("chat.header.downgraded.hint")}
+              hitSlop={{ top: t.space.sm, bottom: t.space.sm }}
+              style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs }}
+            >
+              <Text variant="capsMeta" color="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {activeModelLabel}
+              </Text>
+              <Icon name="info" size="sm" color={t.color.text.secondary} />
+            </Pressable>
           )}
         </View>
         <Pressable

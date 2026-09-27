@@ -43,6 +43,12 @@ export interface AnswerState {
   deepAvailable?: { estSeconds?: number; reason?: string };
   /** The model's weights stream from storage: answers will be slower than usual. */
   streamsFromStorage?: boolean;
+  /** No offline source covers the question: the model answered from general knowledge (Tusk weak_sources). */
+  weakSources?: boolean;
+  /** …and the compact model declined to answer without a source (weak-sources state A); "Answer anyway" asks again. */
+  weakDeclined?: boolean;
+  /** The engine classified the question as health/safety (done.safety): literal passage, emergency note. */
+  safety?: boolean;
 }
 
 export function initialAnswer(answerId: string): AnswerState {
@@ -92,7 +98,9 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       return { ...state, location: { status: event.status, accuracyM: event.accuracyM, ageS: event.ageS } };
 
     case "warning":
-      return event.code === "model_streams_from_storage" ? { ...state, streamsFromStorage: true } : state;
+      if (event.code === "model_streams_from_storage") return { ...state, streamsFromStorage: true };
+      if (event.code === "weak_sources") return { ...state, weakSources: true, weakDeclined: event.declined === true || undefined };
+      return state;
 
     case "stage":
       if (event.tier === "instant" || state[event.tier]?.outcome) return state;
@@ -103,6 +111,7 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       return updateTier(state, event.tier, (t) => ({ ...t, stage: "generating", text: t.text + event.text }));
 
     case "done":
+      if (event.safety) state = { ...state, safety: true };
       if (event.tier === "instant") {
         if (state.instantDone) return state;
         return { ...state, instantDone: { outcome: event.outcome, receipt: event.receipt, error: event.error } };
@@ -110,6 +119,8 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       if (state[event.tier]?.outcome) return state;
       return updateTier(state, event.tier, (t) => ({
         ...t,
+        // CT-1: the engine removed [n] the sources don't support; its final text replaces the streamed one.
+        text: event.finalText ?? t.text,
         stage: null,
         outcome: event.outcome,
         receipt: event.receipt,
@@ -149,12 +160,9 @@ function tierPhase(t: TierState): AnswerPhase {
 }
 
 /** The deep pass wins while it exists; otherwise the fast one; an extractive-only answer is done. */
-/**
- * The engine is waiting for a GPS fix (location status "locating", Boar GPS-1) and
- * has not listed anything yet. Read as a string until the engine's status union has it.
- */
+/** The engine is waiting for a GPS fix (location status "locating", Boar GPS-1) and has not listed anything yet. */
 export function isLocating(state: AnswerState): boolean {
-  return (state.location?.status as string | undefined) === "locating" && !state.places;
+  return state.location?.status === "locating" && !state.places;
 }
 
 export function answerPhase(state: AnswerState): AnswerPhase {

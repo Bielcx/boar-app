@@ -55,6 +55,8 @@ export function phaseAnnouncement(
         const empty = placesEmptyTitle(state.places, t);
         return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
+      if (state.weakDeclined) return { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
+      if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
       return { message: t("chat.announce.ready", { count: state.sources.length }) };
     case "stopped":
       return { message: t("chat.announce.stopped") };
@@ -69,6 +71,17 @@ export function phaseAnnouncement(
 }
 
 export const PLACES_MODEL_ID = "places";
+
+/**
+ * The one-time notice after a model load killed the app (Boar CR-2); null when there is nothing
+ * to say. Without a previous model (first load of the session) it doesn't claim a switch back.
+ */
+export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: string } | null, t: T): string | null {
+  if (!crash || !crash.crashedLabel.trim()) return null;
+  const model = crash.crashedLabel.trim();
+  const fallback = crash.fallbackLabel.trim();
+  return fallback ? t("chat.loadCrash.message", { model, fallback }) : t("chat.loadCrash.messageNoFallback", { model });
+}
 
 /**
  * Total time first, since that's what a person compares: "Answered in 6.2 s ·

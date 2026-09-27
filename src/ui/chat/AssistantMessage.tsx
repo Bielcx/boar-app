@@ -38,6 +38,8 @@ export interface AssistantMessageProps {
   onCopyReceipt: (text: string) => void;
   /** Places answers: re-ask for a typed city, or with the device position. */
   onCity: (city: string) => void;
+  /** Weak-sources state A: generate anyway for the same question. */
+  onAnswerAnyway?: () => void;
   onUseLocation?: () => void;
   onGetMap?: () => void;
 }
@@ -208,14 +210,15 @@ function TierBody({
  * The measured receipt: a short numbers-only line ("1.4 s · 16 tok/s") that
  * sits by the name and opens the full measurement below the header row.
  */
-function useReceipt(receipt: AnswerReceipt | undefined, locale: string) {
+function useReceipt(receipt: AnswerReceipt | undefined, locale: string, generalKnowledge = false) {
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   if (!receipt) return null;
   return {
     open,
     toggle: () => setOpen((o) => !o),
-    short: receiptShort(receipt, locale),
+    // "general knowledge" when no offline source covered the question (weak-sources spec).
+    short: generalKnowledge ? [...receiptShort(receipt, locale), tr("chat.weak.receipt")] : receiptShort(receipt, locale),
     line: receiptLine(receipt, locale, tr),
     details: receiptDetails(receipt, locale, tr),
   };
@@ -425,6 +428,112 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
   );
 }
 
+/**
+ * No strong source on this phone (Iris, specs/weak-sources.md): in the source card's slot, a
+ * neutral note (no amber: amber means provenance, and there is none), one focus for readers.
+ * "Show closest passages" only when the engine still returned some, marked as weak, unnumbered.
+ */
+function WeakSourceNote({ answer }: { answer: AnswerState }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const groups = groupSources(answer.sources);
+  return (
+    <Card style={{ gap: t.space.sm }}>
+      <View accessible accessibilityLabel={`${tr("chat.weak.title")}. ${tr("chat.weak.body")}`} style={{ gap: t.space.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+          <Icon name="book" size="sm" color={t.color.text.secondary} />
+          <Text variant="label" color="secondary" style={{ flex: 1 }}>
+            {tr("chat.weak.title")}
+          </Text>
+        </View>
+        <Text variant="footnote" color="secondary">
+          {tr("chat.weak.body")}
+        </Text>
+      </View>
+      {groups.length > 0 && (
+        <Button
+          label={tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
+          variant="ghost"
+          size="sm"
+          accessibilityState={{ expanded: open }}
+          style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
+          onPress={() => setOpen((o) => !o)}
+        />
+      )}
+      {open && (
+        <View style={{ gap: t.space.sm }}>
+          <Text variant="label" color="secondary" header>
+            {tr("chat.weak.closestTitle")}
+          </Text>
+          {groups.map((g) => (
+            <View key={g.key} style={{ gap: t.space.xxs }}>
+              <Text variant="subhead" numberOfLines={2}>
+                {g.title}
+              </Text>
+              <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
+            </View>
+          ))}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Weak-sources state A (Iris spec, Boar's decision): the compact model found nothing in this phone's
+ * library and didn't guess. The card is the answer; "Answer anyway (may be wrong)" generates for the
+ * same question (state B). No receipt, no primary ember, no amber.
+ */
+function DeclinedNoSource({ answer, onAnswerAnyway }: { answer: AnswerState; onAnswerAnyway?: () => void }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const groups = groupSources(answer.sources);
+  return (
+    <Card style={{ gap: t.space.sm }}>
+      <View accessible accessibilityLabel={`${tr("chat.weak.declinedTitle")}. ${tr("chat.weak.declinedBody")}`} style={{ gap: t.space.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+          <Icon name="search" size="sm" color={t.color.text.secondary} />
+          <Text variant="headline" style={{ flex: 1 }}>
+            {tr("chat.weak.declinedTitle")}
+          </Text>
+        </View>
+        <Text variant="footnote" color="secondary">
+          {tr("chat.weak.declinedBody")}
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+        {onAnswerAnyway && <Button label={tr("chat.weak.answerAnyway")} variant="secondary" size="sm" onPress={onAnswerAnyway} />}
+        {groups.length > 0 && (
+          <Button
+            label={tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
+            variant="ghost"
+            size="sm"
+            accessibilityState={{ expanded: open }}
+            onPress={() => setOpen((o) => !o)}
+          />
+        )}
+      </View>
+      {open && (
+        <View style={{ gap: t.space.sm }}>
+          <Text variant="label" color="secondary" header>
+            {tr("chat.weak.closestTitle")}
+          </Text>
+          {groups.map((g) => (
+            <View key={g.key} style={{ gap: t.space.xxs }}>
+              <Text variant="subhead" numberOfLines={2}>
+                {g.title}
+              </Text>
+              <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
+            </View>
+          ))}
+        </View>
+      )}
+    </Card>
+  );
+}
+
 /** "Not a substitute for emergency services": under health and preparedness answers (Boar E-1). */
 function EmergencyNote() {
   const t = useTokens();
@@ -523,7 +632,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const t = useTokens();
   const { t: tr } = useTranslation();
   const phase = answerPhase(answer);
-  const sourceTitles = answer.sources.map((s) => s.title);
+  // No strong source: no [n] citations, even if weak passages came back (weak-sources spec rule 4).
+  const sourceTitles = answer.weakSources ? [] : answer.sources.map((s) => s.title);
   const placesOnly = !!answer.places && !answer.fast;
   const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
   const instantOnly = !!answer.instantDone && !answer.fast;
@@ -535,7 +645,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
-  const receipt = useReceipt(topReceipt, locale);
+  const receipt = useReceipt(topReceipt, locale, !!answer.weakSources);
   const locating = isLocating(answer);
   const waitingForCity = answer.places?.coverage === "needs_place" || locating;
   return (
@@ -548,9 +658,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.assistantName")}
           </Text>
           {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
-          {waitingForCity ? null : active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
-        {receipt && !waitingForCity && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
+        {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
 
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
@@ -569,7 +679,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         />
       )}
 
-      {answer.instant && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
+      {answer.instant && !answer.weakSources && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
 
       {answer.fast && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
@@ -605,13 +715,16 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
 
 
-      {answer.sources.length > 0 && !placesOnly && <SourceList answer={answer} onOpenSource={onOpenSource} />}
+      {answer.sources.length > 0 && !placesOnly && !answer.weakSources && <SourceList answer={answer} onOpenSource={onOpenSource} />}
+      {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} />}
+      {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} />}
       {showsEmergencyNote({
         question: props.question ?? "",
         sources: answer.sources,
         hasModelText: !!(answer.fast?.text || answer.deep?.text),
         hasSnippet: !!answer.instant,
         placesOnly,
+        safety: answer.safety,
       }) && <EmergencyNote />}
 
       {done && hasText && (

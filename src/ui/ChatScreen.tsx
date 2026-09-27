@@ -50,14 +50,17 @@ import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { ChatHeader } from "./ChatHeader";
 import { Banner, Button, IconButton, Progress, Screen, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
-import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./chat/answerApi";
+import { answer as runAnswer, deepen as runDeepen, effectiveAnswerModel, type AnswerContext } from "./chat/answerApi";
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
 import { answerPhase, answerReducer, asInterrupted, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
 import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type ChatItem } from "./chat/chatItems";
-import { phaseAnnouncement } from "./chat/presentation";
+import { loadCrashMessage, phaseAnnouncement } from "./chat/presentation";
+import { consumeLoadCrash } from "./chat/loadCrashApi";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { AssistantMessage } from "./chat/AssistantMessage";
+import { ModelLoadError } from "../inference/loadError";
+import type { ModelErrorKind } from "./chat/modelError";
 import { ChatEmptyState, ChatModelError, ChatModelLoading, SourceSheet, UserMessage } from "./chat/ChatPieces";
 import { Composer } from "./chat/Composer";
 import { modelStatus } from "./chat/composerState";
@@ -117,6 +120,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [indexing, setIndexing] = useState(false);
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The engine's own cause for a failed load (Tusk 9ec677e: ModelLoadError.kind), when it gives one.
+  const [loadErrorKind, setLoadErrorKind] = useState<ModelErrorKind | undefined>(undefined);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
   const [voiceInputEnabled, setVoiceInputEnabledState] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -239,7 +244,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       });
       setReady(true);
     } catch (e: any) {
-      setLoadError(e?.message ?? String(e));
+      // The native message is the one worth showing (the RAM estimate is only in the log now).
+      setLoadErrorKind(e instanceof ModelLoadError ? e.kind : undefined);
+      setLoadError(e instanceof ModelLoadError ? e.native || e.message : e?.message ?? String(e));
     }
   }, [t, locale]);
 
@@ -447,7 +454,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
    * the location permission (that one replaces the answer in place).
    */
   const followUp = useCallback(
-    async (messageId: string, kind: "deep" | "fast" | { place?: string }) => {
+    async (messageId: string, kind: "deep" | "fast" | { place?: string; answerAnyway?: boolean }) => {
       const item = itemsRef.current.find((m) => m.id === messageId);
       if (!item || item.kind !== "assistant" || activeRef.current || !ready) return;
       const sessionId = activeSessionId;
@@ -469,7 +476,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             ? runDeepen(item.question, item.answer.sources, onEvent, ctx)
             : kind === "fast"
               ? runAnswer({ query: item.question, tier: "fast" }, onEvent, ctx)
-              : runAnswer({ query: item.question, place: kind.place }, onEvent, ctx)
+              : runAnswer({ query: item.question, place: kind.place, answerAnyway: kind.answerAnyway }, onEvent, ctx)
         );
         // A redo replaces the answer: keep the saved text in step (Deepen only adds to it).
         if (typeof kind === "object" && sessionId) await upsertMessage(sessionId, "assistant", answerTextForHistory(final), messageId);
@@ -492,6 +499,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadError]);
 
+  // The model that will really answer (CR-1): the engine's own choice, so header and answer() agree.
+  const [effective, setEffective] = useState<Awaited<ReturnType<typeof effectiveAnswerModel>>>(null);
+  useEffect(() => {
+    effectiveAnswerModel()
+      .then(setEffective)
+      .catch(() => undefined);
+  }, [ready, activeModel?.id]);
+
   // Installed knowledge, so the empty chat only suggests questions with an on-topic source here (RT-1).
   // Re-read when the model state changes (setup and the Knowledge screen run before the chat is ready).
   const [knowledge, setKnowledge] = useState<string[]>([]);
@@ -500,6 +515,16 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       .then(setKnowledge)
       .catch(() => undefined);
   }, [ready]);
+
+  // Once, when the chat opens after a model load killed the app (Boar CR-2): say what happened and where to go.
+  const [loadCrash, setLoadCrash] = useState<string | null>(null);
+  useEffect(() => {
+    consumeLoadCrash()
+      .then((c) => setLoadCrash(loadCrashMessage(c, t)))
+      .catch(() => undefined);
+    // Once per chat screen: consume() clears the mark, so it never shows twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A city typed during "Finding your location…" runs as soon as the stopped answer has finished.
   const pendingCity = useRef<{ id: string; city: string } | null>(null);
@@ -601,6 +626,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         getVoiceInputEnabled().then(setVoiceInputEnabledState);
         getHidePromptIdeas().then((hide) => setShowSuggestions(!hide));
         installedKnowledgeIds().then(setKnowledge).catch(() => undefined);
+        effectiveAnswerModel().then(setEffective).catch(() => undefined);
         // Settings loads a newly chosen LLM itself; only re-run the full init if what's loaded doesn't match.
         const llm = await resolveActiveModel("llm");
         if (ready && llamaEngine.getModelInfo()?.filename === llm.filename) setActiveModel(llm);
@@ -673,6 +699,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
       });
     },
+    answerAnyway: (id) => followUp(id, { answerAnyway: true }),
     city: (id, city) => {
       // Typed while the answer still waits for the GPS: stop it, then search the city once it has ended.
       if (activeRef.current?.messageId === id) {
@@ -708,6 +735,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       rate: (id, r) => rowActions.current.rate(id, r),
       copy: (item) => rowActions.current.copy(item),
       share: (item) => rowActions.current.share(item),
+      answerAnyway: (id) => rowActions.current.answerAnyway(id),
       city: (id, c) => rowActions.current.city(id, c),
       useLocation: (id) => rowActions.current.useLocation?.(id),
       getMap: () => rowActions.current.getMap(),
@@ -746,7 +774,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   return (
     <Screen scroll={false} padded={false} ambient edges={["top", "bottom", "left", "right"]}>
       <ChatHeader
-        activeModelLabel={activeModel?.label}
+        activeModelLabel={effective?.label ?? activeModel?.label}
+        downgradedFrom={effective?.downgradedFrom}
+        onOpenModels={() => navigation.navigate("Models")}
         voiceEnabled={voiceInputEnabled}
         onOpenDrawer={() => {
           refreshSessions();
@@ -757,6 +787,22 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           header), so without it the padding came out short and the composer sat behind the keyboard
           (Prism K-1, Android offline 06f508b). The native window position fixes any offset above. */}
       <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
+        {loadCrash && (
+          <View style={{ paddingHorizontal: tk.space.gutter, paddingTop: tk.space.sm }}>
+            <Banner
+              tone="warning"
+              icon="alert-triangle"
+              message={loadCrash}
+              actionLabel={t("chat.loadCrash.seeModels")}
+              onAction={() => {
+                setLoadCrash(null);
+                navigation.navigate("Models");
+              }}
+              onDismiss={() => setLoadCrash(null)}
+              dismissLabel={t("chat.loadCrash.dismiss")}
+            />
+          </View>
+        )}
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
         {items.length > 0 && !loadError && !ready ? (
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
@@ -781,12 +827,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
           ListFooterComponent={
             items.length > 0 && loadError ? (
-              <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : null
           }
           ListEmptyComponent={
             loadError ? (
-              <ChatModelError error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : !ready ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
@@ -867,6 +913,7 @@ interface RowActions {
   rate: (id: string, rating: "up" | "down") => void;
   copy: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
   share: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
+  answerAnyway: (id: string) => void;
   city: (id: string, city: string) => void;
   useLocation?: (id: string) => void;
   getMap: () => void;
@@ -910,6 +957,7 @@ const AssistantRow = memo(function AssistantRow({
       onCopy: () => actions.copy(itemRef.current),
       onShare: () => actions.share(itemRef.current),
       onCity: (city: string) => actions.city(id, city),
+      onAnswerAnyway: () => actions.answerAnyway(id),
       onUseLocation: actions.useLocation ? () => actions.useLocation!(id) : undefined,
       onGetMap: actions.getMap,
       onCopyReceipt: actions.copyReceipt,

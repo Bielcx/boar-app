@@ -1,4 +1,4 @@
-import type { Place, PlaceDiet } from "./answerEvents";
+import type { Place, PlaceDiet, PlacesArea } from "./answerEvents";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -293,17 +293,13 @@ export function citySuggestions(cities: { name: string }[], exclude?: string, ma
 /**
  * Where the phone last was, when its position is too old to list "near me"
  * (Boar: > 5 min and no fresh fix; the traveller who just landed must not get
- * the city they left). Proposed engine field PlacesArea.lastKnown (Tusk).
+ * the city they left). The engine's PlacesArea.lastKnown (Tusk 0bca5dd).
  */
-export interface LastKnownPlace {
-  city: string;
-  country?: string;
-  ageS: number;
-}
+export type LastKnownPlace = NonNullable<PlacesArea["lastKnown"]>;
 
-/** Reads area.lastKnown until the engine type has it; a well-formed value or null. */
-export function lastKnownOf(area: object): LastKnownPlace | null {
-  const v = (area as { lastKnown?: Partial<LastKnownPlace> }).lastKnown;
+/** area.lastKnown when it is usable (a city name and an age), else null. */
+export function lastKnownOf(area: Pick<PlacesArea, "lastKnown">): LastKnownPlace | null {
+  const v = area.lastKnown;
   if (!v || typeof v.city !== "string" || !v.city.trim() || typeof v.ageS !== "number" || !(v.ageS >= 0)) return null;
   return { city: v.city.trim(), country: v.country, ageS: v.ageS };
 }

@@ -180,13 +180,13 @@ describe("answerReducer", () => {
 describe("locating (Boar GPS-1)", () => {
   const base = { answerIds: ["a"], sources: [] } as AnswerState;
   it("is its own phase while the engine waits for the GPS and nothing is listed", () => {
-    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" as never });
+    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" });
     expect(isLocating(waiting)).toBe(true);
     expect(answerPhase(waiting)).toBe("locating");
   });
 
   it("ends when a fix or a list arrives", () => {
-    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" as never });
+    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" });
     expect(isLocating(answerReducer(waiting, { type: "location", answerId: "a", status: "granted" }))).toBe(false);
     expect(isLocating({ ...waiting, places: { coverage: "ok", places: [], area: { kind: "near" } } as never })).toBe(false);
   });
@@ -206,5 +206,33 @@ describe("asInterrupted (FS-1)", () => {
     expect(out.deep?.outcome).toBe("interrupted");
     const done = { answerIds: ["a"], sources: [], fast: { text: "Done.", stage: null, outcome: "success" } } as unknown as AnswerState;
     expect(asInterrupted(done).fast?.outcome).toBe("success");
+  });
+});
+
+describe("weak sources (Tusk weak_sources, Iris spec)", () => {
+  it("marks the answer as answered from general knowledge", () => {
+    const base = { answerIds: ["a"], sources: [] } as AnswerState;
+    const s = answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources" as never, message: "No offline source covers this question." });
+    expect(s.weakSources).toBe(true);
+    expect(answerReducer(base, { type: "warning", answerId: "a", code: "model_streams_from_storage", message: "" }).weakSources).toBeUndefined();
+  });
+
+  it("state A: the compact model declined (no generation) until 'Answer anyway'", () => {
+    const base = { answerIds: ["a"], sources: [] } as AnswerState;
+    const declined = answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources", declined: true, message: "" } as never);
+    expect(declined.weakDeclined).toBe(true);
+    expect(answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources", message: "" } as never).weakDeclined).toBeUndefined();
+  });
+});
+
+describe("CT-1 finalText", () => {
+  it("replaces the streamed text when the engine dropped unsupported citations, and keeps it otherwise", () => {
+    const base = { answerIds: ["a"], sources: [] } as AnswerState;
+    const streamed = answerReducer(base, { type: "token", answerId: "a", tier: "fast", text: "Canberra [3]." } as never);
+    const receipt = { modelId: "q", modelLabel: "Q", tokens: 3, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+    const cleaned = answerReducer(streamed, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText: "Canberra." } as never);
+    expect(cleaned.fast?.text).toBe("Canberra.");
+    const kept = answerReducer(streamed, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt } as never);
+    expect(kept.fast?.text).toBe("Canberra [3].");
   });
 });

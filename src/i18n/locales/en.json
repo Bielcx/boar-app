@@ -766,7 +766,8 @@
       "placesFound_one": "{{count}} place found",
       "placesFound_other": "{{count}} places found",
       "placesFound_zero": "No places found",
-      "locating": "Finding your location. You can also type the city."
+      "locating": "Finding your location. You can also type the city.",
+      "readyNoSource": "Answer ready, without a source from this phone’s library"
     },
     "snippet": {
       "fromSource": "From the source",
@@ -897,7 +898,12 @@
       "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
       "offlineSeal": "Offline",
       "offlineAnswersSeal": "Answers offline",
-      "offlineSealSpoken": "Offline: no network used"
+      "offlineSealSpoken": "Offline: no network used",
+      "downgraded": {
+        "low-ram": "Answering with {{model}}. {{from}} needs your confirmation on this phone",
+        "load-crashed": "Answering with {{model}}. {{from}} closed the app on this phone",
+        "hint": "Opens Models"
+      }
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {
@@ -1073,6 +1079,24 @@
     },
     "safety": {
       "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."
+    },
+    "loadCrash": {
+      "message": "{{model}} closed the app: this phone doesn’t have enough memory for it. We switched back to {{fallback}}.",
+      "seeModels": "See models",
+      "dismiss": "Dismiss",
+      "messageNoFallback": "{{model}} closed the app: this phone doesn’t have enough memory for it. Choose a smaller model."
+    },
+    "weak": {
+      "title": "No strong source on this phone",
+      "body": "Answered from the model's general knowledge, which can be wrong. Nothing in this phone's library matched closely.",
+      "showClosest": "Show closest passages",
+      "hideClosest": "Hide closest passages",
+      "closestTitle": "Closest passages (weak match)",
+      "weakMatch": "weak match",
+      "receipt": "general knowledge",
+      "declinedTitle": "I couldn't find this in this phone's library",
+      "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
+      "answerAnyway": "Answer anyway (may be wrong)"
     }
   },
   "location": {

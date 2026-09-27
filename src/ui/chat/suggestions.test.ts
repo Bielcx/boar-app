@@ -7,8 +7,8 @@ const ALL = ["wiki-vital5", "boar-preparedness"];
 
 describe("suggestionsFor", () => {
   it("offers only what each model passed in each language (with every corpus installed)", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ALL)).toEqual(["q1", "q2", "q3", "q4", "q5", "q7"]);
-    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q1", "q2", "q3", "q4", "q5", "q7"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ALL)).toEqual(["q2", "q3", "q4", "q5", "q7"]);
+    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q2", "q3", "q4", "q5", "q7"]);
   });
 
   it("in Portuguese offers only what passed both checks (source in PT + answer), Sextant 27/09", () => {

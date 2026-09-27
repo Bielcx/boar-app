@@ -206,10 +206,11 @@ describe("citySuggestions", () => {
 
 describe("lastKnownOf / agoText (stale location, Boar)", () => {
   it("reads a well-formed lastKnown and rejects the rest", () => {
-    expect(lastKnownOf({ kind: "near", lastKnown: { city: " Berlin ", country: "DE", ageS: 1380 } })).toEqual({ city: "Berlin", country: "DE", ageS: 1380 });
-    expect(lastKnownOf({ kind: "near" })).toBeNull();
-    expect(lastKnownOf({ kind: "near", lastKnown: { city: "", ageS: 10 } })).toBeNull();
-    expect(lastKnownOf({ kind: "near", lastKnown: { city: "Berlin" } })).toBeNull();
+    expect(lastKnownOf({ lastKnown: { city: " Berlin ", country: "DE", ageS: 1380 } })).toEqual({ city: "Berlin", country: "DE", ageS: 1380 });
+    expect(lastKnownOf({})).toBeNull();
+    expect(lastKnownOf({ lastKnown: { city: "", ageS: 10 } })).toBeNull();
+    // Defensive at runtime, even though the type requires ageS.
+    expect(lastKnownOf({ lastKnown: { city: "Berlin" } as never })).toBeNull();
   });
 
   it("says how long ago the way people say it", () => {
