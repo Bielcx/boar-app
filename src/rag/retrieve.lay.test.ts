@@ -6,16 +6,23 @@ vi.mock("./ptLexiconAsset", () => ({ ptLexicon: () => ({}) }));
 
 vi.mock("expo-file-system/legacy", () => ({ documentDirectory: "file:///docs/" }));
 vi.mock("expo-sqlite", () => ({}));
-const { hit } = vi.hoisted(() => ({
-  hit: (chunkId: number, title: string, source: string, score: number) => ({
-    articleId: chunkId, chunkId, title, section: "", text: `${title} text.`, start: 0, end: 10, score, via: "bm25" as const, source, views: 0, lead: false, action: false,
+const { hit, state } = vi.hoisted(() => ({
+  hit: (chunkId: number, title: string, source: string, score: number, action = false) => ({
+    articleId: chunkId, chunkId, title, section: "", text: `${title} text.`, start: 0, end: 10, score, via: "bm25" as const, source, views: 0, lead: false, action,
   }),
+  state: { junk: false },
 }));
 vi.mock("./packs", async (importOriginal) => {
   const actual: any = await importOriginal();
   return {
     packHitToChunk: actual.packHitToChunk,
-    searchPacks: async () => ({ lexical: [], semantic: [] }),
+    // Keyword noise from other sources (bundled corpus, format-1 packs) with high scores.
+    searchPacks: async () => ({
+      lexical: state.junk
+        ? [1, 2, 3, 4, 5, 6].map((i) => ({ chunkId: `junk${i}`, docId: `junk${i}`, title: `Junk ${i}`, body: "x", source: "Wikipedia", score: 100, matchType: "lexical" as const }))
+        : [],
+      semantic: [],
+    }),
     // Six clinical keyword hits, then the two lay sources the pack search adds past its limit.
     searchWikiPacks: async () => [
       {
@@ -23,6 +30,7 @@ vi.mock("./packs", async (importOriginal) => {
         stems: [],
         hits: [
           ...[1, 2, 3, 4, 5, 6].map((i) => hit(i, `Clinical ${i}`, "enwiki", 10 - i)),
+          hit(9, "Earthquake safety", "enwikivoyage", 0.2, true),
           hit(7, "US Army Survival Manual", "usgov", 1),
           hit(8, "Outdoor Survival/First Aid", "enwikibooks", 0.5),
         ],
@@ -43,5 +51,12 @@ describe("retrieve and lay sources", () => {
 
   it("cuts at the limit as before for other questions", async () => {
     expect(await retrieve("history of snakes in art", 6)).toHaveLength(6);
+  });
+
+  it("puts pack sections that say what to do ahead of keyword noise from other sources", async () => {
+    state.junk = true;
+    const titles = (await retrieve("What should I do during an earthquake?", 6)).map((c) => c.title);
+    state.junk = false;
+    expect(titles[0]).toMatch(/Earthquake safety/);
   });
 });
