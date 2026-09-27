@@ -8,7 +8,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, type AnswerState, type TierState } from "./answerReducer";
-import { receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
+import { previewText, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
 import { groupSources, sourceParts } from "./sourceLabel";
 import { needsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
@@ -415,7 +415,7 @@ function InstantSnippet({
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const snippet = answer.instant!;
   const source = answer.sources[snippet.sourceIndex - 1];
-  // Collapses to one line once the model's answer is done, unless the user chose otherwise.
+  // Collapses to a short preview once the model's answer is done, unless the user chose otherwise.
   const autoCollapsed = answer.fast?.outcome === "success" && !isFinal;
   const expanded = userExpanded ?? !autoCollapsed;
   return (
@@ -423,8 +423,8 @@ function InstantSnippet({
       <Text variant="caption" color="field" weight="semibold" numberOfLines={1}>
         {source ? `${tr("chat.snippet.fromSource")} · ${source.title}` : tr("chat.snippet.fromSource")}
       </Text>
-      <Text variant={isFinal ? "body" : "callout"} numberOfLines={expanded ? undefined : 1} selectable>
-        {snippet.text}
+      <Text variant={isFinal ? "body" : "callout"} selectable>
+        {expanded ? snippet.text : previewText(snippet.text)}
       </Text>
       <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
         {!isFinal && (

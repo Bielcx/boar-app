@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -107,5 +107,21 @@ describe("receiptDetails", () => {
     expect(labels({ ...receipt, prefillMs: 900, ctxTokens: 1100 })).toEqual(
       expect.arrayContaining(["chat.receipt.prefill", "chat.receipt.context"])
     );
+  });
+});
+
+describe("previewText", () => {
+  it("keeps short passages whole and cuts long ones at a word", () => {
+    expect(previewText("Pinch the nose.")).toBe("Pinch the nose.");
+    const long = "When attempting to stop a nosebleed at home, lean forward, pinch the soft part of the nose and keep the pressure for ten minutes without letting go.";
+    const p = previewText(long, 60);
+    expect(p.endsWith("…")).toBe(true);
+    expect(p.length).toBeLessThanOrEqual(61);
+    expect(long.startsWith(p.slice(0, -1))).toBe(true);
+    expect(p).not.toMatch(/[ ,]…$/);
+  });
+
+  it("flattens line breaks", () => {
+    expect(previewText("a\n\nb")).toBe("a b");
   });
 });

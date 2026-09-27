@@ -110,3 +110,16 @@ export function receiptDetails(r: AnswerReceipt, locale: string, t: T): { label:
   if (r.verification) rows.push({ label: t("chat.receipt.verification"), value: t(`chat.receipt.verified.${r.verification}`) });
   return rows;
 }
+
+/**
+ * A collapsed passage as text cut at a word ("When attempting to stop a nosebleed at…"),
+ * instead of a one-line numberOfLines clamp, which on Android with the app's font drew a
+ * sliver of the second line (Prism, 06f508b).
+ */
+export function previewText(text: string, max = 110): string {
+  const s = text.replace(/\s+/g, " ").trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.\-–—]+$/u, "")}…`;
+}
