@@ -31,7 +31,6 @@ import {
   getMessages as getSessionMessages,
   listSessions,
   deleteSession,
-  setSessionTitle,
   setSessionSummary,
   pruneSessions,
   setMessageFeedback,
@@ -39,7 +38,9 @@ import {
   upsertMessage,
   ChatSession,
 } from "../services/chatHistory";
-import { generateSessionTitle, summarizeConversation } from "../services/summarize";
+import { summarizeConversation } from "../services/summarize";
+import { titleFromQuestion } from "./chat/sessionTitle";
+import { chatModelName, chatModelNameById } from "./chat/modelName";
 import { startAppMemoryTracking } from "../services/telemetry";
 import { stripThinking } from "../services/thinking";
 import { cleanCitations } from "../services/citations";
@@ -256,7 +257,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const llm = effective ? (await catalogModelById(effective.id, "llm")) ?? null : null;
       const emb = await resolveActiveModel("embedding");
       if (llm) setActiveModel(llm);
-      const loadingLabel = llm ? t("chat.model.loading", { label: llm.label }) : t("chatScreen.initializingCore");
+      const loadingLabel = llm ? t("chat.model.loading", { label: chatModelName(llm, t) }) : t("chatScreen.initializingCore");
       setLoadStatus({ label: loadingLabel });
       // Both loads start here, before any question: the search's query vector waits in the embedder's queue
       // behind its own load, and answer() waits for the model's (Tusk). No model can run (null): no preload;
@@ -320,7 +321,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           if (dl.error || showSettingsRef.current) continue;
           (async () => {
             const known = [...MODEL_CATALOG, ...CORPUS_CATALOG, ...(await listDiscoveredModels())].find((m) => m.id === assetId);
-            toast({ message: t("chatScreen.modelDownloadComplete", { label: known?.label ?? assetId }), tone: "success" });
+            toast({ message: t("chatScreen.modelDownloadComplete", { label: known ? chatModelName(known, t) : assetId }), tone: "success" });
           })();
         }
       }
@@ -443,8 +444,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       try {
         await cancelBackgroundTask();
         if (!sessionId) {
-          sessionId = (await createSession()).id;
+          // TT-1: titled by the question itself, at once (the setting's hint: "Uses the first question as the title").
+          sessionId = (await createSession(memorySettingsRef.current.autoGenerateTitles ? titleFromQuestion(query) : undefined)).id;
           setActiveSessionId(sessionId);
+          void refreshSessions();
         }
         await persistMessage(sessionId, "user", query, userItem.id);
 
@@ -462,17 +465,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
         const settings = memorySettingsRef.current;
         const sid = sessionId;
-        if (isNewSession && settings.autoGenerateTitles && result.outcome === "success") {
-          backgroundTaskRef.current = generateSessionTitle(query)
-            .then(async (title) => {
-              await setSessionTitle(sid, title);
-              await refreshSessions();
-            })
-            .catch(() => {})
-            .finally(() => {
-              backgroundTaskRef.current = null;
-            });
-        } else if (settings.autoSummarize && result.outcome === "success") {
+        if (!isNewSession && settings.autoSummarize && result.outcome === "success") {
           const all = itemsRef.current;
           if (Math.floor(all.length / 2) > settings.historyTurnThreshold) {
             const older = historyTurns(all.slice(0, -VERBATIM_MESSAGE_COUNT), Number.MAX_SAFE_INTEGER);
@@ -602,7 +595,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   useEffect(() => {
     // CR-3: the marker may name the models by file path; show the catalog's names.
     Promise.all([consumeLoadCrash(), listDiscoveredModels().catch(() => [])])
-      .then(([c, discovered]) => setLoadCrash(loadCrashMessage(withDisplayNames(c, [...MODEL_CATALOG, ...discovered]), t)))
+      .then(([c, discovered]) => setLoadCrash(loadCrashMessage(withDisplayNames(c, [...MODEL_CATALOG, ...discovered], t), t)))
       .catch(() => undefined);
     // Once per chat screen: consume() clears the mark, so it never shows twice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -745,6 +738,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       sourcePassage: t("chat.share.sourcePassage"),
       myDocuments: t("chat.share.myDocuments"),
       noOfflineSource: t("chat.receipt.noOfflineSource"),
+      modelName: (id: string, label: string) => chatModelNameById(id, label, t),
       calculator: t("chat.receipt.calculator"),
     }),
     [t]
@@ -799,7 +793,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       followUp(id, { place: city });
     },
     useLocation: (id) => locateAndAsk(id),
-    getMap: openSettings,
+    // The offline maps live in Knowledge › Places (the button said "Get the map" and opened Settings).
+    getMap: () => navigation.navigate("Knowledge"),
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
     editQuestion: (text) => {
@@ -865,8 +860,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   return (
     <Screen scroll={false} padded={false} ambient edges={["top", "left", "right"]}>
       <ChatHeader
-        activeModelLabel={effective?.label ?? activeModel?.label}
-        downgradedFrom={effective?.downgradedFrom}
+        // Tier names (r4to via Boar): "Fast" / "More accurate"; the technical name only in Settings › Assistant › Details.
+        activeModelLabel={effective ? chatModelNameById(effective.id, effective.label, t) : activeModel ? chatModelName(activeModel, t) : undefined}
+        downgradedFrom={
+          effective?.downgradedFrom && { ...effective.downgradedFrom, label: chatModelNameById(effective.downgradedFrom.id, effective.downgradedFrom.label, t) }
+        }
         onOpenModels={() => navigation.navigate("Models")}
         voiceEnabled={voiceInputEnabled}
         onOpenDrawer={() => {
@@ -929,7 +927,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           }
           ListEmptyComponent={
             loadError ? (
-              <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel?.label} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : !modelsRequested ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (

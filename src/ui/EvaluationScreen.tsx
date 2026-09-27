@@ -10,10 +10,11 @@ import { EvalConfig, evalConfigId, EvalResultRow } from "../eval/evalHarness.pur
 import { exportEvalResults, listInstalledEvalModels, runEvaluation, EvalProgress, EvaluationRun } from "../eval/evalHarness";
 import { runDeviceEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
-import { Button, Icon, Progress, Screen, Section, Skeleton, Text, useToast } from "./components";
+import { Button, IconSlot, Progress, Screen, Section, Skeleton, Text, useOpticalLine, useToast } from "./components";
+import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import type { TextColor } from "./components";
-import { useTokens } from "./theme";
+import { icon, useTokens } from "./theme";
 
 interface Props {
   /** Shown as a Done button when the screen is opened outside the navigation stack (device requests). */
@@ -43,6 +44,7 @@ function outcomeColor(outcome: EvalResultRow["outcome"]): TextColor {
 export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const bodyLine = useOpticalLine("body");
   const toast = useToast();
   const [models, setModels] = useState<CatalogModel[] | null>(null);
   const [preset, setPreset] = useState<string>("");
@@ -65,7 +67,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   }, []);
 
   const configs: EvalConfig[] = [
-    ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: m.label })),
+    ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: catalogLabel(m, t) })),
     { kind: "adaptive", label: t("evaluation.adaptiveConfig", { preset }) },
   ];
   const chosen = configs.filter((c) => selected.has(evalConfigId(c)));
@@ -177,9 +179,9 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
                     accessibilityState={{ checked: on, disabled: running }}
                     accessibilityLabel={c.label}
                     onPress={() => toggle(id)}
-                    style={{ minHeight: tokens.size.touch + 4, paddingHorizontal: tokens.space.base, paddingVertical: tokens.space.md, flexDirection: "row", alignItems: "center", gap: tokens.space.md }}
+                    style={{ minHeight: tokens.size.touch + 4, paddingHorizontal: tokens.space.base, paddingVertical: tokens.space.md, flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}
                   >
-                    <Icon name={on ? "check-square" : "square"} color={on ? tokens.color.accent.text : tokens.color.text.secondary} />
+                    <IconSlot name={on ? "check-square" : "square"} line={bodyLine} color={on ? tokens.color.accent.text : tokens.color.text.secondary} />
                     <Text variant="body" style={{ flex: 1 }}>
                       {c.label}
                     </Text>

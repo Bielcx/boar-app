@@ -1,16 +1,19 @@
 import React, { useEffect, useRef } from "react";
 import { AccessibilityInfo, findNodeHandle, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Button, Icon, Progress, Text, useAnnounce } from "../components";
-import { useTokens } from "../theme";
+import { Button, IconSlot, Progress, Text, useAnnounce, useOpticalLine } from "../components";
+import { icon, useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
 import { worldPlacesEntry } from "./adapters";
+import { catalogLabel } from "./catalogLabel";
 import { formatBytes, readableErrorDetail } from "./format";
+import type { TFunction } from "i18next";
 
-function labelFor(assetId: string | undefined): string | undefined {
+function labelFor(assetId: string | undefined, t: TFunction): string | undefined {
   if (!assetId) return undefined;
-  return [...MODEL_CATALOG, ...poiCatalogEntries(), worldPlacesEntry()].find((m) => m.id === assetId)?.label;
+  const item = [...MODEL_CATALOG, ...poiCatalogEntries(), worldPlacesEntry()].find((m) => m.id === assetId);
+  return item && catalogLabel(item, t);
 }
 import type { FileImport } from "./useCatalog";
 
@@ -42,6 +45,7 @@ interface Props {
 export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick, hideActive, hideVerified }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
+  const line = useOpticalLine("subhead");
   const announce = useAnnounce();
   const pickRef = useRef<View>(null);
   const busy = imports.some((f) => f.status === "importing");
@@ -59,7 +63,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
         const pct = Math.floor(f.progress * 4) * 25;
         announce(pct === 0 ? t("flows.import.checking", { name: f.name }) : t("flows.import.checkingAnnounce", { name: f.name, pct }));
       } else if (f.status === "verified") {
-        announce(t("flows.import.verified", { item: labelFor(f.assetId) ?? f.assetId ?? f.name }));
+        announce(t("flows.import.verified", { item: labelFor(f.assetId, t) ?? f.assetId ?? f.name }));
       } else {
         announce(`${f.name}: ${t(`flows.row.error.${f.errorKind ?? "unknown"}`)}`, { assertive: true });
         refused = true;
@@ -77,12 +81,13 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
   return (
     <View style={{ gap: tokens.space.md }}>
       {imports.filter((f) => !(hideActive && f.status === "importing") && !(hideVerified && f.status === "verified")).map((f) => {
-        const label = labelFor(f.assetId);
+        const label = labelFor(f.assetId, t);
         return (
           <View key={f.name} style={{ gap: tokens.space.xs }}>
-            <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
+            <View style={{ flexDirection: "row", gap: icon.gap, alignItems: "flex-start" }}>
               <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-                <Icon
+                <IconSlot
+                  line={line}
                   name={f.status === "verified" ? "check-circle" : f.status === "failed" ? "alert-octagon" : "file"}
                   color={
                     f.status === "verified"

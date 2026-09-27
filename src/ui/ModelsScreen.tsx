@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, EmptyState, ListRow, MetaLine, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
+import { catalogLabel, isAdvancedModel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
@@ -19,6 +20,7 @@ import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatBytesParts, formatCount, formatRate } from "./flows/format";
+import { tokPerSecBand } from "./flows/perfBands";
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -66,10 +68,12 @@ export function ModelsScreen() {
     ...MODEL_CATALOG.filter((m) => m.kind === "llm" || m.kind === "embedding"),
     ...catalog.discovered.filter((d) => !MODEL_CATALOG.some((c) => c.filename === d.filename)),
   ];
-  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[], larger: [] as CatalogModel[] };
+  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[], larger: [] as CatalogModel[], advanced: [] as CatalogModel[] };
   for (const m of models) {
     const kind = catalog.view(m).state.kind;
     if (kind === "in-use") groups.inUse.push(m);
+    // Models other than Fast, More accurate and Search live in Advanced only (r4to, decision 5C).
+    else if (isAdvancedModel(m) && !catalog.view(m).wontFit) groups.advanced.push(m);
     // Can't open on this phone: out of the list, in a folded section that says why (CR-1).
     else if (catalog.view(m).wontFit) groups.larger.push(m);
     else if (kind === "not-installed" || kind === "downloading" || kind === "verifying" || (kind === "failed" && !catalog.statuses[m.id]?.present))
@@ -79,7 +83,7 @@ export function ModelsScreen() {
 
   const use = async (m: CatalogModel) => {
     const ok = await catalog.use(m);
-    if (ok) toast({ message: t("flows.models.nowAnswering", { name: m.label }), tone: "success" });
+    if (ok) toast({ message: t("flows.models.nowAnswering", { name: catalogLabel(m, t) }), tone: "success" });
   };
 
   const renderGroup = (list: CatalogModel[]) => (
@@ -130,7 +134,7 @@ export function ModelsScreen() {
               selected={answer.deepModelId === undefined}
               onPress={() => chooseDeep(undefined)}
             />
-            <OptionCard title={t("flows.models.deepNone")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
+            <OptionCard title={t("flows.models.deepNone")} description={t("flows.models.deepNoneSub")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
             {models
               .filter((m) => m.kind === "llm" && catalog.statuses[m.id]?.present && m.id !== catalog.activeLlmId)
               .map((m) => {
@@ -138,11 +142,11 @@ export function ModelsScreen() {
                 return (
                   <OptionCard
                     key={m.id}
-                    title={m.label}
+                    title={catalogLabel(m, t)}
                     // Same risk as Use for answers on a low-RAM phone (CR-1).
                     badge={catalog.view(m).mayCloseApp ? <Badge label={t(catalog.view(m).didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
-                    trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
+                    trailing={sp ? t(`flows.performance.band.${tokPerSecBand(sp.medianTokPerSec)}`) : undefined}
                     description={
                       // Too big for this phone first: no number of answers will make it automatic here (Prism CR-2).
                       catalog.view(m).mayCloseApp
@@ -157,6 +161,8 @@ export function ModelsScreen() {
                           : t("flows.models.tooSlow")
                     }
                     meta={[
+                      // Words, not tokens: a token is about three quarters of a word.
+                      sp && t("flows.models.wordsRate", { rate: formatCount(Math.round(sp.medianTokPerSec * 0.75), i18n.language) }),
                       sp
                         ? t("flows.models.samples", { count: sp.samples, date: sp.lastAt ? new Date(sp.lastAt).toLocaleDateString(i18n.language) : "—" })
                         : t("flows.models.notMeasured"),
@@ -195,21 +201,19 @@ export function ModelsScreen() {
 
       {groups.larger.length > 0 && (
         <Section title={t("flows.models.larger")} footer={t("flows.models.largerFooter")}>
-          {showLarger ? (
-            renderGroup(groups.larger)
-          ) : (
-            <ListRow
-              icon="chevron-down"
-              title={t("flows.models.showLarger", { count: groups.larger.length })}
-              onPress={() => setShowLarger(true)}
-            />
-          )}
+          <ListRow
+            title={t("flows.models.showLarger", { count: groups.larger.length })}
+            expanded={showLarger}
+            onPress={() => setShowLarger((v) => !v)}
+          />
+          {showLarger && renderGroup(groups.larger)}
         </Section>
       )}
 
-      {!offline && (
-        <Section title={t("flows.models.advanced")} footer={t("flows.models.searchFooter")}>
-          <ListRow icon="search" title={t("flows.models.searchTitle")} onPress={() => navigation.navigate("ModelSearch")} />
+      {(!offline || groups.advanced.length > 0) && (
+        <Section title={t("flows.models.advanced")} footer={offline ? undefined : t("flows.models.searchFooter")}>
+          {groups.advanced.length > 0 && renderGroup(groups.advanced)}
+          {!offline && <ListRow icon="search" title={t("flows.models.searchTitle")} onPress={() => navigation.navigate("ModelSearch")} />}
         </Section>
       )}
     </Screen>
@@ -263,7 +267,7 @@ export function ModelSearchScreen() {
     try {
       const model = toCatalogModel(repoId, file);
       await addDiscoveredModel(model);
-      toast({ message: t("flows.models.added", { name: model.label }), tone: "success" });
+      toast({ message: t("flows.models.added", { name: catalogLabel(model, t) }), tone: "success" });
     } catch (e: any) {
       toast({ message: t("flows.models.addFailed", { error: e?.message ?? String(e) }), tone: "danger" });
     } finally {

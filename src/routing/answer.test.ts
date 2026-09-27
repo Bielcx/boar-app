@@ -1073,6 +1073,28 @@ describe("answer(): Sextant cry-020 / cry-012", () => {
   });
 });
 
+describe("answer(): a known-false quantum claim (gate 394bf31)", () => {
+  const PQC = chunk("pqc", "Post-quantum cryptography", "Open Quantum Safe project: The Open Quantum Safe (OQS) project has the goal of developing and prototyping quantum-resistant cryptography.");
+  const seed5 = "Quantum-resistant signature algorithms include those based on elliptic curve cryptography (ECC) or lattice-based cryptography, such as those in the Open Quantum Safe (OQS) project.";
+  it("the compact model declines, whatever the seed", async () => {
+    f.retrieved = [PQC];
+    f.deps.engine.generate = async () => seed5;
+    const { events, result } = await collect("Which signature algorithms are quantum resistant?");
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect(result.text).toBe("");
+    expect(result.receipt.reasonCodes).toContain("grounding:false-claim-declined-compact");
+  });
+  it("the 4B loses the false sentence and keeps the rest", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [PQC];
+    f.deps.engine.generate = async () => `${seed5} The Open Quantum Safe project develops quantum-resistant cryptography [1].`;
+    const { result } = await collect("Which signature algorithms are quantum resistant?");
+    expect(result.text).toBe("The Open Quantum Safe project develops quantum-resistant cryptography [1].");
+    expect(result.receipt.reasonCodes).toContain("grounding:false-claim-removed-1");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

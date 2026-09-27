@@ -1,9 +1,10 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, View } from "react-native";
+import { Animated, Easing, Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, TextAction, type IconName } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, IconSlot, IconText, LARGE_TEXT_SCALE, LineSlot, Mascot, MetaLine, Text, TextAction, useOpticalLine, type IconName } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
-import { useTheme, useTokens } from "../theme";
+import { icon, useTheme, useTokens } from "../theme";
+import { META_SEPARATOR, metaItems } from "../components/metaItems";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
@@ -95,20 +96,26 @@ function StepSpinner() {
  */
 function StepsCard({ steps }: { steps: GeneratingStep[] }) {
   const t = useTokens();
+  // Icon-align round: leading icon and trailing status on the optical centre of the label's first line.
+  const line = useOpticalLine("footnote");
   return (
     <Card padding="compact" radius="card" style={{ gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       {steps.map((s) => (
-        <View key={s.key} style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name={s.icon} size="sm" color={s.status === "active" ? t.color.accent.solid : t.color.text.secondary} />
+        <View key={s.key} style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+          <IconSlot name={s.icon} line={line} color={s.status === "active" ? t.color.accent.solid : t.color.text.secondary} />
           <Text variant="footnote" weight={s.status === "active" ? "semibold" : "regular"} color={s.status === "pending" ? "secondary" : "primary"} style={{ flex: 1 }}>
             {s.label}
           </Text>
-          {s.status === "active" ? (
-            <StepSpinner />
-          ) : s.status === "done" ? (
-            <Icon name="check" size="sm" color={t.color.status.success.solid} />
+          {s.status === "done" ? (
+            <IconSlot name="check" line={line} color={t.color.status.success.solid} edge="end" />
           ) : (
-            <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
+            <LineSlot line={line}>
+              {s.status === "active" ? (
+                <StepSpinner />
+              ) : (
+                <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
+              )}
+            </LineSlot>
           )}
         </View>
       ))}
@@ -126,17 +133,17 @@ function Elapsed({ locale, step }: { locale: string; step?: string }) {
       accessibilityElementsHidden
       style={{
         marginLeft: "auto",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: t.space.xs,
+        justifyContent: "center",
         paddingHorizontal: t.space.sm,
         paddingVertical: t.space.xs,
         borderRadius: t.radius.full,
         backgroundColor: t.color.bg.surface,
       }}
     >
-      <Icon name="loader" size="sm" color={t.color.text.secondary} />
-      <MetaLine items={[step, formatSeconds(seconds * 1000, locale)]} variant="caption" />
+      {/* A pill (Iris icon-align): seal-sized icon, tight gap, the pair on the pill's optical middle. */}
+      <IconText icon="loader" variant="caption" color="secondary" iconColor={t.color.text.secondary} iconRole="seal" gap="tight" centerOnBox numeric>
+        {metaItems([step, formatSeconds(seconds * 1000, locale)]).join(META_SEPARATOR)}
+      </IconText>
     </View>
   );
 }
@@ -358,15 +365,23 @@ function SourceList({
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
   const groups = groupSources(answer.sources, only);
+  const labelLine = useOpticalLine("label");
+  // Prism AX-2/AX-3: at large text the row stacks (number + title on the full width, up to 2 lines;
+  // band and chevron below) and the title loses the number's indent, so no word breaks mid-way.
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= LARGE_TEXT_SCALE;
   // Measured relevance only (Boar), as a band (Tusk: the raw value's scale depends on the query); none without it.
   const bands = relevanceBands(answer.sources);
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingHorizontal: t.space.xs }}>
-        <Icon name="book-open" size="sm" color={t.color.text.field} />
-        <Text variant="label" header style={{ flex: 1 }}>
-          {tr("chat.sources.heading")}
-        </Text>
+        {/* Icon on the label's optical line; the count badge centres on the row. */}
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+          <IconSlot name="book-open" line={labelLine} color={t.color.text.field} />
+          <Text variant="label" header style={{ flex: 1 }}>
+            {tr("chat.sources.heading")}
+          </Text>
+        </View>
         <Badge label={String(only?.length ?? answer.sources.length)} tone="field" emphasis="solid" />
       </View>
       {groups.map((g) => {
@@ -398,8 +413,8 @@ function SourceList({
               accessibilityHint={tr("chat.sources.expandHint")}
               accessibilityState={{ expanded: open }}
               style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
+                flexDirection: stacked ? "column" : "row",
+                alignItems: stacked ? "stretch" : "center",
                 gap: t.space.sm,
                 minHeight: t.size.controlSm,
                 paddingHorizontal: t.space.sm,
@@ -409,35 +424,53 @@ function SourceList({
               })}
               hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
             >
-              <View
-                style={{
-                  minWidth: t.size.iconLg,
-                  minHeight: t.size.iconLg,
-                  paddingHorizontal: t.space.xs,
-                  borderRadius: t.radius.full,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: t.color.bg.raised,
-                }}
-              >
-                <Text variant="caption" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
-                  {g.indexes[0] + 1}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="footnote" numberOfLines={open ? undefined : 1}>
-                  {g.title}
-                </Text>
-                {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
-              </View>
-              <RelevanceBar band={groupBand} />
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+              {stacked ? (
+                <>
+                  <Text variant="footnote" numberOfLines={open ? undefined : 2}>
+                    <Text variant="footnote" weight="semibold" numeric>{`${g.indexes[0] + 1}  `}</Text>
+                    {g.title}
+                  </Text>
+                  {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" />}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+                    <RelevanceBar band={groupBand} />
+                    <View style={{ flex: 1 }} />
+                    <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} edge="end" />
+                  </View>
+                </>
+              ) : (
+                <>
+                <View
+                  style={{
+                    minWidth: t.size.iconLg,
+                    minHeight: t.size.iconLg,
+                    paddingHorizontal: t.space.xs,
+                    borderRadius: t.radius.full,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: t.color.bg.raised,
+                  }}
+                >
+                  <Text variant="caption" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
+                    {g.indexes[0] + 1}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="footnote" numberOfLines={open ? undefined : 1}>
+                    {g.title}
+                  </Text>
+                  {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
+                </View>
+                <RelevanceBar band={groupBand} />
+                <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} edge="end" />
+                </>
+              )}
             </Pressable>
             {open && (
               <View style={{ gap: t.space.sm, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
                 {/* The mockup's overline line: where it comes from on the left, its path on the right. */}
-                <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-                  <Text variant="label" color="field" numberOfLines={1} style={{ flexShrink: 0 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+                  {/* Iris: the caps origin shrinks before it touches the icon; one gap token. */}
+                  <Text variant="label" color="field" numberOfLines={1} style={{ flexShrink: 1 }}>
                     {origin}
                   </Text>
                   {parts.url && (
@@ -446,7 +479,8 @@ function SourceList({
                     </Text>
                   )}
                   {/* Says the passage below opens the full source (Iris). */}
-                  <Icon name="maximize-2" size="sm" color={t.color.text.secondary} />
+                  {!parts.url && <View style={{ flex: 1 }} />}
+                  <IconSlot name="maximize-2" line={labelLine} color={t.color.text.secondary} edge="end" />
                 </View>
                 {/* The passage itself opens the full source (no extra "Full passage" line, as in the mockup). */}
                 {g.indexes.map((i) => (
@@ -526,12 +560,9 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       {/* The marker is read, never decorative (Iris/Prism): "No strong source on this phone". */}
       <View accessible accessibilityRole="text" accessibilityLabel={saidInText ? title : `${title}. ${body}`} style={{ gap: t.space.sm }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name="book" size="sm" color={t.color.text.secondary} />
-          <Text variant="label" color="secondary" style={{ flex: 1 }}>
-            {title}
-          </Text>
-        </View>
+        <IconText icon="book" variant="label" color="secondary" iconColor={t.color.text.secondary}>
+          {title}
+        </IconText>
         {!saidInText && (
           <Text variant="footnote" color="secondary">
             {body}
@@ -589,18 +620,23 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       <View accessible accessibilityLabel={`${tr(title)}. ${tr(body)}`} style={{ gap: t.space.sm }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name="search" size="sm" color={t.color.text.secondary} />
-          <Text variant="cardTitle" style={{ flex: 1 }}>
-            {tr(title)}
-          </Text>
-        </View>
+        <IconText icon="search" variant="cardTitle" iconColor={t.color.text.secondary}>
+          {tr(title)}
+        </IconText>
         <Text variant="footnote" color="secondary">
           {tr(body)}
         </Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-        {onAnswerAnyway && <Button label={tr("chat.weak.answerAnyway")} variant="secondary" size="sm" onPress={onAnswerAnyway} />}
+        {onAnswerAnyway && (
+          <Button
+            label={tr("chat.weak.answerAnyway")}
+            accessibilityHint={tr("chat.weak.answerAnywayHint")}
+            variant="secondary"
+            size="sm"
+            onPress={onAnswerAnyway}
+          />
+        )}
         {groups.length > 0 && (
           <Button
             label={found ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length }) : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
@@ -611,6 +647,12 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           />
         )}
       </View>
+      {/* The warning lives under the button, not inside it (Boar copy rule). */}
+      {onAnswerAnyway && (
+        <Text variant="caption" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
+          {tr("chat.weak.answerAnywayHint")}
+        </Text>
+      )}
       {open && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>
@@ -641,12 +683,11 @@ function EmergencyNote() {
     <View
       accessible
       accessibilityLabel={tr("chat.safety.emergencyNote")}
-      style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm, paddingHorizontal: t.space.xs }}
+      style={{ paddingHorizontal: t.space.xs }}
     >
-      <Icon name="alert-circle" size="sm" color={t.color.text.secondary} />
-      <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+      <IconText icon="alert-circle" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
         {tr("chat.safety.emergencyNote")}
-      </Text>
+      </IconText>
     </View>
   );
 }
@@ -742,6 +783,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const sourceTitles = sourceless === "weak" ? [] : answer.sources.map((s) => s.title);
 
   const placesOnly = !!answer.places && !answer.fast;
+  const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
   const note = noSourceNote(answer, placesOnly);
   const split = answerSourceSplit(answer);
   const cardMode = sourcesCardMode(!!active, split);
@@ -862,11 +904,10 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
         // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
         cardMode === "found" ? (
-          <Card radius="card" padding="compact" style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-            <Icon name="book-open" size="sm" color={t.color.text.secondary} />
-            <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+          <Card radius="card" padding="compact">
+            <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
               {tr("chat.sources.found", { count: answer.sources.length })}
-            </Text>
+            </IconText>
           </Card>
         ) : cardMode === "related" && split ? (
           <Card radius="card" padding="compact">
@@ -880,7 +921,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
 
       {done && hasText && (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+        // Prism AX-1: the row wraps; at large text "Copy answer" takes a line of its own, label kept.
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.sm }}>
           <IconButton
             icon="thumbs-up"
             variant="surface"
@@ -900,7 +942,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             onPress={() => props.onRate("down")}
           />
           <IconButton icon="share-2" variant="surface" size="sm" label={tr("chat.actions.share")} onPress={props.onShare} />
-          <View style={{ flex: 1 }} />
+          <View style={largeText ? { flexBasis: "100%", height: 0 } : { flex: 1 }} />
           {/* The mockup's "Copy response" pill: s1, caption in secondary. */}
           <Pressable
             onPress={props.onCopy}
@@ -908,19 +950,18 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             accessibilityLabel={tr("chat.actions.copyAnswer")}
             hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
             style={({ pressed }) => ({
-              height: t.size.controlSm,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: t.space.xs,
+              minHeight: t.size.controlSm,
+              paddingVertical: largeText ? t.space.xs : 0,
+              justifyContent: "center",
               paddingHorizontal: t.space.md,
               borderRadius: t.radius.full,
               backgroundColor: pressed ? t.color.bg.raised : t.color.bg.surface,
             })}
           >
-            <Icon name="copy" size="sm" color={t.color.text.secondary} />
-            <Text variant="caption" color="secondary">
+            {/* In a pill: icon + text move together onto the pill's middle (iOS draws the label high). */}
+            <IconText icon="copy" variant="caption" color="secondary" iconColor={t.color.text.secondary} centerOnBox>
               {tr("chat.actions.copyAnswer")}
-            </Text>
+            </IconText>
           </Pressable>
         </View>
       )}
@@ -934,14 +975,13 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           onPress={props.onDeepen}
           accessibilityRole="button"
           hitSlop={{ top: t.space.md, bottom: t.space.md }}
-          style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xs }}
+          style={{ alignSelf: "flex-start" }}
         >
-          <Icon name="layers" size="sm" color={t.color.text.secondary} />
-          <Text variant="caption" color="secondary">
+          <IconText icon="layers" variant="caption" color="secondary" iconColor={t.color.text.secondary}>
             {answer.deepAvailable?.estSeconds
               ? tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
               : tr("chat.actions.deepen")}
-          </Text>
+          </IconText>
         </Pressable>
       )}
     </View>

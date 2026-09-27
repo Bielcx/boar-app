@@ -15,6 +15,8 @@ export interface ShareLabels {
   noOfflineSource?: string;
   /** e.g. "Calculator": an exact conversion, no model. */
   calculator?: string;
+  /** The chat's name for a model the receipt names by id + label (its tier). */
+  modelName?: (id: string, label: string) => string;
 }
 
 function sourceLine(chunk: RetrievedChunk, n: number, labels: ShareLabels): string {
@@ -63,7 +65,7 @@ export function formatForShare(
           ? labels.noOfflineSource ?? receipt.modelLabel
           : receipt.modelId === CALCULATOR_MODEL_ID
             ? labels.calculator ?? receipt.modelLabel
-            : receipt.modelLabel;
+            : labels.modelName?.(receipt.modelId, receipt.modelLabel) ?? receipt.modelLabel;
     parts.push(`${labels.answeredOffline} · ${who} · ${formatSeconds(receipt.totalMs, locale)}`);
   }
   return parts.join("\n\n");

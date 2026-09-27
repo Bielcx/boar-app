@@ -6,9 +6,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
 import type { TextColor } from "./components/Text";
-import { useTokens } from "./theme";
+import { icon as iconTokens, useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
@@ -44,6 +44,7 @@ import * as Clipboard from "expo-clipboard";
 import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
+import { catalogLabel } from "./flows/catalogLabel";
 
 interface Props {
   onReady: () => void;
@@ -529,6 +530,7 @@ function PackageStep({
   const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
+  const headlineLine = useOpticalLine("headline");
   const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
@@ -584,10 +586,10 @@ function PackageStep({
           style={{ gap: tokens.space.sm }}
           // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
           onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
-          accessibilityLabel={[t(`flows.onboarding.answerTier.${answerTier}`), answerModel.label, formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          accessibilityLabel={[catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
           accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: iconTokens.gapTight }}>
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
@@ -596,11 +598,16 @@ function PackageStep({
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+          {/* Chevron on the name's optical line, at the card's edge (icon-align). */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap }}>
             <Text variant="headline" style={{ flex: 1 }}>
-              {answerModel.label}
+              {catalogLabel(answerModel, t)}
             </Text>
-            {choices.compact && choices.default && <Icon name="chevron-right" size="sm" color={tokens.color.text.secondary} />}
+            {choices.compact && choices.default && (
+              <View style={{ height: headlineLine.lineHeight, justifyContent: "center", transform: [{ translateY: headlineLine.offset }] }}>
+                <Icon name="chevron-right" size={headlineLine.iconSize} color={tokens.color.text.secondary} edge="end" />
+              </View>
+            )}
           </View>
           {answerFit && (
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.xs + tokens.space.xxs }}>
@@ -631,7 +638,8 @@ function PackageStep({
               return (
                 <OptionCard
                   key={tierId}
-                  title={t(`flows.onboarding.answerTier.${tierId}`)}
+                  title={catalogLabel(m, t)}
+                  description={t(`flows.assistant.sub.${tierId}`)}
                   selected={answerTier === tierId}
                   onPress={() => {
                     onUserAnswer(tierId);
@@ -639,7 +647,6 @@ function PackageStep({
                   }}
                   badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
-                  meta={[m.label]}
                 />
               );
             })}
@@ -812,16 +819,20 @@ function TravelCard({
       {trip ? (
         <ListRow
           icon="navigation"
-          title={t("flows.travel.tripChosen", { label: trip.label })}
-          value={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
+          title={trip.label}
+          // The size goes under the name: a row with a switch has no room for a value (the switch says "include").
+          subtitle={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
           switch={{ value: true, onValueChange: (v) => !v && onTrip(null) }}
         />
       ) : (
-        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base, gap: tokens.space.xs }}>
           <Button ref={tripRef} size="sm" variant="outline" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
+          <Text variant="footnote" color="secondary">
+            {t("flows.travel.goingToHint")}
+          </Text>
         </View>
       )}
-      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingTo")} returnFocusRef={tripRef}>
+      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingToTitle")} returnFocusRef={tripRef}>
         <CitySearch
           catalog={catalog}
           onChoose={(choice) => {
@@ -910,6 +921,8 @@ function InstallStep({
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const subheadLine = useOpticalLine("subhead");
+  const headlineLine = useOpticalLine("headline");
   const announce = useAnnounce();
   const [indexPhase, setIndexPhase] = useState<IndexPhase>("waiting");
   const [indexError, setIndexError] = useState<string | null>(null);
@@ -933,7 +946,7 @@ function InstallStep({
     if (failedKey && failedKey !== lastFailedKey.current) {
       const first = failed[0];
       const reason = first.state.kind === "failed" ? failureLines(first.state, t, lang).cause : "";
-      announce(`${t("flows.onboarding.downloadFailed")}. ${first.asset.label}: ${reason}`, { assertive: true });
+      announce(`${t("flows.onboarding.downloadFailed")}. ${catalogLabel(first.asset, t)}: ${reason}`, { assertive: true });
       setTimeout(() => {
         const node = retryRef.current && findNodeHandle(retryRef.current);
         if (node) AccessibilityInfo.setAccessibilityFocus(node);
@@ -1044,7 +1057,7 @@ function InstallStep({
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
   // The item whose bytes are arriving now, "Item 2 of 5 — name" under the bar (the mockup's "Model 1 of 3 — …").
   const currentIdx = states.findIndex((x) => moving(x.state));
-  const current = currentIdx >= 0 ? { n: currentIdx + 1, label: states[currentIdx].asset.label } : undefined;
+  const current = currentIdx >= 0 ? { n: currentIdx + 1, label: catalogLabel(states[currentIdx].asset, t) } : undefined;
   const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
   // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
@@ -1095,12 +1108,12 @@ function InstallStep({
   // in the list card, never as a loose line under it (Prism A3-2).
   const extras = catalog.imports
     .filter((f) => f.status === "verified" && f.assetId && !assets.some((a) => a.id === f.assetId))
-    .map((f) => findAsset(f.assetId!)?.label ?? f.name);
+    .map((f) => { const a = findAsset(f.assetId!); return a ? catalogLabel(a, t) : f.name; });
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
     const summary = [
-      answerModel && { key: "doneAnswer", value: answerModel.label },
+      answerModel && { key: "doneAnswer", value: catalogLabel(answerModel, t) },
       collections > 0 && { key: "doneKnowledge", value: t("flows.onboarding.doneCollections", { count: collections, value: formatCount(collections, lang) }) },
       placesLabel && { key: "donePlaces", value: placesLabel },
       seed && seed.total > 0 && { key: "doneIndex", value: t("flows.onboarding.doneArticles", { count: seed.total, value: formatCount(seed.total, lang) }) },
@@ -1257,26 +1270,29 @@ function InstallStep({
           <View
             accessible
             accessibilityLabel={`${t("flows.onboarding.category.extras")}: ${extras.join(", ")}`}
-            style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
           >
-            <Icon name="plus-circle" size="sm" color={tokens.color.status.success.solid} />
+            <IconSlot name="plus-circle" line={subheadLine} color={tokens.color.status.success.solid} />
             <View style={{ flex: 1 }}>
               <Text variant="subhead">{t("flows.onboarding.category.extras")}</Text>
               <Text variant="caption" color="secondary" numberOfLines={2}>
                 {extras.join(", ")}
               </Text>
             </View>
-            <Text variant="label" color="secondary">
-              {t("flows.onboarding.categoryStatus.ready")}
-            </Text>
+            <View style={{ height: subheadLine.lineHeight, justifyContent: "center" }}>
+              <Text variant="label" color="secondary">
+                {t("flows.onboarding.categoryStatus.ready")}
+              </Text>
+            </View>
           </View>
         )}
         {[
           {
             key: "index",
             icon: (
-              <Icon
+              <IconSlot
                 name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "clock"}
+                line={subheadLine}
                 color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.secondary}
               />
             ),
@@ -1308,7 +1324,7 @@ function InstallStep({
               borderTopColor: tokens.color.line.row,
             }}
           >
-            <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
+            <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
               {row.icon}
               <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
                 {row.title}
@@ -1343,12 +1359,9 @@ function InstallStep({
             paddingHorizontal: tokens.space.md + tokens.space.xxs,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
-            <Text variant="label" color="warning">
-              {t("flows.onboarding.keepOpenTitle")}
-            </Text>
-          </View>
+          <IconText icon="alert-triangle" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
+            {t("flows.onboarding.keepOpenTitle")}
+          </IconText>
           <Text variant="footnote">
             {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
             {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
@@ -1399,9 +1412,9 @@ function InstallStep({
             backgroundColor: tokens.color.status.danger.soft,
           }}
         >
-          <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-            <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />
-            <Text variant="headline" color="danger" header>
+          <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
+            <IconSlot name="alert-octagon" line={headlineLine} color={tokens.color.status.danger.solid} />
+            <Text variant="headline" color="danger" header style={{ flexShrink: 1 }}>
               {t("flows.onboarding.downloadFailed")}
             </Text>
           </View>
@@ -1411,7 +1424,7 @@ function InstallStep({
             return (
               <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
                 <Text variant="callout">
-                  {f.asset.label}: {lines.cause}
+                  {catalogLabel(f.asset, t)}: {lines.cause}
                 </Text>
                 <Text variant="caption" color="secondary" selectable>
                   {lines.detail}
@@ -1429,6 +1442,10 @@ function InstallStep({
       )}
 
       {stalled && !offline && (
+        <View style={{ gap: tokens.space.xs }}>
+        <Text variant="footnote" color="secondary">
+          {t("flows.onboarding.restartHint")}
+        </Text>
         <Button
           variant="secondary"
           icon="refresh-cw"
@@ -1437,6 +1454,7 @@ function InstallStep({
             for (const { asset, state } of states) if (state.kind !== "installed" && state.kind !== "in-use") restartDownload(asset).finally(() => catalog.refresh());
           }}
         />
+        </View>
       )}
 
     </Screen>
@@ -1487,6 +1505,7 @@ function CategoryRow({
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const line = useOpticalLine("subhead");
   const name = t(`flows.onboarding.category.${row.category}`);
   const failedItem = row.items.find((i) => i.state.kind === "failed");
   const reason = failedItem && failedItem.state.kind === "failed" ? failureLines(failedItem.state, t, lang).cause : undefined;
@@ -1513,9 +1532,9 @@ function CategoryRow({
           row.status === "failed" ? `${status}: ${reason ?? ""}` : status,
         ].join(", ")}
         onPress={onToggle}
-        style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs, paddingVertical: tokens.space.sm, minHeight: tokens.size.touch }}
+        style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap, paddingVertical: tokens.space.sm, minHeight: tokens.size.touch }}
       >
-        <Icon name={icon} size="sm" color={iconColor} />
+        <IconSlot name={icon} line={line} color={iconColor} />
         <View style={{ flex: 1 }}>
           <Text variant="subhead">{name}</Text>
           {reason && (
@@ -1524,9 +1543,11 @@ function CategoryRow({
             </Text>
           )}
         </View>
-        <Text variant="label" color={tone}>
-          {status}
-        </Text>
+        <View style={{ height: line.lineHeight, justifyContent: "center" }}>
+          <Text variant="label" color={tone}>
+            {status}
+          </Text>
+        </View>
       </Pressable>
       {expanded &&
         row.items.map((it) => {
@@ -1534,13 +1555,14 @@ function CategoryRow({
           return (
             <View
               key={it.id}
-              style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, paddingLeft: tokens.space.xl, paddingBottom: tokens.space.sm }}
+              // Items start at the category name's x: icon plus gap, at any text size (icon-align rule 4).
+              style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, paddingLeft: line.iconSize + iconTokens.gap, paddingBottom: tokens.space.sm }}
             >
               <Text variant="footnote" color="secondary" style={{ flex: 1 }} numberOfLines={2}>
-                {asset.label}
+                {catalogLabel(asset, t)}
               </Text>
               {it.state.kind === "failed" ? (
-                <Button size="sm" variant="secondary" label={t("flows.row.retry")} accessibilityLabel={`${t("flows.row.retry")}: ${asset.label}`} onPress={() => onRetry(asset)} />
+                <Button size="sm" variant="secondary" label={t("flows.row.retry")} accessibilityLabel={`${t("flows.row.retry")}: ${catalogLabel(asset, t)}`} onPress={() => onRetry(asset)} />
               ) : (
                 <Text variant="caption" color={moving(it.state) ? "accent" : "secondary"} numeric>
                   {shortStatus(it.state, asset, t)}

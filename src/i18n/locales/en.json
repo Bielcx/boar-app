@@ -16,79 +16,9 @@
     "hoursAgo": "{{count}}h ago",
     "daysAgo": "{{count}}d ago"
   },
-  "drawer": {
-    "subtitle": "Adaptive Local Intelligence",
-    "newChat": "New Research Session",
-    "recentSessions": "RECENT SESSIONS"
-  },
-  "modelLoadErrorCard": {
-    "corrupt": {
-      "title": "Integrity Check Failed",
-      "detail": "The downloaded model file is truncated or corrupted (likely due to background network interruption).",
-      "recommendation": "Re-download the model file cleanly or switch to a cached model in Settings."
-    },
-    "missing": {
-      "title": "Model Asset Missing",
-      "detail": "The designated GGUF model binary is not present in local device storage.",
-      "recommendation": "Relaunch the Setup Wizard or select an installed model from the catalog."
-    },
-    "memory": {
-      "title": "Hardware RAM Exceeded",
-      "detail": "Insufficient resident memory to mmap the GGUF model weights and initialize KV cache.",
-      "recommendation": "Close background apps or switch to a lighter model (e.g., Compact 1.2GB) in Settings."
-    },
-    "general": {
-      "title": "Engine Initialization Halted",
-      "detailFallback": "Llama.rn engine failed to bind to the local GGUF context.",
-      "recommendation": "Review model settings or re-run the Setup Wizard to restore defaults."
-    },
-    "actionRequired": "ACTION REQUIRED",
-    "settings": "Settings",
-    "setupWizard": "Setup Wizard"
-  },
-  "drawerFooterStats": {
-    "ram": "RAM",
-    "disk": "DISK",
-    "lastQuery": "{{rate}} tok/s last query"
-  },
   "chatScreen": {
     "initializingCore": "Initializing local offline core…",
-    "mountingWeights": "Mounting local GGUF weights…",
-    "indexingKnowledgeBase": "Indexing offline knowledge base…",
-    "reasoningElapsed": "💭 Reasoning… {{seconds}}s",
-    "reasoningUnfinished": "Reasoning didn't finish before the reply ended (stopped or out of tokens). Tap 💭 to read it.",
-    "showReasoning": "Show reasoning",
-    "hideReasoning": "Hide reasoning",
-    "messageReused": "Message copied to the input",
-    "stopping": "Stopping… (finishing the current step)",
-    "modelDownloadComplete": "✅ \"{{label}}\" download complete",
-    "drawerItems": {
-      "prompts": "Prompt Ideas",
-      "myDocuments": "My Documents",
-      "settings": "Settings",
-      "telemetry": "Execution Telemetry",
-      "about": "About & Info"
-    },
-    "inputPlaceholder": "Ask an offline research question…",
-    "stopGeneration": "Stop generation",
-    "sendMessage": "Send message",
-    "research": {
-      "decomposing": "🔬 Breaking question into sub-questions…",
-      "researching": "🔬 Researching sub-question {{index}}/{{count}}…",
-      "synthesizing": "🔬 Synthesizing offline findings…"
-    },
-    "roleYou": "YOU",
-    "roleAssistant": "🐗 BOAR",
-    "stoppedByUser": "Stopped by user",
-    "deepResearchBanner": "MIXTURE-OF-AGENTS: DECOMPOSE ➔ LOCAL EMBEDDINGS ➔ SYNTHESIS",
-    "copyResponse": "Copy response",
-    "copied": "Copied",
-    "rateUp": "Good response",
-    "rateDown": "Bad response",
-    "rateHelpful": "Helpful",
-    "rateUnhelpful": "Unhelpful",
-    "stageTimedOut": "A research step took too long and was cut short",
-    "interruptedByBackground": "Paused — app was backgrounded. Ask again to continue."
+    "modelDownloadComplete": "✅ \"{{label}}\" download complete"
   },
   "sourceFootnotes": {
     "title": "OFFLINE VERIFIED SOURCES",
@@ -325,7 +255,7 @@
       "importChecking": "Checking {{name}}",
       "importOther": "{{name}} is a different item, not this one. Choose this item's file.",
       "unverified": "Not checked",
-      "active": "Active",
+      "active": "In use",
       "usedFor": "Used for: {{roles}}",
       "role": {
         "answer": "Answers",
@@ -333,13 +263,13 @@
         "search": "Search"
       },
       "kind": {
-        "llm": "Language model",
+        "llm": "AI model",
         "embedding": "Search model",
         "corpus": "Knowledge"
       },
       "progressLabel": "{{name}} progress",
       "fit": {
-        "streaming": "Bigger than this phone's memory: parts are read from storage as needed, so it runs slower.",
+        "streaming": "Bigger than this phone's memory, so it runs slower.",
         "thrashing": "May be slow on this phone: it needs most of its memory.",
         "insufficient": "Won't fit: this phone doesn't have enough free memory to run it."
       },
@@ -371,14 +301,15 @@
       "removeBody": "Frees {{size}} on this phone. You can add it again later.",
       "removed": "{{name}} removed",
       "wontFitTitle": "{{name}} won't fit on this phone",
-      "downloadAnyway": "Download anyway ({{size}})",
+      "downloadAnyway": "Download",
       "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate.",
-      "importFile": "Import file ({{size}})",
-      "importAnyway": "Import anyway ({{size}})",
+      "importFile": "Import {{size}}",
+      "importAnyway": "Import",
+      "anywayHint": "{{size}} · may not open on this phone",
       "notOnDisk": "Not on disk",
       "fitShort": {
         "resident": "Fits in memory",
-        "streaming": "Reads from storage",
+        "streaming": "Slower here",
         "thrashing": "May be slow",
         "insufficient": "Won't fit"
       },
@@ -391,10 +322,10 @@
       "didNotOpenBefore": "BOAR closed the last time it loaded ",
       "mayCloseTitle": "Use this model?",
       "mayCloseBefore": "BOAR may close when it loads ",
-      "mayCloseAfter": ". Compact is the recommended one here.",
+      "mayCloseAfter": ". Fast is the recommended one here.",
       "showAll": "Show all",
       "showLess": "Show less",
-      "keepCompact": "Keep Compact",
+      "keepCompact": "Keep Fast",
       "useAnyway": "Use anyway",
       "fitWhy": {
         "streaming": "larger than this phone's memory",
@@ -411,7 +342,7 @@
       "allInstalled": "Every model in the catalog is installed.",
       "advanced": "Advanced",
       "searchTitle": "Search Hugging Face",
-      "searchFooter": "Add other GGUF models. They are not tested with BOAR and may not have a checksum.",
+      "searchFooter": "Add other models. BOAR hasn't tested them and may not be able to check the file.",
       "searchIntro": "Search uses the internet. Models you add appear under Available.",
       "searchPlaceholder": "Model name, for example qwen 3b",
       "searchButton": "Search",
@@ -421,9 +352,9 @@
       "repoMeta": "{{downloads}} downloads · {{likes}} likes",
       "repoHint": "Shows the files you can add",
       "filesFailed": "Couldn't list the files. Try again.",
-      "noGguf": "No GGUF files in this repository.",
-      "noChecksum": "no checksum",
-      "addToList": "Add to Models",
+      "noGguf": "No compatible model files here.",
+      "noChecksum": "can't be checked",
+      "addToList": "Add",
       "added": "{{name}} added to Models",
       "addFailed": "Couldn't add it: {{error}}",
       "nowAnswering": "{{name}} now writes your answers",
@@ -434,11 +365,12 @@
       "deepTitle": "Model for full answers",
       "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at {{min}} tokens/s or more.",
       "deepAuto": "Automatic",
-      "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
-      "deepNone": "None: always use the answer model",
+      "deepAutoSub": "The largest installed model that fits and is fast enough here.",
+      "deepNone": "None",
+      "deepNoneSub": "Always use the answer model",
+      "wordsRate": "~{{rate}} words/s",
       "notMeasured": "Not measured on this phone yet",
       "lowRamNotAuto": "Not in automatic mode on this phone: too big for its memory.",
-      "rate": "{{rate}} tok/s",
       "samples_one": "{{count}} answer measured here · {{date}}",
       "samples_other": "Median of {{count}} answers measured here · {{date}}",
       "usedLabel": "Used by BOAR",
@@ -480,7 +412,7 @@
       "importingLabel": "Import progress",
       "imported": "{{name}} added",
       "importFailed": "Couldn't import the documents",
-      "pickAgain": "Choose files again",
+      "pickAgain": "Choose again",
       "nameTitle": "Name this collection",
       "filesPicked_one": "{{count}} file selected",
       "filesPicked_other": "{{count}} files selected",
@@ -543,8 +475,8 @@
         "resident": "model ready",
         "unknown": ""
       },
-      "startLabel": "Start",
-      "memoryLabel": "Memory"
+      "memoryLabel": "Memory",
+      "startLabel": "Start"
     },
     "about": {
       "tagline": "Offline research on your phone",
@@ -574,7 +506,7 @@
       "phoneMemory": "Memory",
       "phoneFree": "Free space",
       "phoneEngine": "Runs on",
-      "phoneEngineValue": "llama.cpp, on this phone",
+      "phoneEngineValue": "Right on this phone",
       "introBody": "AI research that runs entirely on your phone. Once it is set up it works without internet, your questions never leave the phone, and every answer shows the sources behind it.",
       "meta": {
         "onDisk": "{{size}} on disk after install",
@@ -592,11 +524,11 @@
       "package": {
         "essential": {
           "name": "Essential",
-          "body": "Answer and search models, plus the core Wikipedia topic collections."
+          "body": "Answer and search models, plus core Wikipedia collections."
         },
         "encyclopedia": {
           "name": "Encyclopedia",
-          "body": "Essential plus the Wikipedia Vital Articles pack, for broader questions."
+          "body": "Essential plus 50,000 Wikipedia articles, for broader questions."
         }
       },
       "recommended": "Recommended",
@@ -640,8 +572,8 @@
       "categoryA11y": "{{name}}, {{done}} of {{total}} files, {{pct}}%",
       "openWhenReady": "Available when every file is on the phone",
       "llmLabel": "Model",
-      "chooseAnswerTitle": "Answer model",
-      "chooseAnswerHint": "Choose Standard or Compact",
+      "chooseAnswerTitle": "Assistant",
+      "chooseAnswerHint": "Choose Fast or More accurate",
       "workingMemory": "needs ~{{size}} of memory",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
       "keepOpenTitle": "Keep BOAR open",
@@ -665,7 +597,8 @@
       "minutesLeft_other": "about {{count}} min left",
       "indexFailed": "Building the index failed",
       "downloadFailed": "A download failed",
-      "restart": "Downloads stuck? Restart them",
+      "restart": "Restart downloads",
+      "restartHint": "Downloads not moving?",
       "keepOpen": "Keep BOAR open until it finishes. If you leave, the download may pause; it continues where it stopped when you come back.",
       "doneTitle": "Ready",
       "doneBody": "Everything runs offline from now on.",
@@ -681,7 +614,7 @@
       "doneAnnounce": "Setup finished. BOAR is ready.",
       "open": "Open BOAR",
       "languageAnnounce": "Language: English",
-      "smallerPackage": "Choose a smaller package",
+      "smallerPackage": "Smaller package",
       "importTitle": "Import the files",
       "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
       "importHow": "The file list and where to get each file are in the offline install guide:",
@@ -689,13 +622,13 @@
       "linkCopied": "Link copied",
       "toImport": "Not imported yet",
       "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file).",
-      "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
+      "compactWhy": "More accurate may not run well on this phone, so Fast is selected. You can still choose More accurate.",
       "answerTier": {
-        "default": "Standard",
-        "compact": "Compact"
+        "default": "More accurate",
+        "compact": "Fast"
       },
       "suggested": "Suggested",
-      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
+      "compactLowRam": "This phone has {{ram}} of memory or less, so Fast is selected. You can still choose More accurate."
     },
     "places": {
       "title": "Places (offline)",
@@ -716,20 +649,20 @@
         "manual": "Chosen by you."
       },
       "noRegionHere": "No places pack covers your region yet.",
-      "useLocation": "Use my location",
+      "useLocation": "Use location",
       "locationDeclined": "Location not allowed. The suggestion uses your time zone.",
       "locationUnavailable": "Couldn't get a location fix. Try again outdoors.",
       "rationaleTitle": "Use your location?",
       "rationaleBody": "BOAR reads your position from the phone's GPS, which works without internet, to suggest places near you. It never leaves the phone.",
       "notNow": "Not now",
       "continue": "Continue",
-      "openSettings": "Open app settings",
-      "otherRegion": "Choose another region",
+      "openSettings": "Open settings",
+      "otherRegion": "Other region",
       "vegan": "{{vegan}} with vegan options · {{vegetarian}} vegetarian"
     },
     "import": {
       "title": "Import files",
-      "footer": "Each file is checked by size and SHA-256 against the catalog. The file name doesn't matter.",
+      "footer": "Each file is checked against the catalog, so its name doesn't matter.",
       "pick": "Choose files",
       "checking": "Checking {{name}}",
       "checkingValue": "Checking, {{pct}}%",
@@ -747,15 +680,36 @@
       "noCity": "No city with that name in the offline index.",
       "population": "{{value}} people",
       "needGazetteer": "To search cities offline, install the world places index ({{size}}).",
-      "areaOf": "{{city}} area (~{{km}} km)",
+      "areaOf": "{{city}} area",
       "regionOf": "Whole region: {{region}}",
       "noPack": "No places pack covers this city yet.",
       "installed": "Installed",
-      "byFile": "Installed from a file",
+      "byFile": "File import only",
       "addHint": "Adds it to what setup installs",
-      "otherCity": "Search another city",
-      "goingTo": "Travelling somewhere?",
-      "tripChosen": "Include {{label}}"
+      "otherCity": "Other city",
+      "goingTo": "Add a trip",
+      "goingToTitle": "Travelling somewhere?",
+      "goingToHint": "Offline places for where you're going",
+      "areaKm": "~{{km}} km"
+    },
+    "catalog": {
+      "label": {
+        "corpus-standard": "Standard knowledge base (+1,000 topics)",
+        "corpus-full": "Full knowledge base (+4,000 topics)",
+        "wiki-vital5": "Wikipedia Vital Articles"
+      }
+    },
+    "assistant": {
+      "title": "Assistant",
+      "footer": "Both answer on this phone, offline. More accurate writes better answers but is slower and uses more memory.",
+      "sub": {
+        "compact": "Quicker answers, less memory",
+        "default": "Better answers, a bit slower"
+      },
+      "details": "Details",
+      "detailsA11y": "Technical model names",
+      "search": "Search",
+      "otherInUse": "Another model is in use. Change it in Models."
     }
   },
   "chat": {
@@ -830,7 +784,7 @@
         "medium": "Medium",
         "low": "Low"
       },
-      "related": "Related in your library · {{count}}",
+      "related": "Related ({{count}})",
       "hideRelated": "Hide related",
       "found_one": "Found {{count}} passage",
       "found_other": "Found {{count}} passages"
@@ -868,8 +822,8 @@
       "helpful": "Helpful answer",
       "unhelpful": "Unhelpful answer",
       "deepen": "Deeper answer",
-      "deepenEst": "Deeper answer · ~{{time}}",
-      "askModel": "Answer with the model",
+      "deepenEst": "Go deeper · ~{{time}}",
+      "askModel": "Answer with AI",
       "retry": "Try again",
       "copyQuestion": "Copy question",
       "editQuestion": "Edit and resend",
@@ -891,18 +845,18 @@
       "stoppedSnippet": "Stopped — showing the source passage",
       "timeout": "A step took too long and was cut short",
       "interrupted": "The answer was interrupted.",
-      "streamsFromStorage": "This model reads its weights from storage, so answers are slower."
+      "streamsFromStorage": "This model is big for this phone, so answers are slower."
     },
     "error": {
       "generic": "Couldn't generate the answer.",
-      "oom": "Not enough memory for this model. Pick a smaller one in Settings.",
+      "oom": "Not enough memory. Pick a smaller model in Settings.",
       "no_model": "No model is installed.",
       "load_failed": "The model failed to load.",
       "generation_failed": "Couldn't generate the answer.",
       "unknown": "Something went wrong."
     },
     "model": {
-      "loading": "Loading {{label}}…",
+      "loading": "Loading the {{label}} model…",
       "indexing": "Indexing knowledge {{done}} / {{total}}",
       "noModelTitle": "No model installed",
       "noModelBody": "Download or import a model to start asking questions.",
@@ -943,8 +897,8 @@
       "offlineAnswersSeal": "On device",
       "offlineSealSpoken": "Offline: no network used",
       "downgraded": {
-        "low-ram": "Answering with {{model}}. {{from}} needs your confirmation on this phone",
-        "load-crashed": "Answering with {{model}}. {{from}} closed the app on this phone",
+        "low-ram": "Answering with the {{model}} model. {{from}} needs your confirmation on this phone",
+        "load-crashed": "Answering with the {{model}} model. {{from}} closed the app on this phone",
         "hint": "Opens Models"
       },
       "onDeviceSealSpoken": "On device: answers are computed on this phone"
@@ -980,7 +934,7 @@
       "nearYou": "Near you",
       "inCity": "In {{city}}",
       "byDistance": "Sorted by distance",
-      "byDiet": "Sorted by diet tag, then distance",
+      "byDiet": "Diet match first, then distance",
       "staleLocation": "Using your location from {{minutes}} min ago",
       "m": "{{value}} metres",
       "km": "{{value}} kilometres",
@@ -988,32 +942,32 @@
         "vegan": {
           "only": "Vegan",
           "yes": "Vegan options",
-          "limited": "Some vegan options",
-          "tagged": "Tagged vegan"
+          "limited": "Vegan: some",
+          "tagged": "Listed vegan"
         },
         "vegetarian": {
           "only": "Vegetarian",
           "yes": "Vegetarian options",
-          "limited": "Some vegetarian options",
-          "tagged": "Tagged vegetarian"
+          "limited": "Vegetarian: some",
+          "tagged": "Listed vegetarian"
         },
         "gluten_free": {
           "only": "Gluten-free",
           "yes": "Gluten-free options",
-          "limited": "Some gluten-free options",
-          "tagged": "Tagged gluten-free"
+          "limited": "Gluten-free: some",
+          "tagged": "Listed gluten-free"
         },
         "halal": {
           "only": "Halal",
           "yes": "Halal options",
-          "limited": "Some halal options",
-          "tagged": "Tagged halal"
+          "limited": "Halal: some",
+          "tagged": "Listed halal"
         },
         "kosher": {
           "only": "Kosher",
           "yes": "Kosher options",
-          "limited": "Some kosher options",
-          "tagged": "Tagged kosher"
+          "limited": "Kosher: some",
+          "tagged": "Listed kosher"
         }
       },
       "open": "Open",
@@ -1030,8 +984,8 @@
       "showMore_one": "Show {{count}} more",
       "showMore_other": "Show {{count}} more",
       "truncated": "More places match; ask a narrower question to see them.",
-      "openInMaps": "Open in a maps app",
-      "noMapsApp": "No maps app can open this place.",
+      "openInMaps": "Open in Maps",
+      "noMapsApp": "No maps app can open this.",
       "copyCoordinates": "Copy coordinates",
       "coordinatesCopied": "Coordinates copied",
       "address": "Address",
@@ -1040,10 +994,10 @@
       "website": "Website",
       "description": "From the travel guide",
       "coordinates": "Coordinates",
-      "viewPassage": "View the guide passage",
+      "viewPassage": "Open guide passage",
       "whichCity": "Which city?",
       "search": "Search",
-      "useLocation": "Use my location",
+      "useLocation": "Near me",
       "typeCity": "Type the city",
       "locationDenied": "Location is off. Type the city instead.",
       "locationUnavailable": "Couldn't get a GPS fix. Type the city instead.",
@@ -1052,14 +1006,14 @@
       "locationAllow": "Continue",
       "noPackTitle": "Offline map not installed",
       "noPackBody": "Install a region's offline map to look up restaurants and places without internet.",
-      "getMap": "Get the offline map",
+      "getMap": "See offline maps",
       "noneInCity": "No places in the offline map for {{city}}",
-      "noneInCityFiltered": "No {{filter}} places in the offline map for {{city}}",
+      "noneInCityFiltered": "No {{filter}} places on the map for {{city}}",
       "noneNear": "No places in the offline map near you",
-      "noneNearFiltered": "No {{filter}} places in the offline map near you",
+      "noneNearFiltered": "No {{filter}} places near you on the map",
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
       "searchHint": "Type a city first",
-      "dietToVerify": "OSM diet tag to double-check",
+      "dietToVerify": "Diet unconfirmed",
       "cityPlaceholder": "e.g. Berlin",
       "dataFrom": "data from {{date}}",
       "openSettings": "Open settings",
@@ -1067,7 +1021,7 @@
       "searchCityHint": "Shows places in {{city}}",
       "staleTitle": "Your last location was in {{city}}, {{ago}} ago",
       "staleBody": "No fresh position right now. Use that city, or choose where you are.",
-      "useCity": "Use {{city}}",
+      "useCity": "Use this city",
       "chooseCity": "Choose a city",
       "ago": {
         "min_one": "{{count}} min",
@@ -1079,8 +1033,9 @@
       },
       "locating": "Finding your location…",
       "locatingBody": "Or type the city:",
-      "byDietCity": "Sorted by diet tag, then distance from the centre",
-      "byDistanceCity": "Sorted by distance from the centre"
+      "byDietCity": "Diet match first, then distance from the centre",
+      "byDistanceCity": "Sorted by distance from the centre",
+      "copyShort": "Copy"
     },
     "assistantName": "boar",
     "suggestionTopics": {
@@ -1095,7 +1050,7 @@
     "modelError": {
       "overline": "Action needed",
       "settings": "Settings",
-      "setup": "Set up the model",
+      "setup": "Set up",
       "memory": {
         "title": "Not enough memory",
         "body": "This phone didn’t have enough free memory to open the model.",
@@ -1103,7 +1058,7 @@
       },
       "corrupt": {
         "title": "The model file is damaged",
-        "body": "The model file on this phone is incomplete or changed since it was installed.",
+        "body": "The model file on this phone is incomplete or has changed.",
         "hint": "Install the model again from setup."
       },
       "missing": {
@@ -1123,41 +1078,43 @@
         "hint": "Try again. If it keeps failing, choose a smaller model in Settings.",
         "details": "It tried the GPU, then the CPU. This can also be a memory limit. The engine said:"
       },
-      "status": "{{model}} not loaded",
+      "status": "{{model}} model not loaded",
       "details": "Details",
-      "hideDetails": "Hide details"
+      "hideDetails": "Hide details",
+      "retry": "Try again"
     },
     "safety": {
       "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."
     },
     "loadCrash": {
-      "message": "{{model}} closed the app: this phone doesn’t have enough memory for it. We switched back to {{fallback}}.",
+      "message": "Not enough memory for the {{model}} model. Back to {{fallback}}.",
       "seeModels": "See models",
       "dismiss": "Dismiss",
-      "messageNoFallback": "{{model}} closed the app: this phone doesn’t have enough memory for it. Choose a smaller model."
+      "messageNoFallback": "Not enough memory for the {{model}} model. Pick a smaller one."
     },
     "weak": {
       "title": "No strong source on this phone",
       "titleUncited": "No source cited",
-      "bodyUncited": "None of the passages found on this phone is cited, so this answer can't be checked against them. It can be wrong.",
-      "body": "Answered from the model's general knowledge, which can be wrong. Nothing in this phone's library matched closely.",
-      "showClosest": "Show closest passages",
-      "showFound": "Show passages found · {{count}}",
-      "hideFound": "Hide passages found",
+      "bodyUncited": "It cites none of the passages found, so it can't be checked. It can be wrong.",
+      "body": "No close match in this phone's library. This comes from the model and can be wrong.",
+      "showClosest": "Closest passages",
+      "showFound": "Passages ({{count}})",
+      "hideFound": "Hide passages",
       "foundTitle": "Passages found",
-      "hideClosest": "Hide closest passages",
+      "hideClosest": "Hide passages",
       "closestTitle": "Closest passages (weak match)",
       "weakMatch": "weak match",
       "receipt": "general knowledge",
       "receiptUncited": "no source cited",
       "declinedTitle": "I couldn't find this in this phone's library",
       "unsupportedTitle": "The passages found don't back this answer",
-      "unsupportedBody": "The compact model's answer cited passages that don't say what it wrote, so it was held back.",
-      "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
-      "answerAnyway": "Answer anyway (may be wrong)",
+      "unsupportedBody": "The Fast model cited passages that don't say this, so the answer was held back.",
+      "declinedBody": "Without a source, the Fast model often gets this wrong, so it didn't guess.",
+      "answerAnyway": "Answer anyway",
       "declinedTitleIncomplete": "This phone’s library isn’t complete",
       "declinedBodyIncomplete": "Indexing stopped before the end, so the answer may be in the part that’s missing.",
-      "bodyIncomplete": "Answered from the model’s general knowledge, which can be wrong. This phone’s library didn’t finish indexing, so a source may be missing."
+      "bodyIncomplete": "Library incomplete, so a source may be missing. The model's answer can be wrong.",
+      "answerAnywayHint": "It may be wrong."
     },
     "stepShort": {
       "search": "Searching…",
@@ -1167,7 +1124,7 @@
       "prepare": "Preparing…"
     },
     "library": {
-      "incomplete": "The offline library didn’t finish indexing. Some answers may be missing their source."
+      "incomplete": "Library incomplete: some answers may lack a source."
     }
   },
   "location": {

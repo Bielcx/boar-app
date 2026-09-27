@@ -79,7 +79,7 @@ export function CitySearch({ catalog, onChoose }: Props) {
   const choose = (option: CityOption) => {
     const label =
       option.kind === "area"
-        ? t("flows.travel.areaOf", { city: city!.name, km: option.radiusKm })
+        ? t("flows.travel.areaOf", { city: city!.name })
         : t("flows.travel.regionOf", { region: lang.startsWith("pt") ? option.region.name.pt : option.region.name.en });
     if (onChoose) onChoose({ label, assets: option.assets });
     else catalog.install(option.assets);
@@ -124,7 +124,7 @@ export function CitySearch({ catalog, onChoose }: Props) {
             options.map((o) => {
               const title =
                 o.kind === "area"
-                  ? t("flows.travel.areaOf", { city: city.name, km: o.radiusKm })
+                  ? t("flows.travel.areaOf", { city: city.name })
                   : t("flows.travel.regionOf", { region: lang.startsWith("pt") ? o.region.name.pt : o.region.name.en });
               const installed = o.assets.every((a) => catalog.statuses[a.id]?.present);
               const importOnly = o.assets.some((a) => !canDownload(a));
@@ -133,7 +133,8 @@ export function CitySearch({ catalog, onChoose }: Props) {
                   key={o.kind}
                   title={title}
                   value={formatBytes(o.bytes, lang)}
-                  subtitle={installed ? t("flows.travel.installed") : importOnly ? t("flows.travel.byFile") : undefined}
+                  // The radius reads as detail under the name; the status only says what is true (installed, or file import only).
+                  subtitle={[o.kind === "area" && t("flows.travel.areaKm", { km: o.radiusKm }), installed ? t("flows.travel.installed") : importOnly && t("flows.travel.byFile")].filter(Boolean).join(" · ") || undefined}
                   onPress={installed ? undefined : () => choose(o)}
                   accessibilityHint={onChoose ? t("flows.travel.addHint") : undefined}
                 />

@@ -10,6 +10,8 @@ import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnn
 import { useTheme, useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
+import { catalogLabel } from "./flows/catalogLabel";
+import { MODEL_CATALOG } from "../models/manifest";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
   Appearance,
@@ -25,6 +27,7 @@ import {
   PaletteChoice,
   setHapticsEnabled,
   setVoiceInputEnabled,
+  getActiveModelId,
 } from "../models/settings";
 import { setHapticsEnabledCache } from "../services/haptics";
 import { resetAllAppData } from "../services/appReset";
@@ -65,6 +68,16 @@ export function SettingsScreen() {
   const [values, setValues] = useState<Values | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [assistant, setAssistant] = useState<string>();
+
+  useFocusEffect(
+    useCallback(() => {
+      getActiveModelId("llm").then((id) => {
+        const m = id ? MODEL_CATALOG.find((x) => x.id === id) : undefined;
+        setAssistant(m ? catalogLabel(m, t) : undefined);
+      });
+    }, [t])
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -110,6 +123,7 @@ export function SettingsScreen() {
     <Screen contentStyle={screenRhythm(tokens)}>
       <ScreenTitle>{t("nav.settings")}</ScreenTitle>
       <Section title={t("flows.settings.answers")} footer={t(answerModeKey(values.quickFirst, values.alwaysComplete))}>
+        <ListRow icon="user" title={t("flows.assistant.title")} value={assistant} onPress={() => navigation.navigate("SettingsAssistant")} />
         <ListRow
           icon="message-circle"
           title={t("flows.settings.tone")}

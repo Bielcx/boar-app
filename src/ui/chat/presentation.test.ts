@@ -238,14 +238,30 @@ describe("modelDisplayName / withDisplayNames (Prism CR-3)", () => {
   ];
   it("names the models as the catalog does, from a file path, an id or a label", () => {
     const crash = { crashedLabel: "models/qwen3-4b-instruct-2507-q4km.gguf", fallbackLabel: "models/qwen2.5-1.5b-instruct-q4km.gguf", at: 1 };
-    expect(withDisplayNames(crash, models)).toEqual({ crashedLabel: "Qwen3-4B-Instruct-2507 (Q4_K_M)", fallbackLabel: "Qwen2.5-1.5B-Instruct (Q4_K_M)", at: 1 });
-    expect(modelDisplayName("qwen2.5-1.5b-instruct-q4km", models)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
-    expect(modelDisplayName("Qwen2.5-1.5B-Instruct (Q4_K_M)", models)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
+    expect(withDisplayNames(crash, models, t)).toEqual({ crashedLabel: "Qwen3-4B-Instruct-2507 (Q4_K_M)", fallbackLabel: "Qwen2.5-1.5B-Instruct (Q4_K_M)", at: 1 });
+    expect(modelDisplayName("qwen2.5-1.5b-instruct-q4km", models, t)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
+    expect(modelDisplayName("Qwen2.5-1.5B-Instruct (Q4_K_M)", models, t)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
   });
+  it("shows the short name when the catalog has one (Ledger displayName)", () => {
+    const short = [{ ...models[0], displayName: "Qwen3 4B" }, { ...models[1], displayName: "Qwen2.5 1.5B" }];
+    const crash = { crashedLabel: "models/qwen3-4b-instruct-2507-q4km.gguf", fallbackLabel: "qwen2.5-1.5b-instruct-q4km", at: 1 };
+    expect(withDisplayNames(crash, short, t)).toEqual({ crashedLabel: "Qwen3 4B", fallbackLabel: "Qwen2.5 1.5B", at: 1 });
+  });
+  it("the receipt names a catalog answer model by its tier, never the technical label (r4to)", () => {
+    const line = receiptLine({ ...receipt, modelId: "qwen3-4b-instruct-2507-q4km", modelLabel: "Qwen3-4B-Instruct-2507 (Q4_K_M)" }, "en-US", t);
+    expect(line).toContain(" · flows.onboarding.answerTier.");
+    expect(line).not.toContain("Q4_K_M");
+  });
+  it("the crash banner names catalog answer models by their tier", () => {
+    const tiered = [{ ...models[0], kind: "llm" as const, answerTier: "default" as const }, { ...models[1], kind: "llm" as const, answerTier: "compact" as const }];
+    const crash = { crashedLabel: "models/qwen3-4b-instruct-2507-q4km.gguf", fallbackLabel: "qwen2.5-1.5b-instruct-q4km", at: 1 };
+    expect(withDisplayNames(crash, tiered, t)).toEqual({ crashedLabel: "flows.onboarding.answerTier.default", fallbackLabel: "flows.onboarding.answerTier.compact", at: 1 });
+  });
+
   it("never shows an internal path for a model outside the catalog, and keeps an empty fallback empty", () => {
-    expect(modelDisplayName("models/hf/SmolLM3-3B-Q4_K_M.gguf", models)).toBe("SmolLM3-3B-Q4_K_M");
-    expect(modelDisplayName("", models)).toBe("");
-    expect(withDisplayNames(null, models)).toBeNull();
+    expect(modelDisplayName("models/hf/SmolLM3-3B-Q4_K_M.gguf", models, t)).toBe("SmolLM3-3B-Q4_K_M");
+    expect(modelDisplayName("", models, t)).toBe("");
+    expect(withDisplayNames(null, models, t)).toBeNull();
   });
 });
 

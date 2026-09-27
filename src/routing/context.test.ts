@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  falseQuantumClaims,
   isSubstantive,
   identifiersIn,
   passageLanguage,
@@ -669,5 +670,26 @@ describe("Sextant cry-020 / cry-012: content, not pointers or metadata", () => {
     expect(isSubstantive(c("ERC-2400: Transaction Receipt URI", "Copyright: Copyright and related rights waived via CC0."))).toBe(false);
     expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Parameters: - FORK_BLKNUM: 2,675,000 - CHAIN_ID: 1 (main net)"))).toBe(true);
     expect(isSubstantive(c("Canberra", "Canberra is the capital city of Australia."))).toBe(true);
+  });
+});
+
+describe("falseQuantumClaims (gate 394bf31, crypto-named-001 seed 5)", () => {
+  it("catches classical public-key crypto called quantum resistant", () => {
+    const seed5 = "Quantum-resistant signature algorithms include those based on elliptic curve cryptography (ECC) or lattice-based cryptography, such as those in the Open Quantum Safe (OQS) project.";
+    expect(falseQuantumClaims(seed5)).toEqual([seed5]);
+    expect(falseQuantumClaims("RSA and ECDSA are secure against quantum computers.")).toHaveLength(1);
+    expect(falseQuantumClaims("Criptografia de curvas elípticas é resistente a computadores quânticos.")).toHaveLength(1);
+  });
+  it("leaves true or contrasting sentences alone", () => {
+    for (const ok of [
+      "RSA and ECC are not quantum resistant: Shor's algorithm breaks them.",
+      "Unlike ECDSA, lattice-based signatures such as Dilithium are quantum resistant.",
+      "Ethereum uses ECDSA today, while post-quantum signatures are being researched.",
+      "ECC is vulnerable to quantum computers.",
+      "Lattice-based and hash-based signatures are quantum resistant.",
+      "RSA é amplamente usado, mas não é resistente a computadores quânticos.",
+      "Nenhum algoritmo de assinatura clássica, como RSA ou DSA, é intrinsecamente resistente a computadores quânticos.",
+      "Breaking a 256-bit ECC key would require thousands of logical qubits, highlighting the need for migration to quantum-resistant schemes.",
+    ]) expect(falseQuantumClaims(ok), ok).toEqual([]);
   });
 });
