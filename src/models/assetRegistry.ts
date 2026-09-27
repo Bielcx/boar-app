@@ -26,6 +26,30 @@ export function unregisterAssetProvider(name: string): void {
   providers.delete(name);
 }
 
+type InstalledListener = (asset: CatalogModel) => void;
+const installedListeners = new Set<InstalledListener>();
+
+/**
+ * Runs `listener` whenever an asset finishes installing (download verified or
+ * file import accepted), e.g. to reopen the gazetteer and read its tile index.
+ * Returns the unsubscribe function.
+ */
+export function onAssetInstalled(listener: InstalledListener): () => void {
+  installedListeners.add(listener);
+  return () => installedListeners.delete(listener);
+}
+
+/** Called by the download manager once `asset` is on disk and verified. A failing listener doesn't stop the others. */
+export function notifyAssetInstalled(asset: CatalogModel): void {
+  for (const l of installedListeners) {
+    try {
+      l(asset);
+    } catch (e: any) {
+      console.warn(`[assets] installed listener failed for ${asset.id}:`, e?.message ?? e);
+    }
+  }
+}
+
 /**
  * MODEL_CATALOG first, then providers in registration order. On a duplicate
  * id the first entry wins; two different ids claiming one filename is a bug

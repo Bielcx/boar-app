@@ -36,7 +36,7 @@ vi.mock("../models/ModelManager", () => ({
 const presentIds = new Set<string>();
 
 import { cancelAllDownloads, getDownloadState, missingRequirements, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
-import { registerAssetProvider, unregisterAssetProvider } from "../models/assetRegistry";
+import { onAssetInstalled, registerAssetProvider, unregisterAssetProvider } from "../models/assetRegistry";
 import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
@@ -250,3 +250,18 @@ describe("assets installed together (PL-1: a places pack needs the gazetteer)", 
   });
 });
 
+
+describe("installed notification (the gazetteer's tile index reloads on it)", () => {
+  it("fires once a download is verified, and not when it fails", async () => {
+    const seen: string[] = [];
+    const off = onAssetInstalled((a) => seen.push(a.id));
+    const ok = startDownload(asset("gaz"));
+    pending.get("gaz")!.resolve();
+    await ok;
+    const bad = startDownload(asset("broken"));
+    pending.get("broken")!.reject(new Error("network"));
+    await bad;
+    off();
+    expect(seen).toEqual(["gaz"]);
+  });
+});

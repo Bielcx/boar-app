@@ -1,6 +1,6 @@
 import { ModelManager, DownloadProgress } from "../models/ModelManager";
 import { CatalogModel } from "../models/manifest";
-import { requirementsOf } from "../models/assetRegistry";
+import { notifyAssetInstalled, requirementsOf } from "../models/assetRegistry";
 import { downloadErrorDetailOf, DownloadErrorDetail, errorKindOf, IntegrityErrorKind } from "../models/integrity";
 import type { HashProgress } from "../models/fileHash";
 import { holdWakeLockForDownload } from "./downloadWakeLock";
@@ -258,6 +258,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
         etaSeconds: 0,
       });
       downloadTimestamps.delete(asset.id);
+      notifyAssetInstalled(asset);
     })
     .catch((e: any) => {
       const { kind, permanent } = errorKindOf(e);
@@ -318,6 +319,7 @@ export async function importAssetFile(
       bytesExpected: asset.sizeBytes,
     });
     notify();
+    notifyAssetInstalled(asset);
     return asset;
   } finally {
     release();

@@ -17,7 +17,7 @@ import { initialRoute as bootRoute } from "./src/ui/flows/boot";
 import { registerGeoProviders } from "./src/routing/answerService";
 import { geoProvidersFrom } from "./src/routing/geoWiring";
 import { getCurrentPoint, getLocationFix } from "./src/services/location";
-import { installedPoiPacks, resolvePlace, searchPois } from "./src/rag/pois";
+import { installedPoiPacks, loadTileCatalog, resolvePlace, searchPois } from "./src/rag/pois";
 import { POI_REGIONS } from "./src/rag/poiRegions";
 
 // Offline places: without this, every places question answers "places pack not installed".
@@ -56,6 +56,8 @@ function AppContent() {
 
   useEffect(() => {
     initHaptics();
+    // The tile index lives in the gazetteer: without this, a tile is neither downloadable nor importable.
+    void loadTileCatalog().catch((e) => console.warn("[pois] tile index:", e?.message ?? e));
     (async () => {
       // Setup unless the chat has an answer model it can load (and saves that one as active).
       // A failed disk read also lands in setup, never on a spinner or a chat that cannot answer.

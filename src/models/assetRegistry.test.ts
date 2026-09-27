@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { allAssets, findAsset, registerAssetProvider, requirementsOf, unregisterAssetProvider } from "./assetRegistry";
+import { allAssets, findAsset, notifyAssetInstalled, onAssetInstalled, registerAssetProvider, requirementsOf, unregisterAssetProvider } from "./assetRegistry";
 import { MODEL_CATALOG, type CatalogModel } from "./manifest";
 
 const entry = (id: string, filename = `poi/${id}.sqlite`): CatalogModel => ({
@@ -61,3 +61,18 @@ describe("requirementsOf", () => {
   });
 });
 
+
+describe("onAssetInstalled", () => {
+  it("tells every listener, even when one throws, and stops after unsubscribe", () => {
+    const seen: string[] = [];
+    const offBad = onAssetInstalled(() => {
+      throw new Error("boom");
+    });
+    const off = onAssetInstalled((a) => seen.push(a.id));
+    notifyAssetInstalled({ id: "poi-world-places" } as CatalogModel);
+    off();
+    offBad();
+    notifyAssetInstalled({ id: "poi-world-places" } as CatalogModel);
+    expect(seen).toEqual(["poi-world-places"]);
+  });
+});
