@@ -219,3 +219,10 @@ describe("lastKnownOf / agoText (stale location, Boar)", () => {
     expect(agoText(3 * 86400, t)).toBe('chat.places.ago.d{"count":3}');
   });
 });
+
+describe("placesEmptyTitle near me", () => {
+  it("uses the 'near you' sentence, not the city one, for a near-me area (Piston)", () => {
+    const r = { coverage: "none" as const, places: [], filters: ["vegan"], area: { kind: "near" as const, label: "near you" } };
+    expect(placesEmptyTitle(r, t)).toBe('chat.places.noneNearFiltered{"filter":"vegan"}');
+  });
+});
