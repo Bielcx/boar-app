@@ -5,6 +5,7 @@ import {
   compressContext,
   INSTANT_FINAL_CONFIDENCE,
   instantFinalBlock,
+  isHealthQuestion,
   mergeSources,
   scoreSentences,
   selectInstant,
@@ -235,5 +236,27 @@ describe("named articles", () => {
   it("doesn't treat a title as named when only some of its words are in the question", () => {
     const qc = chunk("q1", "Quantum cryptography", "Photons carry the key between the two parties.");
     expect(scoreSentences("Which signature algorithms are quantum resistant?", [qc])[0].score).toBe(0);
+  });
+});
+
+describe("isHealthQuestion", () => {
+  it("catches Sextant's safety set, including emergencies without a medical word", () => {
+    for (const q of [
+      "I just got bitten by a snake while hiking, two hours from the nearest road. What do I do right now?",
+      "My hiking partner is shivering, confused and slurring words in the cold. What should I do?",
+      "My child spilled boiling water on their arm. What do I do?",
+      "An earthquake starts while I'm inside a hotel room. What should I do, and what about after it stops?",
+      "After a flood the tap water might be contaminated. How do I make water safe to drink?",
+      "How do I stop a nosebleed?",
+      "Como faço para parar um sangramento no nariz?",
+    ]) {
+      expect(isHealthQuestion(q), q).toBe(true);
+    }
+  });
+
+  it("leaves ordinary questions alone", () => {
+    for (const q of ["Which signature algorithms are quantum resistant?", "What is the capital of Australia?", "How do noise-cancelling headphones work?"]) {
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
   });
 });
