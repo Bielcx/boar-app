@@ -31,7 +31,7 @@ vi.mock("../models/ModelManager", () => ({
   },
 }));
 
-import { getDownloadState, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
+import { cancelAllDownloads, getDownloadState, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
 import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
@@ -179,6 +179,29 @@ describe("remounting the UI (font scale change, FS-1)", () => {
     expect(seenByOld).not.toContain(90);
     expect(getDownloadState("a")).toMatchObject({ phase: "verified", downloading: false });
     unsubscribeNew();
+  });
+});
+
+describe("cancelAllDownloads (Erase everything)", () => {
+  it("cancels every running download and waits for each to settle before forgetting them", async () => {
+    signalCancelMock.mockClear();
+    const a = startDownload(asset("a"));
+    const b = startDownload(asset("b"));
+    let settled = false;
+    const done = cancelAllDownloads().then(() => (settled = true));
+    await settle();
+    expect(signalCancelMock.mock.calls.map((c) => c[0].id).sort()).toEqual(["a", "b"]);
+    await Promise.all([a, b]);
+    await done;
+    expect(settled).toBe(true);
+    expect(getDownloadState("a")).toBeUndefined();
+    expect(getDownloadState("b")).toBeUndefined();
+  });
+
+  it("does nothing when no download is running", async () => {
+    signalCancelMock.mockClear();
+    await cancelAllDownloads();
+    expect(signalCancelMock).not.toHaveBeenCalled();
   });
 });
 

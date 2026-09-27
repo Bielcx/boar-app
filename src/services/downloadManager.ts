@@ -52,6 +52,8 @@ export interface DownloadState {
 const modelManager = new ModelManager();
 const state = new Map<string, DownloadState>();
 const inFlight = new Map<string, Promise<void>>();
+/** The asset behind each in-flight download, to cancel it (cancelAllDownloads). */
+const inFlightAssets = new Map<string, CatalogModel>();
 const downloadTimestamps = new Map<string, { lastBytes: number; lastTime: number; startTime: number }>();
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -95,8 +97,27 @@ export function listDownloadStates(): Array<{ assetId: string; state: DownloadSt
 export function resetDownloadState(): void {
   state.clear();
   inFlight.clear();
+  inFlightAssets.clear();
   downloadTimestamps.clear();
   notify();
+}
+
+/**
+ * Stops every running download and waits for each to settle, then forgets
+ * all download state. For "Erase everything" (appReset.ts): the files are
+ * deleted right after, and a writer still running would recreate or
+ * truncate them (see restartDownload for the same race).
+ */
+export async function cancelAllDownloads(): Promise<void> {
+  const running = [...inFlight.entries()];
+  await Promise.all(
+    running.map(async ([id, promise]) => {
+      const asset = inFlightAssets.get(id);
+      if (asset) await modelManager.signalCancelDownload(asset);
+      await promise.catch(() => {});
+    })
+  );
+  resetDownloadState();
 }
 
 /**
@@ -233,10 +254,12 @@ export function startDownload(asset: CatalogModel): Promise<void> {
     .finally(() => {
       releaseWakeLock();
       inFlight.delete(asset.id);
+      inFlightAssets.delete(asset.id);
       notify();
     });
 
   inFlight.set(asset.id, promise);
+  inFlightAssets.set(asset.id, asset);
   return promise;
 }
 
