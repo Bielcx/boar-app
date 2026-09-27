@@ -288,3 +288,30 @@ export function citySuggestions(cities: { name: string }[], exclude?: string, ma
   }
   return out;
 }
+
+/**
+ * Where the phone last was, when its position is too old to list "near me"
+ * (Boar: > 5 min and no fresh fix; the traveller who just landed must not get
+ * the city they left). Proposed engine field PlacesArea.lastKnown (Tusk).
+ */
+export interface LastKnownPlace {
+  city: string;
+  country?: string;
+  ageS: number;
+}
+
+/** Reads area.lastKnown until the engine type has it; a well-formed value or null. */
+export function lastKnownOf(area: object): LastKnownPlace | null {
+  const v = (area as { lastKnown?: Partial<LastKnownPlace> }).lastKnown;
+  if (!v || typeof v.city !== "string" || !v.city.trim() || typeof v.ageS !== "number" || !(v.ageS >= 0)) return null;
+  return { city: v.city.trim(), country: v.country, ageS: v.ageS };
+}
+
+/** "23 min", "2 h", "3 d": how long ago, rounded the way people say it. */
+export function agoText(ageS: number, t: T): string {
+  const min = Math.max(1, Math.round(ageS / 60));
+  if (min < 60) return t("chat.places.ago.min", { count: min });
+  const h = Math.round(min / 60);
+  if (h < 24) return t("chat.places.ago.h", { count: h });
+  return t("chat.places.ago.d", { count: Math.round(h / 24) });
+}

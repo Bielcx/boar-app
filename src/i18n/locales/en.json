@@ -979,7 +979,19 @@
       "dataFrom": "data from {{date}}",
       "openSettings": "Open settings",
       "coveredCities": "Cities in your offline map",
-      "searchCityHint": "Shows places in {{city}}"
+      "searchCityHint": "Shows places in {{city}}",
+      "staleTitle": "Your last location was in {{city}}, {{ago}} ago",
+      "staleBody": "No fresh position right now. Use that city, or choose where you are.",
+      "useCity": "Use {{city}}",
+      "chooseCity": "Choose a city",
+      "ago": {
+        "min_one": "{{count}} min",
+        "min_other": "{{count}} min",
+        "h_one": "{{count}} h",
+        "h_other": "{{count}} h",
+        "d_one": "{{count}} day",
+        "d_other": "{{count}} days"
+      }
     },
     "assistantName": "boar",
     "suggestionTopics": {
