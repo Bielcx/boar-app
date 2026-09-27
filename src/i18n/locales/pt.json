@@ -1073,6 +1073,12 @@
     },
     "safety": {
       "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."
+    },
+    "loadCrash": {
+      "message": "O {{model}} fechou o app: este celular não tem memória para ele. Voltamos ao {{fallback}}.",
+      "previousModel": "modelo anterior",
+      "seeModels": "Ver modelos",
+      "dismiss": "Dispensar"
     }
   },
   "location": {

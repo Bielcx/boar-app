@@ -55,7 +55,8 @@ import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./c
 import { answerPhase, answerReducer, asInterrupted, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
 import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type ChatItem } from "./chat/chatItems";
-import { phaseAnnouncement } from "./chat/presentation";
+import { loadCrashMessage, phaseAnnouncement } from "./chat/presentation";
+import { consumeLoadCrash } from "./chat/loadCrashApi";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { AssistantMessage } from "./chat/AssistantMessage";
 import { ChatEmptyState, ChatModelError, ChatModelLoading, SourceSheet, UserMessage } from "./chat/ChatPieces";
@@ -501,6 +502,16 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       .catch(() => undefined);
   }, [ready]);
 
+  // Once, when the chat opens after a model load killed the app (Boar CR-2): say what happened and where to go.
+  const [loadCrash, setLoadCrash] = useState<string | null>(null);
+  useEffect(() => {
+    consumeLoadCrash()
+      .then((c) => setLoadCrash(loadCrashMessage(c, t)))
+      .catch(() => undefined);
+    // Once per chat screen: consume() clears the mark, so it never shows twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // A city typed during "Finding your location…" runs as soon as the stopped answer has finished.
   const pendingCity = useRef<{ id: string; city: string } | null>(null);
   useEffect(() => {
@@ -757,6 +768,22 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           header), so without it the padding came out short and the composer sat behind the keyboard
           (Prism K-1, Android offline 06f508b). The native window position fixes any offset above. */}
       <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
+        {loadCrash && (
+          <View style={{ paddingHorizontal: tk.space.gutter, paddingTop: tk.space.sm }}>
+            <Banner
+              tone="warning"
+              icon="alert-triangle"
+              message={loadCrash}
+              actionLabel={t("chat.loadCrash.seeModels")}
+              onAction={() => {
+                setLoadCrash(null);
+                navigation.navigate("Models");
+              }}
+              onDismiss={() => setLoadCrash(null)}
+              dismissLabel={t("chat.loadCrash.dismiss")}
+            />
+          </View>
+        )}
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
         {items.length > 0 && !loadError && !ready ? (
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>

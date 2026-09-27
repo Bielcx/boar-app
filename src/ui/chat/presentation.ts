@@ -70,6 +70,12 @@ export function phaseAnnouncement(
 
 export const PLACES_MODEL_ID = "places";
 
+/** The one-time notice after a model load killed the app (Boar CR-2); null when there is nothing to say. */
+export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: string } | null, t: T): string | null {
+  if (!crash || !crash.crashedLabel.trim()) return null;
+  return t("chat.loadCrash.message", { model: crash.crashedLabel.trim(), fallback: crash.fallbackLabel.trim() || t("chat.loadCrash.previousModel") });
+}
+
 /**
  * Total time first, since that's what a person compares: "Answered in 6.2 s ·
  * Qwen3 4B · 14.8 tok/s · started in 2.1 s · offline". The source-passage and

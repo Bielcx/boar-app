@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -138,5 +138,20 @@ describe("stageIcon", () => {
     expect(stageIcon("generating")).toBe("zap");
     expect(stageIcon("locating")).toBe("map-pin");
     expect(stageIcon("done")).toBe("circle");
+  });
+});
+
+describe("loadCrashMessage (Boar CR-2)", () => {
+  it("names the model that closed the app and the one we went back to", () => {
+    expect(loadCrashMessage({ crashedLabel: "Qwen3 4B", fallbackLabel: "Qwen2.5 1.5B" }, t)).toBe(
+      'chat.loadCrash.message{"model":"Qwen3 4B","fallback":"Qwen2.5 1.5B"}'
+    );
+  });
+
+  it("says nothing without a crash, and falls back to 'the previous model' without its name", () => {
+    expect(loadCrashMessage(null, t)).toBeNull();
+    expect(loadCrashMessage({ crashedLabel: "Qwen3 4B", fallbackLabel: " " }, t)).toBe(
+      'chat.loadCrash.message{"model":"Qwen3 4B","fallback":"chat.loadCrash.previousModel"}'
+    );
   });
 });

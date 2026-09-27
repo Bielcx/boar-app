@@ -1073,6 +1073,12 @@
     },
     "safety": {
       "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."
+    },
+    "loadCrash": {
+      "message": "{{model}} closed the app: this phone doesn’t have enough memory for it. We switched back to {{fallback}}.",
+      "previousModel": "the previous model",
+      "seeModels": "See models",
+      "dismiss": "Dismiss"
     }
   },
   "location": {
