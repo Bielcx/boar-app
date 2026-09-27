@@ -916,9 +916,9 @@
       "q2": "Qual a diferença entre pandemia e epidemia?",
       "q3": "Quanto é 30 °C em Fahrenheit?",
       "q4": "Como estancar um sangramento nasal?",
-      "q5": "O que causa as monções?",
-      "q6": "Por que os terremotos acontecem perto das bordas das placas?",
-      "q7": "O que causa o efeito estufa?"
+      "q7": "O que causa o efeito estufa?",
+      "q8": "O que é uma monção?",
+      "q9": "O que é tectônica de placas?"
     },
     "header": {
       "menu": "Abrir menu",
@@ -1079,9 +1079,9 @@
       "q2": "Saúde",
       "q3": "Conta rápida",
       "q4": "Primeiros socorros",
-      "q5": "Tempo",
-      "q6": "Ciências da Terra",
-      "q7": "Clima"
+      "q7": "Clima",
+      "q8": "Tempo",
+      "q9": "Ciências da Terra"
     },
     "modelError": {
       "overline": "Ação necessária",

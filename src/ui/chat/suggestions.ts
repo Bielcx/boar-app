@@ -7,15 +7,18 @@
  * `version` and `validatedAt`. A model not listed gets no suggestions.
  */
 export const SUGGESTION_VALIDATION = {
-  version: 2,
+  version: 3,
   validatedAt: "2026-09-27",
-  // v1: q1-q4. v2 (Sextant 20463ed): q5-q7 on the builtin corpus, 3 seeds, graded by hand. q6 EN failed
-  // because the app sent the geology question down the safety path (fixed; Sextant revalidates).
+  // v1: q1-q4. v2 (Sextant 20463ed): q5-q7 on the builtin corpus, 3 seeds, graded by hand.
+  // v3 (Boar/Bramble 27/09): q5 "What causes the monsoon?" and q6 "Why do earthquakes happen near plate
+  // boundaries?" retired: the builtin corpus holds only the lead paragraph of "Monsoon" and "Plate
+  // tectonics", which says neither. Replaced by q8/q9, which the lead itself answers; they show once
+  // Sextant validates them (cited source, both models) and they are added below.
   evidence: "eval/results/suggestions/verdicts.v1.json + verdicts.v2.json (feat/eval-frontier)",
   byModel: {
-    "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: ["q1", "q2", "q3", "q4", "q6", "q7"] },
+    "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q7"], pt: ["q1", "q2", "q3", "q4", "q7"] },
     // 1.5B PT: q3 fails the source check (answer shows "Cold", "Absolute zero"); empty until PT-1.
-    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: [] },
+    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q7"], pt: [] },
   } as Record<string, Record<"en" | "pt", string[]>>,
 };
 
@@ -53,8 +56,9 @@ export const SUGGESTION_SOURCES: SuggestionSource[] = [
   { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"], langs: ["en"] },
   { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius", "Temperature"], langs: ["en"] },
   { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis", "Emergency bleeding control"], langs: ["en", "pt"] },
-  { key: "q5", corpus: ["builtin"], expect: ["Monsoon"], langs: ["en"] },
-  { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"], langs: ["en", "pt"] },
+  // q8/q9 (v3): asked of what the builtin lead says; langs set from Sextant's check (pending).
+  { key: "q8", corpus: ["builtin"], expect: ["Monsoon"], langs: [] },
+  { key: "q9", corpus: ["builtin"], expect: ["Plate tectonics"], langs: [] },
   { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"], langs: ["en"] },
 ];
 
