@@ -122,14 +122,15 @@ export function ChatEmptyState({
     >
       <View style={{ alignItems: "center" }}>
         <Mascot glow />
-        {/* The wordmark overlaps the mascot's feet by a few points, as in the mockup. Starts with the visible word, then the
+        {/* The wordmark sits 6 below the hero box (the mascot image spills over the box, as in the mockup). Starts with the
+            visible word, then the
             screen's title for readers (Prism, in the spirit of WCAG 2.5.3). */}
         <Text
           variant="wordmark"
           align="center"
           header
           accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}
-          style={{ marginTop: -t.space.xs }}
+          style={{ marginTop: t.space.xs + t.space.xxs }}
         >
           {tr("chat.assistantName")}
         </Text>
