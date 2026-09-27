@@ -1121,13 +1121,19 @@
       "receipt": "conhecimento geral",
       "declinedTitle": "Não encontrei isso no acervo deste celular",
       "declinedBody": "Sem uma fonte, o modelo compacto costuma errar perguntas assim, então ele não chutou.",
-      "answerAnyway": "Responder mesmo assim (pode errar)"
+      "answerAnyway": "Responder mesmo assim (pode errar)",
+      "declinedTitleIncomplete": "O acervo deste celular está incompleto",
+      "declinedBodyIncomplete": "A indexação parou antes do fim, então a resposta pode estar na parte que falta.",
+      "bodyIncomplete": "Respondido com o conhecimento geral do modelo, que pode errar. O acervo deste celular não terminou de indexar, então pode faltar a fonte."
     },
     "stepShort": {
       "search": "Buscando…",
       "read": "Lendo…",
       "load": "Carregando…",
       "write": "Escrevendo…"
+    },
+    "library": {
+      "incomplete": "O acervo offline não terminou de indexar. Algumas respostas podem ficar sem fonte."
     }
   },
   "location": {
