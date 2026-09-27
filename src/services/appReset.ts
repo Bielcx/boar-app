@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { llamaEngine } from "../inference/LlamaEngine";
 import { embeddingEngine } from "../rag/embed";
 import { cancelAllDownloads } from "./downloadManager";
+import { clearVerifiedRecords } from "../models/ModelManager";
 import { clearSettings } from "../models/settings";
 import { clearDiscoveredModels } from "../models/discoveredModels";
 import { runReset, runResetHooks } from "./resetOrder";
@@ -32,6 +33,8 @@ export function resetAllAppData(): Promise<void> {
     wipeDatabase: () => runResetHooks("wipe", ["knowledge-base"]),
     deleteFiles: async () => {
       for (const dir of DATA_DIRS) await FileSystem.deleteAsync(dir, { idempotent: true });
+      // Which files passed their sha256 check: nothing left to vouch for.
+      await clearVerifiedRecords();
     },
     clearSettings: async () => {
       await clearSettings();
