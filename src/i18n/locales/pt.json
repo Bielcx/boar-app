@@ -744,7 +744,7 @@
       "title": "Fontes ({{count}})",
       "chip": "Fonte {{n}}: {{title}}",
       "cite": "Fonte {{n}}: {{title}}",
-      "corpus": "Biblioteca offline",
+      "corpus": "Acervo offline",
       "myDocuments": "Meus documentos",
       "copyPassage": "Copiar trecho",
       "passageCopied": "Trecho copiado",
@@ -846,7 +846,7 @@
     },
     "empty": {
       "title": "Pergunte qualquer coisa",
-      "body": "As respostas vêm do modelo e da biblioteca deste celular, com fontes.",
+      "body": "As respostas vêm do modelo e do acervo deste celular, com fontes.",
       "suggestionsLabel": "Experimente perguntar",
       "ask": "Perguntar: {{question}}",
       "fill": "Colocar no campo para editar",
