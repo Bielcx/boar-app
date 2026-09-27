@@ -298,10 +298,18 @@ describe("riskyHealthInstruction", () => {
 
 describe("isSafetyQuery (one classifier for the emergency line, engine and chat)", () => {
   it("includes the chat's broad list and everything that gets strict health grounding", () => {
-    for (const q of ["What should I do during an earthquake?", "Is there a gas leak smell?", "How does lightning form?", "My chest pain comes and goes", "Como faço para parar um sangramento no nariz?", "Estou perdido na trilha"]) {
+    for (const q of ["What should I do during an earthquake?", "Is there a gas leak smell?", "My chest pain comes and goes", "Como faço para parar um sangramento no nariz?", "Estou perdido na trilha"]) {
       expect(isSafetyQuery(q), q).toBe(true);
     }
     expect(isSafetyQuery("What is the capital of Australia?")).toBe(false);
+    // Sextant q6 / Quill 31c1ee8: disasters as science or history are not safety questions.
+    for (const q of ["Why do earthquakes happen near plate boundaries?", "What causes hurricanes?", "How to configure a firewall", "raio-x do pulmão é seguro?", "Por que acontecem terremotos?"]) {
+      expect(isSafetyQuery(q), q).toBe(false);
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+    for (const q of ["There's a wildfire near our town, what should we do?", "Tem um incêndio no prédio", "Estou preso numa enchente, o que fazer?", "Is there a gas leak smell?"]) {
+      expect(isSafetyQuery(q), q).toBe(true);
+    }
     expect(isSafetyQuery("Which painting did Monet make first?")).toBe(false);
   });
 });

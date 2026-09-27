@@ -19,6 +19,7 @@ import {
   HEALTH_GROUNDING_INSTRUCTION,
   isHealthQuestion,
   isSafetyQuery,
+  ACTION_INTENT,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
   noHealthSourceAnswer,
@@ -553,12 +554,15 @@ export function createAnswerer(deps: AnswerDeps) {
       if (english) reasonCodes.push("retrieve:pt-en-terms");
       /** What the sources are matched against: the English words for a translated PT question. */
       const matchQuery = english ?? req.query;
+      // The packs lift an article's Treatment/Management section only when the query asks what to
+      // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
+      const searchQuery = english && ACTION_INTENT.test(req.query) ? `${english} what to do` : matchQuery;
       let raw: RetrievedChunk[] = req.reuseSources ?? [];
       let retrievalMs: number | undefined;
       if (plan.retrieve && gen?.mode !== "multipass") {
         stage("retrieving", plan.instant !== "off" ? "instant" : genTier);
         const rs = deps.now();
-        raw = await deps.retrieve(matchQuery, gen?.retrieveK ?? 6).catch((e) => {
+        raw = await deps.retrieve(searchQuery, gen?.retrieveK ?? 6).catch((e) => {
           console.warn("[answer] retrieval failed, answering without sources:", e?.message ?? e);
           return [] as RetrievedChunk[];
         });

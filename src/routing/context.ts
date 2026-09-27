@@ -228,8 +228,8 @@ const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quent
 // do during an earthquake?"), not when it asks history ("What caused the 1906 earthquake?").
 const DISASTER =
   /(^|[^\p{L}])(earthquakes?|tsunamis?|floods?|flooding|hurricanes?|tornado(es)?|cyclones?|typhoons?|wildfires?|bush ?fires?|house fires?|kitchen fires?|on fire|caught fire|fires? (breaks?|broke) out|fire alarm|smoke inhalation|landslides?|avalanches?|volcan\p{L}*|eruption|terremotos?|sismos?|tsunamis?|enchentes?|inunda\p{L}*|alagamentos?|furac[ãa]o|tornados?|inc[êe]ndios?|deslizamentos?|avalanches?)(?![\p{L}])/iu;
-const ACTION_INTENT =
-  /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get)|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
+export const ACTION_INTENT =
+  /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get|treat|stop|help|make|purify|care)|how to (treat|stop|help|survive|make|purify)|first aid|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
 
 export function isHealthQuestion(query: string): boolean {
   return HEALTH.test(query) || HEALTH_PT.test(query) || (DISASTER.test(query) && ACTION_INTENT.test(query));
@@ -241,12 +241,19 @@ export function isHealthQuestion(query: string): boolean {
  * Kept here so engine and UI use one classifier: isSafetyQuery = isHealthQuestion (which also
  * switches the answer to the source's own text, so it is stricter) OR these words.
  */
+// Disasters get the line only with a what-to-do word (Quill 31c1ee8): "Why do earthquakes
+// happen near plate boundaries?" is science, not an emergency.
+const DISASTER_NOTE_STEMS = [
+  "earthquake", "flood", "wildfire", "hurricane", "tornado", "tsunami", "disaster", "landslide", "avalanche",
+  "lightning", "blizzard", "volcan", "terremoto", "sismo", "enchente", "inunda", "queimada", "furacão",
+  "furacao", "desastre", "deslizamento", "vulcão", "vulcao",
+];
+const DISASTER_NOTE_WORDS = ["fire", "fires", "raio", "raios"];
+const NOTE_INTENT =
+  /\b(what should|what to do|what do i do|how do i|how to|during|survive|stay safe|safe|prepare|protect|escape|help|trapped|caught in|in case of|hit by|there is|there's)\b|o que fazer|o que devo|como agir|como me proteger|como sobreviver|durante|sobreviv|preparar|proteger|escapar|ajuda|preso|em caso de|tem uma?\b|est[áa] pegando/i;
 const SAFETY_NOTE_STEMS = [
-  "earthquake", "flood", "wildfire", "hurricane", "tornado", "tsunami", "evacuat", "disaster", "landslide",
-  "avalanche", "gas leak", "carbon monoxide", "lightning", "blizzard", "volcan", "survival",
-  "terremoto", "sismo", "enchente", "inunda", "incêndio", "incendio", "queimada", "furacão", "furacao",
-  "evacua", "desastre", "deslizamento", "vazamento de gás", "vazamento de gas", "monóxido",
-  "vulcão", "vulcao", "sobreviv", "perdido",
+  "evacuat", "gas leak", "carbon monoxide", "survival", "evacua", "vazamento de gás", "vazamento de gas",
+  "monóxido", "perdido", "incêndio", "incendio",
   "first aid", "emergency", "bleed", "blood", "nosebleed", "burn", "wound", "injur", "fractur",
   "broken bone", "sprain", "resuscitat", "chok", "poison", "overdose", "allerg", "anaphyla", "faint",
   "unconscious", "seizure", "heart attack", "stroke", "chest pain", "breath", "drown", "hypotherm",
@@ -257,17 +264,17 @@ const SAFETY_NOTE_STEMS = [
   "afog", "hipotermia", "insolação", "insolacao", "desidrat", "febre", "concussão", "sintoma", "remédio",
   "remedio", "medicamento",
 ];
-/** Whole words only ("pain" must not match "painting"). */
-const SAFETY_NOTE_WORDS = ["fire", "fires", "raio", "raios", "pain", "dor", "dose", "cut", "shock", "choque", "bite", "sting", "cpr", "rcp", "avc", "dores", "cuts", "bites", "stings"];
+/** Whole words only ("pain" must not match "painting", "raio" not "raio-x"). */
+const SAFETY_NOTE_WORDS = ["pain", "dor", "dose", "cut", "shock", "choque", "bite", "sting", "cpr", "rcp", "avc", "dores", "cuts", "bites", "stings"];
 const escRe = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const SAFETY_NOTE = new RegExp(
-  `(^|[^\\p{L}])(?:(?:${SAFETY_NOTE_STEMS.map(escRe).join("|")})|(?:${SAFETY_NOTE_WORDS.map(escRe).join("|")})(?![\\p{L}-]))`,
-  "iu"
-);
+const wordList = (stems: string[], words: string[]) =>
+  new RegExp(`(^|[^\\p{L}])(?:(?:${stems.map(escRe).join("|")})|(?:${words.map(escRe).join("|")})(?![\\p{L}-]))`, "iu");
+const SAFETY_NOTE = wordList(SAFETY_NOTE_STEMS, SAFETY_NOTE_WORDS);
+const DISASTER_NOTE = wordList(DISASTER_NOTE_STEMS, DISASTER_NOTE_WORDS);
 
 /** One classifier for the emergency-services line, shared by the engine (done.safety) and the chat. */
 export function isSafetyQuery(query: string): boolean {
-  return isHealthQuestion(query) || SAFETY_NOTE.test(query);
+  return isHealthQuestion(query) || SAFETY_NOTE.test(query) || (DISASTER_NOTE.test(query) && NOTE_INTENT.test(query));
 }
 
 /**
@@ -369,9 +376,13 @@ export const HEALTH_ACTION_MIN_SCORE = 0.5;
 export function healthSourceIndex(sources: RetrievedChunk[]): number {
   let best = 0;
   let bestScore = -Infinity;
+  // The packs mark action sections (RetrievedChunk.action, Bramble b4becc5): when any is marked,
+  // only those are candidates ("Quality by country" never beats "Water contamination").
+  const flag = (c: RetrievedChunk) => (c as { action?: boolean }).action;
+  const anyAction = sources.some((c) => flag(c) === true);
   sources.forEach((c, i) => {
-    const section = c.body.split(":")[0];
-    const score = healthActionScore(c) - i * 0.05;
+    if (anyAction && flag(c) !== true) return;
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;

@@ -247,9 +247,25 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     const queries: string[] = [];
     f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
     const { result } = await collect("Como faço para parar um sangramento no nariz?");
-    expect(queries).toEqual(["nosebleed stop"]);
+    expect(queries).toEqual(["nosebleed stop what to do"]);
     expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nA nosebleed is bleeding/);
     expect(f.generations).toHaveLength(0);
+  });
+
+  it("gate 5e70bbd: a what-to-do question keeps its intent in the search, so the pack lifts Treatment", async () => {
+    const queries: string[] = [];
+    f.deps.retrieve = async (q) => (queries.push(q), []);
+    await collect("I just got bitten by a snake while hiking, two hours from the nearest road. What do I do right now?");
+    await collect("Tell me about snakebite statistics in India");
+    expect(queries).toEqual(["snakebite what to do", "Tell me about snakebite statistics in India"]);
+  });
+
+  it("uses the pack's action flag (Bramble b4becc5): an action section wins, a background one is never quoted over it", async () => {
+    const quality = { ...chunk("wq", "Wikivoyage: Water", "Quality by country or region: Pinch tap water is safe to drink in most of the EU, keep an eye on it."), action: false };
+    const contamination = { ...chunk("wc", "Wikivoyage: Water", "Water contamination: boil water for one minute at a rolling boil before you drink it."), action: true };
+    f.retrieved = [quality, contamination] as any;
+    const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
+    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[2\]$/);
   });
 
   it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
@@ -329,8 +345,8 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f.activeId = "lfm8";
     f.retrieved = [];
     const hist = await collect("What caused the 1906 San Francisco earthquake?");
-    // The emergency line is generous (same list as the chat); the answer itself is an ordinary model answer.
-    expect(hist.events.find((e) => e.type === "done")).toMatchObject({ safety: true });
+    // Science or history of a disaster: no emergency line, an ordinary model answer (Sextant q6, Quill 31c1ee8).
+    expect((hist.events.find((e) => e.type === "done") as any).safety).toBeUndefined();
     expect(f.generations).toHaveLength(1);
   });
 
