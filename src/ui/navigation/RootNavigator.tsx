@@ -84,8 +84,8 @@ function EvaluationRoute() {
 /**
  * Native header for the flow screens (Loom): the back button only. The screen title is drawn in the
  * content (ScreenTitle, title1 Baloo, like the setup steps) because iOS 26 left the native large title
- * empty whatever we tried (Prism/Harbor LT-1, tests 1-4). The header keeps `title` in a transparent
- * colour, so VoiceOver and TalkBack still announce the screen name once on entry, and nothing shows twice.
+ * empty whatever we tried (Prism/Harbor LT-1, tests 1-5). The bar draws no title at all, so the name is
+ * read once, from the content title.
  * `large` is kept for the call sites; it no longer turns on a large title.
  */
 function flowHeader(t: Tokens, title: string, _large = true) {
@@ -95,7 +95,10 @@ function flowHeader(t: Tokens, title: string, _large = true) {
     headerLargeTitle: false,
     headerShadowVisible: false,
     headerTintColor: t.color.accent.text,
-    headerTitleStyle: { color: "transparent" },
+    // No title in the bar on either platform: a transparent title still showed on Android and was read
+    // twice by TalkBack (Prism DUP-2). The screen's name is the content title (first in reading order);
+    // `title` stays on the route for the next screen's back button.
+    headerTitle: () => null,
     headerStyle: { backgroundColor: t.color.bg.canvas },
     headerBackButtonDisplayMode: "minimal" as const,
   };
