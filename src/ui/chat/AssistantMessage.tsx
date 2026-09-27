@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, type IconName } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, TextAction, type IconName } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTheme, useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
@@ -483,19 +483,15 @@ function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: num
   const groups = groupSources(answer.sources, indexes);
   return (
     <View style={{ gap: t.space.sm }}>
-      {/* Neutral text action, no ember inside the amber card (Iris); becomes TextAction once 62a6944 is integrated. */}
-      <Pressable
-        onPress={() => setOpen((o) => !o)}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        hitSlop={{ top: t.space.md, bottom: t.space.md }}
-        style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xxs, paddingHorizontal: t.space.sm }}
-      >
-        <Text variant="footnote" color="secondary">
-          {tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
-        </Text>
-        <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
-      </Pressable>
+      {/* Neutral text action, no ember inside the amber card (Iris). */}
+      <View style={{ paddingHorizontal: t.space.sm }}>
+        <TextAction
+          label={tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
+          icon={open ? "chevron-up" : "chevron-down"}
+          expanded={open}
+          onPress={() => setOpen((o) => !o)}
+        />
+      </View>
       {open &&
         groups.map((g) => (
           <View key={g.key} style={{ gap: t.space.xxs, paddingHorizontal: t.space.sm }}>
