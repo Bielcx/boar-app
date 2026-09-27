@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { KeyboardController } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { Badge, Banner, Button, Card, EmptyState, Icon, Sheet, Text, TextField, useToast } from "../components";
 import { useTokens } from "../theme";
@@ -252,7 +253,13 @@ function CityPrompt({
     // Once, when the prompt appears.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const submit = () => city.trim() && onCity(city.trim());
+  const submit = () => {
+    if (!city.trim()) return;
+    // Close the keyboard before this field unmounts (the results replace the prompt): a focused
+    // input removed with the keyboard open is a likely trigger of Prism's K-2 (composer left floating).
+    KeyboardController.dismiss();
+    onCity(city.trim());
+  };
   return (
     <Card style={{ gap: t.space.md }}>
       {/* A permanent "no" on Android can only be undone in the system settings; offer the way there. */}

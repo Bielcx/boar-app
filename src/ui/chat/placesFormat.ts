@@ -237,7 +237,8 @@ export function placesEmptyTitle(
   if (r.coverage === "no_pack") return t("chat.places.noPackTitle");
   if (r.coverage === "ok" && r.places.length > 0) return null;
   const city = r.area.place?.name ?? r.area.label ?? "";
-  const filter = filterName(r.filters, t);
+  // Mid-sentence, the filter reads in lower case ("No vegan places…"), not as the title label ("Vegan").
+  const filter = filterName(r.filters, t)?.toLowerCase() ?? null;
   return city
     ? t(filter ? "chat.places.noneInCityFiltered" : "chat.places.noneInCity", { city, filter })
     : t(filter ? "chat.places.noneNearFiltered" : "chat.places.noneNear", { filter });

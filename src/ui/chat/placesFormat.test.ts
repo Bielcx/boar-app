@@ -14,6 +14,7 @@ import {
   deviceClockApplies,
   showUseLocation,
   formatDataMonth,
+  placesEmptyTitle,
 } from "./placesFormat";
 
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -171,5 +172,14 @@ describe("formatDataMonth", () => {
   it("drops what it can't read", () => {
     expect(formatDataMonth(undefined, "en-US")).toBeNull();
     expect(formatDataMonth("soon", "en-US")).toBeNull();
+  });
+});
+
+describe("placesEmptyTitle filter wording", () => {
+  it("puts the diet filter in lower case inside the sentence (Prism P-4)", () => {
+    const tt = (key: string, opts?: Record<string, unknown>) =>
+      key === "chat.places.filter.vegan" ? "Vegan" : opts ? `${key}${JSON.stringify(opts)}` : key;
+    const r = { coverage: "none" as const, places: [], filters: ["vegan"], area: { place: { name: "Tokyo" } } };
+    expect(placesEmptyTitle(r, tt)).toBe('chat.places.noneInCityFiltered{"city":"Tokyo","filter":"vegan"}');
   });
 });
