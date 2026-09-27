@@ -273,6 +273,9 @@ describe("receiptTagKey (Iris CT-5)", () => {
     expect(receiptTagKey({ ...base, cited: [] })).toBe("chat.weak.receiptUncited");
     expect(receiptTagKey({ ...base, cited: [1] })).toBeNull();
     expect(receiptTagKey(base)).toBeNull();
+    // CALC-1: the exact conversion shows "Calculation" by the name.
+    const calc = { ...receipt, modelId: "calculator", tokens: 0, tokPerSec: 0 };
+    expect(receiptTagKey({ answerIds: ["a"], sources: [], cited: [], instantDone: { outcome: "success", receipt: calc } } as AnswerState)).toBe("chat.receipt.calculator");
   });
 });
 

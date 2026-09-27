@@ -273,7 +273,9 @@ export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fa
  * covered the question, where it is true; "no source cited" when passages on the topic were found
  * but the model cited none (it may have used them, so "general knowledge" could be false).
  */
-export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | null {
+export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | "chat.receipt.calculator" | null {
+  // The exact conversion (Prism CALC-1): say by the name that no model wrote it, as the other tags do.
+  if (!a.fast && a.instantDone?.receipt.modelId === CALCULATOR_MODEL_ID) return "chat.receipt.calculator";
   const kind = noSourceKind(a);
   return kind === "weak" ? "chat.weak.receipt" : kind === "uncited" ? "chat.weak.receiptUncited" : null;
 }
