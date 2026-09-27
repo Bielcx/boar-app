@@ -43,21 +43,31 @@ async function sha256InJs(uri: string, onProgress?: HashProgress, signal?: Abort
   );
 }
 
+/** What sizeOfFile learned about a file: its size, that it's really empty, or that it couldn't be measured. */
+export type FileMeasure = { kind: "size"; bytes: number } | { kind: "empty" } | { kind: "unreadable" };
+
 /**
- * Size in bytes of a file:// or content:// URI, or null if it can't be read
- * or measured. expo-file-system's legacy getInfoAsync measures content://
- * with an Int (InputStream.available()), so a picked file over 2 GB read as
- * 0 bytes and was refused (IMP-2GB). The native module measures a Long (file
- * descriptor length, then the provider's OpenableColumns.SIZE); the legacy
- * call is only the fallback for builds without it. 0 is never taken as a
- * size: no model or pack is empty, and 0 is what the Int overflow looked like.
+ * Measures a file:// or content:// URI. expo-file-system's legacy
+ * getInfoAsync measures content:// with an Int (InputStream.available()), so
+ * a picked file over 2 GB read as 0 bytes and was refused (IMP-2GB). The
+ * native module measures a Long (file descriptor length, then the provider's
+ * OpenableColumns.SIZE); the legacy call is only the fallback for builds
+ * without it. Only the native size can say "empty": a 0 from the legacy call
+ * is what the overflow looked like, so it counts as unreadable.
  */
-export async function sizeOfFile(uri: string): Promise<number | null> {
+export async function measureFile(uri: string): Promise<FileMeasure> {
   const native = FileHashNative?.size ? await FileHashNative.size(uri).catch(() => -1) : -1;
-  if (native > 0) return native;
+  if (native > 0) return { kind: "size", bytes: native };
+  if (native === 0) return { kind: "empty" };
   const info = await FileSystem.getInfoAsync(uri).catch(() => null);
-  if (!info?.exists || info.isDirectory) return null;
-  return info.size && info.size > 0 ? info.size : null;
+  if (!info?.exists || info.isDirectory) return { kind: "unreadable" };
+  return info.size && info.size > 0 ? { kind: "size", bytes: info.size } : { kind: "unreadable" };
+}
+
+/** The size in bytes, or null if the file is empty or couldn't be measured (never 0). */
+export async function sizeOfFile(uri: string): Promise<number | null> {
+  const m = await measureFile(uri);
+  return m.kind === "size" ? m.bytes : null;
 }
 
 /** Streaming SHA-256 (lowercase hex) of a file:// or content:// URI. Never loads the whole file. */

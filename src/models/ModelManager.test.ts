@@ -88,10 +88,11 @@ vi.mock("../config/variant", () => ({ networkAllowed: () => !offline }));
 let copyHook: (() => Promise<void> | void) | null = null;
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 vi.mock("./fileHash", () => ({
-  // Like the real one: the native Long size, never 0.
-  sizeOfFile: async (uri: string) => {
-    const n = fakeSizes.get(uri) ?? files.get(uri)?.length;
-    return n && n > 0 ? n : null;
+  // Like the real one with the native module: a Long size, or "empty" for a real 0.
+  measureFile: async (uri: string) => {
+    if (!files.has(uri)) return { kind: "unreadable" };
+    const n = fakeSizes.get(uri) ?? files.get(uri)!.length;
+    return n > 0 ? { kind: "size", bytes: n } : { kind: "empty" };
   },
   sha256OfFile: async (uri: string, onProgress?: (d: number, t: number) => void) => {
     const data = files.get(uri)!;
@@ -407,10 +408,13 @@ describe("import size limits", () => {
     expect(installed.id).toBe(a.id);
   });
 
-  it("refuses a file it can't measure instead of treating it as 0 bytes", async () => {
+  it("tells a really empty file (0 bytes, measured natively) from one it can't read", async () => {
     put(SRC, Buffer.alloc(0));
-    const e = await rejection(new ModelManager([asset()]).importFromFile(SRC));
-    expect(e).toMatchObject({ kind: "unknown-file", message: "The selected file could not be read." });
+    expect(await rejection(new ModelManager([asset()]).importFromFile(SRC))).toMatchObject({ kind: "empty-file", permanent: true });
+    expect(await rejection(new ModelManager([asset()]).importFromFile("content://picker/gone"))).toMatchObject({
+      kind: "unknown-file",
+      message: "The selected file could not be read.",
+    });
   });
 
   it("logs a refusal decided before any copy, so a device log shows why nothing happened", async () => {

@@ -8,7 +8,7 @@ vi.mock("file-hash", () => ({ FileHashNative: native }));
 vi.mock("expo-file-system", () => ({ File: class {} }));
 vi.mock("expo-file-system/legacy", () => ({ getInfoAsync: async () => legacy.info }));
 
-import { sizeOfFile } from "./fileHash";
+import { measureFile, sizeOfFile } from "./fileHash";
 
 const QWEN_4B = 2_497_281_120; // > 2^31 - 1
 const URI = "content://com.android.providers.downloads.documents/document/raw%3A%2Fstorage%2Femulated%2F0%2FDownload%2Fqwen.gguf";
@@ -25,10 +25,13 @@ describe("sizeOfFile (IMP-2GB)", () => {
     expect(await sizeOfFile(URI)).toBe(QWEN_4B);
   });
 
-  it("never takes 0 as a size: native 0 or -1 falls back, and a legacy 0 means unknown", async () => {
+  it("says empty only when the native Long size is 0; a legacy 0 is unreadable, never a size", async () => {
     native.size = async () => 0;
     legacy.info = { exists: true, size: 0 };
+    expect(await measureFile(URI)).toEqual({ kind: "empty" });
     expect(await sizeOfFile(URI)).toBeNull();
+    native.size = undefined;
+    expect(await measureFile(URI)).toEqual({ kind: "unreadable" });
     native.size = async () => -1;
     legacy.info = { exists: true, size: 986_048_768 };
     expect(await sizeOfFile(URI)).toBe(986_048_768);
