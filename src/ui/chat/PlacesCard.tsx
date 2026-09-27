@@ -97,17 +97,14 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
           <Text variant="cardTitle" numberOfLines={2}>
             {place.name}
           </Text>
-          {(tags || state) && (
-            <Text variant="footnote" color="secondary">
+          {/* One line of facts (Iris): tags · open/closed · the address when there is no distance to show. */}
+          {(tags || state || (!distance && place.address)) && (
+            <Text variant="footnote" color="secondary" numberOfLines={2}>
               {tags}
               {tags && state ? " · " : ""}
               {/* Closed stands out at a glance (geo-result-card G5); the words carry it too. */}
               {state && <Text variant="footnote" color={state.open ? "secondary" : "warning"}>{openStateLabel(state, tr)}</Text>}
-            </Text>
-          )}
-          {!distance && place.address && (
-            <Text variant="footnote" color="secondary" numberOfLines={1}>
-              {place.address}
+              {!distance && place.address ? `${tags || state ? " · " : ""}${place.address}` : ""}
             </Text>
           )}
         </View>
@@ -385,13 +382,21 @@ function CityPrompt({
     <Card radius="card" padding="compact" style={{ gap: t.space.md }}>
       {/* A permanent "no" on Android can only be undone in the system settings; offer the way there. */}
       {locationStatus === "denied" && (
-        <Banner
-          tone="info"
-          icon="map-pin"
-          message={tr("chat.places.locationDenied")}
-          actionLabel={tr("chat.places.openSettings")}
-          onAction={() => Linking.openSettings()}
-        />
+        <View style={{ gap: t.space.xs }}>
+          <Banner tone="info" icon="map-pin" message={tr("chat.places.locationDenied")} />
+          {/* One accent per screen (Iris): the field's focus is the ember here, so this link is secondary. */}
+          <Pressable
+            onPress={() => Linking.openSettings()}
+            accessibilityRole="link"
+            hitSlop={{ top: t.space.md, bottom: t.space.md }}
+            style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xxs }}
+          >
+            <Text variant="caption" weight="semibold" color="secondary">
+              {tr("chat.places.openSettings")}
+            </Text>
+            <Icon name="chevron-right" size="sm" color={t.color.text.secondary} />
+          </Pressable>
+        </View>
       )}
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}
       {locating ? (
