@@ -55,28 +55,45 @@ describe("citySummary", () => {
 });
 
 describe("topInstalledCities", () => {
-  const regions = [
-    { id: "sao-paulo", cities: [{ name: "São Paulo", lat: 0, lon: 0, pois: 9000 }, { name: "Campinas", lat: 0, lon: 0, pois: 800 }] },
-    { id: "taipei", cities: [{ name: "Taipei", lat: 0, lon: 0, pois: 5000 }, { name: "Keelung", lat: 0, lon: 0, pois: 300 }] },
-    { id: "singapore", cities: [{ name: "Singapore", lat: 0, lon: 0, pois: 20000 }] },
-  ];
+  // Coordinates as in the packs: Berlin's districts sit within a few km of Berlin.
+  const berlin = {
+    id: "berlin",
+    cities: [
+      { name: "Berlin", lat: 52.52, lon: 13.41, pois: 5993 },
+      { name: "Neukölln", lat: 52.48, lon: 13.44, pois: 4365 },
+      { name: "Kreuzberg", lat: 52.5, lon: 13.4, pois: 5867 },
+      { name: "Potsdam", lat: 52.4, lon: 13.07, pois: 900 },
+    ],
+  };
+  const qujing = { id: "qujing", cities: [{ name: "Qujing", lat: 25.49, lon: 103.8, pois: 0 }] };
+  const sp = {
+    id: "sao-paulo",
+    cities: [
+      { name: "São Paulo", lat: -23.55, lon: -46.63, pois: 2785 },
+      { name: "Guarulhos", lat: -23.46, lon: -46.53, pois: 222 },
+    ],
+  };
+  const all = [berlin, qujing, sp];
 
-  it("only cities of installed packs, most food places first", () => {
-    expect(topInstalledCities(regions, new Set(["sao-paulo", "taipei"]))).toEqual([
-      { name: "São Paulo", region: "sao-paulo" },
-      { name: "Taipei", region: "taipei" },
-      { name: "Campinas", region: "sao-paulo" },
-      { name: "Keelung", region: "taipei" },
-    ]);
+  it("every installed region's main city before any second one, even with no food places (Prism L-4)", () => {
+    expect(topInstalledCities(all, new Set(["berlin", "qujing", "sao-paulo"]), 3).map((c) => c.name)).toEqual(["Berlin", "São Paulo", "Qujing"]);
   });
 
-  it("respects the limit and returns nothing when no pack is installed", () => {
-    expect(topInstalledCities(regions, new Set(["sao-paulo", "taipei", "singapore"]), 2).map((c) => c.name)).toEqual(["Singapore", "São Paulo"]);
-    expect(topInstalledCities(regions, new Set())).toEqual([]);
+  it("leaves districts out: places within 10 km of a bigger one in the same pack", () => {
+    expect(topInstalledCities([berlin], new Set(["berlin"])).map((c) => c.name)).toEqual(["Berlin", "Potsdam"]);
+  });
+
+  it("fills the next rounds in region order and keeps each region's biggest-first order", () => {
+    expect(topInstalledCities(all, new Set(["berlin", "sao-paulo"])).map((c) => c.name)).toEqual(["Berlin", "São Paulo", "Potsdam", "Guarulhos"]);
+  });
+
+  it("only installed packs, and nothing when none is installed", () => {
+    expect(topInstalledCities(all, new Set(["qujing"]))).toEqual([{ name: "Qujing", region: "qujing" }]);
+    expect(topInstalledCities(all, new Set())).toEqual([]);
   });
 
   it("lists a city name once even if two packs cover it", () => {
-    const overlap = [...regions, { id: "sp-tiles", cities: [{ name: "São Paulo", lat: 0, lon: 0, pois: 100 }] }];
-    expect(topInstalledCities(overlap, new Set(["sao-paulo", "sp-tiles"])).filter((c) => c.name === "São Paulo")).toHaveLength(1);
+    const tiles = { id: "berlin-tiles", cities: [{ name: "Berlin", lat: 52.52, lon: 13.41, pois: 10 }] };
+    expect(topInstalledCities([berlin, tiles], new Set(["berlin", "berlin-tiles"])).filter((c) => c.name === "Berlin")).toHaveLength(1);
   });
 });

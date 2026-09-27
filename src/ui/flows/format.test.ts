@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatBytesParts, formatRam, formatSeconds, minutesLeft } from "./format";
+import { formatBytes, formatBytesParts, formatRam, formatSeconds, minutesAbout, minutesLeft } from "./format";
 
 describe("formatBytes", () => {
   it("uses the locale's decimal separator", () => {
@@ -44,5 +44,13 @@ describe("minutesLeft", () => {
   it("rounds up and never says zero", () => {
     expect(minutesLeft(10)).toBe(1);
     expect(minutesLeft(61)).toBe(2);
+  });
+});
+
+describe("minutesAbout", () => {
+  it("rounds an estimate to the nearest minute, so 1.0 and 1.2 GB at 5 MB/s differ (Prism)", () => {
+    expect(minutesAbout(200)).toBe(3); // 1.0 GB
+    expect(minutesAbout(240)).toBe(4); // 1.2 GB
+    expect(minutesAbout(10)).toBe(1);
   });
 });

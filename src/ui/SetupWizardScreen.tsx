@@ -28,7 +28,7 @@ import {
   storageShortfall,
   transferSeconds,
 } from "./flows/packages";
-import { formatBytes, formatCount, formatRam, minutesLeft } from "./flows/format";
+import { formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
 import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
@@ -344,8 +344,11 @@ function Welcome({
         <Text variant="body">{t("flows.onboarding.tagline")}</Text>
         <View style={{ gap: tokens.space.sm }}>
           {points.map((p) => (
-            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-              <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+            // Icon on the first line's optical centre when the text wraps (Iris, 1.3).
+            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "flex-start" }}>
+              <View style={{ paddingTop: tokens.space.xxs }}>
+                <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+              </View>
               <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
                 {t(`flows.onboarding.${p.key}`)}
               </Text>
@@ -550,7 +553,7 @@ function PackageStep({
                 !offline &&
                   p.seconds != null &&
                   p.plan.downloadBytes > 0 &&
-                  t("flows.onboarding.meta.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
+                  t("flows.onboarding.meta.time", { minutes: minutesAbout(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
               ]}
             >
               {warning && (
@@ -1088,7 +1091,13 @@ function InstallStep({
           <View style={{ position: "absolute", top: 0, right: 0 }}>
             {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
           </View>
-          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base }}>
+          {/* As tall as the boar, so the bar and the metadata start below its feet (Iris). */}
+          <View
+            style={{
+              paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base,
+              minHeight: fontScale > LARGE_TEXT ? tokens.size.mascotSm - tokens.space.base : tokens.size.mascot - tokens.space.base,
+            }}
+          >
             {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
@@ -1098,6 +1107,21 @@ function InstallStep({
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
           <MetaLine items={hero.meta} />
+        </Card>
+      )}
+
+      {/* Right under the progress, where it is seen: downloads pause in the background (Prism S3-5). */}
+      {downloading && (
+        <Card style={{ gap: tokens.space.xs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
+            <Text variant="label" color="warning">
+              {t("flows.onboarding.keepOpenTitle")}
+            </Text>
+          </View>
+          <Text variant="footnote" color="secondary">
+            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+          </Text>
         </Card>
       )}
 
@@ -1217,19 +1241,6 @@ function InstallStep({
         />
       )}
 
-      {downloading && (
-        <Card style={{ gap: tokens.space.xs }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
-            <Text variant="label" color="warning">
-              {t("flows.onboarding.keepOpenTitle")}
-            </Text>
-          </View>
-          <Text variant="footnote" color="secondary">
-            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
-          </Text>
-        </Card>
-      )}
     </Screen>
   );
 }

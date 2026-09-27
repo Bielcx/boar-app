@@ -410,15 +410,14 @@
       "usedLabel": "Usado pelo BOAR",
       "freeLabel": "Livre no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
-      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular.",
-      "storage": "O BOAR usa {{used}} · {{free}} livres no celular"
+      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },
     "knowledge": {
       "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",
       "indexing": "Indexando {{done}} de {{total}}",
       "indexingLabel": "Indexação do conhecimento",
       "appCollections": "Coleções do BOAR",
-      "appFooter": "Feitas a partir da Wikipedia (CC BY-SA 4.0).",
+      "appFooter": "Feitas a partir da Wikipédia (CC BY-SA 4.0).",
       "builtin": "Artigos embutidos",
       "builtinSub": "Sempre disponíveis, sem download.",
       "packReady": "{{name}} está pronto",
@@ -518,7 +517,7 @@
       "buildRelease": "build de release",
       "howTitle": "Como funciona",
       "how1": "O BOAR responde com um modelo de linguagem que roda neste celular, com o llama.cpp. Depois da configuração, não precisa de internet.",
-      "how2": "Antes de responder, ele busca no conhecimento guardado no celular (coleções da Wikipedia e seus documentos) e cita os trechos que usou.",
+      "how2": "Antes de responder, ele busca no conhecimento guardado no celular (coleções da Wikipédia e seus documentos) e cita os trechos que usou.",
       "how3": "Cada resposta é medida no celular. Veja Desempenho para velocidade e memória.",
       "installedTitle": "Instalado neste celular",
       "installedFooter": "Cada modelo e coleção mantém a própria licença.",
@@ -561,11 +560,11 @@
       "package": {
         "essential": {
           "name": "Essencial",
-          "body": "Modelos de resposta e de busca, mais as coleções básicas de temas da Wikipedia."
+          "body": "Modelos de resposta e de busca, mais as coleções básicas de temas da Wikipédia."
         },
         "encyclopedia": {
           "name": "Enciclopédia",
-          "body": "O Essencial mais o pacote de Artigos Vitais da Wikipedia, para perguntas mais amplas."
+          "body": "O Essencial mais o pacote de Artigos Vitais da Wikipédia, para perguntas mais amplas."
         }
       },
       "recommended": "Recomendado",
@@ -643,13 +642,7 @@
         "compact": "Compacto"
       },
       "suggested": "Sugerido",
-      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
-      "stepOf": "Passo {{step}} de {{total}}",
-      "stepAnnounce": "Passo {{step}} de 3, {{title}}",
-      "download": "Download: {{size}}",
-      "diskAfter": "Espaço depois de instalar: {{size}}",
-      "time": "Cerca de {{minutes}} min a {{speed}}/s (estimativa)",
-      "importSize": "Arquivos para importar: {{size}}"
+      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão."
     },
     "places": {
       "title": "Lugares (offline)",
