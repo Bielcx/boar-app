@@ -180,13 +180,13 @@ describe("answerReducer", () => {
 describe("locating (Boar GPS-1)", () => {
   const base = { answerIds: ["a"], sources: [] } as AnswerState;
   it("is its own phase while the engine waits for the GPS and nothing is listed", () => {
-    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" as never });
+    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" });
     expect(isLocating(waiting)).toBe(true);
     expect(answerPhase(waiting)).toBe("locating");
   });
 
   it("ends when a fix or a list arrives", () => {
-    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" as never });
+    const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" });
     expect(isLocating(answerReducer(waiting, { type: "location", answerId: "a", status: "granted" }))).toBe(false);
     expect(isLocating({ ...waiting, places: { coverage: "ok", places: [], area: { kind: "near" } } as never })).toBe(false);
   });
