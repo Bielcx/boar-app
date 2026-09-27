@@ -1,5 +1,7 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { IconButton, Text } from "../components";
 import { useTokens } from "../theme";
@@ -32,6 +34,14 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   const field = useRef<TextInput>(null);
   useImperativeHandle(ref, () => field.current as TextInput);
   const empty = value.trim().length === 0;
+  const insets = useSafeAreaInsets();
+  // The mockup ends the composer 30 pt above the screen's bottom (into the home-indicator inset by 4);
+  // the screen leaves the bottom edge to the composer. Small insets (Android gestures) keep at least sm.
+  // With the keyboard up there is no home indicator under the composer: keep the usual small gap.
+  const keyboardUp = useKeyboardState((k) => k.isVisible);
+  const bottom = keyboardUp ? t.space.sm : Math.max(t.space.sm, insets.bottom - t.space.xs);
+  // Model error: the composer is dimmed and not editable; the card above is where to act (E-5, Prism).
+  const blocked = status === "error";
   const keys = composerNotice(status);
   const line = keys.line ? tr(keys.line) : undefined;
   const hint = keys.hint ? tr(keys.hint) : undefined;
@@ -46,7 +56,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
       style={{
         paddingHorizontal: t.space.gutterChat,
         paddingTop: t.space.sm,
-        paddingBottom: t.space.md,
+        paddingBottom: bottom,
         gap: t.space.xs,
       }}
     >
@@ -56,7 +66,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
         </Text>
       )}
       {/* In the model-error state the whole composer is dimmed, as the mockup: the card above is where to act (E-5). */}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, opacity: status === "error" ? 0.45 : 1 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, opacity: blocked ? 0.45 : 1 }}>
         {voiceEnabled && (
           <VoiceInputButton disabled={!ready} onTranscript={(text) => onChange(value ? `${value} ${text}` : text)} />
         )}
@@ -80,6 +90,8 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             accessibilityLabel={tr("chat.composer.label")}
             placeholder={tr(composerPlaceholderKey(status))}
             placeholderTextColor={t.color.text.secondary}
+            editable={!blocked}
+            accessibilityState={{ disabled: blocked }}
             multiline
             submitBehavior="newline"
             onFocus={() => setFocused(true)}

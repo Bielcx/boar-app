@@ -35,10 +35,10 @@ export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voi
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
   const [offlineOpen, setOfflineOpen] = useState(false);
-  // Short "OFFLINE" like the mockup only where it is literally true (the build without INTERNET);
-  // the downloader build keeps "Answers offline" (HQ honesty rule R9). Readers hear the long form.
+  // "OFFLINE" like the mockup only where it is literally true (the build without INTERNET); the downloader
+  // build says "ON DEVICE" (Boar: the answer is computed on the phone), same pill. Readers hear the long form.
   const sealLabel = tr(OFFLINE_BUILD ? "chat.header.offlineSeal" : "chat.header.offlineAnswersSeal");
-  const sealSpoken = tr(OFFLINE_BUILD ? "chat.header.offlineSealSpoken" : "chat.header.offlineAnswersSeal");
+  const sealSpoken = tr(OFFLINE_BUILD ? "chat.header.offlineSealSpoken" : "chat.header.onDeviceSealSpoken");
   // The mockup's header: padding 4/16/10, 10 between items, 42 pt discs (touch comes from hitSlop).
   const itemGap = t.space.sm + t.space.xxs;
   const fit = headerFit({
