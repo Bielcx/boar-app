@@ -52,6 +52,9 @@ function isGreeting(trimmed: string): boolean {
   return segments.length > 0 && segments.every((seg) => GREETING_PHRASE_RE.test(seg));
 }
 
+const YES_NO =
+  /^(is|are|was|were|do|does|did|can|could|should|will|would|has|have|é|e|são|sao|era|foi|posso|pode|podem|devo|deve|precisa|preciso|tem|há|ha|existe|vale)(?![\p{L}])[^?]*\?\s*$/iu;
+
 export function classifyTask(query: string): TaskType {
   const trimmed = query.trim();
   if (!trimmed) return "unknown";
@@ -69,6 +72,10 @@ export function classifyTask(query: string): TaskType {
   if (wordCount > 25 || /\b(research|analyze|analyse|investigate|explore|explain in depth)\b/i.test(trimmed)) {
     return "research";
   }
+  // A yes/no question is a question about the world ("Is tipping expected in restaurants in Portugal?", "É esperado
+  // dar gorjeta…?"): as "chat" the compact model answered it from memory with no source (Sextant trv-009: "tão ou
+  // tãozinho, 10%"); as a lookup it declines when the library has nothing on topic. Unicode boundaries ("É").
+  if (YES_NO.test(trimmed)) return "lookup";
   return "chat";
 }
 

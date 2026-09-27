@@ -1205,6 +1205,19 @@ describe("answer(): dng-001 snakebite, never a contested or dangerous procedure 
   });
 });
 
+describe("answer(): trv-009 PT, a yes/no question with no source on topic (gate af25827)", () => {
+  it("the compact model declines instead of inventing a tipping custom", async () => {
+    f.retrieved = [chunk("t", "Triage", "Triage is the process of determining the priority of patients' treatments."), chunk("e", "Estrela, Lisbon", "Estrela is a civil parish in the municipality of Lisbon.")];
+    f.deps.englishNames = () => [];
+    f.deps.engine.generate = async () => "Em Portugal a gorjeta é chamada de tãozinho e é de 10%.";
+    const { events, result } = await collect("É esperado dar gorjeta em restaurantes em Portugal?");
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect(result.text).toBe("Não encontrei isso no acervo deste celular.");
+    expect(result.receipt.reasonCodes).toContain("task:lookup");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  isPortugueseQuestion,
+  excerptRules,
   withAfterPart,
   imperativeSteps,
   sentenceNamesSubject,
@@ -741,5 +743,24 @@ describe("withAfterPart (Sextant dng-004-pt)", () => {
     const q1 = "O que fazer durante um terremoto?";
     const first = healthExtract(during, 1, true, rules);
     expect(withAfterPart(q1, first, [during, after], 0, true, rules)).toBe(first);
+  });
+});
+
+describe("dng-005: making water safe, the excerpt stops before 'drink something else' (Sextant)", () => {
+  it("keeps boil / iodine / straw, drops tea, milk, coffee and sea water", () => {
+    const c = { chunkId: "w", docId: "w", title: "Wikivoyage: Water", body: "Buy: - Boil the water before drinking (several minutes, depending on what you want to kill) - Use iodine tablets (will kill bacteria, but make the water taste bad) - Use a survival straw (probably best for extremely remote areas) Consider drinking tea, soft drinks or bottled juices instead of unsafe water. Milk or yoghurt may also be OK. Coffee and alcoholic drinks will dehydrate you. Never drink sea water, even small amounts.", score: 1, matchType: "lexical" as const, action: true };
+    const q = "Depois de uma enchente, a água da torneira pode estar contaminada. Como deixo a água segura para beber?";
+    const topic = healthTopicTerms(q, "safe drinking water flood");
+    const text = healthExtract(c, 1, true, excerptRules(q, topic));
+    expect(text).toMatch(/Boil the water before drinking/);
+    expect(text).toMatch(/Use iodine tablets/);
+    expect(text).not.toMatch(/tea|Milk|Coffee|sea water/);
+  });
+});
+
+describe("isPortugueseQuestion (trv-009 PT)", () => {
+  it("PT without interrogatives; never a short English question", () => {
+    expect(isPortugueseQuestion("É esperado dar gorjeta em restaurantes em Portugal?")).toBe(true);
+    for (const q of ["How do I stop a nosebleed?", "Is tipping expected in restaurants in Portugal?", "What is a monsoon?", "Is São Paulo safe at night?", "Do I need a visa for Brazil?"]) expect(isPortugueseQuestion(q), q).toBe(false);
   });
 });
