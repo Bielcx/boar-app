@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -322,5 +322,20 @@ describe("sourceLanguageLead (Tusk 29d7e52, Sextant q8 PT)", () => {
   it("leaves any other text alone", () => {
     expect(sourceLanguageLead("A monsoon is a seasonal change…")).toEqual({ lang: null, body: "A monsoon is a seasonal change…" });
     expect(sourceLanguageLead("From the offline source:\nSteps…")).toEqual({ lang: null, body: "From the offline source:\nSteps…" });
+  });
+});
+
+describe("declineCopy (Tusk 237764a: the compact model's cited answer withheld)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "Monsoon", body: "b", score: 1, matchType: "hybrid" as const }];
+  it("passages found but every citation removed → says the passages don't back it, never 'couldn't find'", () => {
+    const a = { answerIds: ["a"], sources: src, weakSources: true, weakDeclined: true } as AnswerState;
+    expect(declineCopy(a)).toEqual({ title: "chat.weak.unsupportedTitle", body: "chat.weak.unsupportedBody" });
+    expect(declineCopy(a, true).title).toBe("chat.weak.unsupportedTitle");
+    expect(phaseAnnouncement("done", { ...a, fast: { text: "", stage: null, outcome: "success" } }, t)?.message).toBe("chat.weak.unsupportedTitle. chat.weak.unsupportedBody");
+  });
+  it("nothing on the topic → 'couldn't find', or the incomplete library", () => {
+    const a = { answerIds: ["a"], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
+    expect(declineCopy(a).title).toBe("chat.weak.declinedTitle");
+    expect(declineCopy(a, true).title).toBe("chat.weak.declinedTitleIncomplete");
   });
 });
