@@ -581,6 +581,30 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     if (instant) expect(sources[instant.snippet.sourceIndex].title).toBe("Wikivoyage: Hot weather");
   });
 
+  it("PT-1: a PT question is matched with the lexicon's English names, with or without accents", async () => {
+    const SEASON = chunk("se", "Season", "A season is a division of the year based on changes in weather. Seasons result from Earth's axial tilt relative to the plane of its orbit around the Sun.");
+    for (const q of ["Por que existem as estações do ano?", "Por que existem as estacoes do ano?"]) {
+      f = makeFake();
+      f.retrieved = [WALIPINI, SEASON];
+      const queries: string[] = [];
+      const retrieve = f.deps.retrieve;
+      f.deps.retrieve = (query, k) => (queries.push(query), retrieve(query, k));
+      f.deps.englishNames = (query) => (/esta(ç|c)(õ|o)es do ano/i.test(query) ? ["Season"] : []);
+      const { events, result } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+      expect(sources.map((c) => c.title), q).toEqual(["Season"]);
+      expect(queries, q).toEqual([q]); // retrieve() translates a PT question itself
+      expect(result.receipt.reasonCodes).toContain("match:pt-en-names");
+      const instant = events.find((e) => e.type === "instant") as any;
+      expect(instant && sources[instant.snippet.sourceIndex].title, q).toBe("Season");
+    }
+    // Without the names, no English title is named by the PT words: the guard keeps nothing.
+    f = makeFake();
+    f.retrieved = [WALIPINI, { ...WALIPINI, chunkId: "se", title: "Season" }];
+    const { events } = await collect("Por que existem as estacoes do ano?");
+    expect(events.find((e) => e.type === "instant")).toBeUndefined();
+  });
+
   it("only the incidental page: no snippet, and the model is told it's not from the library", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";

@@ -132,6 +132,12 @@ export interface AnswerDeps {
    * after the models load). A question asked meanwhile waits instead of searching an empty index.
    */
   knowledgeReady?(): Promise<void>;
+  /**
+   * English article names a Portuguese question mentions (Bramble's lexicon, src/rag/ptLexicon.ts
+   * englishNamesIn): "Por que existem as estações do ano?" -> ["Season"]. The grounding guard matches
+   * sources against them; without them a PT question never names an English title.
+   */
+  englishNames?(query: string): string[];
 }
 
 /** GPS budget: the first useful information must appear in under a second. */
@@ -581,11 +587,15 @@ export function createAnswerer(deps: AnswerDeps) {
       const pt = PT_QUESTION.test(req.query);
       const english = pt ? englishSearchTerms(req.query) : isHealthQuestion(req.query) ? canonicalHealthTerms(req.query) : null;
       if (english) reasonCodes.push("retrieve:pt-en-terms");
+      // Any other PT question: the English names it mentions, from the lexicon (PT-1, "estacoes do ano" -> Season).
+      const names = pt && !english ? (deps.englishNames?.(req.query) ?? []) : [];
+      if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
-      const matchQuery = english ?? req.query;
+      const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
       // The packs lift an article's Treatment/Management section only when the query asks what to
       // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
-      const searchQuery = english && ACTION_INTENT.test(req.query) ? `${english} what to do` : matchQuery;
+      // Lexicon names aren't searched here: retrieve() already adds them to a PT question's search.
+      const searchQuery = english ? (ACTION_INTENT.test(req.query) ? `${english} what to do` : english) : req.query;
       let raw: RetrievedChunk[] = req.reuseSources ?? [];
       let retrievalMs: number | undefined;
       if (plan.retrieve && gen?.mode !== "multipass") {
@@ -622,8 +632,9 @@ export function createAnswerer(deps: AnswerDeps) {
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
-      // A PT question without English words can't be matched word for word against English sources: no guard.
-      const guarded = gen?.mode !== "multipass" && (!pt || !!english);
+      // A PT question without English words (dictionary or lexicon names) can't be matched word for
+      // word against English sources: no guard.
+      const guarded = gen?.mode !== "multipass" && (!pt || !!english || names.length > 0);
       // Health has its own, stricter topic filter below (the condition, lay sources allowed).
       if (guarded && !health && sources.length) {
         const kept = sources.filter((c) => onTopic(matchQuery, c));
