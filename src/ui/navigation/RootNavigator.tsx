@@ -135,11 +135,14 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
   const { t: tr } = useTranslation();
   const theme = useMemo(() => navigationTheme(t), [t]);
   const { fontScale } = useWindowDimensions();
+  const navKey = fontScaleKey(fontScale);
+  // FS-1 diagnosis (read in logcat): tells "the remount never fired" apart from "Fabric kept the old text metrics".
+  console.info(`[fs1] navKey=${navKey}`);
   return (
     // Remounted when the system font size changes, so every Text measures again (FS-1);
     // the saved state puts the user back on the same screen.
     <NavigationContainer
-      key={fontScaleKey(fontScale)}
+      key={navKey}
       theme={theme}
       initialState={savedNavState<NavigationState>()}
       onStateChange={saveNavState}
