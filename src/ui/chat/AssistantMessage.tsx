@@ -8,7 +8,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -696,7 +696,8 @@ function InstantSnippet({
         {source ? `${tr("chat.snippet.fromSource")} · ${source.title}` : tr("chat.snippet.fromSource")}
       </Text>
       <Text variant={isFinal ? "body" : "callout"} selectable>
-        {expanded ? snippet.text : previewText(snippet.text)}
+        {/* FMT-1: a pack's list flattened to " - " reads as a list again. */}
+        {expanded ? splitInlineBullets(snippet.text) : previewText(snippet.text)}
       </Text>
       <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
         {!isFinal && (
@@ -788,7 +789,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         />
       )}
 
-      {answer.instant && sourceless !== "weak" && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
+      {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
       {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
       {answer.extract ? (
         <TierBody

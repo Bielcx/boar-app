@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -286,5 +286,18 @@ describe("tag and note together (Prism: the tag changes, the warning never goes)
     expect([receiptTagKey({ ...base, cited: [1] }), noSourceNote({ ...base, cited: [1] }, false)]).toEqual([null, null]);
     expect(noSourceNote({ ...base, weakSources: true, weakDeclined: true }, false)).toBeNull();
     expect(noSourceNote({ ...base, cited: [] }, true)).toBeNull();
+  });
+});
+
+describe("showsInstantSnippet (Prism DUP-1)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "Appropedia: How to survive an earthquake", body: "b", score: 1, matchType: "hybrid" as const }];
+  const instant = { text: "During an earthquake: Drop, cover, and hold on!…", sourceIndex: 0, confidence: 0.9 };
+  it("one block: the engine's excerpt replaces the instant card", () => {
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: src, instant } as AnswerState)).toBe(true);
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: src, instant, extract: "From the offline source: … [1]" } as AnswerState)).toBe(false);
+  });
+  it("no card without a passage, nor when nothing was on the topic", () => {
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: src } as AnswerState)).toBe(false);
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: [], instant, weakSources: true } as AnswerState)).toBe(false);
   });
 });

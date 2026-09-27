@@ -283,3 +283,13 @@ export function noSourceNote(a: AnswerState, placesOnly: boolean): "weak" | "unc
   if (placesOnly || a.weakDeclined) return null;
   return noSourceKind(a);
 }
+
+/**
+ * The "From the source" card shows the instant passage unless the engine's literal excerpt answers
+ * (Prism DUP-1: a health question got both, the same instruction twice, pushing the emergency note
+ * off screen; the excerpt is the engine's final answer, with [n], language label and emergency line),
+ * or nothing on the phone was on the topic.
+ */
+export function showsInstantSnippet(a: AnswerState): boolean {
+  return !!a.instant && !a.extract && noSourceKind(a) !== "weak";
+}
