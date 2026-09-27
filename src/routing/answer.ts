@@ -22,6 +22,7 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  situationNote,
   isPortugueseQuestion,
   healthSourceOrder,
   safeHealthExcerpt,
@@ -837,6 +838,13 @@ export function createAnswerer(deps: AnswerDeps) {
           // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
           const withAfter = withAfterPart(req.query, first, fullSources, k, pt, rules);
           text = safeHealthExcerpt(withAfter) ? withAfter : first;
+          // A general passage for a specific situation says so (dng-005: a flood, and Wikivoyage's "Water › Buy").
+          const note = situationNote(req.query, fullSources[k], pt);
+          if (note) {
+            const nl = text.indexOf("\n");
+            text = nl >= 0 ? `${text.slice(0, nl)}\n${note}\n${text.slice(nl + 1)}` : `${note}\n${text}`;
+            reasonCodes.push("grounding:health-general-source");
+          }
           break;
         }
         if (!text) {

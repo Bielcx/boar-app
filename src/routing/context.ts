@@ -886,6 +886,27 @@ export function excerptRules(query: string, topic: Iterable<string>): ExcerptRul
   };
 }
 
+// The situation a question is about, when the quoted source doesn't address it (Sextant dng-005: a flood question
+// answered with Wikivoyage's general "Water › Buy" travel section).
+const SITUATIONS: Array<[RegExp, RegExp, string, string]> = [
+  [/\bflood\w*|enchente\w*|inunda[çc]\w*|alagamento/i, /\bflood\w*/i, "enchente", "flood"],
+];
+
+/**
+ * When the question names a situation (a flood) that the quoted source never mentions, the excerpt is
+ * general advice: say so, after the lead, instead of passing it off as advice for that situation.
+ */
+export function situationNote(query: string, source: RetrievedChunk, pt: boolean): string | null {
+  for (const [asks, mentions, ptName, enName] of SITUATIONS) {
+    if (asks.test(query) && !mentions.test(`${source.title} ${source.body}`)) {
+      return pt
+        ? `O acervo offline não tem orientação específica para ${ptName}; o trecho abaixo é uma orientação geral sobre o assunto.`
+        : `The offline library has no guidance specific to a ${enName}; the passage below is general advice on the subject.`;
+    }
+  }
+  return null;
+}
+
 const AFTER_ASK = /\bafter (it|the \w+) (stops|ends|is over|passes)\b|\b(and|what about|what to do) after\b|\bafterwards\b|depois que (parar|passar|acabar|terminar)|\be depois\b|o que fazer depois|\bap[óo]s (parar|passar|o tremor|a enchente)/i;
 const AFTER_SECTION = /(^|>\s*)(after|recover\w*|depois|ap[óo]s)\b/i;
 

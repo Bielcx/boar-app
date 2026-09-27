@@ -289,7 +289,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f = makeFake();
     f.retrieved = [quality, contamination] as any;
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
-    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
+    expect(result.text).toMatch(/^From the offline source:\n(?:The offline library has no guidance specific to a flood; the passage below is general advice on the subject\.\n)?Water contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
   });
 
   it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
@@ -1265,6 +1265,20 @@ describe("answer(): cry-018-pt keeps the ML-KEM page (gate bc7db6d)", () => {
     const titles = (((events.find((e) => e.type === "sources") as any)?.sources ?? []) as RetrievedChunk[]).map((c) => c.title);
     expect(titles).toContain("ML-KEM");
     expect(titles).not.toContain("Jump flooding algorithm");
+  });
+});
+
+describe("answer(): dng-005, a flood question with only general water advice (gate bc7db6d)", () => {
+  it("says the library has nothing flood-specific, then quotes the general steps", async () => {
+    f.retrieved = [chunk("w", "Wikivoyage: Water", "Buy: - Boil the water before drinking (several minutes) - Use iodine tablets (will kill bacteria) - Use a survival straw (probably best for remote areas) Consider drinking tea or bottled juices instead of unsafe water.")];
+    const { result } = await collect("Depois de uma enchente, a água da torneira pode estar contaminada. Como deixo a água segura para beber?");
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nO acervo offline não tem orientação específica para enchente; o trecho abaixo é uma orientação geral sobre o assunto\.\nBuy: - Boil the water/);
+    expect(result.receipt.reasonCodes).toContain("grounding:health-general-source");
+  });
+  it("a flood source gets no note", async () => {
+    f.retrieved = [chunk("f", "US government: Floods (Ready.gov)", "After a Flood: Listen to authorities to find out if your water is safe to drink. Boil water for one minute before drinking it if it may be contaminated.")];
+    const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
+    expect(result.text).not.toMatch(/no guidance specific/);
   });
 });
 
