@@ -81,8 +81,8 @@ clones, `npm ci` and prebuild run outside the lock with `nice -n 19`. Scripts in
 | `install-sdk.sh` | outside the lock | cmdline-tools, platform-tools, android-36, build-tools 36, cmake 3.22.1, NDK 27.1 (stops below 12 GB free) |
 | `install-emu.sh` | outside the lock | emulator, `system-images;android-35;default;arm64-v8a` (AOSP, no GMS), AVD `boar_api35` (4 GB RAM), Maestro |
 | `prep-android.sh <sha> <variant>` | outside the lock | clone, checkout, `npm ci` (only if the lock file changed), `expo prebuild --clean` |
-| `gradle-android.sh` | **inside the lock** | `assembleRelease` arm64 with a disk watchdog, sha256, offline audit, then deletes intermediates (keeps `~/.gradle` and the llama.rn `.cxx`) |
-| `run-e2e.sh <apk> <flow>` | **inside the lock** | headless emulator (`-no-window`, wiped data), fresh install, push model/corpus files, Maestro flow, emulator off and AVD data removed |
+| `gradle-android.sh` | **inside the lock**, normal class (no `HEAVY_CLASS`) | `assembleRelease` arm64 with a disk watchdog, sha256, offline audit, then deletes intermediates (keeps `~/.gradle` and the llama.rn `.cxx`) |
+| `run-e2e.sh <apk> <flow>` | **inside the lock**, as a short job: `HEAVY_CLASS=short ~/boar/bin/heavy Piston bash run-e2e.sh …` (jumps ahead of the next gate; one flow ≈ 4 min) | headless emulator (`-no-window`, wiped data), fresh install, push model/corpus files, Maestro flow, emulator off and AVD data removed |
 
 First measurements (27/09): `assembleRelease` 6eb9ca7 offline 271 s with warm caches (the first run
 needs ~15 GB of disk at peak); `10-offline-setup-and-source` **PASS** in 250 s total (boot 27 s,
