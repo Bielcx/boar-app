@@ -759,9 +759,7 @@ export function createAnswerer(deps: AnswerDeps) {
         const i = healthSourceIndex(fullSources, rules.procedure ?? null);
         const text = healthExtract(fullSources[i], i + 1, pt, rules);
         markVisible();
-        // The snippet is the quoted excerpt itself, from the source the answer cites.
-        const quoted = text.split("\n")[1]?.replace(/\s*\[\d+\]$/, "") ?? text;
-        if (plan.instant !== "off") emit({ type: "instant", answerId, snippet: { text: quoted, sourceIndex: i }, confidence: 1 });
+        // No separate instant event: the excerpt IS the answer (Quill/Prism DUP-1: the chat showed it twice).
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
       }
