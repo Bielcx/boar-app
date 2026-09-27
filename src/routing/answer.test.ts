@@ -435,6 +435,8 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     for (const on of [
       chunk("g", "Wikivoyage: Earthquake safety", "During an earthquake: Drop, cover, and hold on until the shaking stops."),
       chunk("r", "US government: Earthquakes (Ready.gov)", "During an Earthquake: Drop, cover, and hold on."),
+      // safety-008 with Bramble 55071af: the Wikibooks guide's title is generic too.
+      { ...chunk("w", "Wikibooks: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! Get under a sturdy table."), action: true },
       { ...chunk("a", "Emergency shelter", "During an earthquake: drop, cover and hold on under a sturdy table."), action: true },
     ]) {
       f = makeFake();
