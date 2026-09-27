@@ -180,6 +180,16 @@ describe("answer(): instant tier", () => {
   });
 });
 
+describe("answer(): backend fallback", () => {
+  it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
+    const load = f.deps.engine.load;
+    f.deps.engine.load = async (filename) => ({ ...(await load(filename)), backend: { kind: "cpu-fallback", reason: "failed to initialize MTL0 backend" } });
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.outcome).toBe("success");
+    expect(result.receipt.reasonCodes).toContain("backend:cpu-fallback");
+  });
+});
+
 describe("answer(): fast tier", () => {
   it("previews the source, then answers with the user's picked model over compressed context", async () => {
     f.installed = [qwen15, lfm];

@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { initLlama, loadLlamaModelInfo, LlamaContext } from "llama.rn";
+import { Platform } from "react-native";
+import { getBackendDevicesInfo, initLlama, loadLlamaModelInfo, LlamaContext } from "llama.rn";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
 import {
   availableRamFrom,
@@ -11,6 +12,7 @@ import {
   toGb,
   contextSizeForRam,
 } from "./memoryFit";
+import { BackendInfo, cpuDeviceNames, initWithCpuFallback } from "./initFallback";
 
 export { contextSizeForRam };
 
@@ -87,6 +89,8 @@ export interface LoadedModelInfo {
   filename: string;
   nCtx: number;
   nThreads: number;
+  /** "cpu-fallback" with the native reason when the GPU backend failed to start (initFallback.ts). */
+  backend?: BackendInfo;
 }
 
 export function defaultContextSize(): number {
@@ -114,6 +118,8 @@ export interface LoadResult {
   fit: MemoryFit | null;
   /** Non-null when the model loaded but will stream from storage (slower); show it to the user. */
   warning: string | null;
+  /** Which backend attempt loaded it ("cpu-fallback" = the GPU backend failed to start; see initFallback.ts). */
+  backend?: BackendInfo;
 }
 
 /**
@@ -200,16 +206,23 @@ export class LlamaEngine {
       throw new Error(describeFit(modelFilename, fit)!);
     }
 
+    let backend: BackendInfo = { kind: "default" };
     try {
-      this.context = await initLlama({
-        model: modelPath,
-        use_mmap: true,
-        use_mlock: false, // avoid pinning full weights in RAM; rely on mmap streaming
-        n_ctx: nCtx,
-        n_threads: nThreads,
-        n_gpu_layers: 0, // CPU-only for broad device compatibility; adjust per-device
-      });
-      this.modelInfo = { filename: modelFilename, nCtx, nThreads };
+      const loaded = await initWithCpuFallback(
+        initLlama,
+        {
+          model: modelPath,
+          use_mmap: true,
+          use_mlock: false, // avoid pinning full weights in RAM; rely on mmap streaming
+          n_ctx: nCtx,
+          n_threads: nThreads,
+          n_gpu_layers: 0, // CPU-only for broad device compatibility; adjust per-device
+        },
+        { platform: Platform.OS, cpuDevices: () => cpuDeviceNames(getBackendDevicesInfo), log: (m) => console.warn(m) }
+      );
+      this.context = loaded.context;
+      backend = loaded.backend;
+      this.modelInfo = { filename: modelFilename, nCtx, nThreads, backend };
       this.arch = fit ? this.lastHeaderArch : await this.readArch(modelPath);
     } catch (e: any) {
       // The native error here (from llama.rn/llama.cpp) is often terse
@@ -224,7 +237,7 @@ export class LlamaEngine {
         : "";
       throw new Error(`Failed to load "${modelFilename}": ${nativeMessage}${hint}`);
     }
-    this.lastLoad = { fit, warning: fit ? describeFit(modelFilename, fit) : null };
+    this.lastLoad = { fit, warning: fit ? describeFit(modelFilename, fit) : null, backend };
     return this.lastLoad;
   }
 
