@@ -403,6 +403,8 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
                       {parts.url.replace(/^https?:\/\/(www\.)?/, "")}
                     </Text>
                   )}
+                  {/* Says the passage below opens the full source (Iris). */}
+                  <Icon name="maximize-2" size="sm" color={t.color.text.secondary} />
                 </View>
                 {/* The passage itself opens the full source (no extra "Full passage" line, as in the mockup). */}
                 {g.indexes.map((i) => (
