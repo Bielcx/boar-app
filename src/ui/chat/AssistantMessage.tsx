@@ -291,20 +291,42 @@ function Receipt({
   );
 }
 
-/** The mockup's relevance bar, in three steps with the band's name; nothing when there is no measured value. */
+const BANDS: RelevanceBand[] = ["high", "medium", "low"];
+
+/**
+ * The mockup's relevance bar, in three steps with the band's name; nothing without a measured value.
+ * Iris: the label column is as wide as the widest band in this language (all three share one cell,
+ * the others invisible at zero height), so bars line up across rows and at any font size; it never
+ * shrinks (the title gives way); "Low" is secondary, amber reads as strong provenance.
+ */
 function RelevanceBar({ band }: { band: RelevanceBand | null }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   if (band == null) return null;
   const track = t.space.xxl + t.space.xs;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+    <View
+      style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, flexShrink: 0 }}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+    >
       <View style={{ width: track, height: t.space.xs, borderRadius: t.radius.full, backgroundColor: t.color.bg.raised, overflow: "hidden" }}>
         <View style={{ width: track * BAND_FILL[band], height: "100%", borderRadius: t.radius.full, backgroundColor: t.color.field.solid }} />
       </View>
-      <Text variant="caption" weight="semibold" color="field">
-        {tr(`chat.sources.band.${band}`)}
-      </Text>
+      <View>
+        {BANDS.map((b) => (
+          <Text
+            key={b}
+            variant="caption"
+            weight="semibold"
+            color={band === "low" ? "secondary" : "field"}
+            numberOfLines={1}
+            style={b === band ? undefined : { height: 0, opacity: 0 }}
+          >
+            {tr(`chat.sources.band.${b}`)}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }
