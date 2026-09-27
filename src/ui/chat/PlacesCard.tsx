@@ -255,7 +255,16 @@ function CityPrompt({
   const submit = () => city.trim() && onCity(city.trim());
   return (
     <Card style={{ gap: t.space.md }}>
-      {locationStatus === "denied" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationDenied")} />}
+      {/* A permanent "no" on Android can only be undone in the system settings; offer the way there. */}
+      {locationStatus === "denied" && (
+        <Banner
+          tone="info"
+          icon="map-pin"
+          message={tr("chat.places.locationDenied")}
+          actionLabel={tr("chat.places.openSettings")}
+          onAction={() => Linking.openSettings()}
+        />
+      )}
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}
       <Text ref={titleRef} variant="headline" header>
         {tr("chat.places.whichCity")}

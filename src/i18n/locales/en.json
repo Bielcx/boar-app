@@ -440,7 +440,8 @@
       "searchHint": "Type a city first",
       "dietToVerify": "OSM diet tag to double-check",
       "cityPlaceholder": "e.g. Berlin",
-      "dataFrom": "data from {{date}}"
+      "dataFrom": "data from {{date}}",
+      "openSettings": "Open settings"
     },
     "assistantName": "boar",
     "suggestionTopics": {
