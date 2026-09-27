@@ -6,7 +6,7 @@
  * route is unknown. onFirstLayout (name kept for App.tsx) fires once the splash image is decoded, and App.tsx hides the native splash then.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Dimensions, Image, Platform, useWindowDimensions, View } from "react-native";
+import { Animated, Dimensions, Image, PixelRatio, Platform, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Progress, Text } from "../components";
 import { buildTokens, useTheme } from "../theme";
@@ -20,6 +20,8 @@ const ANDROID_ICON = 240;
 // The mockup's splash (393×852): tagline at y571, i.e. 145 pt below the window's centre;
 // bar 140×4 at y762 and status at y776, i.e. 90 and 76 pt from the bottom.
 const TAGLINE_FROM_CENTRE = 145;
+// Image edges on whole device pixels: a half-pixel edge drew a 1 px line at x≈360 pt (Prism, 8863ef3).
+const px = (v: number) => PixelRatio.roundToNearestPixel(v);
 const BAR_W = 140;
 const BAR_FROM_BOTTOM = 90;
 const STATUS_FROM_BOTTOM = 76;
@@ -78,8 +80,8 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
             position: "absolute",
             width: ANDROID_ICON,
             height: ANDROID_ICON,
-            left: (width - ANDROID_ICON) / 2,
-            top: (height - ANDROID_ICON) / 2,
+            left: px((width - ANDROID_ICON) / 2),
+            top: px((height - ANDROID_ICON) / 2),
             opacity: art.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
           }}
         />
@@ -88,8 +90,10 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
         {/* Same image, same size and place as the iOS native splash, so the hand-over does not move there.
             The native splash hides only once an image is decoded: hiding on the first layout showed a frame with
             the text and bar but no boar (Prism/Harbor, 37a935e). An error still hands over. */}
+        {/* splash-bootsplash.png: the native art on the original #17110D base. The native file's base is tuned for
+            the iOS image path and would sit 1-3 levels off this canvas through React Native (Iris 09dec4c, Prism). */}
         <Image
-          source={require("../../../assets/splash-icon.png")}
+          source={require("../../../assets/splash-bootsplash.png")}
           resizeMode="contain"
           accessible={false}
           fadeDuration={0}
@@ -101,7 +105,7 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
             setArtLoaded(true);
             if (!startsAsIcon) handOver();
           }}
-          style={{ position: "absolute", width: SPLASH_W, height: SPLASH_H, left: (width - SPLASH_W) / 2, top: (height - SPLASH_H) / 2 }}
+          style={{ position: "absolute", width: SPLASH_W, height: SPLASH_H, left: px((width - SPLASH_W) / 2), top: px((height - SPLASH_H) / 2) }}
         />
         {/* Text waits for the brand fonts, so it never swaps face on screen. */}
         {textReady && (
@@ -114,7 +118,8 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
           </Text>
         )}
         <View style={{ position: "absolute", width: BAR_W, left: (width - BAR_W) / 2, top: height - BAR_FROM_BOTTOM }}>
-          <Progress label={t("flows.onboarding.bootChecking")} height={tokens.space.xs} />
+          {/* The splash colours, not the user theme, so the track never turns light (Iris 2342441). */}
+          <Progress label={t("flows.onboarding.bootChecking")} height={tokens.space.xs} tokens={tokens} />
         </View>
         {textReady && (
           <Text
