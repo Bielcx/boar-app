@@ -15,7 +15,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
-import { fitFor, largeModelConfirmedIds, loadCrashedIds, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
+import { fitFor, largeModelConfirmedIds, loadCrashedIds, missingRequirementsOf, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { mayCloseApp, ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
@@ -206,7 +206,9 @@ export function useCatalog(): CatalogState {
           (done, total) => patch(file.name, { progress: total > 0 ? done / total : 0 }),
           controller.signal
         );
-        patch(file.name, { status: "verified", progress: 1, assetId: asset.id });
+        // A places pack imported without the city index still loads, but names can't resolve (Ledger PL-1).
+        const missing = await missingRequirementsOf(asset);
+        patch(file.name, { status: "verified", progress: 1, assetId: asset.id, missing: missing.map((m) => ({ label: m.label, sizeBytes: m.sizeBytes })) });
       } catch (e: any) {
         // Cancelled by the user: the file just leaves the list.
         if (isAbortError(e)) {
