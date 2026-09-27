@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
+import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useToast } from "../components";
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
@@ -155,17 +155,14 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         ))}
         {details?.some((d) => d.length > DETAIL_FOLD_CHARS) && (
           // A neutral text action: ember stays for the screen's one accent (Knowledge showed one per pack).
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showAll }}
-            onPress={() => setShowAll((v) => !v)}
-            hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
-            style={{ alignSelf: "flex-start" }}
-          >
-            <Text variant="footnote" color="secondary" style={{ textDecorationLine: "underline" }}>
-              {t(showAll ? "flows.row.showLess" : "flows.row.showAll")}
-            </Text>
-          </Pressable>
+          <View style={{ alignSelf: "flex-start" }}>
+            <TextAction
+              label={t(showAll ? "flows.row.showLess" : "flows.row.showAll")}
+              icon={showAll ? "chevron-up" : "chevron-down"}
+              expanded={showAll}
+              onPress={() => setShowAll((v) => !v)}
+            />
+          </View>
         )}
       </View>
       {view.wontFit ? (
