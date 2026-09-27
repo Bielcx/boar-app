@@ -33,6 +33,7 @@ export function ModelsScreen() {
 
   const [answer, setAnswer] = useState<AnswerSettings | null>(null);
   const [speeds, setSpeeds] = useState<Record<string, ModelSpeed>>({});
+  const [showLarger, setShowLarger] = useState(false);
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -62,10 +63,12 @@ export function ModelsScreen() {
     ...MODEL_CATALOG.filter((m) => m.kind === "llm" || m.kind === "embedding"),
     ...catalog.discovered.filter((d) => !MODEL_CATALOG.some((c) => c.filename === d.filename)),
   ];
-  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[] };
+  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[], larger: [] as CatalogModel[] };
   for (const m of models) {
     const kind = catalog.view(m).state.kind;
     if (kind === "in-use") groups.inUse.push(m);
+    // Can't open on this phone: out of the list, in a folded section that says why (CR-1).
+    else if (catalog.view(m).wontFit) groups.larger.push(m);
     else if (kind === "not-installed" || kind === "downloading" || kind === "verifying" || (kind === "failed" && !catalog.statuses[m.id]?.present))
       groups.available.push(m);
     else groups.installed.push(m);
@@ -181,6 +184,20 @@ export function ModelsScreen() {
           </View>
         )}
       </Section>
+
+      {groups.larger.length > 0 && (
+        <Section title={t("flows.models.larger")} footer={t("flows.models.largerFooter")}>
+          {showLarger ? (
+            renderGroup(groups.larger)
+          ) : (
+            <ListRow
+              icon="chevron-down"
+              title={t("flows.models.showLarger", { count: groups.larger.length })}
+              onPress={() => setShowLarger(true)}
+            />
+          )}
+        </Section>
+      )}
 
       {!offline && (
         <Section title={t("flows.models.advanced")} footer={t("flows.models.searchFooter")}>
