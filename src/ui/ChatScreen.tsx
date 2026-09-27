@@ -56,7 +56,7 @@ import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./c
 import { answerPhase, answerReducer, asInterrupted, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
 import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type ChatItem } from "./chat/chatItems";
-import { loadCrashMessage, phaseAnnouncement } from "./chat/presentation";
+import { loadCrashMessage, phaseAnnouncement, withDisplayNames } from "./chat/presentation";
 import { consumeLoadCrash } from "./chat/loadCrashApi";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
 import { answerSourceSplit } from "./chat/sourceLabel";
@@ -600,8 +600,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // Once, when the chat opens after a model load killed the app (Boar CR-2): say what happened and where to go.
   const [loadCrash, setLoadCrash] = useState<string | null>(null);
   useEffect(() => {
-    consumeLoadCrash()
-      .then((c) => setLoadCrash(loadCrashMessage(c, t)))
+    // CR-3: the marker may name the models by file path; show the catalog's names.
+    Promise.all([consumeLoadCrash(), listDiscoveredModels().catch(() => [])])
+      .then(([c, discovered]) => setLoadCrash(loadCrashMessage(withDisplayNames(c, [...MODEL_CATALOG, ...discovered]), t)))
       .catch(() => undefined);
     // Once per chat screen: consume() clears the mark, so it never shows twice.
     // eslint-disable-next-line react-hooks/exhaustive-deps

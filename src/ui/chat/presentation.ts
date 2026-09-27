@@ -87,6 +87,29 @@ export const PLACES_MODEL_ID = "places";
  * The one-time notice after a model load killed the app (Boar CR-2); null when there is nothing
  * to say. Without a previous model (first load of the session) it doesn't claim a switch back.
  */
+/**
+ * The display name for a model the crash marker names by id, label or file path (Prism CR-3: the
+ * banner showed "models/qwen3-4b-instruct-2507-q4km.gguf"). Catalog (and discovered) label first;
+ * otherwise the file's name without folder or ".gguf", never an internal path.
+ */
+export function modelDisplayName(ref: string, models: { id: string; label: string; filename?: string }[]): string {
+  const key = ref.trim();
+  if (!key) return "";
+  const found = models.find((m) => m.id === key || m.label === key || (!!m.filename && m.filename === key));
+  if (found) return found.label;
+  if (key.includes("/") || /\.gguf$/i.test(key)) return key.split("/").pop()!.replace(/\.gguf$/i, "");
+  return key;
+}
+
+/** The crash with display names for both models (CR-3). */
+export function withDisplayNames<C extends { crashedLabel: string; fallbackLabel: string }>(
+  crash: C | null,
+  models: { id: string; label: string; filename?: string }[]
+): C | null {
+  if (!crash) return null;
+  return { ...crash, crashedLabel: modelDisplayName(crash.crashedLabel, models), fallbackLabel: modelDisplayName(crash.fallbackLabel, models) };
+}
+
 export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: string } | null, t: T): string | null {
   if (!crash || !crash.crashedLabel.trim()) return null;
   const model = crash.crashedLabel.trim();
