@@ -1,8 +1,9 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, Switch as RNSwitch, View } from "react-native";
+import { Pressable, StyleSheet, Switch as RNSwitch, View } from "react-native";
 import { impact, ImpactFeedbackStyle, selection } from "../../services/haptics";
 import { useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
+import { switchColors } from "./Switch";
 import { Text } from "./Text";
 
 export interface ListRowProps {
@@ -54,9 +55,7 @@ export function ListRow({
         <RNSwitch
           value={toggle.value}
           disabled={disabled}
-          trackColor={{ false: t.color.line.strong, true: t.color.accent.solid }}
-          ios_backgroundColor={t.color.line.strong}
-          thumbColor={Platform.OS === "android" ? t.color.bg.raised : undefined}
+          {...switchColors(t, toggle.value)}
         />
       </View>
     );
