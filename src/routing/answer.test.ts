@@ -197,26 +197,17 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     "A nosebleed is bleeding from the nose. Pinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back."
   );
 
-  it("Q-1 without the crypto pack: off-topic sources only -> says so, no model, no snippet, no sources", async () => {
+  it("Q-1 without the crypto pack: off-topic sources are dropped; the model answers as 'not from the offline library'", async () => {
     f.retrieved = [DEAN_LEE, PUBLIC_KEY];
     const { events, result } = await collect("Which signature algorithms are quantum resistant?");
-    expect(f.generations).toHaveLength(0);
     expect(events.some((e) => e.type === "instant")).toBe(false);
     expect(events.some((e) => e.type === "sources")).toBe(false);
-    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
-    expect(result.text).toMatch(/didn't find a good source for this in the offline library/);
-    expect(result.sources).toEqual([]);
-    expect(result.receipt.modelId).toBe("grounding-guard");
-    expect(result.receipt.reasonCodes).toContain("grounding:no-source-answer");
-  });
-
-  it("nothing retrieved for a knowledge question: the model answers, told to say it's not from an offline source", async () => {
-    f.retrieved = [];
-    const { events, result } = await collect("Which signature algorithms are quantum resistant?");
+    expect(events.filter((e) => e.type === "warning")).toEqual([expect.objectContaining({ code: "weak_sources" })]);
     expect(f.generations).toHaveLength(1);
     expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
-    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
-    expect(result.receipt.reasonCodes).toContain("grounding:no-source-memory");
+    expect(f.generations[0].messages!.map((m) => m.content).join("\n")).not.toContain("Dean Lee");
+    expect(result.sources).toEqual([]);
+    expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["grounding:off-topic-dropped-2", "grounding:no-good-source", "grounding:no-source-memory"]));
   });
 
   it("drops an off-topic source when an on-topic one exists", async () => {
@@ -285,6 +276,38 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.receipt.reasonCodes).toContain("grounding:health-unsafe-blow-nose");
   });
 
+  it("gate 715ffdd: a health excerpt never comes from a source whose title isn't the topic", async () => {
+    const cases: [string, RetrievedChunk][] = [
+      ["I just got bitten by a snake while hiking. What do I do right now?", chunk("r", "Renealmia cernua", "Renealmia cernua is a plant. Its leaves are used against snakebite in folk medicine.")],
+      ["My hiking partner is shivering, confused and slurring words in the cold. What should I do?", chunk("s", "Schroeder Pants Cave", "Schroeder Pants Cave is a cave. Cavers risk hypothermia when shivering in the cold water.")],
+      ["An earthquake starts while I'm inside a hotel room. What should I do?", chunk("h", "Hotel Impossible", "Hotel Impossible is a TV show. One episode covered a hotel after an earthquake.")],
+      ["After a flood the tap water might be contaminated. How do I make water safe to drink?", chunk("a", "After-rust", "After-rust is a plant disease. Contaminated water after a flood spreads it; it is not safe to drink.")],
+      ["My child spilled boiling water on their arm. What do I do?", chunk("b", "Ethereum EIPs/ERCs: EIP-7775: BURN opcode", "Abstract: This EIP adds a BURN opcode that burns ether.")],
+    ];
+    for (const [q, off] of cases) {
+      f = makeFake();
+      f.retrieved = [off];
+      const { result } = await collect(q);
+      expect(result.text, q).toMatch(/don't have a reliable offline source/);
+      expect(result.sources, q).toEqual([]);
+      expect(f.generations).toHaveLength(0);
+    }
+  });
+
+  it("…and still quotes the on-topic ones", async () => {
+    for (const [q, on] of [
+      ["I just got bitten by a snake while hiking. What do I do right now?", chunk("sb", "Snakebite", "Treatment > First aid: Keep the person calm and still, remove rings and watches, and get to a hospital for antivenom.")],
+      ["After a flood the tap water might be contaminated. How do I make water safe to drink?", chunk("w", "Wikivoyage: Water", "Stay healthy: After a flood, boil water for one minute at a rolling boil before you drink it.")],
+      ["An earthquake starts while I'm inside a hotel room. What should I do?", chunk("e", "Earthquakes (Ready.gov)", "During an Earthquake: Drop, cover, and hold on. Stay inside until the shaking stops.")],
+    ] as const) {
+      f = makeFake();
+      f.retrieved = [on];
+      const { result } = await collect(q);
+      expect(result.text, q).toMatch(/^From the offline source:/);
+      expect(result.sources.map((c) => c.title), q).toEqual([on.title]);
+    }
+  });
+
   it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
     for (const [q, retrieved] of [
       ["What should I do after a snake bite?", []],
@@ -346,6 +369,35 @@ describe("answer(): CR-1 low-RAM phone (3.8 GB)", () => {
     expect(result.outcome).toBe("error");
     expect(result.receipt).toBeDefined();
     expect((await collect("Why was Canberra chosen?")).events.at(-1)).toMatchObject({ type: "done", error: { code: "no_model", message: expect.stringMatching(/too large for this phone's memory/) } });
+  });
+});
+
+describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
+  const WALIPINI = chunk(
+    "wp",
+    "Walipini",
+    "A Walipini is an earth-sheltered cold frame. A greenhouse can be built by digging a hole in the ground. This takes advantage of the heat stored in the earth during the cold season."
+  );
+  const HOT_WEATHER = chunk(
+    "hw",
+    "Wikivoyage: Hot weather",
+    "Understand: The Earth's axis is tilted by 23 degrees in relation to the ecliptic, and this causes the seasons of winter, spring, summer, and autumn. When your part of Earth is tilted toward the Sun, you get summer."
+  );
+
+  it("no 'From the source' from Walipini for the seasons question; the on-topic page stays", async () => {
+    f.retrieved = [WALIPINI, HOT_WEATHER];
+    const { events } = await collect("Why do we have seasons on Earth?");
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources.map((c) => c.title)).toEqual(["Wikivoyage: Hot weather"]);
+    const instant = events.find((e) => e.type === "instant") as any;
+    if (instant) expect(sources[instant.snippet.sourceIndex].title).toBe("Wikivoyage: Hot weather");
+  });
+
+  it("only the incidental page: no snippet, and the model is told it's not from the library", async () => {
+    f.retrieved = [WALIPINI];
+    const { events } = await collect("Why do we have seasons on Earth?");
+    expect(events.some((e) => e.type === "instant")).toBe(false);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
   });
 });
 

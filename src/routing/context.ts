@@ -228,6 +228,34 @@ export function isHealthQuestion(query: string): boolean {
   return HEALTH.test(query) || HEALTH_PT.test(query);
 }
 
+/**
+ * The health topic of a question, as search terms: what the health detector
+ * matched ("bitten", "earthquake", "safe to drink") plus the article names it
+ * maps to (canonical EN / PT dictionary: "snakebite", "hypothermia").
+ */
+export function healthTopicTerms(query: string, articleTerms: string | null): Set<string> {
+  const matched = [
+    ...(query.match(new RegExp(HEALTH.source, "gi")) ?? []),
+    ...(query.match(new RegExp(HEALTH_PT.source, "giu")) ?? []),
+  ].join(" ");
+  const terms = new Set(tokenizeTerms(`${matched} ${articleTerms ?? ""}`));
+  // Drinking-water questions are about water.
+  if ([...terms].some((t) => /^(drink|flood|contaminat|potavel)/.test(t))) terms.add("water");
+  return terms;
+}
+
+/**
+ * A health source must BE about the topic: its title names it. Word overlap
+ * in the text is not enough: with "snakebite" as the query, a plant used
+ * against snakebites ("Renealmia cernua") covered it fully (gate 715ffdd).
+ */
+// Technical specifications are never first-aid sources ("EIP-7775: BURN opcode" for a burn).
+const NON_HEALTH_SOURCE = /^(Ethereum EIPs\/ERCs|Ethereum specs|ethereum\.org|Bitcoin BIPs):/;
+
+export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolean {
+  return !NON_HEALTH_SOURCE.test(chunk.title) && titleNames(chunk.title, topic);
+}
+
 /** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
 export const HEALTH_GROUNDING_INSTRUCTION =
   "This is a health or first-aid question. State only what the numbered sources say, and cite the source of each step. " +
@@ -239,11 +267,35 @@ export const HEALTH_GROUNDING_INSTRUCTION =
  * question's words. "Dean Lee" (a nuclear physicist) for "Which signature
  * algorithms are quantum resistant?" is neither.
  */
+/** Same word despite the tiny stemmer ("earthquakes" -> "earthquak", "earthquake" stays). */
+function sameTerm(a: string, b: string): boolean {
+  return a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)));
+}
+
+function titleNames(title: string, terms: Iterable<string>): boolean {
+  const t = tokenizeTerms(title);
+  for (const q of terms) if (t.some((x) => sameTerm(x, q))) return true;
+  return false;
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
-  if (tokenizeTerms(chunk.title).some((t) => q.has(t))) return true;
+  if (titleNames(chunk.title, q)) return true;
+  // With one or two content words, any page that mentions them somewhere "covers" the
+  // question (Walipini, an earth-sheltered greenhouse, for "Why do we have seasons on
+  // Earth?"). Then the passage must open with them: "Canberra is the capital city of
+  // Australia", "The Earth's axis is tilted ... this causes the seasons".
+  if (q.size < MIN_TERMS_FOR_COVERAGE) {
+    const colon = chunk.body.indexOf(":");
+    const text = colon > 0 && colon <= 80 ? chunk.body.slice(colon + 1) : chunk.body;
+    const first = new Set(tokenizeTerms(splitSentences(text.trim())[0] ?? ""));
+    return q.size > 0 && [...q].every((t) => first.has(t));
+  }
   return termCoverage(query, `${chunk.title} ${chunk.body}`) >= MIN_TERM_COVERAGE;
 }
+
+/** Questions with fewer content words than this need a source whose title names one of them. */
+export const MIN_TERMS_FOR_COVERAGE = 3;
 
 /**
  * Next to the question when a knowledge question found no offline source at
@@ -257,13 +309,6 @@ export const NO_SOURCE_INSTRUCTION =
 
 /** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
-
-/** Sources exist but none is on topic: fixed text, no model (no answer from memory). */
-export function noGoodSourceAnswer(pt: boolean): string {
-  return pt
-    ? "Não encontrei uma fonte boa para isso no acervo offline, então não vou responder de memória. Instale um pacote de conhecimento sobre o tema (Configurações › Conhecimento) e pergunte de novo."
-    : "I didn't find a good source for this in the offline library, so I won't answer from memory. Install a knowledge pack on this topic (Settings › Knowledge) and ask again.";
-}
 
 /** Longest health excerpt shown as the answer (about 120 words). */
 export const HEALTH_EXTRACT_MAX_CHARS = 700;
@@ -300,7 +345,7 @@ export function healthActionScore(c: RetrievedChunk): number {
     (HEDGE.test(c.body) ? 1 : 0) -
     (DESCRIPTIVE_SECTION.test(section) ? 1.5 : 0) -
     // A caption or a heading alone ("Image") is not an answer.
-    (c.body.length - section.length < 120 ? 3 : 0)
+    (c.body.length - section.length < 40 ? 3 : 0)
   );
 }
 

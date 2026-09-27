@@ -19,13 +19,14 @@ import {
   HEALTH_GROUNDING_INSTRUCTION,
   isHealthQuestion,
   MIN_TERM_COVERAGE,
-  noGoodSourceAnswer,
   NO_SOURCE_INSTRUCTION,
   noHealthSourceAnswer,
   onTopic,
   PT_QUESTION,
   healthExtract,
   healthSourceIndex,
+  healthTopicTerms,
+  onHealthTopic,
   riskyHealthInstruction,
   termCoverage,
 } from "./context";
@@ -554,18 +555,20 @@ export function createAnswerer(deps: AnswerDeps) {
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
       // A PT question without English words can't be matched word for word against English sources: no guard.
       const guarded = gen?.mode !== "multipass" && (!pt || !!english);
-      let noGoodSource = false;
       if (guarded && sources.length) {
         const kept = sources.filter((c) => onTopic(matchQuery, c));
         if (kept.length < sources.length) reasonCodes.push(`grounding:off-topic-dropped-${sources.length - kept.length}`);
-        noGoodSource = kept.length === 0;
+        if (!kept.length) reasonCodes.push("grounding:no-good-source");
         sources = kept;
       }
-      if (noGoodSource) {
-        reasonCodes.push("grounding:no-good-source");
-        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+      if (health) {
+        reasonCodes.push("grounding:health-strict");
+        // Health: only sources whose title names the health topic (never a plant, a cave or a TV show).
+        const topic = healthTopicTerms(req.query, english);
+        const onTopicHealth = sources.filter((c) => onHealthTopic(topic, c));
+        if (onTopicHealth.length < sources.length) reasonCodes.push(`grounding:health-off-topic-dropped-${sources.length - onTopicHealth.length}`);
+        sources = onTopicHealth;
       }
-      if (health) reasonCodes.push("grounding:health-strict");
       if (sources.length && gen?.mode !== "multipass") {
         emit({ type: "sources", answerId, tier: plan.instant !== "off" ? "instant" : genTier, sources });
       }
@@ -574,7 +577,11 @@ export function createAnswerer(deps: AnswerDeps) {
       if (plan.instant !== "off" && raw.length) {
         const snip = selectInstant(matchQuery, raw);
         const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === raw[snip.sourceIndex].chunkId) : -1;
-        const covers = !!snip && termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
+        // "From the source" only from an on-topic source (the same onTopic as the sources), and a sentence that covers the question.
+        const covers =
+          !!snip &&
+          onTopic(matchQuery, raw[snip.sourceIndex]) &&
+          termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();
@@ -595,9 +602,11 @@ export function createAnswerer(deps: AnswerDeps) {
       }
 
       // No good source: never an answer from memory (health: point to emergency services).
-      if ((health && gen?.mode !== "multipass" && sources.length === 0) || noGoodSource) {
-        reasonCodes.push(health ? "grounding:health-no-source" : "grounding:no-source-answer");
-        const text = health ? noHealthSourceAnswer(pt) : noGoodSourceAnswer(pt);
+      // Off-topic sources only = no source (Boar, RT-1): the model answers with the
+      // "not from the offline library" instruction below, never quoting them.
+      if (health && gen?.mode !== "multipass" && sources.length === 0) {
+        reasonCodes.push("grounding:health-no-source");
+        const text = noHealthSourceAnswer(pt);
         markVisible();
         emit({ type: "token", answerId, tier: genTier, text });
         return finish(genTier, "success", text, [], receipt({ modelId: "grounding-guard", modelLabel: "No offline source", retrievalMs }));
