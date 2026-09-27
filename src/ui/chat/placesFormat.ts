@@ -230,13 +230,14 @@ export function filterName(filters: string[] | undefined, t: T): string | null {
  * there are places, or when the card asks for a city instead.
  */
 export function placesEmptyTitle(
-  r: { coverage: "ok" | "none" | "no_pack" | "needs_place"; places: unknown[]; filters?: string[]; area: { label?: string; place?: { name: string } } },
+  r: { coverage: "ok" | "none" | "no_pack" | "needs_place"; places: unknown[]; filters?: string[]; area: { kind?: "near" | "city"; label?: string; place?: { name: string } } },
   t: T
 ): string | null {
   if (r.coverage === "needs_place") return null;
   if (r.coverage === "no_pack") return t("chat.places.noPackTitle");
   if (r.coverage === "ok" && r.places.length > 0) return null;
-  const city = r.area.place?.name ?? r.area.label ?? "";
+  // A "near me" area's label is "near you": never read it as a city ("…for near you", Piston).
+  const city = r.area.place?.name ?? (r.area.kind === "near" ? "" : r.area.label ?? "");
   // Mid-sentence, the filter reads in lower case ("No vegan places…"), not as the title label ("Vegan").
   const filter = filterName(r.filters, t)?.toLowerCase() ?? null;
   return city
