@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineCopy, generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { declineCopy, generatingSteps, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -790,7 +790,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
   const instantOnly = !!answer.instantDone && !answer.fast;
   const lastTier = answer.deep ?? answer.fast;
-  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
+  // A decline has no answer of its own to rate, share or copy: its card is the whole message.
+  const hasText =
+    showsAnswerBody(answer) && !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
   const done = !active && (lastTier?.outcome || instantOnly);
   const steps = active && !stopping ? generatingSteps(answer, tr) : null;
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
@@ -864,7 +866,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       ) : null}
       {/* The mockup's order: the steps above the streaming text, the sources below it. */}
       {!answer.deep && steps && !props.waitingLibrary && <StepsCard steps={steps} />}
-      {answer.fast && (
+      {answer.fast && showsAnswerBody(answer) && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}
       <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />

@@ -341,3 +341,14 @@ describe("canDeepen on the engine's fixed answer (Tusk CT-4)", () => {
     expect(canDeepen({ ...s, fast: { ...s.fast!, receipt: { ...r, modelId: "qwen" } } })).toBe(true);
   });
 });
+
+describe("decline sentence in done.finalText (Tusk 05d1e6b)", () => {
+  it("keeps the engine's sentence as the tier text, for history and share", () => {
+    const receipt = { modelId: "q", modelLabel: "Q", tokens: 3, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+    let s = { answerIds: ["a"], sources: [] } as AnswerState;
+    s = answerReducer(s, { type: "warning", answerId: "a", code: "weak_sources", declined: true } as never);
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText: "Não encontrei isso no acervo deste celular.", cited: [] } as never);
+    expect(s.weakDeclined).toBe(true);
+    expect(s.fast?.text).toBe("Não encontrei isso no acervo deste celular.");
+  });
+});
