@@ -66,6 +66,8 @@ function AppContent() {
   const hideNative = useCallback(() => {
     if (nativeHidden.current) return;
     nativeHidden.current = true;
+    // Boot timing for Tusk's measurements (the native splash is released here).
+    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms`);
     SplashScreen.hideAsync().catch(() => {});
   }, []);
   useEffect(() => {
