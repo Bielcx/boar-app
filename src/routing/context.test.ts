@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  temperatureConversion,
+  healthExtract,
   isTodayInHistory,
   historyDate,
   onTopic,
@@ -497,5 +499,34 @@ describe("isTodayInHistory / historyDate (Boar R3)", () => {
     expect(d.isDateArticle("Wikipedia: 27 September")).toBe(true);
     expect(d.isDateArticle("US government: The Community Preparedness Webinar Series: Quake Prep (Ready.gov)")).toBe(false);
     expect(d.isDateArticle("September 2")).toBe(false);
+  });
+});
+
+describe("healthExtract keeps a numbered list's first marker (Ready.gov, pack v3)", () => {
+  it("starts at '- 1. Drop', not at 'Drop' with the list beginning at 2", () => {
+    const body = "During an Earthquake > Protect Yourself During Earthquakes: - 1. Drop (or Lock): Drop where you are onto hands and knees. This position protects you from being knocked down. - 2. Cover: Cover your head and neck with one arm and hand. - 3. Hold On: Hold until the shaking stops.";
+    const c = { chunkId: "r", docId: "r", title: "US government: Earthquakes (Ready.gov)", body, score: 1, matchType: "lexical" as const, action: true };
+    const text = healthExtract(c, 1, false, coreProcedure(healthTopicTerms("What should I do during an earthquake?", null)));
+    expect(text).toContain("Protect Yourself During Earthquakes: - 1. Drop (or Lock): Drop where you are");
+    expect(text).toContain("- 2. Cover:");
+    expect(text).toContain("- 3. Hold On:");
+  });
+});
+
+describe("Prism RF-1: the suggested questions", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("the article the question names is on topic even if the passage doesn't say 'cause'", () => {
+    const monsoon = c("Monsoon", "A monsoon is traditionally a seasonal reversing wind accompanied by corresponding changes in precipitation.");
+    expect(onTopic("What causes the monsoon?", monsoon)).toBe(true);
+    // Still off: a title word without the question, another year.
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "A 2020 horror anthology about the dark web."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash."))).toBe(false);
+  });
+  it("temperature conversions are exact", () => {
+    expect(temperatureConversion("What is 30 °C in Fahrenheit?", false)).toBe("30 °C = 86 °F (°F = °C × 9/5 + 32).");
+    expect(temperatureConversion("Quanto é 100 °F em Celsius?", true)).toBe("100 °F = 37,8 °C (°C = (°F − 32) × 5/9).");
+    expect(temperatureConversion("Convert -40 degrees Celsius to Fahrenheit", false)).toBe("-40 °C = -40 °F (°F = °C × 9/5 + 32).");
+    expect(temperatureConversion("What is the capital of France?", false)).toBeNull();
+    expect(temperatureConversion("Why is 30 °C hot?", false)).toBeNull();
   });
 });

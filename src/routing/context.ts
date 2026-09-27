@@ -448,6 +448,14 @@ function properNounTerms(query: string): string[] {
     .flatMap((w) => tokenizeTerms(w));
 }
 
+/** Every word of one title segment is a question term ("Monsoon"; "Ethereum EIPs/ERCs: EIP-4844: …" by its "EIP-4844" part). */
+function titleSegmentNamed(title: string, q: Set<string>): boolean {
+  return title.split(/:\s+/).some((seg) => {
+    const st = tokenizeTerms(seg.replace(/\s*\([^)]*\)\s*$/, ""));
+    return st.length > 0 && st.every((t) => q.has(t));
+  });
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
   const text = `${chunk.title} ${chunk.body}`;
@@ -459,6 +467,10 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
     const words = new Set(tokenizeTerms(text));
     if (!proper.some((p) => words.has(p))) return false;
   }
+  // The article the question names ("Monsoon" for "What causes the monsoon?": every word of a title
+  // segment is in the question) is on topic even when this passage doesn't repeat the question's
+  // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
+  if (titleSegmentNamed(chunk.title, q)) return true;
   // The article title or the section heading names a question word, and the source covers
   // the question ("Scary Stories: Dark Web" names "dark", not the latest theory of dark matter).
   if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
@@ -545,6 +557,28 @@ export function historyDate(date: Date): { search: string; isDateArticle: (title
   const day = date.getDate();
   const title = new RegExp(`^(\\w[\\w .]*:\\s*)?(${month} ${day}|${day} ${month})$`, "i");
   return { search: `${month} ${day}`, isDateArticle: (t) => title.test(t.trim()) };
+}
+
+const TEMPERATURE =
+  /(-?\d+(?:[.,]\d+)?)\s*(?:°|º|degrees?|graus?)?\s*(c|celsius|centigrade|f|fahrenheit)\b[^?]*?\b(?:in|to|into|em|para)\s+(?:degrees?\s+|graus?\s+)?(celsius|centigrade|fahrenheit|c|f)\b/i;
+
+/**
+ * "What is 30 °C in Fahrenheit?" (a suggested question, Prism RF-1): arithmetic, not knowledge. Answered
+ * exactly, with the formula, instead of by a model (the compact one miscounts) or not at all.
+ */
+export function temperatureConversion(query: string, pt: boolean): string | null {
+  const m = TEMPERATURE.exec(query);
+  if (!m) return null;
+  const value = Number(m[1].replace(",", "."));
+  const from = m[2][0].toLowerCase() === "f" ? "F" : "C";
+  const to = m[3][0].toLowerCase() === "f" ? "F" : "C";
+  if (from === to || !Number.isFinite(value)) return null;
+  const result = from === "C" ? (value * 9) / 5 + 32 : ((value - 32) * 5) / 9;
+  const fmt = (n: number) => (Math.round(n * 10) / 10).toLocaleString(pt ? "pt-BR" : "en-US");
+  const formula = from === "C" ? "°F = °C × 9/5 + 32" : "°C = (°F − 32) × 5/9";
+  return pt
+    ? `${fmt(value)} °${from} = ${fmt(result)} °${to} (${formula}).`
+    : `${fmt(value)} °${from} = ${fmt(result)} °${to} (${formula}).`;
 }
 
 export function isCurrentEventQuery(query: string): boolean {
@@ -688,7 +722,10 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
   const action = sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
   const firstAction = action >= 0 ? action : 0;
   const reach = (from: number, to: number) => sentences.slice(from, to + 1).join(" ").length + heading.length + 2;
-  const start = core >= 0 && (core < firstAction || reach(firstAction, core) > HEALTH_EXTRACT_MAX_CHARS) ? core : firstAction;
+  const picked = core >= 0 && (core < firstAction || reach(firstAction, core) > HEALTH_EXTRACT_MAX_CHARS) ? core : firstAction;
+  // A numbered list's marker splits off as its own "sentence" ("- 1.", then "Drop (or Lock): ..."): keep it,
+  // or the list starts at 2 (Ready.gov, pack v3; the chat renders "1. … 2. … 3." as a list).
+  const start = picked > 0 && /^[-•*]?\s*\d+[.)]$/.test(sentences[picked - 1].trim()) ? picked - 1 : picked;
   let text = heading ? `${heading}:` : "";
   for (const s of sentences.slice(start)) {
     if (rules.cutAt?.test(s)) break;
