@@ -1017,6 +1017,30 @@ describe("answer(): the instant snippet says when the source is in another langu
   });
 });
 
+describe("answer(): the page of an identifier the question names always reaches the prompt (Sextant dddd8a8)", () => {
+  const ETH = (i: number) =>
+    chunk(`eth${i}`, "Ethereum", "Ethereum is a decentralized blockchain with smart contract functionality. Ether is the native cryptocurrency of Ethereum. Ethereum was conceived in 2013 by Vitalik Buterin. Ethereum moved to proof of stake in 2022 with the Merge. The Ethereum network is secured by validators.");
+  const cases: Array<[string, string, string]> = [
+    ["O que a EIP-7702 permite que uma conta comum do Ethereum (EOA) faça?", "Ethereum EIPs/ERCs: EIP-7702: Set Code for EOAs", "Abstract: Add a new transaction type that permanently sets the code for an EOA."],
+    ["Qual é o saldo efetivo máximo de um validador do Ethereum depois da EIP-7251?", "Ethereum EIPs/ERCs: EIP-7251: Increase the MAX_EFFECTIVE_BALANCE", "Abstract: Increases the constant MAX_EFFECTIVE_BALANCE to 2048 ETH while keeping the minimum staking balance 32 ETH."],
+    ["Como os saques de staking chegam à camada de execução do Ethereum (EIP-4895)?", "Ethereum EIPs/ERCs: EIP-4895: Beacon chain push withdrawals as operations", "Abstract: Introduce a system-level operation to support validator withdrawals that are pushed from the beacon chain to the EVM."],
+  ];
+  for (const [q, title, body] of cases) {
+    it(q, async () => {
+      f = makeFake();
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+      f.retrieved = [ETH(1), chunk("eip", title, body), ETH(2), ETH(3)];
+      f.deps.englishNames = () => ["Ethereum"];
+      const { events, result } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+      expect(sources[0].title).toBe(title);
+      expect(f.generations[0].messages!.at(-1)!.content + JSON.stringify(f.generations[0].messages)).toContain(title.split(": ")[1]);
+      expect(result.receipt.reasonCodes).toContain("context:pinned-1");
+    });
+  }
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

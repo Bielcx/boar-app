@@ -23,6 +23,8 @@ import {
   currentEventAnswer,
   temperatureConversion,
   mentionsNow,
+  identifiersIn,
+  titleHasIdentifier,
   sourceLanguageLead,
   isTodayInHistory,
   historyDate,
@@ -637,7 +639,10 @@ export function createAnswerer(deps: AnswerDeps) {
       const names = pt && !english ? (deps.englishNames ?? defaultEnglishNames)(req.query) : [];
       if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
-      const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
+      // Identifiers the question names ("EIP-7251") stay in what sources are matched against (Sextant dddd8a8:
+      // with names ["Ethereum"] only, the EIP page lost to the Ethereum articles).
+      const ids = identifiersIn(req.query);
+      const matchQuery = english ?? (names.length ? [...names, ...ids].join(" ") : req.query);
       // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
       const onSubject = (c: RetrievedChunk) =>
         history
@@ -682,7 +687,10 @@ export function createAnswerer(deps: AnswerDeps) {
             (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
-      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget });
+      // A retrieved page of an identifier the question names always gets a place, first (Boar, dddd8a8).
+      const pinned = new Set(ids.length ? raw.filter((c) => titleHasIdentifier(c.title, ids)).map((c) => c.chunkId) : []);
+      if (pinned.size) reasonCodes.push(`context:pinned-${pinned.size}`);
+      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget, pinned });
       let sources = compressed.chunks;
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
