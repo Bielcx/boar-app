@@ -6,6 +6,8 @@ TL;DR
 - Palette: **Fogueira / Luar**. Appearance: **dark (default, `DEFAULT_APPEARANCE`) / light / system**; the OS setting is opt-in. The three old dark themes (Ocean, Amber, Matrix) are gone.
 - **Accessibility floors win over the mockup**: 12pt minimum text (the mockup uses 9–11px labels), 44/48 targets (mockup controls are 40–42px), AA contrast (light variants are adjusted, §2). Use the mockup's layout and components, **not its copy**: its texts ("Verified", "Runs Great", "Under 12GB Limit", fixed tiers) break the honesty rule. Only measured or computed numbers.
 - Every interactive primitive already sets role, label, state and a 44pt (iOS) / 48dp (Android) target. Don't re-wrap them in another `Pressable`.
+- **Copy fits its shape** (copy-wrap, 27/09): a button, chip, seal or segment fits one line (≤18 chars, verb + object; the explanation goes on a support line below). A card title is ≤2 lines at 375 pt, a description ≤2 lines. No jargon on screen: words, not tokens ("~12 words/s", "A page"); "Start"/"Memory", not TTFT/RSS.
+- **Product terms:** the offline document collection is **acervo** (PT) / **library** (EN), everywhere (settings, chat, sources). Never "biblioteca", "corpus" or "knowledge base" in UI copy.
 - Gate before a UI PR: `npx tsc --noEmit`, `npx vitest run <affected files>`, Prism's `ui-lint.mjs` shows no regression in touched files, screenshots light + dark + 200% text.
 
 ```ts
