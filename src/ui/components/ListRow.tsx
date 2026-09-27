@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Switch as RNSwitch, View } from "react-native";
+import { Pressable, StyleSheet, Switch as RNSwitch, useWindowDimensions, View } from "react-native";
 import { impact, ImpactFeedbackStyle, selection } from "../../services/haptics";
 import { useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
@@ -49,6 +49,10 @@ export function ListRow({
   switch: toggle,
 }: ListRowProps) {
   const t = useTokens();
+  // At large text, the value goes under the title (left-aligned) instead of beside it: beside it, a long
+  // single word in the title was broken mid-word ('Conversati/on history', Harbor 51f9863 at 1.3).
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= 1.2;
   if (toggle) {
     trailing = (
       <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -66,12 +70,12 @@ export function ListRow({
     <>
       {icon && <Icon name={icon} color={destructive ? t.color.status.danger.solid : t.color.text.secondary} />}
       <View style={styles.body}>
-        <View style={styles.titleLine}>
+        <View style={stacked ? styles.titleStack : styles.titleLine}>
           <Text variant="body" color={destructive ? "danger" : "primary"} style={styles.title}>
             {title}
           </Text>
           {value && !trailing && (
-            <Text variant="callout" color="secondary" style={styles.value} numberOfLines={2}>
+            <Text variant="callout" color="secondary" style={stacked ? undefined : styles.value} numberOfLines={stacked ? undefined : 2}>
               {value}
             </Text>
           )}
@@ -147,6 +151,7 @@ const styles = StyleSheet.create({
   // Title and value share one line (value right, at most half the width, wrapping in place) instead of
   // the value dropping to a second line on its own (Prism LT-2, 'Keep the last 10').
   titleLine: { flexDirection: "row", alignItems: "baseline", columnGap: 8 },
+  titleStack: { gap: 2 },
   title: { flex: 1, flexShrink: 1 },
   value: { flexShrink: 1, maxWidth: "50%", textAlign: "right" },
 });
