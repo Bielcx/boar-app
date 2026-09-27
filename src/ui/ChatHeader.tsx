@@ -45,20 +45,23 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNew
 
   return (
     <View
+      // Top-aligned: with large text the title block grows downward, never above the menu (Prism AX-1).
       style={{
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         gap: t.space.xs,
         paddingHorizontal: t.space.sm,
         paddingVertical: t.space.xs,
       }}
     >
       <IconButton icon="menu" variant="surface" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
-      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+      <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", gap: t.space.sm }}>
         {fit.avatar && (
-          <Mascot size="avatar" />
+          <View style={{ height: t.size.touch, justifyContent: "center" }}>
+            <Mascot size="avatar" />
+          </View>
         )}
-        <View style={{ flexShrink: 1, flexGrow: 1 }}>
+        <View style={{ flexShrink: 1, flexGrow: 1, minHeight: t.size.touch, justifyContent: "center" }}>
           <Text variant="headline" header numberOfLines={1}>
             boar
           </Text>
