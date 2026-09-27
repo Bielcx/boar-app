@@ -399,3 +399,17 @@ describe("answer(): 'near me' location wait (GPS-1) and age rule", () => {
     expect(events.at(-1)).toMatchObject({ type: "done", outcome: "stopped" });
   });
 });
+
+describe("detectGeoIntent: customs are knowledge, not places (Sextant trv-009)", () => {
+  it("tipping/etiquette/payment questions about restaurants are not places questions", () => {
+    for (const q of [
+      "Is tipping expected in restaurants in Portugal?",
+      "É esperado dar gorjeta em restaurantes em Portugal?",
+      "Do restaurants in Japan accept credit cards?",
+      "Preciso reservar restaurantes em Paris?",
+    ]) expect(detectGeoIntent(q), q).toBeNull();
+  });
+  it("a request for places stays one", () => {
+    for (const q of ["Best vegan restaurants in Lisbon", "Onde comer em Lisboa?", "Recommend restaurants in Tokyo that accept credit cards"]) expect(detectGeoIntent(q), q).not.toBeNull();
+  });
+});
