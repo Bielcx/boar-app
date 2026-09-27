@@ -11,6 +11,7 @@
  */
 import type { CatalogModel } from "../../models/manifest";
 import { confirmLargeModel as confirmLargeModelSetting, getLargeModelConfirmedIds, getLoadCrashedIds } from "../../models/settings";
+import { loadGuard } from "../../inference/loadGuard";
 import * as Downloads from "../../services/downloadManager";
 import * as FileSystem from "expo-file-system/legacy";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
@@ -142,6 +143,9 @@ export async function installedPoiCities(limit = 6): Promise<PoiCity[]> {
 
 /** Models whose last load killed the app on this phone ("Didn't open here"; Tusk, CR-2). */
 export async function loadCrashedIds(): Promise<string[]> {
+  // A crash is recorded when the load guard first checks its marker (the chat's banner or the next load).
+  // Models may read before either, and would see nothing (Prism CR-4): check first, it runs once per process.
+  await loadGuard.ensureChecked().catch(() => {});
   return getLoadCrashedIds();
 }
 
