@@ -29,7 +29,10 @@ vi.mock("llama.rn", () => ({
     if (!header) throw new Error("no header");
     return header;
   },
-  initLlama: async (params: { model: string }) => {
+  initLlama: async (params: { model: string }, onProgress?: (pct: number) => void) => {
+    onProgress?.(0);
+    onProgress?.(50);
+    onProgress?.(100);
     const { model } = params;
     initParams.push(params);
     const failure = initFailures.shift();
@@ -140,6 +143,14 @@ describe("LlamaEngine CR-2 marker and model swap", () => {
     initFailures.push("model file not found");
     await expect(new LlamaEngine(guard as any).load("models/a.gguf")).rejects.toThrow();
     expect(ends).toEqual([false]);
+  });
+});
+
+describe("LlamaEngine load progress", () => {
+  it("reports llama.rn's 0-100 as 0..1", async () => {
+    const seen: number[] = [];
+    await new LlamaEngine(null).load("models/a.gguf", { onProgress: (f) => seen.push(f) });
+    expect(seen).toEqual([0, 0.5, 1]);
   });
 });
 
