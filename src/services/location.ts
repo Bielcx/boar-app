@@ -9,8 +9,21 @@
 import { deviceLocation } from "../ui/flows/adapters";
 import { requestLocationForQuestion } from "../location/locationPolicy";
 
-export type { PermissionStatus, PointResult, NativePosition } from "./location.pure";
-import { isFresh, permissionBlock, PermissionStatus, PointResult, toError, toPoint } from "./location.pure";
+export type { FixResult, NativePosition, PermissionStatus, Point, PointResult } from "./location.pure";
+export { LOCATION_MAX_AGE_MS } from "./location.pure";
+import {
+  FixResult,
+  isFresh,
+  LOCATION_MAX_AGE_MS,
+  NativePosition,
+  permissionBlock,
+  PermissionStatus,
+  PointResult,
+  resolveFix,
+  toError,
+  toPoint,
+  withoutStale,
+} from "./location.pure";
 
 /** What the "use my location" button gets back (Ledger's requestLocationForQuestion). */
 export type LocationRequest =
@@ -40,21 +53,30 @@ export async function requestLocationPermission(): Promise<"granted" | "denied">
 }
 
 /**
- * The last known fix if it is recent enough, otherwise a new one, within
- * `timeoutMs`. Short timeouts (the answer path uses ~700 ms) are fine.
+ * A position for "near me": the last known fix if it is at most 5 min old,
+ * else a new fix within `timeoutMs` (~3 s). If none arrives, "stale" with the
+ * newest old fix and its age, so the caller can offer it instead of using it.
  */
-export async function getCurrentPoint({ timeoutMs = 10_000, maxAgeMs = 10 * 60_000 } = {}): Promise<PointResult> {
+export async function getLocationFix({ timeoutMs = 3_000, maxAgeMs = LOCATION_MAX_AGE_MS } = {}): Promise<FixResult> {
   const native = deviceLocation();
   if (!native) return { error: "unavailable" };
   const blocked = permissionBlock(await getLocationPermission());
   if (blocked) return blocked;
+  const last = await native.getLastKnownPosition?.().catch(() => null);
+  if (isFresh(last, Date.now(), maxAgeMs)) return toPoint(last, Date.now());
+  let fresh: NativePosition | null = null;
+  let error: PointResult | null = null;
   try {
-    const last = await native.getLastKnownPosition?.().catch(() => null);
-    if (isFresh(last, Date.now(), maxAgeMs)) return toPoint(last, Date.now());
-    return toPoint(await native.getCurrentPosition({ timeoutMs, maxAgeMs }), Date.now());
+    fresh = await native.getCurrentPosition({ timeoutMs, maxAgeMs });
   } catch (e) {
-    return toError(e);
+    error = toError(e);
   }
+  return resolveFix({ last, fresh, error, nowMs: Date.now() }, maxAgeMs);
+}
+
+/** The engine's current contract (GeoProviders.getLocation): a stale fix reads as "timeout", never as the old place. */
+export async function getCurrentPoint({ timeoutMs = 3_000, maxAgeMs = LOCATION_MAX_AGE_MS } = {}): Promise<PointResult> {
+  return withoutStale(await getLocationFix({ timeoutMs, maxAgeMs }));
 }
 
 /**
