@@ -934,6 +934,7 @@ function InstallStep({
 
   const ready = indexPhase === "ready";
   const indexing = indexPhase === "building" || indexPhase === "error";
+  const { fontScale } = useWindowDimensions();
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
   const hero = !allPresent
     ? {
@@ -1008,7 +1009,8 @@ function InstallStep({
           <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
             {/* xl only for the download, the one figure of the setup; the index stays lg (Iris). */}
             <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
-            <Mascot size="hero" glow />
+            {/* 110 + 128 fit in 288dp at 1.0; larger text would squeeze the figure (Iris). */}
+            {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
           <MetaLine items={hero.meta} />
