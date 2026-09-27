@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -14,6 +15,10 @@ import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
 
 const modelManager = new ModelManager();
+
+// Keep the native splash (same canvas, mascot and wordmark) up until the first real screen can
+// draw, instead of flashing a bare spinner between the two (iOS cd50fdc splash sequence).
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppContent() {
   const t = useTokens();
@@ -30,14 +35,16 @@ function AppContent() {
     })();
   }, []);
 
-  if (!initialRoute || (!fontsLoaded && !fontError)) {
-    return (
-      <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]}>
-        <ActivityIndicator color={t.color.accent.solid} size="large" />
-      </View>
-    );
+  const ready = !!initialRoute && (fontsLoaded || !!fontError);
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) {
+    // Under the splash; the canvas colour matches it in case the OS reveals this frame.
+    return <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]} />;
   }
-  return <RootNavigator initialRoute={initialRoute} />;
+  return <RootNavigator initialRoute={initialRoute!} />;
 }
 
 export default function App() {
