@@ -64,6 +64,7 @@ import { modelStatus } from "./chat/composerState";
 import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
+import { installedKnowledgeIds } from "./chat/knowledgeApi";
 
 const VERBATIM_MESSAGE_COUNT = 6;
 
@@ -461,6 +462,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [ready, runInto, finish, activeSessionId]
   );
 
+  // Installed knowledge, so the empty chat only suggests questions with an on-topic source here (RT-1).
+  // Re-read when the model state changes (setup and the Knowledge screen run before the chat is ready).
+  const [knowledge, setKnowledge] = useState<string[]>([]);
+  useEffect(() => {
+    installedKnowledgeIds()
+      .then(setKnowledge)
+      .catch(() => undefined);
+  }, [ready]);
+
   // A city typed during "Finding your location…" runs as soon as the stopped answer has finished.
   const pendingCity = useRef<{ id: string; city: string } | null>(null);
   useEffect(() => {
@@ -548,6 +558,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       (async () => {
         getVoiceInputEnabled().then(setVoiceInputEnabledState);
         getHidePromptIdeas().then((hide) => setShowSuggestions(!hide));
+        installedKnowledgeIds().then(setKnowledge).catch(() => undefined);
         // Settings loads a newly chosen LLM itself; only re-run the full init if what's loaded doesn't match.
         const llm = await resolveActiveModel("llm");
         if (ready && llamaEngine.getModelInfo()?.filename === llm.filename) setActiveModel(llm);
@@ -736,7 +747,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
               <ChatEmptyState
-                suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language) : []}
+                suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language, knowledge) : []}
                 onAsk={ask}
                 onFill={(q) => {
                   setInput(q);
