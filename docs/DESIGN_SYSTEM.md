@@ -140,7 +140,8 @@ Never place an icon next to text with a bare `alignItems: "center"`. On iOS, eve
 | Inside a chip or seal | `gap="tight"` (6), `iconRole="seal"` (13) |
 | Label in a pill or button | `centerOnBox`: centres the text by its optical centre, not its box |
 | Icon, radio or dot beside a block you lay out yourself | `const line = useOpticalLine("body")` + `<IconSlot name="x" line={line} />` in a row with `alignItems: "flex-start"` |
-| Chevron, check or x at a row's right edge | `<Icon … edge="end" />`: lines up the stroke, not the 24-grid box |
+| Something that is not a glyph (spinner, dot, radio) on a text line | `<LineSlot line={line}>…</LineSlot>`: same one-line box and nudge as IconSlot |
+| Chevron, check or x at a row's right edge | `<Icon … edge="end" />`, or `<IconSlot … edge="end" />` on a line: lines up the stroke, not the 24-grid box |
 
 Tokens: `icon.gap` 8 · `icon.gapTight` 6 · `icon.sizeBody` 16 · `icon.sizeTitle` 20 (titles, CTA `lg`, ListRow icon column) · `icon.sizeSeal` 13 · `icon.maxScale` 2. No literal gaps or icon sizes next to text.
 
