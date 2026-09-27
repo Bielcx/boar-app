@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context";
 import "./src/i18n";
 import { LanguageProvider } from "./src/i18n/LanguageContext";
 import { ModelManager } from "./src/models/ModelManager";
@@ -43,7 +43,8 @@ function AppContent() {
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
+      {/* Real insets on the first frame, so the shell does not jump as the splash fades (Prism SA-1). */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <KeyboardProvider>
           <LanguageProvider>
             <ThemeProvider>
