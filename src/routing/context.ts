@@ -231,7 +231,7 @@ const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quent
 const DISASTER =
   /(^|[^\p{L}])(earthquakes?|tsunamis?|floods?|flooding|hurricanes?|tornado(es)?|cyclones?|typhoons?|wildfires?|bush ?fires?|house fires?|kitchen fires?|on fire|caught fire|fires? (breaks?|broke) out|fire alarm|smoke inhalation|landslides?|avalanches?|volcan\p{L}*|eruption|terremotos?|sismos?|tsunamis?|enchentes?|inunda\p{L}*|alagamentos?|furac[ãa]o|tornados?|inc[êe]ndios?|deslizamentos?|avalanches?)(?![\p{L}])/iu;
 export const ACTION_INTENT =
-  /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get|treat|stop|help|make|purify|care)|how to (treat|stop|help|survive|make|purify)|first aid|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
+  /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get|treat|stop|help|make|purify|care)|how to (treat|stop|help|survive|make|purify)|first aid|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o|estancar|parar|tratar|cuidar|socorrer|aliviar)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
 
 // An injury DESCRIBED without the condition's name ("spilled boiling water on his arm",
 // "derramou água fervendo no braço", "got bitten", "está sangrando"): health when the
@@ -423,7 +423,7 @@ function sectionHeading(chunk: RetrievedChunk): string {
  * ("Greenhouse effect" in "Runaway greenhouse effect"); a one-word name must be the whole title
  * ("Season", never "Hurricane Season Preparedness Digital Toolkit"). Text alone never counts.
  */
-export function namedByLexicon(names: string[], chunk: RetrievedChunk): boolean {
+function titledByLexicon(names: string[], chunk: RetrievedChunk): boolean {
   const clean = (s: string) => s.replace(/^(Wikibooks|Wikivoyage|US government|Appropedia):\s*/, "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
   const heads = [clean(chunk.title), ...sectionHeading(chunk).split(">").map(clean)];
   return names.some((n) => {
@@ -432,6 +432,18 @@ export function namedByLexicon(names: string[], chunk: RetrievedChunk): boolean 
     const re = new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
     return heads.some((h) => re.test(h));
   });
+}
+
+export function namedByLexicon(names: string[], chunk: RetrievedChunk): boolean {
+  if (titledByLexicon(names, chunk)) return true;
+  // Two or more names (PT suggestion "Por que existem estações do ano na Terra?" -> Season, Earth): a
+  // passage whose first sentence names them all ("The Earth's axis is tilted ... this causes the seasons")
+  // is on topic too. Never with one name: "season" opens "Prepare before hurricane season starts".
+  if (names.length < 2) return false;
+  const colon = chunk.body.indexOf(":");
+  const text = colon > 0 && colon <= 120 ? chunk.body.slice(colon + 1) : chunk.body;
+  const lead = new Set(tokenizeTerms(splitSentences(text.trim())[0] ?? ""));
+  return names.every((n) => tokenizeTerms(n.replace(/\s*\([^)]*\)\s*$/, "")).some((t) => lead.has(t)));
 }
 
 /** Years a question names ("the 1906 earthquake", "the 1970 World Cup"). */
@@ -446,6 +458,11 @@ function properNounTerms(query: string): string[] {
     .slice(1)
     .filter((w) => /^\p{Lu}/u.test(w) && w !== "I")
     .flatMap((w) => tokenizeTerms(w));
+}
+
+/** A title's first segment, past a source label: "Scary Stories" for "Scary Stories: Dark Web", "Water" for "Wikivoyage: Water". */
+function mainTitle(title: string): string {
+  return title.replace(/^(Wikipedia|Wikibooks|Wikivoyage|US government|Appropedia|ethereum\.org|Ethereum EIPs\/ERCs|Ethereum specs|Bitcoin BIPs):\s*/, "").split(/:\s+/)[0];
 }
 
 /** Every word of one title segment is a question term ("Monsoon"; "Ethereum EIPs/ERCs: EIP-4844: …" by its "EIP-4844" part). */
@@ -471,8 +488,11 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   // segment is in the question) is on topic even when this passage doesn't repeat the question's
   // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
   if (titleSegmentNamed(chunk.title, q)) return true;
-  // The article title or the section heading names a question word, and the source covers
-  // the question ("Scary Stories: Dark Web" names "dark", not the latest theory of dark matter).
+  // The article's own title names a question word ("Plate tectonics" for "…near plate boundaries?",
+  // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"): a subtitle
+  // word ("Scary Stories: Dark Web" for dark matter) or a section heading needs the coverage below.
+  if (titleNames(mainTitle(chunk.title), q)) return true;
+  // A subtitle or the section heading names a question word, and the source covers the question.
   if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
     return termCoverage(query, text) >= (q.size < MIN_TERMS_FOR_COVERAGE ? 1 : TITLE_MIN_COVERAGE);
   }
@@ -615,7 +635,9 @@ export const HEALTH_ACTION_MIN_SCORE = 0.5;
 const CORE_PROCEDURE: Array<[RegExp, RegExp]> = [
   [/^earthquak|^terremot|^sismo/, /\bdrop\b[^.]{0,40}\bcover\b|\bhold on\b|drop,? cover|abaixe|proteja-se|segure-se/i],
   [/^burn|^scald|^queimad/, /\b(cool|cold|lukewarm)\b[^.]{0,30}\b(running )?water\b|[áa]gua (corrente|fria)/i],
-  [/^nosebleed|^nose|^sangram/, /\bpinch\w*|\blean\w* forward|\btilt\w*[^.]{0,20}forward|inclin\w*[^.]{0,20}frente|apert/i],
+  // "Direct pressure" and the soft part of the nose too: the PT suggestion quoted "Nasal packing" (a
+  // clinic's procedure) over the first aid (RF-1 harness, pt4: "Emergency bleeding control › Epistaxis").
+  [/^nosebleed|^nose|^sangram/, /\bpinch\w*|\blean\w* forward|\btilt\w*[^.]{0,20}forward|\bdirect pressure\b|\bsoft (fleshy )?part of the nose\b|inclin\w*[^.]{0,20}frente|apert/i],
   // After nosebleed: a nosebleed's topic has no "bleed" (the compound's parts are dropped).
   [/^bleed|^sangr|^hemorrag/, /\b(direct|firm|steady)\b[^.]{0,20}\bpressure\b|\b(apply|put|press)\w*\b[^.]{0,30}\b(pressure|firmly)\b|press[ãa]o (direta|firme)/i],
   [/^hypotherm|^hipoterm/, /\bshelter\b|\bwarm\w*|\bremove\b[^.]{0,30}\bwet\b|\bcold environment\b|abrigo|aquec/i],
