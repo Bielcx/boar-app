@@ -312,6 +312,9 @@ k = max(jumps)[1] if jumps else len(run) - 1
 ims[run[max(0, k - 1)]].save(os.path.join(out, "splash-native.png"))
 ims[run[k]].save(os.path.join(out, "splash-bootsplash.png"))
 ims[run[k]].save(sys.argv[3])
+# a second BootSplash frame ~0.5 s later (the bar moving), if the splash lasts that long
+k2 = min(k + 15, len(run) - 1)
+if k2 > k: ims[run[k2]].save(os.path.join(out, "splash-bootsplash-2.png"))
 print(f"splash handover at frame {run[k]} (native {run[max(0, k - 1)]})", file=sys.stderr)
 EOF
 log "shot splash (from launch video)"
