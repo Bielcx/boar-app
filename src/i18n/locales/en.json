@@ -1160,6 +1160,8 @@
       "receipt": "general knowledge",
       "receiptUncited": "no source cited",
       "declinedTitle": "I couldn't find this in this phone's library",
+      "unsupportedTitle": "The passages found don't back this answer",
+      "unsupportedBody": "The compact model's answer cited passages that don't say what it wrote, so it was held back.",
       "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
       "answerAnyway": "Answer anyway (may be wrong)",
       "declinedTitleIncomplete": "This phone’s library isn’t complete",

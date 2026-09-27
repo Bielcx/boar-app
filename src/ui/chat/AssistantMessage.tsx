@@ -8,7 +8,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { declineCopy, generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -579,8 +579,9 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
  * same question (state B). No receipt, no primary ember, no amber.
  */
 function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: AnswerState; onAnswerAnyway?: () => void; incomplete?: boolean }) {
-  const title = incomplete ? "chat.weak.declinedTitleIncomplete" : "chat.weak.declinedTitle";
-  const body = incomplete ? "chat.weak.declinedBodyIncomplete" : "chat.weak.declinedBody";
+  // Found but unsupported (Tusk 237764a) or nothing found: the card says which.
+  const { title, body } = declineCopy(answer, incomplete);
+  const found = answer.sources.length > 0;
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -602,7 +603,7 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
         {onAnswerAnyway && <Button label={tr("chat.weak.answerAnyway")} variant="secondary" size="sm" onPress={onAnswerAnyway} />}
         {groups.length > 0 && (
           <Button
-            label={tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
+            label={found ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length }) : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
             variant="ghost"
             size="sm"
             accessibilityState={{ expanded: open }}
@@ -613,14 +614,17 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
       {open && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>
-            {tr("chat.weak.closestTitle")}
+            {tr(found ? "chat.weak.foundTitle" : "chat.weak.closestTitle")}
           </Text>
           {groups.map((g) => (
             <View key={g.key} style={{ gap: t.space.xxs }}>
               <Text variant="footnote" numberOfLines={2}>
                 {g.title}
               </Text>
-              <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
+              <MetaLine
+                items={found ? [sourceParts(answer.sources[g.indexes[0]].source).name] : [sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]}
+                variant="caption"
+              />
             </View>
           ))}
         </View>
@@ -685,6 +689,8 @@ function InstantSnippet({
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const snippet = answer.instant!;
+  // The engine's "(em inglês)" lead moves to the header; the body is the passage itself.
+  const { lang, body } = sourceLanguageLead(snippet.text);
   // 0-based, as the engine sends it ("[n]" = sourceIndex + 1).
   const source = answer.sources[snippet.sourceIndex];
   // Collapses to a short preview once the model's answer is done, unless the user chose otherwise.
@@ -693,11 +699,11 @@ function InstantSnippet({
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <Text variant="caption" color="field" weight="semibold" numberOfLines={1}>
-        {source ? `${tr("chat.snippet.fromSource")} · ${source.title}` : tr("chat.snippet.fromSource")}
+        {[lang ? `${tr("chat.snippet.fromSource")} (${lang})` : tr("chat.snippet.fromSource"), source?.title].filter(Boolean).join(" · ")}
       </Text>
       <Text variant={isFinal ? "body" : "callout"} selectable>
         {/* FMT-1: a pack's list flattened to " - " reads as a list again. */}
-        {expanded ? splitInlineBullets(snippet.text) : previewText(snippet.text)}
+        {expanded ? splitInlineBullets(body) : previewText(body)}
       </Text>
       <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
         {!isFinal && (

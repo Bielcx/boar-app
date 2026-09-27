@@ -1160,6 +1160,8 @@
       "receipt": "conhecimento geral",
       "receiptUncited": "sem fonte citada",
       "declinedTitle": "Não encontrei isso no acervo deste celular",
+      "unsupportedTitle": "Os trechos encontrados não sustentam esta resposta",
+      "unsupportedBody": "A resposta do modelo compacto citava trechos que não dizem o que ele escreveu, então ela foi retida.",
       "declinedBody": "Sem uma fonte, o modelo compacto costuma errar perguntas assim, então ele não chutou.",
       "answerAnyway": "Responder mesmo assim (pode errar)",
       "declinedTitleIncomplete": "O acervo deste celular está incompleto",

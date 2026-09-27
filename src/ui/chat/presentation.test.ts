@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -273,6 +273,9 @@ describe("receiptTagKey (Iris CT-5)", () => {
     expect(receiptTagKey({ ...base, cited: [] })).toBe("chat.weak.receiptUncited");
     expect(receiptTagKey({ ...base, cited: [1] })).toBeNull();
     expect(receiptTagKey(base)).toBeNull();
+    // CALC-1: the exact conversion shows "Calculation" by the name.
+    const calc = { ...receipt, modelId: "calculator", tokens: 0, tokPerSec: 0 };
+    expect(receiptTagKey({ answerIds: ["a"], sources: [], cited: [], instantDone: { outcome: "success", receipt: calc } } as AnswerState)).toBe("chat.receipt.calculator");
   });
 });
 
@@ -308,5 +311,31 @@ describe("showsInstantSnippet (Prism DUP-1)", () => {
   it("no card without a passage, nor when nothing was on the topic", () => {
     expect(showsInstantSnippet({ answerIds: ["a"], sources: src } as AnswerState)).toBe(false);
     expect(showsInstantSnippet({ answerIds: ["a"], sources: [], instant, weakSources: true } as AnswerState)).toBe(false);
+  });
+});
+
+describe("sourceLanguageLead (Tusk 29d7e52, Sextant q8 PT)", () => {
+  it("takes the engine's language lead off the passage, PT and EN", () => {
+    expect(sourceLanguageLead("Da fonte offline (em inglês):\nA monsoon is a seasonal change…")).toEqual({ lang: "em inglês", body: "A monsoon is a seasonal change…" });
+    expect(sourceLanguageLead("From the offline source (in Portuguese):\nA monção é…")).toEqual({ lang: "in Portuguese", body: "A monção é…" });
+  });
+  it("leaves any other text alone", () => {
+    expect(sourceLanguageLead("A monsoon is a seasonal change…")).toEqual({ lang: null, body: "A monsoon is a seasonal change…" });
+    expect(sourceLanguageLead("From the offline source:\nSteps…")).toEqual({ lang: null, body: "From the offline source:\nSteps…" });
+  });
+});
+
+describe("declineCopy (Tusk 237764a: the compact model's cited answer withheld)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "Monsoon", body: "b", score: 1, matchType: "hybrid" as const }];
+  it("passages found but every citation removed → says the passages don't back it, never 'couldn't find'", () => {
+    const a = { answerIds: ["a"], sources: src, weakSources: true, weakDeclined: true } as AnswerState;
+    expect(declineCopy(a)).toEqual({ title: "chat.weak.unsupportedTitle", body: "chat.weak.unsupportedBody" });
+    expect(declineCopy(a, true).title).toBe("chat.weak.unsupportedTitle");
+    expect(phaseAnnouncement("done", { ...a, fast: { text: "", stage: null, outcome: "success" } }, t)?.message).toBe("chat.weak.unsupportedTitle. chat.weak.unsupportedBody");
+  });
+  it("nothing on the topic → 'couldn't find', or the incomplete library", () => {
+    const a = { answerIds: ["a"], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
+    expect(declineCopy(a).title).toBe("chat.weak.declinedTitle");
+    expect(declineCopy(a, true).title).toBe("chat.weak.declinedTitleIncomplete");
   });
 });

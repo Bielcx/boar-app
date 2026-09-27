@@ -8,6 +8,10 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  isSubstantive,
+  identifiersIn,
+  passageLanguage,
+  sourceLanguageLead,
   temperatureConversion,
   healthExtract,
   isTodayInHistory,
@@ -417,7 +421,9 @@ describe("namedByLexicon (PT-1: lexicon names are article titles)", () => {
     expect(namedByLexicon(["Season"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)"))).toBe(false);
     expect(namedByLexicon(["Season"], c("Hunting", "Seasons > Season: Hunting season is regulated."))).toBe(true);
     expect(namedByLexicon(["Nuclear fission"], c("Potassium iodide", "Volatile nuclear fission products are released."))).toBe(false);
-    expect(namedByLexicon(["Greenhouse effect"], c("Runaway greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Greenhouse effect"], c("Greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Chiang Mai"], c("Consulate-General of China, Chiang Mai"))).toBe(false);
+    expect(namedByLexicon(["Chiang Mai"], c("Wikivoyage: Chiang Mai"))).toBe(true);
     expect(namedByLexicon(["Georgia (country)"], c("Georgia (country)"))).toBe(true);
   });
   it("two or more names: a passage whose first sentence names them all (PT suggestion q1)", () => {
@@ -539,6 +545,12 @@ describe("Prism RF-1: the suggested questions", () => {
 
 describe("onTopic: the article's own title (Sextant RF-1, plate boundaries)", () => {
   const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("gate ea21e82 s32: a title that merely contains a question word is not on topic", () => {
+    expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
+    expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+    expect(onTopic("What is the smallest country in South America by area?", c("Autonomy South", "Autonomy South is a political party."))).toBe(false);
+  });
+
   it("'Plate tectonics' for plate boundaries; a subtitle word still needs coverage", () => {
     const plates = c("Plate tectonics", "Plate tectonics is the scientific theory that Earth's lithosphere comprises a number of large tectonic plates.");
     expect(onTopic("Why do earthquakes happen near plate boundaries?", plates)).toBe(true);
@@ -585,5 +597,77 @@ describe("compressContext keeps the rest of a chosen passage when the budget all
     const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large plates. The model builds on continental drift and many other long ideas from the twentieth century. Plates meet at boundaries where earthquakes occur.");
     const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates], { tokenBudget: 30 }).chunks;
     expect(out[0].body).not.toContain("continental drift");
+  });
+});
+
+describe("onTopic: a title's acronym", () => {
+  it("'Maximal extractable value (MEV)' for a question naming MEV", () => {
+    const c = { chunkId: "m", docId: "m", title: "ethereum.org: Maximal extractable value (MEV)", body: "Maximal extractable value refers to the maximum value that can be extracted from block production.", score: 1, matchType: "lexical" as const };
+    expect(onTopic("O que é MEV e o que é a separação entre proponente e construtor?", c)).toBe(true);
+    expect(onTopic("What is the minimum wage?", c)).toBe(false);
+  });
+});
+
+describe("onTopic: two consecutive question terms (Sextant cmp-009)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  const q = "How did government in the Roman Republic differ from the Roman Empire?";
+  it("keeps the Western Roman Empire and the Byzantine Empire", () => {
+    expect(onTopic(q, c("Fall of the Western Roman Empire", "The fall of the Western Roman Empire was the loss of central political control in the Western Roman Empire."))).toBe(true);
+    expect(onTopic(q, c("Byzantine Empire", "The Byzantine Empire, also known as the Eastern Roman Empire, was the continuation of the Roman Empire centred on Constantinople."))).toBe(true);
+    expect(onTopic(q, c("Politics of Djibouti", "Politics of Djibouti takes place in a framework of a semi-presidential republic."))).toBe(false);
+  });
+  it("a pair that is only a place is not the subject (the consulate in Chiang Mai)", () => {
+    const consulate = c("Consulate-General of China, Chiang Mai", "The Consulate-General of the People's Republic of China in Chiang Mai is the diplomatic mission of China to Chiang Mai and Northern Thailand.");
+    expect(onTopic("When is the best time to visit Chiang Mai, and when is the smoky season?", consulate)).toBe(false);
+  });
+  it("does not reopen Scary Stories, Marash, Northern Command or Sampford Common", () => {
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology about the dark web."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
+    expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
+    expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+  });
+});
+
+describe("passageLanguage / sourceLanguageLead", () => {
+  it("reads the passage's function words", () => {
+    expect(passageLanguage("A monsoon is traditionally a seasonal reversing wind.")).toBe("en");
+    expect(passageLanguage("A monção é um vento sazonal que muda de direção.")).toBe("pt");
+    expect(passageLanguage("EIP-1559")).toBeNull();
+    expect(sourceLanguageLead(true, "The Earth's axis is tilted.")).toBe("Da fonte offline (em inglês):");
+    expect(sourceLanguageLead(true, "A monção é um vento sazonal.")).toBeNull();
+    expect(sourceLanguageLead(false, "The Earth's axis is tilted.")).toBeNull();
+    expect(sourceLanguageLead(false, "A monção é um vento sazonal que muda de direção.")).toBe("From the offline source (in Portuguese):");
+  });
+});
+
+describe("identifiersIn / compressContext pinned", () => {
+  it("normalizes identifiers", () => {
+    expect(identifiersIn("O que a EIP-7702 e o ERC 4337 fazem? BIP-32 também.")).toEqual(["EIP-7702", "ERC-4337", "BIP-32"]);
+  });
+  it("a pinned chunk is kept first even when the others out-score it", () => {
+    const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+    const eth = c("e", "Ethereum", "Ethereum is a blockchain. Ethereum has smart contracts. Ethereum uses ether.");
+    const eip = c("p", "EIP-7251: Increase the MAX_EFFECTIVE_BALANCE", "Increases the constant to 2048 ETH.");
+    const free = compressContext("Ethereum", [eth, eip]).chunks.map((x) => x.chunkId);
+    expect(free).toEqual(["e"]);
+    const pinned = compressContext("Ethereum", [eth, eip], { pinned: new Set(["p"]) }).chunks.map((x) => x.chunkId);
+    expect(pinned).toEqual(["p", "e"]);
+  });
+});
+
+describe("Sextant cry-020 / cry-012: content, not pointers or metadata", () => {
+  const c = (title: string, body: string) => ({ chunkId: title + body.length, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("instantFinalBlock: a pointer, or a sentence that covers only the identifier, is not final", () => {
+    expect(instantFinalBlock("O que mudou no Ethereum com o Merge (EIP-3675)?", "Full specification of the beacon chain can be found in the `ethereum/consensus-specs` repository.", "Ethereum EIP-3675")).toBe("pointer");
+    expect(instantFinalBlock("What does EIP-3675 upgrade?", "The transition happens at the terminal total difficulty.", "Ethereum upgrade EIP-3675")).toBe("title-only");
+    expect(instantFinalBlock("What is the capital of Australia?", "Canberra is the capital city of Australia.")).toBeNull();
+  });
+  it("isSubstantive: metadata, hex examples, copyright and stubs are not content", () => {
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Status: Final Type: Standards Track (Core) Created: 2016-10-14"))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Example: ``` 0xf86c098504a817c800825208943535353535 ```"))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Hard fork: Spurious Dragon"))).toBe(false);
+    expect(isSubstantive(c("ERC-2400: Transaction Receipt URI", "Copyright: Copyright and related rights waived via CC0."))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Parameters: - FORK_BLKNUM: 2,675,000 - CHAIN_ID: 1 (main net)"))).toBe(true);
+    expect(isSubstantive(c("Canberra", "Canberra is the capital city of Australia."))).toBe(true);
   });
 });

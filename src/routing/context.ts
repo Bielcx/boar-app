@@ -179,7 +179,13 @@ export function selectInstant(query: string, chunks: RetrievedChunk[]): InstantS
  * ML-DSA-44..."). A sentence opening with a pronoun ("It initially
  * focuses...") needs the text before it.
  */
-export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | "health" | null {
+const POINTER = /\b(can be found|is available (at|in|from)|see (the|also|below|above)|for more (information|details)|refer to|repository|see https?:|https?:\/\/)/i;
+
+export function instantFinalBlock(
+  query: string,
+  snippet: string,
+  matchQuery: string = query
+): "anaphora" | "list" | "compound" | "not-definition" | "health" | "pointer" | "title-only" | null {
   const q = query.trim().replace(/[?!.\s]+$/, "");
   // One sentence is never a complete first-aid answer.
   if (isHealthQuestion(q)) return "health";
@@ -193,6 +199,13 @@ export function instantFinalBlock(query: string, snippet: string): "anaphora" | 
     const defines = new RegExp(`(^|[^\\w-])${esc}(?![\\w-])[^.]{0,60}?\\b(is|are|was|were|refers to|stands for|means)\\b`, "i");
     if (!defines.test(snippet)) return "not-definition";
   }
+  // A sentence that points elsewhere answers nothing (Sextant cry-020: "Full specification of the beacon
+  // chain can be found in the ethereum/consensus-specs repository").
+  if (POINTER.test(snippet)) return "pointer";
+  // The sentence itself must cover the question past its identifiers: a named title ("EIP-3675") scores
+  // every sentence of its page, so the score alone let a content-free sentence be final.
+  const rest = matchQuery.replace(/\b(EIP|ERC|BIP|RFC)[-\s]?\d{1,5}\b/gi, " ");
+  if (tokenizeTerms(rest).length && termCoverage(rest, snippet) < 0.5) return "title-only";
   return null;
 }
 
@@ -429,7 +442,9 @@ function titledByLexicon(names: string[], chunk: RetrievedChunk): boolean {
   return names.some((n) => {
     const name = clean(n);
     if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);
-    const re = new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
+    // A multi-word name opens the title or heading ("Greenhouse effect", "Chiang Mai"): at its end it
+    // is a place in another subject's title ("Consulate-General of China, Chiang Mai", ea21e82 v2-pt).
+    const re = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
     return heads.some((h) => re.test(h));
   });
 }
@@ -460,6 +475,34 @@ function properNounTerms(query: string): string[] {
     .flatMap((w) => tokenizeTerms(w));
 }
 
+/**
+ * A pair of consecutive question terms appears, consecutive, in the title or the first sentence, as the
+ * subject: not as a place ("… in Chiang Mai", the title's ", Chiang Mai" qualifier: the Chinese consulate
+ * is not about visiting Chiang Mai).
+ */
+function sharesQuestionPair(query: string, chunk: RetrievedChunk): boolean {
+  const qt = tokenizeTerms(query);
+  const pairs = qt.slice(1).map((t, i) => [qt[i], t] as const).filter(([a, b]) => a !== b);
+  if (!pairs.length) return false;
+  const colon = chunk.body.indexOf(":");
+  const text = colon > 0 && colon <= 120 ? chunk.body.slice(colon + 1) : chunk.body;
+  const PLACE = new Set(["in", "at", "near", "to", "into", "from", "em", "no", "na", "perto"]);
+  const has = (raw: string) => {
+    const words = (raw.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]+/g) ?? []).map((w) => ({ w, t: tokenizeTerms(w)[0] }));
+    return pairs.some(([a, b]) =>
+      words.some((x, i) => i + 1 < words.length && !!x.t && !!words[i + 1].t && sameTerm(x.t, a) && sameTerm(words[i + 1].t!, b) && !(i > 0 && PLACE.has(words[i - 1].w)))
+    );
+  };
+  // The title before its ", Place" qualifier ("Vienna, Georgia"; "Consulate-General of China, Chiang Mai").
+  return has(chunk.title.split(/,\s+/)[0]) || has(splitSentences(text.trim())[0] ?? "");
+}
+
+/** The title's first word is a question term ("Plate" of "Plate tectonics"). */
+function leadsTitle(title: string, q: Set<string>): boolean {
+  const first = tokenizeTerms(title)[0];
+  return !!first && [...q].some((t) => sameTerm(first, t));
+}
+
 /** A title's first segment, past a source label: "Scary Stories" for "Scary Stories: Dark Web", "Water" for "Wikivoyage: Water". */
 function mainTitle(title: string): string {
   return title.replace(/^(Wikipedia|Wikibooks|Wikivoyage|US government|Appropedia|ethereum\.org|Ethereum EIPs\/ERCs|Ethereum specs|Bitcoin BIPs):\s*/, "").split(/:\s+/)[0];
@@ -488,10 +531,20 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   // segment is in the question) is on topic even when this passage doesn't repeat the question's
   // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
   if (titleSegmentNamed(chunk.title, q)) return true;
-  // The article's own title names a question word ("Plate tectonics" for "…near plate boundaries?",
-  // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"): a subtitle
-  // word ("Scary Stories: Dark Web" for dark matter) or a section heading needs the coverage below.
-  if (titleNames(mainTitle(chunk.title), q)) return true;
+  // Two consecutive question terms ("Roman Empire") in the title or the passage's first sentence
+  // (Sextant cmp-009: "Fall of the Western Roman Empire", and "The Byzantine Empire, also known as
+  // the Eastern Roman Empire, ..." for "How did government in the Roman Republic differ from the
+  // Roman Empire?"). "Scary Stories: Dark Web" has no "dark matter".
+  if (sharesQuestionPair(query, chunk)) return true;
+  // The title's acronym ("Maximal extractable value (MEV)") named by the question ("O que é MEV…?").
+  const acronym = /\(([A-Z][A-Z0-9-]{1,9})\)\s*$/.exec(chunk.title)?.[1];
+  if (acronym && q.has(tokenizeTerms(acronym)[0] ?? "")) return true;
+  // The article's own title OPENS with a question word ("Plate tectonics" for "…near plate boundaries?",
+  // Sextant RF-1): on topic. Its first segment only, past a source label ("Wikivoyage: …"), and its first
+  // word only: any word let in the s32 noise ("United States Northern Command" for the northern lights,
+  // "Black Down and Sampford Common" for the commons, "Autonomy South"; gate ea21e82). A subtitle word
+  // ("Scary Stories: Dark Web") or a section heading needs the coverage below.
+  if (leadsTitle(mainTitle(chunk.title), q)) return true;
   // A subtitle or the section heading names a question word, and the source covers the question.
   if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
     return termCoverage(query, text) >= (q.size < MIN_TERMS_FOR_COVERAGE ? 1 : TITLE_MIN_COVERAGE);
@@ -612,6 +665,59 @@ export function currentEventAnswer(pt: boolean): string {
 }
 
 /** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
+const PT_WORDS = /^(o|a|os|as|um|uma|de|do|da|dos|das|em|no|na|nos|nas|que|para|com|por|pelo|pela|se|mais|como|mas|foi|sao|nao|ao|aos|e|ou|entre|sobre|tambem|ela|ele|seu|sua|isso|esta|este)$/;
+const EN_WORDS = /^(the|a|an|of|in|on|and|or|to|is|are|was|were|for|with|by|from|that|this|it|as|at|be|which|its)$/;
+
+/** The language a passage reads in, by its function words: "pt", "en", or null when unclear. */
+export function passageLanguage(text: string): "pt" | "en" | null {
+  const words = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z]+/g) ?? [];
+  const pt = words.filter((w) => PT_WORDS.test(w)).length;
+  const en = words.filter((w) => EN_WORDS.test(w)).length;
+  if (pt + en < 2) return null;
+  return pt > en ? "pt" : en > pt ? "en" : null;
+}
+
+/**
+ * The lead of a source's words shown to a reader of another language (Quill/Sextant q8: "O que é uma
+ * monção?" got the English Monsoon lead with no word that it is in English). The engine reads the
+ * passage, not the UI's language: imported documents may be PT. Null when the languages match.
+ */
+export function sourceLanguageLead(questionPt: boolean, passage: string): string | null {
+  const lang = passageLanguage(passage);
+  if (questionPt && lang === "en") return "Da fonte offline (em inglês):";
+  if (!questionPt && lang === "pt") return "From the offline source (in Portuguese):";
+  return null;
+}
+
+/**
+ * Whether a passage carries content: not an EIP's metadata header ("Status: Final Type: … Created: …"), a
+ * code/hex-only block, a copyright notice or a two-word stub ("Hard fork: Spurious Dragon"). Sextant cry-012:
+ * the three pinned EIP-155 passages were exactly those, and the model filled in "a nonce field".
+ */
+export function isSubstantive(chunk: RetrievedChunk): boolean {
+  const colon = chunk.body.indexOf(":");
+  const heading = colon > 0 && colon <= 120 ? chunk.body.slice(0, colon) : "";
+  const text = (heading ? chunk.body.slice(colon + 1) : chunk.body).trim();
+  if (/^(status|type|created|requires|author|category|discussions-to)\s*:/i.test(chunk.body.trim()) && /\bcreated\s*:/i.test(chunk.body)) return false;
+  if (/^copyright\b/i.test(heading) || /^copyright and related rights waived/i.test(text)) return false;
+  const prose = text.replace(/```[\s\S]*?```/g, " ").replace(/\b0x[0-9a-f]+\b/gi, " ");
+  const words = prose.match(/\p{L}{2,}/gu) ?? [];
+  return words.length >= 3;
+}
+
+const IDENTIFIER = /\b(EIP|ERC|BIP|RFC)[-\s]?(\d{1,5})\b/gi;
+
+/** Standard identifiers a question names ("EIP-7251", "ERC 4337"), normalized as "EIP-7251". */
+export function identifiersIn(text: string): string[] {
+  return [...new Set([...text.matchAll(IDENTIFIER)].map((m) => `${m[1].toUpperCase()}-${m[2]}`))];
+}
+
+/** Whether a source's title carries one of these identifiers ("Ethereum EIPs/ERCs: EIP-7251: Increase …"). */
+export function titleHasIdentifier(title: string, ids: string[]): boolean {
+  const own = identifiersIn(title);
+  return ids.some((id) => own.includes(id));
+}
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */
@@ -812,6 +918,12 @@ export interface CompressOptions {
   maxSentencesPerChunk?: number;
   /** Real tokenizer when available (llama.rn tokenize); approxTokens otherwise. */
   countTokens?: (s: string) => number;
+  /**
+   * Chunks that always get a place, first, whatever their relative relevance: the page of an identifier the
+   * question names ("EIP-7251"; Sextant dddd8a8: the Ethereum articles out-scored it and the 4B said the EIP
+   * doesn't exist).
+   */
+  pinned?: ReadonlySet<string>;
 }
 
 export interface CompressedContext {
@@ -836,6 +948,9 @@ export interface CompressedContext {
  * dropped — unless nothing scores at all, in which case the first sentences
  * of the top chunks are kept so the model still sees its best sources.
  */
+/** Tokens the best passage's other sentences may add after the ranked pick (prefill is the phone's bottleneck). */
+const FILL_MAX_TOKENS = 60;
+
 /** The shown relevance of an article the question names: the UI's 'high' band (Quill: >= 0.75). */
 const NAMED_ARTICLE_RELEVANCE = 0.75;
 
@@ -852,12 +967,19 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
   // dropped so the budget goes to the sources that answer.
   const chunkBest = chunks.map((_, ci) => Math.max(0, ...scored.filter((s) => s.chunkIndex === ci).map((s) => s.score)));
   const topBest = Math.max(0, ...chunkBest);
-  const relevant = (ci: number) => !anyMatch || chunkBest[ci] >= RELATIVE_RELEVANCE_FLOOR * topBest;
+  const pinnedIdx = new Set(chunks.map((c, i) => (opts.pinned?.has(c.chunkId) ? i : -1)).filter((i) => i >= 0));
+  const relevant = (ci: number) => pinnedIdx.has(ci) || !anyMatch || chunkBest[ci] >= RELATIVE_RELEVANCE_FLOOR * topBest;
   // Rank: matching sentences by score (ties → retrieval rank, then position);
   // with no match at all, fall back to each chunk's opening sentence.
   const ranked = (anyMatch ? scored.filter((s) => s.score > 0 && relevant(s.chunkIndex)) : scored.filter((s) => s.position === 0)).sort(
     (a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex || a.position - b.position
   );
+  // Pinned chunks first: their opening sentence (and best ones) before anything else competes for the budget.
+  if (pinnedIdx.size) {
+    const opening = scored.filter((s) => pinnedIdx.has(s.chunkIndex) && s.position === 0);
+    const pinnedRanked = [...opening, ...ranked.filter((s) => pinnedIdx.has(s.chunkIndex) && s.position !== 0)];
+    ranked.splice(0, ranked.length, ...pinnedRanked, ...ranked.filter((s) => !pinnedIdx.has(s.chunkIndex)));
+  }
 
   const picked = new Map<number, Set<number>>();
   let used = 0;
@@ -895,15 +1017,19 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
   // word, and lost "The processes that result in plates and shape Earth's crust are called tectonics").
   // Only the MOST relevant chosen passage (Boar: prefill is the phone's bottleneck; filling every
   // chosen passage cost +14% context on the suggestions): a distractor never enters this way.
+  // At most FILL_MAX_TOKENS: on s32 the fill took long passages' long sentences (+20% context, Sextant).
   const top = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b)[0];
   if (top !== undefined) {
+    const fillEnd = Math.min(budget, used + FILL_MAX_TOKENS);
     for (const s of scored.filter((x) => x.chunkIndex === top).sort((a, b) => a.position - b.position)) {
       if (picked.get(top)!.size >= perChunk) break;
+      if (picked.get(top)!.has(s.position)) continue;
+      if (used + cost(s) > fillEnd) continue;
       tryAdd(s);
     }
   }
 
-  const keptIndices = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b);
+  const keptIndices = [...picked.keys()].sort((a, b) => Number(pinnedIdx.has(b)) - Number(pinnedIdx.has(a)) || chunkBest[b] - chunkBest[a] || a - b);
   const qTerms = [...new Set(tokenizeTerms(query))];
   const shownRelevance = (ci: number) => {
     const best = scored.filter((x) => x.chunkIndex === ci).sort((a, b) => b.score - a.score)[0];

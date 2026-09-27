@@ -58,10 +58,10 @@ export function phaseAnnouncement(
         const empty = placesEmptyTitle(state.places, t);
         return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
-      if (state.weakDeclined)
-        return libraryIncomplete
-          ? { message: `${t("chat.weak.declinedTitleIncomplete")}. ${t("chat.weak.declinedBodyIncomplete")}` }
-          : { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
+      if (state.weakDeclined) {
+        const c = declineCopy(state, libraryIncomplete);
+        return { message: `${t(c.title)}. ${t(c.body)}` };
+      }
       if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
       {
         // CT-2: count what the card shows, the cited sources; none cited reads as no source.
@@ -273,7 +273,9 @@ export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fa
  * covered the question, where it is true; "no source cited" when passages on the topic were found
  * but the model cited none (it may have used them, so "general knowledge" could be false).
  */
-export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | null {
+export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | "chat.receipt.calculator" | null {
+  // The exact conversion (Prism CALC-1): say by the name that no model wrote it, as the other tags do.
+  if (!a.fast && a.instantDone?.receipt.modelId === CALCULATOR_MODEL_ID) return "chat.receipt.calculator";
   const kind = noSourceKind(a);
   return kind === "weak" ? "chat.weak.receipt" : kind === "uncited" ? "chat.weak.receiptUncited" : null;
 }
@@ -296,4 +298,29 @@ export function noSourceNote(a: AnswerState, placesOnly: boolean): "weak" | "unc
  */
 export function showsInstantSnippet(a: AnswerState): boolean {
   return !!a.instant && !a.extract && noSourceKind(a) !== "weak";
+}
+
+/**
+ * The engine's language lead on an instant passage (Tusk 29d7e52): "Da fonte offline (em inglês):" or
+ * "From the offline source (in Portuguese):" as the first line when the passage's language differs
+ * from the question's. The card shows the language by its header ("From the source (in Portuguese) ·
+ * Title") instead of saying "from the source" twice; copy and share keep the text as it came.
+ */
+export function sourceLanguageLead(text: string): { lang: string | null; body: string } {
+  const m = /^(?:Da fonte offline|From the offline source) \(([^)]+)\):[ \t]*\n/.exec(text);
+  return m ? { lang: m[1], body: text.slice(m[0].length) } : { lang: null, body: text };
+}
+
+/**
+ * Why the compact model's answer was withheld (weak_sources declined), which the card and the
+ * announcement must say truthfully: "none" = nothing on the topic in this phone's library;
+ * "unsupported" = passages on the topic were found, but every citation the model made was removed
+ * as unsupported (Tusk 237764a, grounding:all-citations-removed-declined-compact). Off-topic
+ * passages never reach the chat (Tusk 404d688), so the sources tell the two apart.
+ */
+export function declineCopy(a: AnswerState, libraryIncomplete = false): { title: string; body: string } {
+  if (a.sources.length > 0) return { title: "chat.weak.unsupportedTitle", body: "chat.weak.unsupportedBody" };
+  return libraryIncomplete
+    ? { title: "chat.weak.declinedTitleIncomplete", body: "chat.weak.declinedBodyIncomplete" }
+    : { title: "chat.weak.declinedTitle", body: "chat.weak.declinedBody" };
 }

@@ -23,6 +23,10 @@ import {
   currentEventAnswer,
   temperatureConversion,
   mentionsNow,
+  isSubstantive,
+  identifiersIn,
+  titleHasIdentifier,
+  sourceLanguageLead,
   isTodayInHistory,
   historyDate,
   todayLine,
@@ -636,10 +640,19 @@ export function createAnswerer(deps: AnswerDeps) {
       const names = pt && !english ? (deps.englishNames ?? defaultEnglishNames)(req.query) : [];
       if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
-      const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
+      // Identifiers the question names ("EIP-7251") stay in what sources are matched against (Sextant dddd8a8:
+      // with names ["Ethereum"] only, the EIP page lost to the Ethereum articles).
+      const ids = identifiersIn(req.query);
+      const matchQuery = english ?? (names.length ? [...names, ...ids].join(" ") : req.query);
       // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
       const onSubject = (c: RetrievedChunk) =>
-        history ? history.isDateArticle(c.title) : names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c);
+        history
+          ? history.isDateArticle(c.title)
+          : names.length
+            ? // Or the question's own words: identifiers and English terms a PT question uses as written
+              // ("EIP-1559", "proof of stake"); with weak names (["Ethereum"]) the EIP sources were dropped.
+              namedByLexicon(names, c) || onTopic(req.query, c)
+            : onTopic(matchQuery, c);
       // The packs lift an article's Treatment/Management section only when the query asks what to
       // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
       // Lexicon names aren't searched here: retrieve() already adds them to a PT question's search.
@@ -675,7 +688,15 @@ export function createAnswerer(deps: AnswerDeps) {
             (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
-      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget });
+      // Passages without content (an EIP's metadata header, a hex example, a copyright notice) never reach
+      // the prompt (Sextant cry-012), and so are never pinned.
+      const substantive = raw.filter(isSubstantive);
+      if (substantive.length < raw.length) reasonCodes.push(`context:no-content-dropped-${raw.length - substantive.length}`);
+      raw = substantive;
+      // A retrieved page of an identifier the question names always gets a place, first (Boar, dddd8a8).
+      const pinned = new Set(ids.length ? raw.filter((c) => titleHasIdentifier(c.title, ids)).map((c) => c.chunkId) : []);
+      if (pinned.size) reasonCodes.push(`context:pinned-${pinned.size}`);
+      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget, pinned });
       let sources = compressed.chunks;
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
@@ -730,8 +751,13 @@ export function createAnswerer(deps: AnswerDeps) {
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();
-          emit({ type: "instant", answerId, snippet: { text: snip.text, sourceIndex }, confidence: snip.confidence });
-          const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
+          // A source in another language than the question says so in the snippet itself (Quill, q8).
+          const lead = sourceLanguageLead(pt, snip.text);
+          const shown = lead ? `${lead}\n${snip.text}` : snip.text;
+          if (lead) reasonCodes.push("instant:source-language-lead");
+          emit({ type: "instant", answerId, snippet: { text: shown, sourceIndex }, confidence: snip.confidence });
+          const block =
+            plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text, matchQuery) : "low";
           if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
           if (plan.instant === "may-finish" && block === null) {
             reasonCodes.push("instant:final");
@@ -739,7 +765,7 @@ export function createAnswerer(deps: AnswerDeps) {
             return finish(
               "instant",
               "success",
-              snip.text,
+              shown,
               sources,
               receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs })
             );
@@ -945,6 +971,16 @@ export function createAnswerer(deps: AnswerDeps) {
           reasonCodes.push(`citations:removed-${checked.removed.join("-")}`);
           text = checked.text;
           finalText = text;
+          // Boar (A), s32 672bc41: the compact model cited, and no cited source supported it: 4 of 5 such
+          // answers were confident errors ("Great Famine" from "Great Recession in Africa"). It declines,
+          // as with no source, unless asked to answer anyway. The 4B keeps its (corrected) answer.
+          if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
+            reasonCodes.push("grounding:all-citations-removed-declined-compact");
+            // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
+            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer." });
+            finalText = "";
+            return finish(genTier, "success", "", [], baseReceipt);
+          }
         }
       }
       // Its inverse (Boar, gate 9ef80f9): a sentence without [n] that an on-topic source supports, by

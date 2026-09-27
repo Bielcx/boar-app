@@ -350,11 +350,14 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     }
   });
 
-  it("Iris E-1: 'What should I do during an earthquake?' with only a heading + image caption: says the source has no steps, points to emergency services, no model, safety line", async () => {
+  it("Iris E-1: 'What should I do during an earthquake?' with only a heading + image caption: no model, emergency services, safety line", async () => {
+    // Since cry-012 the caption-only passage carries no content and is dropped: the no-source answer
+    // (emergency services), instead of quoting "Image" as what the source says.
     f.retrieved = [chunk("eq", "Earthquakes (Ready.gov)", "During an Earthquake > Protect Yourself During Earthquakes: Image")];
     const { events, result } = await collect("What should I do during an earthquake?");
     expect(f.generations).toHaveLength(0);
-    expect(result.text).toMatch(/^The offline source doesn't give first-aid steps for this\. In an emergency, call your local emergency number\./);
+    expect(result.text).toMatch(/emergency number/);
+    expect(result.receipt.reasonCodes).toContain("context:no-content-dropped-1");
     expect(events.find((e) => e.type === "done")).toMatchObject({ safety: true });
   });
 
@@ -753,6 +756,38 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect((events2.find((e) => e.type === "warning") as any).declined).toBeUndefined();
   });
 
+  it("Boar (A): the compact model whose every citation CT-1 removes declines; answerAnyway and the 4B keep the answer", async () => {
+    const run = async (setup: () => void, req: any = {}) => {
+      f = makeFake();
+      setup();
+      f.retrieved = [CANBERRA];
+      f.deps.engine.generate = async () => "Mold grows in damp bathrooms [1].";
+      const events: AnswerEvent[] = [];
+      const result = await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", ...req }, (e) => events.push(e), ctx).done;
+      return { events, result };
+    };
+    const compact = await run(() => {});
+    expect(compact.events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "The passages found don't support this answer." });
+    expect(compact.events.some((e) => e.type === "sources")).toBe(true);
+    expect((compact.events.find((e) => e.type === "done") as any).finalText).toBe("");
+    expect(compact.result.receipt.reasonCodes).toContain("grounding:all-citations-removed-declined-compact");
+    const anyway = await run(() => {}, { answerAnyway: true });
+    expect(anyway.result.text).toBe("Mold grows in damp bathrooms.");
+    const big = await run(() => {
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+    });
+    expect(big.result.text).toBe("Mold grows in damp bathrooms.");
+    expect(big.result.receipt.reasonCodes).not.toContain("grounding:all-citations-removed-declined-compact");
+  });
+
+  it("Boar (A): a compact answer that keeps one supported citation is not declined", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "Canberra is the capital city of Australia [1]. Mold grows in damp bathrooms [1].";
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("Canberra is the capital city of Australia [1]. Mold grows in damp bathrooms.");
+  });
+
   it("CT-1: a citation the source doesn't support is removed, and done carries the corrected text", async () => {
     f.retrieved = [CANBERRA];
     f.deps.engine.generate = async (o) => {
@@ -935,6 +970,106 @@ describe("answer(): today in history (Boar/Piston R3)", () => {
       const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
       expect(sources.map((c) => c.title), query).toEqual(["September 27"]);
     }
+  });
+});
+
+describe("answer(): PT questions against English sources (Sextant sugval3 q9)", () => {
+  it("'O que é tectônica de placas?' keeps 'Plate tectonics' (with and without accent)", async () => {
+    const PLATES = chunk("pt", "Plate tectonics", "Plate tectonics is the scientific theory that Earth's lithosphere comprises a number of large tectonic plates, which have been slowly moving since 3–4 billion years ago.");
+    for (const q of ["O que é tectônica de placas?", "O que é tectonica de placas?"]) {
+      f = makeFake();
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+      f.retrieved = [PLATES];
+      f.deps.engine.generate = async () => "A tectônica de placas é a teoria de que a litosfera da Terra é formada por grandes placas tectônicas.";
+      const { events, result } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any)?.sources ?? [];
+      expect(sources.map((c: RetrievedChunk) => c.title), q).toEqual(["Plate tectonics"]);
+      expect(result.receipt.reasonCodes.some((c) => c.startsWith("grounding:off-topic-dropped")), q).toBe(false);
+    }
+  });
+});
+
+describe("answer(): PT questions naming identifiers (ea21e82 v2-pt)", () => {
+  it("'O que a EIP-1559 muda nas taxas…?' keeps the EIP-1559 source even when the lexicon names only 'Ethereum'", async () => {
+    const EIP = chunk("e", "Ethereum EIPs/ERCs: EIP-1559: Fee market change for ETH 1.0 chain", "Abstract: A transaction pricing mechanism that includes fixed-per-block network fee that is burned.");
+    const HURRICANE = chunk("h", "US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)", "Prepare before hurricane season starts.");
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [EIP, HURRICANE];
+    f.deps.englishNames = () => ["Ethereum"];
+    const { events } = await collect("O que a EIP-1559 muda nas taxas de transação do Ethereum?");
+    expect(((events.find((e) => e.type === "sources") as any)?.sources ?? []).map((c: RetrievedChunk) => c.chunkId)).toEqual(["e"]);
+  });
+});
+
+describe("answer(): the instant snippet says when the source is in another language (Quill, Sextant q8)", () => {
+  it("PT question, English source: 'Da fonte offline (em inglês):' in the snippet and the final text; EN question: none", async () => {
+    const MONSOON = chunk("m", "Monsoon", "A monsoon is traditionally a seasonal reversing wind accompanied by corresponding changes in precipitation.");
+    f.retrieved = [MONSOON];
+    f.deps.englishNames = () => ["Monsoon"];
+    const pt = await collect("O que é uma monção?");
+    const inst = pt.events.find((e) => e.type === "instant") as any;
+    expect(inst.snippet.text).toMatch(/^Da fonte offline \(em inglês\):\nA monsoon is/);
+    expect(pt.result.tier).toBe("instant");
+    expect(pt.result.text).toMatch(/^Da fonte offline \(em inglês\):/);
+    f = makeFake();
+    f.retrieved = [MONSOON];
+    const en = await collect("What is a monsoon?");
+    expect((en.events.find((e) => e.type === "instant") as any).snippet.text).toMatch(/^A monsoon is/);
+  });
+});
+
+describe("answer(): the page of an identifier the question names always reaches the prompt (Sextant dddd8a8)", () => {
+  const ETH = (i: number) =>
+    chunk(`eth${i}`, "Ethereum", "Ethereum is a decentralized blockchain with smart contract functionality. Ether is the native cryptocurrency of Ethereum. Ethereum was conceived in 2013 by Vitalik Buterin. Ethereum moved to proof of stake in 2022 with the Merge. The Ethereum network is secured by validators.");
+  const cases: Array<[string, string, string]> = [
+    ["O que a EIP-7702 permite que uma conta comum do Ethereum (EOA) faça?", "Ethereum EIPs/ERCs: EIP-7702: Set Code for EOAs", "Abstract: Add a new transaction type that permanently sets the code for an EOA."],
+    ["Qual é o saldo efetivo máximo de um validador do Ethereum depois da EIP-7251?", "Ethereum EIPs/ERCs: EIP-7251: Increase the MAX_EFFECTIVE_BALANCE", "Abstract: Increases the constant MAX_EFFECTIVE_BALANCE to 2048 ETH while keeping the minimum staking balance 32 ETH."],
+    ["Como os saques de staking chegam à camada de execução do Ethereum (EIP-4895)?", "Ethereum EIPs/ERCs: EIP-4895: Beacon chain push withdrawals as operations", "Abstract: Introduce a system-level operation to support validator withdrawals that are pushed from the beacon chain to the EVM."],
+  ];
+  for (const [q, title, body] of cases) {
+    it(q, async () => {
+      f = makeFake();
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+      f.retrieved = [ETH(1), chunk("eip", title, body), ETH(2), ETH(3)];
+      f.deps.englishNames = () => ["Ethereum"];
+      const { events, result } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+      expect(sources[0].title).toBe(title);
+      expect(f.generations[0].messages!.at(-1)!.content + JSON.stringify(f.generations[0].messages)).toContain(title.split(": ")[1]);
+      expect(result.receipt.reasonCodes).toContain("context:pinned-1");
+    });
+  }
+});
+
+describe("answer(): Sextant cry-020 / cry-012", () => {
+  it("cry-020: a pointer sentence from the pinned EIP page is not the final answer; the model answers", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [
+      chunk("s", "Ethereum EIPs/ERCs: EIP-3675: Upgrade consensus to Proof-of-Stake", "Specification: Full specification of the beacon chain can be found in the `ethereum/consensus-specs` repository."),
+      chunk("r", "Ethereum EIPs/ERCs: EIP-3675: Upgrade consensus to Proof-of-Stake", "Rationale: The upgrade replaces proof-of-work with proof-of-stake, deprecating block mining."),
+    ];
+    f.deps.englishNames = () => ["Ethereum"];
+    const { result } = await collect("O que mudou no Ethereum com o Merge (EIP-3675)?");
+    expect(result.tier).not.toBe("instant");
+    expect(f.generations).toHaveLength(1);
+  });
+  it("cry-012: the EIP's metadata, hex example and stub never reach the prompt", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [
+      chunk("m", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Status: Final Type: Standards Track (Core) Created: 2016-10-14"),
+      chunk("x", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Example: ``` 0xf86c098504a817c800825208943535353535353535 ```"),
+      chunk("h", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Hard fork: Spurious Dragon"),
+      chunk("p", "Ethereum EIPs/ERCs: EIP-155: Simple replay attack protection", "Parameters: - FORK_BLKNUM: 2,675,000 - CHAIN_ID: 1 (main net). The chain ID is signed into each transaction so it cannot be replayed on another chain."),
+    ];
+    const { events, result } = await collect("What is EIP-155 and what attack does it prevent?");
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources.map((c) => c.chunkId)).toEqual(["p"]);
+    expect(result.receipt.reasonCodes).toContain("context:no-content-dropped-3");
   });
 });
 

@@ -31,7 +31,6 @@ import {
   getMessages as getSessionMessages,
   listSessions,
   deleteSession,
-  setSessionTitle,
   setSessionSummary,
   pruneSessions,
   setMessageFeedback,
@@ -39,7 +38,8 @@ import {
   upsertMessage,
   ChatSession,
 } from "../services/chatHistory";
-import { generateSessionTitle, summarizeConversation } from "../services/summarize";
+import { summarizeConversation } from "../services/summarize";
+import { titleFromQuestion } from "./chat/sessionTitle";
 import { startAppMemoryTracking } from "../services/telemetry";
 import { stripThinking } from "../services/thinking";
 import { cleanCitations } from "../services/citations";
@@ -443,8 +443,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       try {
         await cancelBackgroundTask();
         if (!sessionId) {
-          sessionId = (await createSession()).id;
+          // TT-1: titled by the question itself, at once (the setting's hint: "Uses the first question as the title").
+          sessionId = (await createSession(memorySettingsRef.current.autoGenerateTitles ? titleFromQuestion(query) : undefined)).id;
           setActiveSessionId(sessionId);
+          void refreshSessions();
         }
         await persistMessage(sessionId, "user", query, userItem.id);
 
@@ -462,17 +464,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
         const settings = memorySettingsRef.current;
         const sid = sessionId;
-        if (isNewSession && settings.autoGenerateTitles && result.outcome === "success") {
-          backgroundTaskRef.current = generateSessionTitle(query)
-            .then(async (title) => {
-              await setSessionTitle(sid, title);
-              await refreshSessions();
-            })
-            .catch(() => {})
-            .finally(() => {
-              backgroundTaskRef.current = null;
-            });
-        } else if (settings.autoSummarize && result.outcome === "success") {
+        if (!isNewSession && settings.autoSummarize && result.outcome === "success") {
           const all = itemsRef.current;
           if (Math.floor(all.length / 2) > settings.historyTurnThreshold) {
             const older = historyTurns(all.slice(0, -VERBATIM_MESSAGE_COUNT), Number.MAX_SAFE_INTEGER);
