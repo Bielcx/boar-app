@@ -344,8 +344,11 @@ function Welcome({
         <Text variant="body">{t("flows.onboarding.tagline")}</Text>
         <View style={{ gap: tokens.space.sm }}>
           {points.map((p) => (
-            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-              <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+            // Icon on the first line's optical centre when the text wraps (Iris, 1.3).
+            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "flex-start" }}>
+              <View style={{ paddingTop: tokens.space.xxs }}>
+                <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+              </View>
               <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
                 {t(`flows.onboarding.${p.key}`)}
               </Text>
