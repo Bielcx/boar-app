@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { AssetKind } from "./manifest";
+import { AssetKind, MODEL_CATALOG } from "./manifest";
+import { describeModelFile } from "../inference/loadMarker";
 import { PersonalityId, DEFAULT_PERSONALITY_ID } from "../constants/personalities";
 import { ModelRole, RoutingPreset } from "../routing/types";
 import { DEFAULT_APPEARANCE } from "../ui/theme/scheme";
@@ -62,6 +63,41 @@ const SETTINGS_PATH = `${FileSystem.documentDirectory}settings.json`;
 const DEFAULT_SETTINGS: Settings = { activeModelId: {} };
 export const DEFAULT_MAX_TOKENS = 512;
 
+// Every read-modify-write runs alone (Loom, CR-4): two interleaved writers (the crash ledger at boot and
+// a preference) could each write back the file they read, and one would drop the other's change.
+let settingsChain: Promise<unknown> = Promise.resolve();
+function serialized<T>(fn: () => Promise<T>): Promise<T> {
+  const run = settingsChain.then(fn, fn);
+  settingsChain = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * CR-3/CR-4: crashes recorded before 822b069 carry the model's file ("models/qwen3-4b-instruct-2507-q4km.gguf")
+ * instead of its id, so neither the Models row ("Didn't open here") nor the crash block matched them.
+ */
+function crashedIds(ids: string[] | undefined): string[] {
+  return [...new Set((ids ?? []).map((id) => (/\.gguf$/i.test(id) ? (describeModelFile(id, MODEL_CATALOG).modelId ?? id) : id)))];
+}
+
+/**
+ * Once per process: rewrite such file entries as ids, and withdraw the low-RAM confirmation the crash
+ * should have withdrawn (it was looked up by file, so the model counted as confirmed after the crash).
+ */
+let crashIdsMigrated: Promise<void> | null = null;
+function migrateCrashIds(): Promise<void> {
+  crashIdsMigrated ??= serialized(async () => {
+    const s = await readSettings();
+    const legacy = (s.loadCrashedIds ?? []).filter((id) => /\.gguf$/i.test(id));
+    if (!legacy.length) return;
+    const ids = crashedIds(legacy);
+    s.loadCrashedIds = crashedIds(s.loadCrashedIds);
+    s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => !ids.includes(id));
+    await writeSettings(s);
+  }).catch(() => undefined);
+  return crashIdsMigrated;
+}
+
 async function readSettings(): Promise<Settings> {
   try {
     const info = await FileSystem.getInfoAsync(SETTINGS_PATH);
@@ -79,7 +115,9 @@ async function writeSettings(s: Settings): Promise<void> {
 
 /** Deletes the settings file outright (used by appReset.ts) — next read falls back to defaults. */
 export async function clearSettings(): Promise<void> {
-  await FileSystem.deleteAsync(SETTINGS_PATH, { idempotent: true });
+  return serialized(async () => {
+    await FileSystem.deleteAsync(SETTINGS_PATH, { idempotent: true });
+  });
 }
 
 /** The user's chosen model for this kind, or null to fall back to the default. */
@@ -89,9 +127,11 @@ export async function getActiveModelId(kind: AssetKind): Promise<string | null> 
 }
 
 export async function setActiveModelId(kind: AssetKind, id: string): Promise<void> {
-  const s = await readSettings();
-  s.activeModelId[kind] = id;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.activeModelId[kind] = id;
+    await writeSettings(s);
+  });
 }
 
 /** "Don't show again" preference for the prompt-ideas onboarding carousel. */
@@ -101,9 +141,11 @@ export async function getHidePromptIdeas(): Promise<boolean> {
 }
 
 export async function setHidePromptIdeas(hide: boolean): Promise<void> {
-  const s = await readSettings();
-  s.hidePromptIdeas = hide;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.hidePromptIdeas = hide;
+    await writeSettings(s);
+  });
 }
 
 export async function getPersonalityId(): Promise<PersonalityId> {
@@ -112,9 +154,11 @@ export async function getPersonalityId(): Promise<PersonalityId> {
 }
 
 export async function setPersonalityId(id: PersonalityId): Promise<void> {
-  const s = await readSettings();
-  s.personalityId = id;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.personalityId = id;
+    await writeSettings(s);
+  });
 }
 
 export async function getCustomSystemPrompt(): Promise<string> {
@@ -123,9 +167,11 @@ export async function getCustomSystemPrompt(): Promise<string> {
 }
 
 export async function setCustomSystemPrompt(prompt: string): Promise<void> {
-  const s = await readSettings();
-  s.customSystemPrompt = prompt;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.customSystemPrompt = prompt;
+    await writeSettings(s);
+  });
 }
 
 export async function getMaxTokens(): Promise<number> {
@@ -134,9 +180,11 @@ export async function getMaxTokens(): Promise<number> {
 }
 
 export async function setMaxTokens(maxTokens: number): Promise<void> {
-  const s = await readSettings();
-  s.maxTokens = maxTokens;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.maxTokens = maxTokens;
+    await writeSettings(s);
+  });
 }
 
 export async function getHapticsEnabled(): Promise<boolean> {
@@ -145,9 +193,11 @@ export async function getHapticsEnabled(): Promise<boolean> {
 }
 
 export async function setHapticsEnabled(enabled: boolean): Promise<void> {
-  const s = await readSettings();
-  s.hapticsEnabled = enabled;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.hapticsEnabled = enabled;
+    await writeSettings(s);
+  });
 }
 
 /** Whether the chat shows the microphone button. */
@@ -158,9 +208,11 @@ export async function getVoiceInputEnabled(): Promise<boolean> {
 }
 
 export async function setVoiceInputEnabled(enabled: boolean): Promise<void> {
-  const s = await readSettings();
-  s.voiceInputEnabled = enabled;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.voiceInputEnabled = enabled;
+    await writeSettings(s);
+  });
 }
 
 export async function getMemorySettings(): Promise<MemorySettings> {
@@ -174,9 +226,11 @@ export async function getMemorySettings(): Promise<MemorySettings> {
 }
 
 export async function setMemorySettings(patch: Partial<MemorySettings>): Promise<void> {
-  const s = await readSettings();
-  Object.assign(s, patch);
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    Object.assign(s, patch);
+    await writeSettings(s);
+  });
 }
 
 /**
@@ -190,9 +244,11 @@ export async function getDeepResearchMode(): Promise<boolean> {
 }
 
 export async function setDeepResearchMode(enabled: boolean): Promise<void> {
-  const s = await readSettings();
-  s.deepResearchMode = enabled;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.deepResearchMode = enabled;
+    await writeSettings(s);
+  });
 }
 
 export async function getThemeId(): Promise<ThemeId> {
@@ -201,9 +257,11 @@ export async function getThemeId(): Promise<ThemeId> {
 }
 
 export async function setThemeId(theme: ThemeId): Promise<void> {
-  const s = await readSettings();
-  s.themeId = theme;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.themeId = theme;
+    await writeSettings(s);
+  });
 }
 
 export async function getAppearance(): Promise<Appearance> {
@@ -212,9 +270,11 @@ export async function getAppearance(): Promise<Appearance> {
 }
 
 export async function setAppearance(appearance: Appearance): Promise<void> {
-  const s = await readSettings();
-  s.appearance = appearance;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.appearance = appearance;
+    await writeSettings(s);
+  });
 }
 
 export async function getPaletteChoice(): Promise<PaletteChoice> {
@@ -223,9 +283,11 @@ export async function getPaletteChoice(): Promise<PaletteChoice> {
 }
 
 export async function setPaletteChoice(palette: PaletteChoice): Promise<void> {
-  const s = await readSettings();
-  s.palette = palette;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.palette = palette;
+    await writeSettings(s);
+  });
 }
 
 export async function getFontScale(): Promise<FontScale> {
@@ -234,9 +296,11 @@ export async function getFontScale(): Promise<FontScale> {
 }
 
 export async function setFontScale(scale: FontScale): Promise<void> {
-  const s = await readSettings();
-  s.fontScale = scale;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.fontScale = scale;
+    await writeSettings(s);
+  });
 }
 
 /** The UI language for a BCP 47 locale: Portuguese for any pt-* locale, English otherwise. */
@@ -259,9 +323,11 @@ export async function getLanguageId(): Promise<LanguageId> {
 }
 
 export async function setLanguageId(language: LanguageId): Promise<void> {
-  const s = await readSettings();
-  s.languageId = language;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.languageId = language;
+    await writeSettings(s);
+  });
 }
 
 /**
@@ -288,9 +354,11 @@ export async function getRoutingPreset(): Promise<RoutingPreset> {
 }
 
 export async function setRoutingPreset(preset: RoutingPreset): Promise<void> {
-  const s = await readSettings();
-  s.routingPreset = preset;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.routingPreset = preset;
+    await writeSettings(s);
+  });
 }
 
 export async function getModelRoleAssignments(): Promise<Partial<Record<ModelRole, string>>> {
@@ -299,15 +367,17 @@ export async function getModelRoleAssignments(): Promise<Partial<Record<ModelRol
 }
 
 export async function setModelRoleAssignment(role: ModelRole, modelId: string | undefined): Promise<void> {
-  const s = await readSettings();
-  const assignments = { ...(s.modelRoleAssignments ?? {}) };
-  if (modelId) {
-    assignments[role] = modelId;
-  } else {
-    delete assignments[role];
-  }
-  s.modelRoleAssignments = assignments;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    const assignments = { ...(s.modelRoleAssignments ?? {}) };
+    if (modelId) {
+      assignments[role] = modelId;
+    } else {
+      delete assignments[role];
+    }
+    s.modelRoleAssignments = assignments;
+    await writeSettings(s);
+  });
 }
 
 /**
@@ -326,9 +396,11 @@ export async function getAdaptiveRoutingEnabled(): Promise<boolean> {
 }
 
 export async function setAdaptiveRoutingEnabled(enabled: boolean): Promise<void> {
-  const s = await readSettings();
-  s.adaptiveRoutingEnabled = enabled;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.adaptiveRoutingEnabled = enabled;
+    await writeSettings(s);
+  });
 }
 
 /**
@@ -352,13 +424,14 @@ export interface AnswerSettings {
 }
 
 export async function getAnswerSettings(): Promise<AnswerSettings> {
+  await migrateCrashIds();
   const s = await readSettings();
   return {
     quickFirst: s.answerQuickFirst ?? s.adaptiveRoutingEnabled ?? true,
     alwaysComplete: s.answerAlwaysComplete ?? s.deepResearchMode ?? false,
     deepModelId: s.deepModelId,
     largeModelConfirmedIds: s.largeModelConfirmedIds ?? [],
-    loadCrashedIds: s.loadCrashedIds ?? [],
+    loadCrashedIds: crashedIds(s.loadCrashedIds),
   };
 }
 
@@ -368,7 +441,8 @@ export async function getLargeModelConfirmedIds(): Promise<string[]> {
 
 /** Models whose last load killed the app (Models screen: "Didn't open here"). */
 export async function getLoadCrashedIds(): Promise<string[]> {
-  return (await readSettings()).loadCrashedIds ?? [];
+  await migrateCrashIds();
+  return crashedIds((await readSettings()).loadCrashedIds);
 }
 
 /** Same shape as src/inference/loadMarker.ts LoadCrash (kept here to avoid an import cycle). */
@@ -385,44 +459,55 @@ export interface StoredLoadCrash {
  * confirmation for that model so it is not loaded again on its own (crash loop).
  */
 export async function recordLoadCrash(crash: StoredLoadCrash): Promise<void> {
-  const s = await readSettings();
-  s.loadCrashedIds = [...new Set([...(s.loadCrashedIds ?? []), crash.crashedModelId])];
-  s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => id !== crash.crashedModelId);
-  s.pendingLoadCrash = crash;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.loadCrashedIds = [...new Set([...(s.loadCrashedIds ?? []), crash.crashedModelId])];
+    s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => id !== crash.crashedModelId);
+    s.pendingLoadCrash = crash;
+    await writeSettings(s);
+  });
 }
 
 export async function recordLoadSuccess(modelId: string): Promise<void> {
-  const s = await readSettings();
-  if (!(s.loadCrashedIds ?? []).includes(modelId)) return;
-  s.loadCrashedIds = (s.loadCrashedIds ?? []).filter((id) => id !== modelId);
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    const ids = crashedIds(s.loadCrashedIds);
+    if (!ids.includes(modelId)) return;
+    s.loadCrashedIds = ids.filter((id) => id !== modelId);
+    await writeSettings(s);
+  });
 }
 
 /** The pending crash notice, once. */
 export async function takePendingLoadCrash(): Promise<StoredLoadCrash | null> {
-  const s = await readSettings();
-  const crash = s.pendingLoadCrash ?? null;
-  if (crash) {
-    s.pendingLoadCrash = null;
-    await writeSettings(s);
-  }
-  return crash;
+  return serialized(async () => {
+    const s = await readSettings();
+    const crash = s.pendingLoadCrash ?? null;
+    if (crash) {
+      s.pendingLoadCrash = null;
+      await writeSettings(s);
+    }
+    return crash;
+  });
 }
 
 /** The UI's "run it anyway" on a low-RAM phone (Loom's confirmation). */
 export async function confirmLargeModel(id: string): Promise<void> {
-  const s = await readSettings();
-  s.largeModelConfirmedIds = [...new Set([...(s.largeModelConfirmedIds ?? []), id])];
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    s.largeModelConfirmedIds = [...new Set([...(s.largeModelConfirmedIds ?? []), id])];
+    await writeSettings(s);
+  });
 }
 
 export async function setAnswerSettings(patch: Partial<AnswerSettings>): Promise<void> {
-  const s = await readSettings();
-  if (patch.quickFirst !== undefined) s.answerQuickFirst = patch.quickFirst;
-  if (patch.alwaysComplete !== undefined) s.answerAlwaysComplete = patch.alwaysComplete;
-  if ("deepModelId" in patch) s.deepModelId = patch.deepModelId;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    if (patch.quickFirst !== undefined) s.answerQuickFirst = patch.quickFirst;
+    if (patch.alwaysComplete !== undefined) s.answerAlwaysComplete = patch.alwaysComplete;
+    if ("deepModelId" in patch) s.deepModelId = patch.deepModelId;
+    await writeSettings(s);
+  });
 }
 
 /** Where first-run setup was, so a recreated Activity (font size change) or a killed process resumes there. */
@@ -444,8 +529,10 @@ export async function getSetupProgress(): Promise<SetupProgress | null> {
 }
 
 export async function setSetupProgress(progress: SetupProgress | null): Promise<void> {
-  const s = await readSettings();
-  if (progress) s.setupProgress = progress;
-  else delete s.setupProgress;
-  await writeSettings(s);
+  return serialized(async () => {
+    const s = await readSettings();
+    if (progress) s.setupProgress = progress;
+    else delete s.setupProgress;
+    await writeSettings(s);
+  });
 }
