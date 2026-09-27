@@ -1,7 +1,6 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerReceipt as Receipt } from "./answerEvents";
 import { CALCULATOR_MODEL_ID, EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID } from "./answerEvents";
-import { modelNameById } from "./modelName";
 
 /** Labels come from i18n so the text reads in the app's language. */
 export interface ShareLabels {
@@ -16,6 +15,8 @@ export interface ShareLabels {
   noOfflineSource?: string;
   /** e.g. "Calculator": an exact conversion, no model. */
   calculator?: string;
+  /** The chat's name for a model the receipt names by id + label (its tier). */
+  modelName?: (id: string, label: string) => string;
 }
 
 function sourceLine(chunk: RetrievedChunk, n: number, labels: ShareLabels): string {
@@ -64,7 +65,7 @@ export function formatForShare(
           ? labels.noOfflineSource ?? receipt.modelLabel
           : receipt.modelId === CALCULATOR_MODEL_ID
             ? labels.calculator ?? receipt.modelLabel
-            : modelNameById(receipt.modelId, receipt.modelLabel);
+            : labels.modelName?.(receipt.modelId, receipt.modelLabel) ?? receipt.modelLabel;
     parts.push(`${labels.answeredOffline} · ${who} · ${formatSeconds(receipt.totalMs, locale)}`);
   }
   return parts.join("\n\n");
