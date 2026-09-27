@@ -39,6 +39,18 @@ export interface CrashLedger {
   takePending(): Promise<LoadCrash | null>;
 }
 
+/**
+ * Id and label for a model file when the caller passed none (Prism CR-3: the chat's preload passed no
+ * meta, so the banner said "models/qwen3-4b-instruct-2507-q4km.gguf closed the app", and the crash was
+ * recorded under the filename, which the CR-2 block, by model id, never matched). Catalog or discovered
+ * models first; otherwise the file's name without folder and ".gguf".
+ */
+export function describeModelFile(filename: string, models: Array<{ id: string; label: string; filename: string }>): { modelId?: string; label: string } {
+  const base = (f: string) => f.split("/").pop() ?? f;
+  const known = models.find((m) => m.filename === filename) ?? models.find((m) => base(m.filename) === base(filename));
+  return known ? { modelId: known.id, label: known.label } : { label: base(filename).replace(/\.gguf$/i, "") };
+}
+
 export function toLoadCrash(m: LoadMarker): LoadCrash {
   return {
     crashedModelId: m.modelId ?? m.filename,
