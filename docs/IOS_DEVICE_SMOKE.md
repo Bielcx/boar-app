@@ -82,3 +82,56 @@ If the app dies without a log, check Settings > Privacy & Security > Analytics &
 | Decode tok/s online / airplane | |
 | Survived background during answer | |
 | Screenshots in /Users/r4to/Script/boar/shots/ios/device/ | |
+
+## Run 1: iPhone 13 (4 GB), integration 90b87dd, 2026-09-26
+
+Partial run (about 5 minutes with the phone). The app installs and launches, but
+no model gets a llama.cpp context, so no answer and no tok/s yet.
+
+| Metric | Value |
+|---|---|
+| Build: team type (free / paid), stripped entitlements | Personal development team; `extended-virtual-addressing` and `increased-memory-limit` both stripped (the personal team rejects them) |
+| Cold start (s) | not measured (the app opened, no trust prompt) |
+| Model load (s) | failed, see below |
+| Limit estimate at launch (footprint + available, MB) | 46 + 2051 = ~2.1 GB (no increased-memory-limit) |
+| Peak footprint during answer (MB) | n/a (68 MB peak, the model never loaded) |
+| Min available during answer (MB) | n/a |
+| TTFT online / airplane (s) | n/a |
+| Decode tok/s online / airplane | n/a |
+| Survived background during answer | n/a |
+| Screenshots | none (no UI automation on a physical iPhone) |
+
+**Blocker: Metal fails to initialize on the device.** llama.rn 0.13.0-rc.4 is
+built with `GGML_METAL_EMBED_LIBRARY=1`, so the shaders compile on the phone at
+first use. That compile fails:
+
+```
+ggml_metal_init: the device does not have a precompiled Metal library - this is unexpected
+ggml_metal_library_compile_all: failed to build 'fa' library: Error Domain=MTLLibraryErrorDomain Code=3
+  "Compilation failed due to an interrupted connection: XPC_ERROR_CONNECTION_INTERRUPTED ..."
+ggml_metal_init: error: failed to initialize the Metal library
+llama_init_from_model: failed to initialize the context: failed to initialize MTL0 backend
+common_init_: failed to create context with model '.../qwen2.5-1.5b-instruct-q4km.gguf'
+common_init_: failed to create context with model '.../embedding.gguf'
+```
+
+This affects both models. The 1.5B loaded with `offloaded 0/29 layers to GPU`
+(934.69 MiB CPU_Mapped), and its context still needs the Metal backend. The app
+retried the load four times, then the user's "model does not download" report
+was the app sending them back to setup after the load error. It is not a network,
+URL, space or sha problem. The simulator is not affected (bge indexed on the
+simulator's Metal).
+
+Next run (needs the phone):
+1. Check whether it reproduces without `devicectl --console` (the compiler XPC
+   may behave differently under the debugger launch).
+2. Engine-side fallback (Tusk): on a context init failure, retry with the GPU
+   off (llama.rn `n_gpu_layers: 0` plus no GPU devices / `flash_attn: false`),
+   so the phone answers on the CPU instead of failing.
+3. Try `flash_attn: false` alone: the failing library is 'fa'.
+4. Then measure the 1.5B (footprint, tok/s). The 4B does not fit under the
+   ~2.1 GB limit without increased-memory-limit, which needs a paid team with
+   the capability on the App ID.
+
+UNKNOWN: whether the XPC compile failure is memory pressure on the 4 GB phone,
+an iOS 26.6 issue, or caused by the debugger launch.
