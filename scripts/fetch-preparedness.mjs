@@ -84,6 +84,17 @@ const NPS = [
   "https://www.nps.gov/articles/hiking-safety.htm",
 ];
 
+// Core first-aid and disaster articles the category crawl misses (Burn and Earthquake weren't in the first build).
+// Fetched by name, not relevance-filtered; redirects followed, missing pages skipped.
+const WP_CORE = [
+  "Burn", "Bleeding", "Nosebleed", "Wound", "Tourniquet", "Choking", "Heimlich maneuver", "Cardiopulmonary resuscitation",
+  "Recovery position", "Shock (circulatory)", "Anaphylaxis", "Epinephrine autoinjector", "Myocardial infarction", "Stroke",
+  "Epileptic seizure", "Hypoglycemia", "Asthma", "Bone fracture", "Sprain", "Head injury", "Concussion", "Spinal cord injury",
+  "Hypothermia", "Frostbite", "Heat stroke", "Heat exhaustion", "Dehydration", "Oral rehydration therapy", "Drowning",
+  "Snakebite", "Spider bite", "Insect bites and stings", "Dog bite", "Rabies", "Poisoning", "Carbon monoxide poisoning",
+  "Earthquake", "Tsunami", "Flood", "Wildfire", "Tropical cyclone", "Tornado", "Landslide", "Volcanic eruption", "Blizzard",
+  "Heat wave", "Evacuation", "Emergency shelter", "Water purification", "Boiling", "Portable water purification",
+];
 const which = new Set(process.argv.slice(3));
 // Each source rewrites its own shard, so a source can be fetched again on its own.
 const want = (s) => {
@@ -102,7 +113,7 @@ if (want("wikipedia")) {
   writeFileSync(cache, JSON.stringify(titles));
   log(`wikipedia: ${titles.length} titles`);
   // PREP_TITLES_ONLY=1: stop after listing, to review the category crawl before fetching text.
-  if (!process.env.PREP_TITLES_ONLY) await mediawiki("wikipedia", { api, source: "enwiki", code: 0, titles });
+  if (!process.env.PREP_TITLES_ONLY) await mediawiki("wikipedia", { api, source: "enwiki", code: 0, titles: [...titles, ...WP_CORE] });
 }
 if (want("wikibooks")) {
   const api = "https://en.wikibooks.org/w/api.php";

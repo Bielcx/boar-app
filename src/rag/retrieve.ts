@@ -10,6 +10,9 @@ import {
 } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
 import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
+import { englishNamesIn, looksPortuguese, type Lexicon } from "./ptLexicon";
+import { ACTION_INTENT, LAY_SOURCES } from "./wikiPack";
+import { ptLexicon } from "./ptLexiconAsset";
 
 export type { RetrievedChunk } from "./retrieve.types";
 
@@ -103,16 +106,51 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
 export async function retrieve(
   query: string,
   topK = 6,
-  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean } = {}
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; lexicon?: Lexicon } = {}
 ): Promise<RetrievedChunk[]> {
-  const { includeWikiPacks = true } = opts;
+  const main = await retrieveOne(query, topK, opts);
+  // A Portuguese question against English sources: search again with the English names it mentions
+  // (Wikipedia's own interlanguage links, src/rag/ptLexicon.ts), and put those results first. The English
+  // embedder and keyword index barely match Portuguese words, so the first search alone finds noise.
+  if (!looksPortuguese(query)) return main;
+  const names = englishNamesIn(query, opts.lexicon ?? ptLexicon());
+  if (!names.length) return main;
+  const found = await retrieveOne(names.join(" "), topK, { includeWikiPacks: opts.includeWikiPacks, titles: names });
+  // Sources without a title boost (bundled corpus, format-1 packs): the article whose title is one of the names first.
+  const named = new Set(names.map((n) => n.toLowerCase()));
+  // A what-to-do question: passages from a section that says what to do (the preparedness pack's Treatment,
+  // First aid, During…) first; then articles named exactly; disambiguation lists never.
+  const action = ACTION_INTENT.test(query);
+  const rank = (c: RetrievedChunk) => (action && c.action ? 0 : named.has(c.title.toLowerCase()) ? 1 : 2);
+  const english = found.filter((c) => !isDisambiguation(c)).sort((a, b) => rank(a) - rank(b));
+  const seen = new Set<string>();
+  // In a what-to-do question only steps go first: a generic name ("estrada" -> Road) must not put its article
+  // ahead of everything else.
+  const first = action ? english.filter((c) => c.action) : english;
+  const merged = [...first.slice(0, Math.ceil((topK * 2) / 3)), ...main, ...english].filter(
+    (c) => !isDisambiguation(c) && !seen.has(c.chunkId) && (seen.add(c.chunkId), true)
+  );
+  return merged.slice(0, topK);
+}
+
+/** A "may refer to" list or a "(disambiguation)" page: never a source. */
+export function isDisambiguation(c: { title: string; body: string }): boolean {
+  return /\(disambiguation\)$/i.test(c.title) || /\bmay (also )?refer to\b/i.test(c.body.slice(0, 300));
+}
+
+async function retrieveOne(
+  query: string,
+  topK: number,
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; titles?: string[] }
+): Promise<RetrievedChunk[]> {
+  const { includeWikiPacks = true, titles } = opts;
   const queryVec = opts.queryVec ?? (await embeddingEngine.embed(query));
   const [lexical, semantic, packs, wiki] = await Promise.all([
     lexicalSearch(query, topK * 2),
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
-    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec }).catch(() => []) : Promise.resolve([]),
+    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec, ...(titles ? { titles } : {}) }).catch(() => []) : Promise.resolve([]),
   ]);
 
   // Large-pack passages from articles the question names come first, in the
@@ -121,7 +159,17 @@ export async function retrieve(
   const wikiLexical = wiki.flatMap((w) => w.hits.filter((h) => h.via !== "title").map((h) => packHitToChunk(w.packId, h)));
   const fused = fuseRetrievalResults([...lexical, ...packs.lexical, ...wikiLexical], [...semantic, ...packs.semantic], topK);
   const seen = new Set(named.map((c) => c.chunkId));
-  return [...named, ...fused.filter((c) => !seen.has(c.chunkId))].slice(0, Math.max(topK, named.length));
+  const result = [...named, ...fused.filter((c) => !seen.has(c.chunkId))].slice(0, Math.max(topK, named.length));
+  // A what-to-do question: the lay sources the pack search added past its limit (a first-aid manual next to the
+  // clinical article) must reach the answer, not be cut here with the rest of the keyword hits.
+  if (ACTION_INTENT.test(query)) {
+    const inResult = new Set(result.map((c) => c.chunkId));
+    const lay = wiki
+      .flatMap((w) => w.hits.filter((h) => LAY_SOURCES.has(h.source)).map((h) => packHitToChunk(w.packId, h)))
+      .filter((c) => !inResult.has(c.chunkId));
+    result.push(...lay.slice(0, 2));
+  }
+  return result;
 }
 
 export { assemblePrompt } from "./pure";

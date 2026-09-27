@@ -1,19 +1,25 @@
 import * as SQLite from "expo-sqlite";
+import { abortAllWork } from "./cancellation";
+import { DbClosedError, guard, type Guarded } from "./guardedDb";
 
 const DB_NAME = "aoair_knowledge.db";
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let dbPromise: Promise<Guarded<SQLite.SQLiteDatabase>> | null = null;
+let resetting: Promise<void> | null = null;
 
 /**
  * Opens (and lazily creates) the local knowledge base: an FTS5 virtual table
  * for lexical search plus a parallel table of vector embeddings for semantic
  * search. Entirely local — expo-sqlite is a native binding, no network.
+ *
+ * The connection is guarded (src/rag/guardedDb.ts): once resetDatabase() starts, calls on it — also through a handle
+ * saved earlier — reject with DbClosedError instead of reaching a closing native connection. A call during a reset
+ * waits for it and gets a fresh connection.
  */
-export function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = openAndMigrate();
-  }
-  return dbPromise;
+export async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (resetting) await resetting;
+  dbPromise ??= openAndMigrate().then((db) => guard(db, "knowledge base"));
+  return (await dbPromise).db;
 }
 
 let writeChain: Promise<unknown> = Promise.resolve();
@@ -29,6 +35,9 @@ export function writeTransaction(
   work: (db: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   const run = writeChain.then(async () => {
+    // A write that reaches the front of the queue during a reset fails instead of waiting for it: the reset waits
+    // for this queue, so waiting here would deadlock (and the write would land in the fresh database).
+    if (resetting) throw new DbClosedError("knowledge base");
     const db = await getDb();
     await db.withTransactionAsync(() => work(db));
   });
@@ -43,13 +52,24 @@ export function writeTransaction(
  * so the next getDb() call creates a fresh one. Used by appReset.ts's
  * "Clear All Data" — not called during normal operation.
  */
-export async function resetDatabase(): Promise<void> {
-  if (dbPromise) {
-    const db = await dbPromise;
-    await db.closeAsync();
+export function resetDatabase(): Promise<void> {
+  // Two resets at once share one: the connection is closed and the file deleted once.
+  resetting ??= (async () => {
+    // Indexing and imports stop first; their next call on the connection rejects in JS.
+    abortAllWork();
+    const current = dbPromise;
+    if (current) {
+      const conn = await current.catch(() => null);
+      // Writes queued before the reset finish (or fail) first, then the calls still running.
+      await writeChain.catch(() => {});
+      await conn?.close();
+    }
     dbPromise = null;
-  }
-  await SQLite.deleteDatabaseAsync(DB_NAME);
+    await SQLite.deleteDatabaseAsync(DB_NAME);
+  })().finally(() => {
+    resetting = null;
+  });
+  return resetting;
 }
 
 async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {

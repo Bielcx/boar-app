@@ -1,0 +1,424 @@
+{
+ "questions": 42,
+ "modes": {
+  "en": {
+   "recall@1": 0.095,
+   "recall@3": 0.214,
+   "recall@6": 0.429
+  },
+  "pt": {
+   "recall@1": 0.024,
+   "recall@3": 0.048,
+   "recall@6": 0.071
+  },
+  "pt+lex": {
+   "recall@1": 0.548,
+   "recall@3": 0.619,
+   "recall@6": 0.643
+  }
+ },
+ "perQuestion": [
+  {
+   "id": "food-001-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Berlin"
+   ],
+   "en": 2,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-002-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Lisbon"
+   ],
+   "en": 4,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-003-pt",
+   "pt": -1,
+   "names": [
+    "Buenos Aires",
+    "Restaurant"
+   ],
+   "en": 3,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-004-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Singapore"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-005-pt",
+   "pt": -1,
+   "names": [
+    "Chiang Mai",
+    "Restaurant"
+   ],
+   "en": 7,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-006-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Tokyo"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-007-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Bangkok"
+   ],
+   "en": 1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-008-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Istanbul"
+   ],
+   "en": 7,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-009-pt",
+   "pt": -1,
+   "names": [
+    "Mexico City",
+    "Restaurant"
+   ],
+   "en": 3,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-010-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Taipei"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-011-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Seoul"
+   ],
+   "en": 4,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-012-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Prague"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-013-pt",
+   "pt": -1,
+   "names": [
+    "Vegetarianism",
+    "Tbilisi"
+   ],
+   "en": 3,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-014-pt",
+   "pt": -1,
+   "names": [
+    "Bon",
+    "Restaurant",
+    "Kyoto"
+   ],
+   "en": 3,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-015-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Medellín"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-016-pt",
+   "pt": -1,
+   "names": [
+    "Cape Town",
+    "Restaurant"
+   ],
+   "en": 1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-017-pt",
+   "pt": -1,
+   "names": [
+    "São Paulo",
+    "Restaurant"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-018-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "City"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-019-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "City"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-020-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-001-pt",
+   "pt": -1,
+   "names": [
+    "Algorithm",
+    "Computer"
+   ],
+   "en": 2,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-002-pt",
+   "pt": 1,
+   "names": [],
+   "en": 1,
+   "pt+lex": 1
+  },
+  {
+   "id": "cry-003-pt",
+   "pt": -1,
+   "names": [
+    "Computer"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-004-pt",
+   "pt": -1,
+   "names": [
+    "Ethereum"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "cry-005-pt",
+   "pt": 0,
+   "names": [
+    "Ethereum"
+   ],
+   "en": -1,
+   "pt+lex": 2
+  },
+  {
+   "id": "cry-006-pt",
+   "pt": -1,
+   "names": [],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-008-pt",
+   "pt": -1,
+   "names": [
+    "Ethereum"
+   ],
+   "en": 3,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-009-pt",
+   "pt": 3,
+   "names": [],
+   "en": 3,
+   "pt+lex": 3
+  },
+  {
+   "id": "cry-016-pt",
+   "pt": -1,
+   "names": [],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-018-pt",
+   "pt": -1,
+   "names": [
+    "Algorithm"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-019-pt",
+   "pt": -1,
+   "names": [
+    "State (polity)"
+   ],
+   "en": 0,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-020-pt",
+   "pt": -1,
+   "names": [
+    "Ethereum"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "trv-001-pt",
+   "pt": -1,
+   "names": [
+    "Number",
+    "Emergence",
+    "Thailand"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "trv-002-pt",
+   "pt": -1,
+   "names": [
+    "Brazil"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-003-pt",
+   "pt": -1,
+   "names": [
+    "Mexico City",
+    "Water",
+    "Drinking"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-004-pt",
+   "pt": -1,
+   "names": [
+    "Airport",
+    "Lisbon"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-005-pt",
+   "pt": -1,
+   "names": [
+    "Currency",
+    "Georgia (country)",
+    "Country",
+    "Tbilisi"
+   ],
+   "en": 0,
+   "pt+lex": 1
+  },
+  {
+   "id": "trv-006-pt",
+   "pt": -1,
+   "names": [
+    "Thailand"
+   ],
+   "en": 0,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-007-pt",
+   "pt": -1,
+   "names": [
+    "Man",
+    "Woman"
+   ],
+   "en": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "trv-008-pt",
+   "pt": -1,
+   "names": [
+    "Chiang Mai"
+   ],
+   "en": 3,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-009-pt",
+   "pt": -1,
+   "names": [
+    "Restaurant",
+    "Portugal"
+   ],
+   "en": 0,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-010-pt",
+   "pt": -1,
+   "names": [
+    "Transport",
+    "Bangkok"
+   ],
+   "en": -1,
+   "pt+lex": 0
+  }
+ ]
+}

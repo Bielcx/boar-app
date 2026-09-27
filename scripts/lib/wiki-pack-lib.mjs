@@ -236,6 +236,8 @@ export function cleanWikivoyage(wikitext) {
     .replace(/<gallery[\s\S]*?<\/gallery>/g, "")
     .replace(/^\{\|[\s\S]*?^\|\}/gm, "");
   t = stripTemplates(t);
+  // Before splitting into lines: an image caption can span several.
+  if (t.includes("[[")) t = stripMediaLinks(t);
   const lines = [];
   for (const raw of t.split("\n")) {
     const m = raw.match(/^(={2,6})\s*(.*?)\s*=+\s*$/);
@@ -297,4 +299,17 @@ export function parseIndexLine(line) {
   const b = line.indexOf(":", a + 1);
   if (a < 0 || b < 0) return null;
   return [Number(line.slice(a + 1, b)), line.slice(b + 1)];
+}
+
+/**
+ * A page URL safe to store in a pack: spaces become underscores on wiki paths and %20 elsewhere, other unencoded
+ * characters are encoded, already-encoded URLs stay as they are. Same rule as normalizeUrl in src/rag/packs.ts.
+ */
+export function normalizeUrl(url) {
+  const spaced = /\/wiki\//.test(url) ? url.replace(/ /g, "_") : url.replace(/ /g, "%20");
+  try {
+    return encodeURI(decodeURI(spaced));
+  } catch {
+    return spaced;
+  }
 }

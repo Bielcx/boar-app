@@ -29,6 +29,26 @@ const rows = [
     page_id: 5e9 + n, title: `ERC-${n}: Vault extension ${n}`, source: "eips", url: `https://ercs.ethereum.org/ERCS/erc-${n}`, license: "CC0-1.0",
     text: `# ERC-${n}: Vault extension ${n}\n\n${"Vaults hold ERC-20 tokens; users approve the vault, which calls transfer and transferFrom on the ERC-20 token. ".repeat(4)}`,
   })),
+  // A first-aid article with Portuguese aliases, and an indexed Portuguese page (as Appropedia has) that puts
+  // "como", "uma", "de" and a rare verb in the index.
+  {
+    page_id: 900, title: "Burn", source: "enwiki", aliases: ["Queimadura", "Queimaduras"],
+    text: `# Burn\n\nA burn is an injury to skin caused by heat. Cool the burn with running water for twenty minutes. ${filler("Burn")}`,
+  },
+  {
+    page_id: 3e9 + 7, title: "Horta comunitária", source: "appropedia", url: "https://www.appropedia.org/Horta", license: "CC BY-SA 4.0",
+    text: `# Horta comunitária\n\nComo plantar uma horta de verduras e parar de comprar. Como regar uma horta de manhã. ${filler("Horta")}`,
+  },
+  // A first-aid article whose prevention section repeats the question's words more than its treatment section.
+  {
+    page_id: 901, title: "Scald", source: "enwiki",
+    text: [
+      "# Scald", "", "A scald is a burn from hot liquid such as boiling water. " + filler("Scald"), "",
+      "## Prevention", "", "To prevent a scald from boiling water, keep children away from boiling water and turn pot handles inward. Boiling water spills cause most child scalds. " + filler("Prevention"), "",
+      "## Treatment", "", "Cool the scald under cool running water for twenty minutes, remove tight clothing, and cover it loosely. " + filler("Cooling"), "",
+      "## History", "", "Scalds from boiling water were described in ancient medicine. " + filler("History"),
+    ].join("\n"),
+  },
 ];
 
 let pack: WikiPack;
@@ -68,5 +88,22 @@ describe("topic-pack sources", () => {
   it("puts the document a question names by its alias first", async () => {
     const hits = await pack.search("What is ERC20?");
     expect(hits[0]?.title).toBe("ERC-20: Token Standard");
+  });
+
+  it("finds an article by its Portuguese alias in a Portuguese question", async () => {
+    for (const q of ["O que fazer em caso de queimadura?", "Como tratar uma queimadura?", "Como parar de sentir a queimadura?"]) {
+      const hits = await pack.search(q);
+      expect(hits[0]?.title, q).toBe("Burn");
+    }
+  });
+
+  it("gives a what-to-do question the article's treatment section, not its prevention or history", async () => {
+    const hits = await pack.search("My child spilled boiling water. What do I do about the scald?", { titles: ["Scald"] });
+    const sections = hits.filter((h) => h.title === "Scald" && !h.lead);
+    expect(sections[0]?.section).toBe("Treatment");
+    expect(sections[0]?.action).toBe(true);
+    // A question that isn't asking what to do keeps the plain word-overlap order.
+    const plain = await pack.search("Why do boiling water spills scald children?", { titles: ["Scald"] });
+    expect(plain.filter((h) => h.title === "Scald" && !h.lead)[0]?.section).toBe("Prevention");
   });
 });

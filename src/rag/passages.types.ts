@@ -27,6 +27,8 @@ export interface Passage {
   /** Monthly pageviews of the article, 0 when unknown. */
   views: number;
   via: "title" | "bm25" | "semantic";
+  /** The passage's section tells what to do (Treatment, First aid, During…); absent for sources without sections. */
+  action?: boolean;
   /**
    * Only on the top passage when it comes from an article: the article's
    * first paragraph, whole sentences, for an instant "what is X" answer.
