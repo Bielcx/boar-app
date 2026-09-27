@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CROP, discImage, OPAQUE } from "./mascotFrame";
+import { CROP, discImage, OPAQUE, wholeImage } from "./mascotFrame";
 
 describe("discImage", () => {
   it("matches the mockup window (192% at 72% 40%) with the cropped asset", () => {
@@ -21,5 +21,14 @@ describe("discImage", () => {
     expect(CROP.y).toBeLessThanOrEqual(OPAQUE.y0);
     expect(CROP.x + CROP.side).toBeGreaterThanOrEqual(OPAQUE.x1);
     expect(CROP.y + CROP.side).toBeGreaterThanOrEqual(OPAQUE.y1);
+  });
+});
+
+describe("wholeImage", () => {
+  it("draws the crop at the size and place it has inside the original image", () => {
+    const w = wholeImage(200);
+    expect(w.size).toBeCloseTo(144.1, 1);
+    expect(w.left).toBeCloseTo(22.3, 1);
+    expect(w.top).toBeCloseTo(25.8, 1);
   });
 });
