@@ -9,6 +9,7 @@ import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
+import { CatalogList } from "./flows/CatalogList";
 import { DEEP_AUTO_MIN_TOK_PER_SEC as MIN_DEEP_TOK_PER_SEC, deepAutoEligible, MIN_SPEED_SAMPLES, ModelSpeed, modelSpeedStats } from "../routing/depth";
 import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
 import { listRecentExecutions } from "../services/executionTelemetry";
@@ -20,10 +21,6 @@ import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-function Hairline() {
-  const t = useTokens();
-  return <View style={{ height: t.size.hairline, backgroundColor: t.color.line.hairline, marginLeft: t.space.base }} />;
-}
 
 export function ModelsScreen() {
   const { t, i18n } = useTranslation();
@@ -79,11 +76,11 @@ export function ModelsScreen() {
     if (ok) toast({ message: t("flows.models.nowAnswering", { name: m.label }), tone: "success" });
   };
 
-  const renderGroup = (list: CatalogModel[]) =>
-    list.map((m, i) => (
-      <React.Fragment key={m.id}>
-        {i > 0 && <Hairline />}
+  const renderGroup = (list: CatalogModel[]) => (
+    <CatalogList>
+      {list.map((m) => (
         <CatalogRow
+          key={m.id}
           model={m}
           view={catalog.view(m)}
           fit={catalog.fit(m)}
@@ -92,8 +89,9 @@ export function ModelsScreen() {
           onUse={() => use(m)}
           onRemove={() => catalog.remove(m)}
         />
-      </React.Fragment>
-    ));
+      ))}
+    </CatalogList>
+  );
 
   return (
     <Screen>
