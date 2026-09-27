@@ -88,8 +88,10 @@ function flowHeader(t: Tokens, title: string, large = true) {
     headerLargeTitle: large,
     headerShadowVisible: false,
     headerTintColor: t.color.accent.text,
-    headerTitleStyle: { color: t.color.text.primary },
-    headerLargeTitleStyle: { color: t.color.text.primary },
+    // Brand type in the native header (the system font was the only non-brand title left):
+    // large title = the setup's step title (title1, Baloo 800 26), compact = headline.
+    headerTitleStyle: { color: t.color.text.primary, fontFamily: t.type.headline.fontFamily, fontSize: t.type.headline.fontSize },
+    headerLargeTitleStyle: { color: t.color.text.primary, fontFamily: t.type.title1.fontFamily, fontSize: t.type.title1.fontSize },
     headerStyle: { backgroundColor: t.color.bg.canvas },
     headerBackButtonDisplayMode: "minimal" as const,
   };
