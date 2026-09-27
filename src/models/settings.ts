@@ -2,7 +2,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import { AssetKind } from "./manifest";
 import { PersonalityId, DEFAULT_PERSONALITY_ID } from "../constants/personalities";
 import { ModelRole, RoutingPreset } from "../routing/types";
-import type { CrashLedger, LoadCrash } from "../inference/loadMarker";
 
 export type ThemeId = "midnight" | "amber" | "frontier";
 export type FontScale = "compact" | "standard" | "large";
@@ -35,8 +34,8 @@ interface Settings {
   largeModelConfirmedIds?: string[];
   /** CR-2: models whose last load killed the app (cleared by a successful load). */
   loadCrashedIds?: string[];
-  /** The last load crash, until the chat shows it once (consumeLoadCrash). */
-  pendingLoadCrash?: LoadCrash | null;
+  /** The last load crash, until the chat shows it once (src/inference/loadGuard.ts consumeLoadCrash). */
+  pendingLoadCrash?: StoredLoadCrash | null;
 }
 
 export interface MemorySettings {
@@ -329,35 +328,44 @@ export async function getLoadCrashedIds(): Promise<string[]> {
   return (await readSettings()).loadCrashedIds ?? [];
 }
 
+/** Same shape as src/inference/loadMarker.ts LoadCrash (kept here to avoid an import cycle). */
+export interface StoredLoadCrash {
+  crashedModelId: string;
+  crashedLabel: string;
+  fallbackModelId: string;
+  fallbackLabel: string;
+  at: number;
+}
+
 /**
- * Crash bookkeeping for src/inference/loadMarker.ts. A crash also withdraws the
- * user's low-RAM confirmation for that model, so it is not loaded again on its
- * own (crash loop) until the user confirms once more.
+ * A load killed the app (CR-2): remember it, and withdraw the user's low-RAM
+ * confirmation for that model so it is not loaded again on its own (crash loop).
  */
-export const settingsCrashLedger: CrashLedger = {
-  async recordCrash(crash) {
-    const s = await readSettings();
-    s.loadCrashedIds = [...new Set([...(s.loadCrashedIds ?? []), crash.crashedModelId])];
-    s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => id !== crash.crashedModelId);
-    s.pendingLoadCrash = crash;
+export async function recordLoadCrash(crash: StoredLoadCrash): Promise<void> {
+  const s = await readSettings();
+  s.loadCrashedIds = [...new Set([...(s.loadCrashedIds ?? []), crash.crashedModelId])];
+  s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => id !== crash.crashedModelId);
+  s.pendingLoadCrash = crash;
+  await writeSettings(s);
+}
+
+export async function recordLoadSuccess(modelId: string): Promise<void> {
+  const s = await readSettings();
+  if (!(s.loadCrashedIds ?? []).includes(modelId)) return;
+  s.loadCrashedIds = (s.loadCrashedIds ?? []).filter((id) => id !== modelId);
+  await writeSettings(s);
+}
+
+/** The pending crash notice, once. */
+export async function takePendingLoadCrash(): Promise<StoredLoadCrash | null> {
+  const s = await readSettings();
+  const crash = s.pendingLoadCrash ?? null;
+  if (crash) {
+    s.pendingLoadCrash = null;
     await writeSettings(s);
-  },
-  async recordSuccess(modelId) {
-    const s = await readSettings();
-    if (!(s.loadCrashedIds ?? []).includes(modelId)) return;
-    s.loadCrashedIds = (s.loadCrashedIds ?? []).filter((id) => id !== modelId);
-    await writeSettings(s);
-  },
-  async takePending() {
-    const s = await readSettings();
-    const crash = s.pendingLoadCrash ?? null;
-    if (crash) {
-      s.pendingLoadCrash = null;
-      await writeSettings(s);
-    }
-    return crash;
-  },
-};
+  }
+  return crash;
+}
 
 /** The UI's "run it anyway" on a low-RAM phone (Loom's confirmation). */
 export async function confirmLargeModel(id: string): Promise<void> {
