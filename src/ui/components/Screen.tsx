@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleProp, View, ViewStyle } from "react-native";
+import { Platform, StyleProp, View, ViewStyle } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Edge, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTokens } from "../theme";
@@ -39,6 +39,35 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
     gap: t.space.xl,
     ...(center ? { flexGrow: 1, justifyContent: "center" } : null),
   };
+  // Under a native large-title header, the scroll view must be the screen's first child for iOS to
+  // show and collapse the title (wrapped in SafeAreaView, the title area stayed empty until scrolling,
+  // Loom 99eba00). A plain scrolling screen is therefore the scroll view itself, with the safe-area
+  // insets it needs applied to its content.
+  if (scroll && !footer && !ambient) {
+    // iOS: "automatic" already adds the header and safe-area insets to the content; add them by hand only on Android.
+    const edge = (e: Edge, v: number) => (Platform.OS === "android" && edges.includes(e) ? v : 0);
+    return (
+      <KeyboardAwareScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentInsetAdjustmentBehavior="automatic"
+        bottomOffset={t.space.base}
+        style={{ flex: 1, backgroundColor: t.color.bg.canvas }}
+        contentContainerStyle={[
+          inner,
+          {
+            paddingTop: t.space.base + edge("top", insets.top),
+            paddingBottom: t.space.base + edge("bottom", insets.bottom),
+            paddingLeft: (padded ? t.space.gutter : 0) + edge("left", insets.left),
+            paddingRight: (padded ? t.space.gutter : 0) + edge("right", insets.right),
+          },
+          contentStyle,
+        ]}
+      >
+        {children}
+      </KeyboardAwareScrollView>
+    );
+  }
   return (
     <SafeAreaView edges={safeEdges} style={{ flex: 1, backgroundColor: t.color.bg.canvas }}>
       {ambient && <Ambient />}
