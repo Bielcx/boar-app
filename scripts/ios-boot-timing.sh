@@ -4,7 +4,6 @@
 # so the App.tsx "[boot] js-start / hide after=ms" lines never reach the log;
 # the video gives the user-visible times instead:
 #   splash_ms  = first splash frame -> first app-content frame
-#   launch_ms  = launch command     -> first app-content frame
 #
 #   scripts/ios-boot-timing.sh <device-udid> <BOAR.app> [runs]   # default 3 cold + 3 warm
 #
@@ -61,11 +60,9 @@ accent = lambda f: any(acc(px(f, x, y)) for y in list(range(int(H * .04), int(H 
 # splash = full-screen dark frame without the setup/chat accent; content = accent shows up.
 first_splash = next((f for f in range(n_frames) if dark_edges(f) and not accent(f)), None)
 content = None if first_splash is None else next((f for f in range(first_splash, n_frames) if accent(f)), None)
-start = os.path.getmtime(mp4) - n_frames / fps  # approx wall time of frame 0
 ms = lambda i: None if i is None else round((i / fps) * 1000)
-launch_ms = None if content is None else round((start + content / fps - t_launch) * 1000)
 splash_ms = None if first_splash is None or content is None else ms(content - first_splash)
-print(json.dumps({"kind": kind, "run": int(n), "splash_ms": splash_ms, "launch_ms": launch_ms}))
+print(json.dumps({"kind": kind, "run": int(n), "splash_ms": splash_ms}))
 EOF
 }
 
@@ -77,7 +74,7 @@ python3 - "$TMP/runs.jsonl" <<'EOF' | tee -a "${IOS_BOOT_OUT:-/dev/null}"
 import json, sys, statistics
 rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
 for kind in ("cold", "warm"):
-    for key in ("splash_ms", "launch_ms"):
+    for key in ("splash_ms",):
         v = [r[key] for r in rows if r["kind"] == kind and r[key] is not None]
         print(f"{kind} {key}: median {statistics.median(v) if v else 'n/a'} ms  runs {v}")
 EOF
