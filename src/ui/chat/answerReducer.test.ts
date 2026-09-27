@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerEvent, AnswerReceipt as Receipt } from "./answerEvents";
+import { answerSourceSplit, sourcesCardMode } from "./sourceLabel";
+import { answerShowsEmergencyNote } from "./safetyNote";
 import {
   answerPhase,
   answerReducer,
@@ -265,6 +267,45 @@ describe("NB-1 health excerpt (instant-tier tokens)", () => {
     expect(s.cited).toEqual([1]);
     expect(s.safety).toBe(true);
     expect(answerReducer(s, { type: "token", answerId: "a", tier: "instant", text: "x" } as never).extract).toBe(text);
+    expect(answerPhase(s)).toBe("done");
+  });
+});
+
+describe("NB-1 PT (Prism, 7a79150): the health excerpt cites [4] of 5 sources", () => {
+  it("with the engine's done.cited, only source 4 is cited and the note shows", () => {
+    const receipt = { modelId: "extractive", modelLabel: "Source excerpt", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 400, reasonCodes: [] };
+    const chunk = (id: string, relevance: number) => ({ chunkId: id, docId: id.split("#")[0], title: id, body: "b", score: 1, matchType: "hybrid" as const, relevance });
+    let s = { answerIds: ["a"], sources: [] } as AnswerState;
+    const sources = [chunk("Nosebleed#0", 1), chunk("Nosebleed#1", 1), chunk("Emergency bleeding control#0", 1), chunk("External Bleeding#0", 0.52), chunk("Bleeding#0", 0.52)];
+    s = answerReducer(s, { type: "sources", answerId: "a", tier: "instant", sources } as never);
+    s = answerReducer(s, { type: "token", answerId: "a", tier: "instant", text: "Da fonte offline (em inglês): … [4]\n\nEm uma emergência, ligue 192." } as never);
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "instant", outcome: "success", receipt, cited: [4], safety: true } as never);
+    expect(answerSourceSplit(s)).toEqual({ cited: [3], related: [0, 1, 2, 4] });
+    expect(sourcesCardMode(false, answerSourceSplit(s))).toBe("cited");
+    expect(answerShowsEmergencyNote(s, "Meu nariz esta sangrando, o que eu faco?", false)).toBe(true);
+    // Without cited (a build before c884d7a, as 7a79150): every source, by design.
+    const legacy = answerReducer({ ...s, cited: undefined, instantDone: undefined }, { type: "done", answerId: "a", tier: "instant", outcome: "success", receipt } as never);
+    expect(sourcesCardMode(false, answerSourceSplit(legacy))).toBe("all");
+  });
+});
+
+describe("no-source answers (Tusk 4375d76 / a740a0b)", () => {
+  const receipt = { modelId: "q", modelLabel: "Q", tokens: 3, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+  const streamed = answerReducer({ answerIds: ["a"], sources: [], deepAvailable: {} } as AnswerState, { type: "token", answerId: "a", tier: "fast", text: "Seasons happen because…" } as never);
+  it("(a) 4B+: the final text with the not-from-the-library line replaces the stream; weak note, not declined", () => {
+    let s = answerReducer(streamed, { type: "warning", answerId: "a", code: "weak_sources" } as never);
+    const finalText = "Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nSeasons happen because…";
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText, cited: [] } as never);
+    expect(s.fast?.text).toBe(finalText);
+    expect(s.weakSources).toBe(true);
+    expect(s.weakDeclined).toBeUndefined();
+  });
+  it("(b) compact: declined after streaming, finalText '' empties the text (not 'absent'), no Deeper answer", () => {
+    let s = answerReducer(streamed, { type: "warning", answerId: "a", code: "weak_sources", declined: true } as never);
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText: "", cited: [] } as never);
+    expect(s.fast?.text).toBe("");
+    expect(s.weakDeclined).toBe(true);
+    expect(canDeepen(s)).toBe(false);
     expect(answerPhase(s)).toBe("done");
   });
 });

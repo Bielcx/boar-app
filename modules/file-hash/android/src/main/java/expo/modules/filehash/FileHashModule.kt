@@ -1,6 +1,7 @@
 package expo.modules.filehash
 
 import android.net.Uri
+import android.provider.OpenableColumns
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -28,6 +29,12 @@ class FileHashModule : Module() {
     Name("FileHash")
 
     Events("onProgress")
+
+    // Size in bytes as a Long, or -1 if unknown. expo-file-system's legacy getInfoAsync measures a content:// URI
+    // with InputStream.available(), an Int, so a picked file over 2 GB read as 0 bytes and the import refused it.
+    AsyncFunction("size") { uri: String ->
+      sizeOf(uri).toDouble()
+    }
 
     Function("cancel") { jobId: String ->
       cancelled.add(jobId)
@@ -106,10 +113,15 @@ class FileHashModule : Module() {
   private fun sizeOf(uri: String): Long {
     val parsed = Uri.parse(uri)
     if (parsed.scheme == "content") {
-      return appContext.reactContext?.contentResolver
-        ?.openAssetFileDescriptor(parsed, "r")
-        ?.use { it.length }
-        ?: -1L
+      val resolver = appContext.reactContext?.contentResolver ?: return -1L
+      // The descriptor's length, or the provider's OpenableColumns.SIZE when it reports UNKNOWN_LENGTH (-1).
+      val fromDescriptor = runCatching { resolver.openAssetFileDescriptor(parsed, "r")?.use { it.length } }.getOrNull() ?: -1L
+      if (fromDescriptor >= 0) return fromDescriptor
+      return runCatching {
+        resolver.query(parsed, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c ->
+          if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else -1L
+        }
+      }.getOrNull() ?: -1L
     }
     return fileOf(uri).length()
   }

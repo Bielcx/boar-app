@@ -81,3 +81,13 @@ describe("the health excerpt in the stored answer (NB-1)", () => {
     expect(answerTextForHistory(back)).toBe("Pinch the nose. [1]");
   });
 });
+
+describe("weak-source state in the stored answer", () => {
+  it("a reopened declined answer keeps its card, a weak one its note", () => {
+    const base = { answerIds: ["a"], sources: [], fast: { text: "", stage: null, outcome: "success" } } as AnswerState;
+    const back = fromStoredAnswer("a", "", toStoredAnswer({ ...base, weakSources: true, weakDeclined: true }));
+    expect(back.weakSources).toBe(true);
+    expect(back.weakDeclined).toBe(true);
+    expect(fromStoredAnswer("a", "", toStoredAnswer(base)).weakSources).toBeUndefined();
+  });
+});

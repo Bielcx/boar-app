@@ -2,7 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as BundledAssets from "bundled-assets";
 import { networkAllowed } from "../config/variant";
 import { checkStorageForDownload } from "./storageBudget";
-import { copyWithSha256, sha256OfFile, HashProgress } from "./fileHash";
+import { copyWithSha256, measureFile, sha256OfFile, HashProgress } from "./fileHash";
 import { AssetIntegrityError, candidatesBySize, digestsEqual, DownloadError, matchByDigest, throwIfAborted } from "./integrity";
 import { allAssets } from "./assetRegistry";
 import { checkImportSize, formatBytes, importKindOfAsset, MAX_ASSET_IMPORT_BYTES } from "./importLimits";
@@ -292,11 +292,15 @@ export class ModelManager {
     // Entries without a known hash can't be identified by content.
     catalog = catalog.filter((a) => /^[0-9a-f]{64}$/i.test(a.sha256));
     throwIfAborted(signal);
-    const src = await FileSystem.getInfoAsync(srcUri);
-    if (!src.exists || src.isDirectory) {
-      throw new AssetIntegrityError("unknown-file", "The selected file could not be read.", true);
+    // Not getInfoAsync: it measured a content:// file over 2 GB as 0 bytes (IMP-2GB).
+    const measured = await measureFile(srcUri);
+    if (measured.kind === "empty") {
+      throw new AssetIntegrityError("empty-file", "The selected file is empty (0 bytes). Copy it to the phone again.", true);
     }
-    const size = src.size ?? 0;
+    if (measured.kind === "unreadable") {
+      throw new AssetIntegrityError("unreadable-file", "The selected file could not be read.", true);
+    }
+    const size = measured.bytes;
     // Before anything is copied: nothing installable is this big.
     if (size > MAX_ASSET_IMPORT_BYTES) {
       throw new AssetIntegrityError(
@@ -309,7 +313,7 @@ export class ModelManager {
     if (candidates.length === 0) {
       throw new AssetIntegrityError(
         "unknown-file",
-        `This file (${size} bytes) is not a model or pack BOAR knows. Check that it is the exact file listed in docs/OFFLINE_INSTALL.md.`,
+        `This file (${size} bytes) is not a model or pack BOAR knows. Pick the exact file from the offline install list.`,
         true
       );
     }
@@ -431,14 +435,14 @@ export class ModelManager {
     if (!asset.sourceUrl) {
       throw new AssetIntegrityError(
         "no-source",
-        `${asset.label} isn't available for download yet. Import the file instead (docs/OFFLINE_INSTALL.md).`,
+        `${asset.label} isn't available for download yet. Import the file instead (see the offline install list).`,
         true
       );
     }
     if (!networkAllowed()) {
       throw new AssetIntegrityError(
         "offline-variant",
-        "This build of BOAR has no network permission. Import the file instead (docs/OFFLINE_INSTALL.md).",
+        "This build of BOAR has no network permission. Import the file instead (see the offline install list).",
         true
       );
     }

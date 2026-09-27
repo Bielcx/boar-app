@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce } from "./components";
 import type { TextColor } from "./components/Text";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -1226,16 +1226,11 @@ function InstallStep({
             {offline && activeImport && (
               // The copy's Cancel sits in the mockup's ETA slot, next to the progress it stops; neutral, not ember,
               // so it doesn't compete with the bar; 44 pt touch from hitSlop (Iris, Prism).
-              <Pressable
-                accessibilityRole="button"
+              <TextAction
+                label={t("common.cancel")}
                 accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
                 onPress={catalog.cancelImports}
-                hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
-              >
-                <Text variant="footnote" color="secondary">
-                  {t("common.cancel")}
-                </Text>
-              </Pressable>
+              />
             )}
           </View>
         </Card>
@@ -1439,19 +1434,10 @@ function moving(state: RowState): boolean {
 function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const tokens = useTokens();
   return (
-    // Low like the mockup's text link; the 44 pt touch comes from hitSlop (Prism).
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
-      // 10 pt below the CTA like the mockup (the footer's gap is 8).
-      style={{ alignSelf: "center", marginTop: tokens.space.xxs, flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}
-    >
-      <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
-      <Text variant="subhead" color="secondary">
-        {label}
-      </Text>
-    </Pressable>
+    // 10 pt below the CTA like the mockup (the footer's gap is 8).
+    <View style={{ alignSelf: "center", marginTop: tokens.space.xxs }}>
+      <TextAction label={label} leadingIcon="arrow-left" onPress={onPress} />
+    </View>
   );
 }
 

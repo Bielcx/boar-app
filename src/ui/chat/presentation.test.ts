@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -220,5 +220,23 @@ describe("declined with an incomplete library (Prism HX-1 residual)", () => {
     const st = { answerIds: [], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
     expect(phaseAnnouncement("done", st, t, true)).toEqual({ message: "chat.weak.declinedTitleIncomplete. chat.weak.declinedBodyIncomplete" });
     expect(phaseAnnouncement("done", st, t)).toEqual({ message: "chat.weak.declinedTitle. chat.weak.declinedBody" });
+  });
+});
+
+describe("modelDisplayName / withDisplayNames (Prism CR-3)", () => {
+  const models = [
+    { id: "qwen3-4b-instruct-2507-q4km", label: "Qwen3-4B-Instruct-2507 (Q4_K_M)", filename: "models/qwen3-4b-instruct-2507-q4km.gguf" },
+    { id: "qwen2.5-1.5b-instruct-q4km", label: "Qwen2.5-1.5B-Instruct (Q4_K_M)", filename: "models/qwen2.5-1.5b-instruct-q4km.gguf" },
+  ];
+  it("names the models as the catalog does, from a file path, an id or a label", () => {
+    const crash = { crashedLabel: "models/qwen3-4b-instruct-2507-q4km.gguf", fallbackLabel: "models/qwen2.5-1.5b-instruct-q4km.gguf", at: 1 };
+    expect(withDisplayNames(crash, models)).toEqual({ crashedLabel: "Qwen3-4B-Instruct-2507 (Q4_K_M)", fallbackLabel: "Qwen2.5-1.5B-Instruct (Q4_K_M)", at: 1 });
+    expect(modelDisplayName("qwen2.5-1.5b-instruct-q4km", models)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
+    expect(modelDisplayName("Qwen2.5-1.5B-Instruct (Q4_K_M)", models)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
+  });
+  it("never shows an internal path for a model outside the catalog, and keeps an empty fallback empty", () => {
+    expect(modelDisplayName("models/hf/SmolLM3-3B-Q4_K_M.gguf", models)).toBe("SmolLM3-3B-Q4_K_M");
+    expect(modelDisplayName("", models)).toBe("");
+    expect(withDisplayNames(null, models)).toBeNull();
   });
 });

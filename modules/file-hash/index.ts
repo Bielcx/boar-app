@@ -14,6 +14,8 @@ export interface FileHashNativeModule {
    * SHA-256 of the bytes written, in one pass over the source.
    */
   copyWithSha256(srcUri: string, destUri: string, jobId: string): Promise<{ sha256: string; bytes: number }>;
+  /** Size in bytes of a file:// or content:// URI (a Long on the native side, so files over 2 GB are right), -1 if unknown. */
+  size?(uri: string): Promise<number>;
   /** Stops a running job at the next chunk; it rejects with code E_CANCELLED (a partial copy is deleted). */
   cancel?(jobId: string): void;
   addListener(eventName: "onProgress", listener: (event: FileHashProgressEvent) => void): EventSubscription;
