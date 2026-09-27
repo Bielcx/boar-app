@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AMBIENT_LIGHT_STRENGTH, EMBER_PEAK_ALPHA, emberGradient, MOON_ALPHA } from "./ambient";
+import { AMBIENT_LIGHT_STRENGTH, EMBER_PEAK_ALPHA, emberGradient, MASCOT_GLOW_ALPHA, MOON_ALPHA } from "./ambient";
 import { contrastRatio, mixHex } from "./oklch";
 import { getPalette, Mode, PALETTE_IDS } from "./palette";
 
@@ -23,6 +23,17 @@ describe("ember glow", () => {
       for (const fg of [p.textPrimary, p.textSecondary, p.accentText, p.fieldText]) {
         expect(contrastRatio(fg, under), `${fg} over ${under}`).toBeGreaterThanOrEqual(4.5);
       }
+    }
+  );
+});
+
+describe("hero mascot glow", () => {
+  it.each(PALETTE_IDS.flatMap((id) => (["dark", "light"] as Mode[]).map((m) => [id, m] as const)))(
+    "keeps primary text AA over the glow peak (%s / %s)",
+    (id, mode) => {
+      const p = getPalette(id, mode);
+      const under = mixHex(rgbHex(p.glow), p.canvas, MASCOT_GLOW_ALPHA * (mode === "light" ? AMBIENT_LIGHT_STRENGTH : 1));
+      expect(contrastRatio(p.textPrimary, under), `${p.textPrimary} over ${under}`).toBeGreaterThanOrEqual(4.5);
     }
   );
 });

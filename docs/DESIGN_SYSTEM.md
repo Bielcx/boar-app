@@ -135,7 +135,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `SegmentedControl` | 2-4 exclusive options; `size="compact"` for forms | radiogroup + radio `checked`; turns vertical at ≥ 1.35 font scale; compact keeps the touch target through `hitSlop` |
 | `OptionCard` | One choice among sibling cards (install tier, model, language): `title`, `badge` (on the title line), `trailing` (the deciding figure, right), `description`, `meta`, `leading`, `indicator` radio/check/none | role radio + `selected`/`checked`; selection = accent border + `raised` surface + filled indicator (a soft accent wash would hide soft accent badges) |
 | `Stat` | The number that leads a card: `value`, `unit`, `label` overline, `size` lg 34 / md 26 / sm 17 | One focus stop "label: value unit"; tabular |
-| `Mascot` | The boar, transparent background: `size` hero 128 / brand 56 / avatar 32 / avatarSm 24, `dim`. Use it instead of `assets/boar.png` (opaque square) | Decorative, hidden |
+| `Mascot` | The boar from the identity file (transparent asset). `hero` 128 = whole boar, `glow` adds the ember ellipse under it (empty state; AA for primary text over it is in `ambient.test.ts`), `dim` while waiting. `brand` 56 / `avatar` 32 / `avatarSm` 24 = the face framed in an accent disc (mockup: 192% at 72% 40%; geometry in `mascotFrame.ts`). Don't wrap it in another circle; never use `assets/boar.png` (opaque square) | Decorative, hidden |
 | `MetaLine` | One line of secondary facts, "978 MB · ~4 min"; falsy items dropped | Read with commas; tabular |
 | `Stepper` | Linear flow progress: bar + short label per step | One progressbar stop with the caller's "Step 2 of 4: Model"; value is text ("2/4"), never a numeric range (iOS would speak a percentage) |
 | `Chip` | Filter/toggle/tag; `size="inline"` for citation `[n]` inside text | Button + `selected` when pressable; inline chip keeps a 44/48-tall hit area (horizontal slop is limited so adjacent citations stay separate) |
@@ -159,7 +159,8 @@ Patterns:
   4. Card hierarchy: title (`headline`) → one leading number (`Stat` or `trailing`) → one `MetaLine`. Never a stack of equal-weight "Label: value" lines. At most 3 sizes and 2 text tones per card.
   5. Two surface levels per screen: `canvas` + `surface`. `raised` only for wells inside a card, the user's bubble, sheets.
   6. One accent per screen: ember on the primary action and the selection. `field` amber only for provenance / OFFLINE / verified facts.
-  7. Done = a dark screenshot next to the mockup crop (`review/ui-ref/screens/`, compose with `review/ui-ref/side-by-side.py`), the same screen at font scale 1.3 without clipping, Prism review.
+  7. One badge style per meaning: a recommendation (RECOMMENDED, SUGGESTED FOR THIS PHONE) is `Badge tone="accent" emphasis="solid"`; status seals follow the Badge row above.
+  8. Done = a dark screenshot next to the mockup crop (`review/ui-ref/screens/`, compose with `review/ui-ref/side-by-side.py`), the same screen at font scale 1.3 without clipping, Prism review.
 - **Destructive = confirm or undo.** Irreversible (delete model, erase data, delete chat): `Sheet` with a `destructive` Button and a ghost Cancel. Reversible: act immediately and offer Undo in a toast.
 - **Settings rows show their current value** (`ListRow value`). Toggle only for immediate effect; 3+ options → subscreen or `SegmentedControl`.
 - **Errors** say what happened, why if known, and the next action (`EmptyState tone="error"` or `Banner tone="danger"`). No raw "Error: …" strings.
