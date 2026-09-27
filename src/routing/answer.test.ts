@@ -616,6 +616,21 @@ describe("answer(): a failed load says why, as data (Harbor/Quill, iOS dc63525)"
   });
 });
 
+describe("answer(): relevance on the sources event", () => {
+  it("fast answers carry a 0..1 relevance per source; Deep Research sources don't", async () => {
+    f.retrieved = [CANBERRA, HALL];
+    const { events } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const shown = (events.find((e) => e.type === "sources") as any).sources;
+    expect(shown.every((c: any) => typeof c.relevance === "number" && c.relevance >= 0 && c.relevance <= 1)).toBe(true);
+
+    f = makeFake();
+    const deep = await collect("Why was Canberra chosen as the capital of Australia?", "deep");
+    const research = deep.events.filter((e) => e.type === "sources") as any[];
+    expect(research.length).toBeGreaterThan(0);
+    expect(research.every((e) => e.sources.every((c: any) => c.relevance === undefined))).toBe(true);
+  });
+});
+
 describe("answer(): backend fallback", () => {
   it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
     const load = f.deps.engine.load;
