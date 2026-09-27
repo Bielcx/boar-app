@@ -88,6 +88,11 @@ vi.mock("../config/variant", () => ({ networkAllowed: () => !offline }));
 let copyHook: (() => Promise<void> | void) | null = null;
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 vi.mock("./fileHash", () => ({
+  // Like the real one: the native Long size, never 0.
+  sizeOfFile: async (uri: string) => {
+    const n = fakeSizes.get(uri) ?? files.get(uri)?.length;
+    return n && n > 0 ? n : null;
+  },
   sha256OfFile: async (uri: string, onProgress?: (d: number, t: number) => void) => {
     const data = files.get(uri)!;
     onProgress?.(data.length, data.length);
@@ -103,7 +108,8 @@ vi.mock("./fileHash", () => ({
       throw e;
     }
     put(dest, data);
-    return { sha256: sha(data), bytes: data.length };
+    if (fakeSizes.has(src)) fakeSizes.set(dest, fakeSizes.get(src)!);
+    return { sha256: sha(data), bytes: fakeSizes.get(src) ?? data.length };
   },
 }));
 
@@ -389,6 +395,22 @@ describe("import size limits", () => {
     expect(e).toMatchObject({ kind: "too-large", permanent: true });
     expect(e.message).toMatch(/This file is 40 GB; nothing BOAR can install is larger than 30 GB/);
     expect([...files.keys()]).toEqual([SRC]);
+  });
+
+  it("imports a file over 2 GB (its size doesn't overflow a 32-bit int; IMP-2GB)", async () => {
+    const big = 2_497_281_120; // Qwen3-4B-Instruct-2507 Q4_K_M, > 2^31 - 1
+    expect(big).toBeGreaterThan(2 ** 31 - 1);
+    const a = asset({ sizeBytes: big, sha256: sha(body) });
+    put(SRC, body);
+    fakeSizes.set(SRC, big);
+    const installed = await new ModelManager([a]).importFromFile(SRC);
+    expect(installed.id).toBe(a.id);
+  });
+
+  it("refuses a file it can't measure instead of treating it as 0 bytes", async () => {
+    put(SRC, Buffer.alloc(0));
+    const e = await rejection(new ModelManager([asset()]).importFromFile(SRC));
+    expect(e).toMatchObject({ kind: "unknown-file", message: "The selected file could not be read." });
   });
 
   it("logs a refusal decided before any copy, so a device log shows why nothing happened", async () => {
