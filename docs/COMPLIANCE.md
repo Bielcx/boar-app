@@ -153,8 +153,19 @@ The device-lab APK's manifest (`aapt2 dump xmltree`) has `allowBackup=false`,
 `fullBackupContent=false`, `usesCleartextTraffic=false` and
 `dataExtractionRules=@xml/data_extraction_rules`.
 
-Why PARTIAL: a network capture of the offline build during use hasn't been
-recorded yet.
+Network during use, offline build on the emulator (integration `06f508b`,
+2026-09-26, device lab, `shots/night-06f508b/net-*.txt`): with the app idle
+after setup and again while it answered "vegan restaurants near me" in Berlin
+from an imported places pack, the app's uid (10151) had **zero sockets** in
+`/proc/net/tcp`, `tcp6`, `udp` and `udp6`. The same readout lists the sockets
+of system processes (`adbd`, `mdnsd`), so it does see sockets when they exist.
+Every model and pack for that run (8 files) came in by file import, each with
+`sha256 ok` in the log. Without `INTERNET` the app's process isn't in Android's
+`inet` group, so the kernel refuses any socket it tries to open.
+
+Why PARTIAL: the capture is from the emulator, and it counts sockets. Per-uid
+byte counters (`dumpsys netstats`) and a capture on a real phone are still to
+be recorded.
 
 ### 6. No Google Play Services — PASS
 - The release build's runtime dependencies contain no Play Services or Firebase
