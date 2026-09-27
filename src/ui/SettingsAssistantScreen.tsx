@@ -80,8 +80,8 @@ export function SettingsAssistantScreen() {
       )}
       <Section>
         <ListRow
-          icon={detailsOpen ? "chevron-up" : "chevron-down"}
           title={t("flows.assistant.details")}
+          expanded={detailsOpen}
           accessibilityLabel={t("flows.assistant.detailsA11y")}
           onPress={() => setDetailsOpen((v) => !v)}
         />

@@ -201,15 +201,12 @@ export function ModelsScreen() {
 
       {groups.larger.length > 0 && (
         <Section title={t("flows.models.larger")} footer={t("flows.models.largerFooter")}>
-          {showLarger ? (
-            renderGroup(groups.larger)
-          ) : (
-            <ListRow
-              icon="chevron-down"
-              title={t("flows.models.showLarger", { count: groups.larger.length })}
-              onPress={() => setShowLarger(true)}
-            />
-          )}
+          <ListRow
+            title={t("flows.models.showLarger", { count: groups.larger.length })}
+            expanded={showLarger}
+            onPress={() => setShowLarger((v) => !v)}
+          />
+          {showLarger && renderGroup(groups.larger)}
         </Section>
       )}
 
