@@ -369,6 +369,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       // went away while the list swapped (Prism K-2: composer left floating with the keyboard shut),
       // its progress stayed at 1. The answer is read next anyway.
       KeyboardController.dismiss();
+      // And leave the field unfocused, as the mockup (with a hardware keyboard, dismiss() keeps the caret).
+      inputRef.current?.blur();
       followBottom.current = true;
       scrollToBottom(true);
 
