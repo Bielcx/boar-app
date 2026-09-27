@@ -63,6 +63,7 @@ import type {
   AnswerResult,
   AnswerStageName,
   AnswerTier,
+  SourceChunk,
 } from "./events";
 import type { ModelRole } from "./types";
 import type { RetrievedChunk } from "../rag/retrieve.types";
@@ -765,7 +766,8 @@ export function createAnswerer(deps: AnswerDeps) {
               retrieveK: gen.retrieveK,
               onSources: (s) => {
                 sources = s;
-                emit({ type: "sources", answerId, tier: genTier, sources: s });
+                // Sub-questions score on their own scales: no comparable relevance.
+                emit({ type: "sources", answerId, tier: genTier, sources: s.map(({ relevance: _r, ...c }: SourceChunk) => c) });
               },
             }
           );

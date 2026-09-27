@@ -645,7 +645,9 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
     const body = positions
       .map((p) => scored.find((s) => s.chunkIndex === ci && s.position === p)!.text)
       .join(" ");
-    return { ...chunks[ci], body };
+    // relevance (0..1): its best sentence's score for this question, one scale for every source
+    // of the answer (pack title hits and fused ones alike). None when nothing matched at all.
+    return { ...chunks[ci], body, ...(anyMatch ? { relevance: chunkBest[ci] } : {}) };
   });
   const tokensAfter = out.reduce((acc, c) => acc + count(`${c.title}\n${c.body}`), 0);
   return { chunks: out, keptIndices, tokensBefore, tokensAfter };

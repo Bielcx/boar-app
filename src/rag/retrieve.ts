@@ -115,7 +115,8 @@ export async function retrieve(
   if (!looksPortuguese(query)) return main;
   const names = englishNamesIn(query, opts.lexicon ?? ptLexicon());
   if (!names.length) return main;
-  const found = await retrieveOne(names.join(" "), topK, { includeWikiPacks: opts.includeWikiPacks, titles: names });
+  // The names alone ("Earthquake") don't say the question asks what to do; the question does.
+  const found = await retrieveOne(names.join(" "), topK, { includeWikiPacks: opts.includeWikiPacks, titles: names, action: ACTION_INTENT.test(query) });
   // Sources without a title boost (bundled corpus, format-1 packs): the article whose title is one of the names first.
   const named = new Set(names.map((n) => n.toLowerCase()));
   // A what-to-do question: passages from a section that says what to do (the preparedness pack's Treatment,
@@ -141,7 +142,7 @@ export function isDisambiguation(c: { title: string; body: string }): boolean {
 async function retrieveOne(
   query: string,
   topK: number,
-  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; titles?: string[] }
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; titles?: string[]; action?: boolean }
 ): Promise<RetrievedChunk[]> {
   const { includeWikiPacks = true, titles } = opts;
   const queryVec = opts.queryVec ?? (await embeddingEngine.embed(query));
@@ -158,11 +159,22 @@ async function retrieveOne(
   const named = wiki.flatMap((w) => w.hits.filter((h) => h.via === "title").map((h) => packHitToChunk(w.packId, h)));
   const wikiLexical = wiki.flatMap((w) => w.hits.filter((h) => h.via !== "title").map((h) => packHitToChunk(w.packId, h)));
   const fused = fuseRetrievalResults([...lexical, ...packs.lexical, ...wikiLexical], [...semantic, ...packs.semantic], topK);
-  const seen = new Set(named.map((c) => c.chunkId));
-  const result = [...named, ...fused.filter((c) => !seen.has(c.chunkId))].slice(0, Math.max(topK, named.length));
+  // A what-to-do question: a pack section that says what to do (the preparedness pack's "During an earthquake") comes
+  // right after the named articles, instead of competing in the fusion with keyword noise from the bundled corpus.
+  const action = opts.action ?? ACTION_INTENT.test(query);
+  // Up to three, so the named article and the other sources keep room.
+  const steps = action
+    ? wiki.flatMap((w) => w.hits.filter((h) => h.via !== "title" && h.action).map((h) => packHitToChunk(w.packId, h))).slice(0, 3)
+    : [];
+  const first = [...named, ...steps];
+  const seen = new Set(first.map((c) => c.chunkId));
+  const result = [...first.filter((c, i) => first.findIndex((x) => x.chunkId === c.chunkId) === i), ...fused.filter((c) => !seen.has(c.chunkId))].slice(
+    0,
+    Math.max(topK, named.length)
+  );
   // A what-to-do question: the lay sources the pack search added past its limit (a first-aid manual next to the
   // clinical article) must reach the answer, not be cut here with the rest of the keyword hits.
-  if (ACTION_INTENT.test(query)) {
+  if (action) {
     const inResult = new Set(result.map((c) => c.chunkId));
     const lay = wiki
       .flatMap((w) => w.hits.filter((h) => LAY_SOURCES.has(h.source)).map((h) => packHitToChunk(w.packId, h)))
