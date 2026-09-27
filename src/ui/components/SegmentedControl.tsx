@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { selection } from "../../services/haptics";
 import { useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
+import { segmentsFit } from "./segmentFit";
 import { Text } from "./Text";
 
 export interface SegmentOption<T extends string> {
@@ -26,19 +27,30 @@ const COMPACT_INSET = 8;
 
 /**
  * 2-4 mutually exclusive options. Exposed as a radio group. Falls back to a
- * vertical list at large text sizes so long labels never truncate.
+ * vertical list whenever the longest label would not fit its column, so labels never break.
  */
 export function SegmentedControl<T extends string>({ options, value, onChange, label, size = "regular" }: SegmentedControlProps<T>) {
   const t = useTokens();
   const { fontScale } = useWindowDimensions();
-  const vertical = fontScale >= 1.35;
+  const [width, setWidth] = useState(0);
   const compact = size === "compact";
   const inset = compact ? 2 : 3;
+  // Stack when a label would not fit its column (Prism SEG-2: Android's 1.3 is under a fixed 1.35
+  // threshold and 'Standard' broke inside its pill). Label size = subhead at the OS font scale.
+  const vertical = !segmentsFit({
+    width: width - inset * 2,
+    count: options.length,
+    longestLabel: Math.max(...options.map((o) => o.label.length)),
+    fontSize: (t.type.subhead.fontSize ?? 14) * fontScale,
+    chrome: t.space.sm * 2 + t.size.iconSm + t.space.xs,
+    gap: inset,
+  });
   const slop = compact ? COMPACT_INSET / 2 : 0;
   return (
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       style={{
         flexDirection: vertical ? "column" : "row",
         padding: inset,
