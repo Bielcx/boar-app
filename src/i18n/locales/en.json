@@ -764,7 +764,7 @@
       "engine": {
         "title": "The model didn’t load on this phone",
         "body": "The model file is on this phone, but the engine couldn’t start it here (first on the GPU, then on the CPU).",
-        "hint": "Try again. If it keeps failing, choose another model in Settings. The engine said:"
+        "hint": "Try again. If it keeps failing, try a smaller model in Settings (this can also be a memory limit). The engine said:"
       }
     }
   }

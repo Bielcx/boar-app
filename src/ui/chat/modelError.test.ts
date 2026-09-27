@@ -26,6 +26,10 @@ describe("modelErrorKind", () => {
     expect(modelErrorKind("Model not found at /data/models/x.gguf. Run the setup wizard to install it first.")).toBe("missing");
   });
 
+  it("sends Android's llama.cpp context failure to engine; its hint also suggests a smaller model", () => {
+    expect(modelErrorKind("failed to allocate buffer / failed to create context")).toBe("engine");
+  });
+
   it("reads memory from explicit out-of-memory text, and from 'allocate' only outside the engine", () => {
     expect(modelErrorKind("OOM while creating context")).toBe("memory");
     expect(modelErrorKind("Out of memory")).toBe("memory");

@@ -764,7 +764,7 @@
       "engine": {
         "title": "O modelo não carregou neste celular",
         "body": "O arquivo do modelo está neste celular, mas o motor não conseguiu iniciá-lo aqui (primeiro na GPU, depois na CPU).",
-        "hint": "Tente de novo. Se continuar falhando, escolha outro modelo em Ajustes. O motor disse:"
+        "hint": "Tente de novo. Se continuar, tente um modelo menor em Ajustes (também pode ser falta de memória). O motor disse:"
       }
     }
   }
