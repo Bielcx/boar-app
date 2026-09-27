@@ -434,6 +434,7 @@
       "deepAutoSub": "The largest installed model that fits and runs at {{min}} tokens/s or more here.",
       "deepNone": "None: always use the answer model",
       "notMeasured": "Not measured on this phone yet",
+      "lowRamNotAuto": "Not in automatic mode on this phone: too big for its memory.",
       "rate": "{{rate}} tok/s",
       "samples_one": "{{count}} answer measured here · {{date}}",
       "samples_other": "Median of {{count}} answers measured here · {{date}}",
