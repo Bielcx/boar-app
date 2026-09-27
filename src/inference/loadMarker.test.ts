@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createLoadGuard, CrashLedger, LoadCrash, MarkerStore } from "./loadMarker";
+import { createLoadGuard, CrashLedger, describeModelFile, LoadCrash, MarkerStore, toLoadCrash } from "./loadMarker";
 
 function memory() {
   let file: string | null = null;
@@ -52,5 +52,20 @@ describe("load marker (CR-2)", () => {
     await next.begin(q15, null);
     expect(m.crashes.map((c) => c.crashedModelId)).toEqual(["qwen3-4b"]);
     expect(JSON.parse(m.file()!).modelId).toBe("qwen2.5-1.5b");
+  });
+});
+
+describe("describeModelFile (Prism CR-3: a load without meta)", () => {
+  const catalog = [{ id: "qwen3-4b-instruct-2507-q4km", label: "Qwen3-4B-Instruct-2507 (Q4_K_M)", filename: "models/qwen3-4b-instruct-2507-q4km.gguf" }];
+  it("the catalog's id and label, by path or by file name", () => {
+    expect(describeModelFile("models/qwen3-4b-instruct-2507-q4km.gguf", catalog)).toEqual({ modelId: "qwen3-4b-instruct-2507-q4km", label: "Qwen3-4B-Instruct-2507 (Q4_K_M)" });
+    expect(describeModelFile("/var/app/models/qwen3-4b-instruct-2507-q4km.gguf", catalog).modelId).toBe("qwen3-4b-instruct-2507-q4km");
+  });
+  it("an unknown file: its name without folder and .gguf, and no id", () => {
+    expect(describeModelFile("models/My-Model.Q4.gguf", catalog)).toEqual({ label: "My-Model.Q4" });
+  });
+  it("the crash then carries the model id, so the CR-2 block matches it", () => {
+    const meta = { filename: "models/qwen3-4b-instruct-2507-q4km.gguf", ...describeModelFile("models/qwen3-4b-instruct-2507-q4km.gguf", catalog) };
+    expect(toLoadCrash({ ...meta, previous: null, at: 1 })).toMatchObject({ crashedModelId: "qwen3-4b-instruct-2507-q4km", crashedLabel: "Qwen3-4B-Instruct-2507 (Q4_K_M)" });
   });
 });

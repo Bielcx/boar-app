@@ -13,7 +13,9 @@ import {
   contextSizeForRam,
 } from "./memoryFit";
 import { BackendInfo, cpuDeviceNames, initWithCpuFallback } from "./initFallback";
-import type { LoadGuard, LoadMeta } from "./loadMarker";
+import { describeModelFile, type LoadGuard, type LoadMeta } from "./loadMarker";
+import { MODEL_CATALOG } from "../models/manifest";
+import { listDiscoveredModels } from "../models/discoveredModels";
 import { classifyLoadFailure, ModelLoadError } from "./loadError";
 import { loadGuard as appLoadGuard } from "./loadGuard";
 
@@ -228,7 +230,13 @@ export class LlamaEngine {
     }
 
     let backend: BackendInfo = { kind: "default" };
-    const meta: LoadMeta = { filename: modelFilename, ...opts?.meta };
+    // A caller without meta (the chat's preload, the catalog screen) still gets the model's id and label.
+    const known =
+      opts?.meta?.modelId && opts.meta.label
+        ? {}
+        : describeModelFile(modelFilename, [...MODEL_CATALOG, ...(await listDiscoveredModels().catch(() => []))]);
+    const given = Object.fromEntries(Object.entries(opts?.meta ?? {}).filter(([, v]) => v !== undefined));
+    const meta: LoadMeta = { filename: modelFilename, ...known, ...given };
     // Marker on disk while initLlama runs: if the OS kills the app here, the next start knows (CR-2).
     await this.guard?.begin(meta, previous).catch((e: any) => console.warn("[engine] load marker:", e?.message ?? e));
     let loadedOk = false;
