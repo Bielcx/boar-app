@@ -299,3 +299,14 @@ export function noSourceNote(a: AnswerState, placesOnly: boolean): "weak" | "unc
 export function showsInstantSnippet(a: AnswerState): boolean {
   return !!a.instant && !a.extract && noSourceKind(a) !== "weak";
 }
+
+/**
+ * The engine's language lead on an instant passage (Tusk 29d7e52): "Da fonte offline (em inglês):" or
+ * "From the offline source (in Portuguese):" as the first line when the passage's language differs
+ * from the question's. The card shows the language by its header ("From the source (in Portuguese) ·
+ * Title") instead of saying "from the source" twice; copy and share keep the text as it came.
+ */
+export function sourceLanguageLead(text: string): { lang: string | null; body: string } {
+  const m = /^(?:Da fonte offline|From the offline source) \(([^)]+)\):[ \t]*\n/.exec(text);
+  return m ? { lang: m[1], body: text.slice(m[0].length) } : { lang: null, body: text };
+}
