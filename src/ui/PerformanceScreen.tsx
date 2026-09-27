@@ -7,6 +7,7 @@ import { Badge, Button, EmptyState, ListRow, Progress, Screen, Section, Sheet, S
 import type { Tone } from "./theme";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
+import { ScreenTitle } from "./flows/ScreenTitle";
 import { MODEL_CATALOG, RAM_BUDGET_BYTES, STORAGE_BUDGET_BYTES } from "../models/manifest";
 import {
   clearExecutionTelemetry,
@@ -99,6 +100,7 @@ export function PerformanceScreen() {
   if (error) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
+        <ScreenTitle>{t("nav.performance")}</ScreenTitle>
         <EmptyState tone="error" title={t("flows.performance.loadFailed")} actionLabel={t("flows.row.retry")} onAction={load} />
       </Screen>
     );
@@ -106,6 +108,7 @@ export function PerformanceScreen() {
   if (!records || !catalog.loaded) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
+        <ScreenTitle>{t("nav.performance")}</ScreenTitle>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={120} />
           <Skeleton height={120} />
@@ -130,6 +133,7 @@ export function PerformanceScreen() {
 
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("nav.performance")}</ScreenTitle>
       {PERF_BANDS_PROVISIONAL && (
         <Text variant="footnote" color="secondary">
           {t("flows.performance.provisional")}
@@ -245,6 +249,7 @@ export function PerformanceLogsScreen() {
   if (error) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
+        <ScreenTitle>{t("flows.performance.logsTitle")}</ScreenTitle>
         <EmptyState tone="error" title={t("flows.performance.loadFailed")} actionLabel={t("flows.row.retry")} onAction={load} />
       </Screen>
     );
@@ -252,6 +257,7 @@ export function PerformanceLogsScreen() {
   if (!records) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
+        <ScreenTitle>{t("flows.performance.logsTitle")}</ScreenTitle>
         <Skeleton height={80} />
       </Screen>
     );
@@ -259,6 +265,7 @@ export function PerformanceLogsScreen() {
   if (records.length === 0) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
+        <ScreenTitle>{t("flows.performance.logsTitle")}</ScreenTitle>
         <EmptyState icon="activity" title={t("flows.performance.logsEmpty")} body={t("flows.performance.empty")} />
       </Screen>
     );
@@ -266,6 +273,7 @@ export function PerformanceLogsScreen() {
 
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("flows.performance.logsTitle")}</ScreenTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportJson")} loading={exporting} onPress={() => doExport("json")} />
         <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportCsv")} disabled={exporting} onPress={() => doExport("csv")} />
