@@ -113,6 +113,12 @@ export interface PlacesArea {
   radiusM?: number;
   /** Set when the area came from a city named in the question (or answer({ place })). */
   place?: { name: string; country?: string };
+  /**
+   * City areas only: true when a recent device fix (no new permission prompt,
+   * no GPS wait) lies within DEVICE_INSIDE_RADIUS_M of the city center, so the
+   * device clock is the city's clock (open/closed can be shown).
+   */
+  deviceInside?: boolean;
 }
 
 export type AnswerEvent =

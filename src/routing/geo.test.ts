@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { detectGeoIntent, formatDistance, GeoProviders, PoiRecord } from "./geo";
-import { createAnswerer, AnswerDeps } from "./answer";
+import { createAnswerer, AnswerDeps, DEVICE_INSIDE_TIMEOUT_MS } from "./answer";
 import type { AnswerEvent } from "./events";
 
 describe("detectGeoIntent", () => {
@@ -200,7 +200,7 @@ describe("answer(): places path", () => {
 
   it("V1-A/B: a lower-case or 'de' city counts once the gazetteer knows it", async () => {
     const { places } = await ask("melhores restaurantes veganos em são paulo");
-    expect(geo.calls).toEqual(["resolve:são paulo", "resolve:são paulo", "search"]);
+    expect(geo.calls).toEqual(["resolve:são paulo", "resolve:são paulo", "location", "search"]);
     expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo" });
     expect(places!.places.every((p) => p.distanceM === undefined)).toBe(true);
     geo = makeGeo();
@@ -219,6 +219,28 @@ describe("answer(): places path", () => {
     expect(detectGeoIntent("vegan restaurants in asia")!.placeCandidates).toBeUndefined();
   });
 
+  it("G-3: deviceInside when a recent fix is within the named city, so the UI can use the device clock", async () => {
+    const inSp = await ask("vegan restaurants in São Paulo");
+    expect(inSp.places!.area).toMatchObject({ kind: "city", deviceInside: true });
+    expect(inSp.events.some((e) => e.type === "location")).toBe(false);
+
+    geo = makeGeo();
+    geo.getLocation = async () => ({ lat: 52.52, lon: 13.4, accuracyM: 20, ageS: 5 }); // Berlin
+    expect((await ask("vegan restaurants in São Paulo")).places!.area.deviceInside).toBeUndefined();
+
+    geo = makeGeo();
+    geo.getLocation = async () => ({ error: "prompt" as const });
+    expect((await ask("vegan restaurants in São Paulo")).places!.area.deviceInside).toBeUndefined();
+  });
+
+  it("G-3: a GPS that doesn't answer at once never delays the city list", async () => {
+    geo.getLocation = () => new Promise(() => {});
+    const t = Date.now();
+    const { places } = await ask("vegan restaurants in São Paulo");
+    expect(places!.area.deviceInside).toBeUndefined();
+    expect(Date.now() - t).toBeLessThan(DEVICE_INSIDE_TIMEOUT_MS + 300);
+  });
+
   it("a candidate the gazetteer doesn't know falls back to the device, never to the model", async () => {
     const { r, places } = await ask("best vegan restaurants in xyzzy");
     expect(geo.calls).toEqual(["resolve:xyzzy", "location", "search"]);
@@ -227,9 +249,9 @@ describe("answer(): places path", () => {
     expect(loads).toBe(0);
   });
 
-  it("uses a named city without GPS and without distances", async () => {
+  it("uses a named city without distances (a cached fix only sets deviceInside)", async () => {
     const { r, places } = await ask("melhores restaurantes veganos em São Paulo");
-    expect(geo.calls).toEqual(["resolve:São Paulo", "search"]);
+    expect(geo.calls).toEqual(["resolve:São Paulo", "location", "search"]);
     expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo", place: { name: "São Paulo", country: "BR" } });
     expect(places!.places.every((p) => p.distanceM === undefined)).toBe(true);
     expect(r.text).toMatch(/^Lugares com opção vegano em São Paulo/);

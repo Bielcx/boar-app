@@ -18,6 +18,7 @@ import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCT
 import { taskRequest } from "../inference/format";
 import {
   detectGeoIntent,
+  distanceMeters,
   formatPlacesAnswer,
   GeoIntent,
   GeoProviders,
@@ -100,6 +101,10 @@ export interface AnswerDeps {
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
+/** City path: only a fix that is already there (cached) counts for PlacesArea.deviceInside. */
+export const DEVICE_INSIDE_TIMEOUT_MS = 150;
+/** A named city's reach from its center for deviceInside (metro areas included). */
+export const DEVICE_INSIDE_RADIUS_M = 25_000;
 export const PLACES_LIMIT = 10;
 
 /** Max <think> tokens before an answer (reasoning models only; see LlamaEngine thinkingBudget). */
@@ -231,6 +236,7 @@ export function createAnswerer(deps: AnswerDeps) {
 
       let center: { lat: number; lon: number };
       let area: Extract<AnswerEvent, { type: "places" }>["area"];
+      let deviceNow: Promise<Awaited<ReturnType<GeoProviders["getLocation"]>> | null> | null = null;
       if (intent.near.kind === "place") {
         const place = await geo.resolvePlace(intent.near.name).catch(() => null);
         if (!place) {
@@ -239,6 +245,11 @@ export function createAnswerer(deps: AnswerDeps) {
         }
         center = { lat: place.lat, lon: place.lon };
         area = { kind: "city", label: place.name, place: { name: place.name, country: place.country } };
+        // Runs alongside the POI search; never prompts (GeoProviders contract) and never waits for GPS.
+        deviceNow = Promise.race([
+          geo.getLocation({ timeoutMs: DEVICE_INSIDE_TIMEOUT_MS }).catch(() => null),
+          new Promise<null>((r) => setTimeout(() => r(null), DEVICE_INSIDE_TIMEOUT_MS + 50)),
+        ]);
       } else {
         const loc = await geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS }).catch(() => ({ error: "unavailable" as const }));
         if ("error" in loc) {
@@ -268,6 +279,13 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
+      if (deviceNow) {
+        const here = await deviceNow;
+        if (here && !("error" in here) && distanceMeters(here, center) <= DEVICE_INSIDE_RADIUS_M) {
+          area.deviceInside = true;
+          reasonCodes.push("places:device-inside");
+        }
+      }
       // Without a distance (city named), a place is only findable by its
       // address: exact places with an address come first, ranking kept
       // within each group; approximate guide listings stay last.
