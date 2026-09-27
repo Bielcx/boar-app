@@ -1110,6 +1110,21 @@ function InstallStep({
         </Card>
       )}
 
+      {/* Right under the progress, where it is seen: downloads pause in the background (Prism S3-5). */}
+      {downloading && (
+        <Card style={{ gap: tokens.space.xs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
+            <Text variant="label" color="warning">
+              {t("flows.onboarding.keepOpenTitle")}
+            </Text>
+          </View>
+          <Text variant="footnote" color="secondary">
+            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+          </Text>
+        </Card>
+      )}
+
       <Card padding="none">
         {[
           ...fileRows,
@@ -1226,19 +1241,6 @@ function InstallStep({
         />
       )}
 
-      {downloading && (
-        <Card style={{ gap: tokens.space.xs }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
-            <Text variant="label" color="warning">
-              {t("flows.onboarding.keepOpenTitle")}
-            </Text>
-          </View>
-          <Text variant="footnote" color="secondary">
-            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
-          </Text>
-        </Card>
-      )}
     </Screen>
   );
 }
