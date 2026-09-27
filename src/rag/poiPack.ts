@@ -61,6 +61,8 @@ export interface PoiPackMeta {
   bbox: [number, number, number, number];
   osmDate: string;
   voyageDump: string;
+  /** The region's biggest places (name and point), for resolving a city by name without the gazetteer. */
+  cities: Array<{ name: string; lat: number; lon: number }>;
 }
 
 type Row = {
@@ -126,6 +128,13 @@ export class PoiPack implements PoiArea {
       bbox: JSON.parse(m.bbox),
       osmDate: m.osmDate ?? "",
       voyageDump: m.voyageDump ?? "",
+      cities: (() => {
+        try {
+          return (JSON.parse(m.cities ?? "[]") as Array<{ name: string; lat: number; lon: number }>).map(({ name, lat, lon }) => ({ name, lat, lon }));
+        } catch {
+          return [];
+        }
+      })(),
     });
   }
 
@@ -258,13 +267,26 @@ export async function searchPoiPacks(areas: PoiArea[], q: PoiQuery): Promise<Poi
 }
 
 /** A place name → the most populous gazetteer entry with that name (or alternate name). */
+/**
+ * A place name as a question writes it, reduced to what the gazetteer stores: no surrounding punctuation, no leading
+ * preposition ("in Berlin", "em Lisboa", "near Tokyo"), and a trailing ", Country" split off ("Berlin, Germany").
+ */
+export function cleanPlaceName(name: string): { name: string; country?: string } {
+  let s = name.trim().replace(/\s+/g, " ").replace(/^[\s"'“”‘’(¿¡]+|[\s"'“”‘’).,;:!?]+$/g, "");
+  s = s.replace(/^(?:in|at|near|around|em|no|na|perto de|próximo a|proximo a|en|cerca de)\s+/i, "");
+  const comma = s.lastIndexOf(",");
+  if (comma > 0) return { name: s.slice(0, comma).trim(), country: s.slice(comma + 1).trim() || undefined };
+  return { name: s };
+}
+
 export async function resolvePlaceIn(db: PackSql, name: string): Promise<PlaceMatch | null> {
-  const clean = name.trim().replace(/\s+/g, " ");
+  const { name: clean, country } = cleanPlaceName(name);
   if (!clean) return null;
+  // With a country given ("Berlin, Germany"), a place in that country first; the biggest otherwise.
   const row = await db.getFirstAsync<{ name: string; lat: number; lon: number; country: string | null; population: number }>(
     `SELECT p.name, p.lat, p.lon, p.country, p.population FROM names n JOIN places p ON p.id = n.place_id
-     WHERE n.name = ? COLLATE NOCASE ORDER BY p.population DESC LIMIT 1`,
-    [clean]
+     WHERE n.name = ? COLLATE NOCASE ORDER BY (p.country = ? COLLATE NOCASE) DESC, p.population DESC LIMIT 1`,
+    [clean, country ?? ""]
   );
   if (!row) return null;
   return {

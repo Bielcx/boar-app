@@ -19,6 +19,8 @@ export interface BootState {
   totalRamBytes: number;
   /** The saved active LLM id, or null when none was ever chosen. */
   activeLlmId: string | null;
+  /** Setup was started and not finished (SetupProgress saved): the knowledge or the index may be missing. */
+  setupInProgress?: boolean;
 }
 
 export interface BootDecision {
@@ -29,6 +31,9 @@ export interface BootDecision {
 
 export function decideInitialRoute(s: BootState): BootDecision {
   if (!s.requiredPresent) return { route: "Setup" };
+  // The models alone don't finish setup: a setup left mid-way (app killed after the downloads, before the
+  // knowledge or the index) resumes where it was instead of opening a chat without them (Harbor, 2bdd0d2).
+  if (s.setupInProgress) return { route: "Setup" };
   if (s.activeLlmId && s.installedLlms.some((m) => m.id === s.activeLlmId)) return { route: "Main" };
   // Nothing the chat could load: setup, never a chat that opens on an error.
   if (!s.installedLlms.length) return { route: "Setup" };

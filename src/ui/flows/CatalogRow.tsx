@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
@@ -154,9 +154,18 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           </Text>
         ))}
         {details?.some((d) => d.length > DETAIL_FOLD_CHARS) && (
-          <View style={{ alignSelf: "flex-start", marginLeft: -tokens.space.md }}>
-            <Button size="sm" variant="ghost" label={t(showAll ? "flows.row.showLess" : "flows.row.showAll")} onPress={() => setShowAll((v) => !v)} />
-          </View>
+          // A neutral text action: ember stays for the screen's one accent (Knowledge showed one per pack).
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showAll }}
+            onPress={() => setShowAll((v) => !v)}
+            hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
+            style={{ alignSelf: "flex-start" }}
+          >
+            <Text variant="footnote" color="secondary" style={{ textDecorationLine: "underline" }}>
+              {t(showAll ? "flows.row.showLess" : "flows.row.showAll")}
+            </Text>
+          </Pressable>
         )}
       </View>
       {view.wontFit ? (

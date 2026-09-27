@@ -37,6 +37,9 @@ export interface PoiRegion {
 
 export const POI_LICENSE = "ODbL 1.0 (© OpenStreetMap contributors) + CC BY-SA 4.0 (Wikivoyage)";
 
+/** Catalog id of the world gazetteer; every places pack requires it. */
+export const WORLD_PLACES_ID = "poi-world-places";
+
 /** The world gazetteer used to resolve place names ("restaurants in Lisbon"), shipped with any places pack. */
 export const WORLD_PLACES = {
   filename: "poi/world-places.sqlite",
@@ -831,13 +834,15 @@ export function poiCatalogEntries(regions: PoiRegion[] = POI_REGIONS): CatalogMo
     license: POI_LICENSE,
     description: `${r.poiCount.toLocaleString("en-US")} places to eat and drink (${r.veganCount} tagged vegan), OpenStreetMap ${r.osmDate.slice(0, 10)}`,
     required: false,
+    // Without the gazetteer, "restaurants in <city>" can't find the city (PL-1): installed with it.
+    requires: [WORLD_PLACES_ID],
   }));
 }
 
 /** The world gazetteer as a catalog entry (fixed id), downloaded with any places pack. */
 export function worldPlacesEntry(): CatalogModel {
   return {
-    id: "poi-world-places",
+    id: WORLD_PLACES_ID,
     kind: "corpus",
     format: "poi-pack",
     label: "World places (GeoNames)",
@@ -911,5 +916,6 @@ export function tileEntry(t: PoiTile): CatalogModel {
     license: POI_LICENSE,
     description: `${t.pois.toLocaleString("en-US")} places to eat and drink (${t.vegan} tagged vegan), OpenStreetMap ${t.osmDate.slice(0, 10)}`,
     required: false,
+    requires: [WORLD_PLACES_ID],
   };
 }

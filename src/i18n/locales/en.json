@@ -639,6 +639,7 @@
       "workingMemory": "needs ~{{size}} of memory",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
       "keepOpenTitle": "Keep BOAR open",
+      "keepOpenIndex": "Keep BOAR open while it builds the search index. If you leave, it may pause.",
       "stage": {
         "start": "Start",
         "choose": "Choose",
@@ -725,6 +726,7 @@
       "checking": "Checking {{name}}",
       "checkingValue": "Checking, {{pct}}%",
       "verified": "Verified: {{item}}",
+      "missingCities": "Still missing the city index ({{name}}, {{size}}): questions that name a city won't work until you import it. Places near you by GPS work now.",
       "checkingAnnounce": "{{name}}: {{pct}}% checked",
       "cancelA11y": "Cancel importing {{name}}"
     },

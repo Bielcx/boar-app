@@ -44,4 +44,19 @@ describe("geoProvidersFrom", () => {
     expect(geoProvidersFrom(sources({ getLocationFix })).getLocationFix).toBe(getLocationFix);
     expect(geoProvidersFrom(sources()).getLocationFix).toBeUndefined();
   });
+
+  it("PL-1: without the place-names index, a city of the installed packs still resolves by name", async () => {
+    const cities = () => [{ name: "Berlin", lat: 52.52, lon: 13.4 }, { name: "São Paulo", lat: -23.55, lon: -46.63 }];
+    const p = geoProvidersFrom(sources({ resolvePlace: async () => null, cities }));
+    expect(await p.resolvePlace("Berlin")).toEqual({ name: "Berlin", lat: 52.52, lon: 13.4, kind: "city" });
+    expect(await p.resolvePlace("sao paulo")).toMatchObject({ name: "São Paulo" });
+    expect(await p.resolvePlace("Atlantis")).toBeNull();
+    // Portuguese names through the PT->EN lexicon (Boar, residual of PL-1).
+    expect(await p.resolvePlace("Berlim")).toMatchObject({ name: "Berlin" });
+    // Cleaned like the gazetteer (cleanPlaceName): punctuation, a leading preposition, ", Country".
+    for (const n of ["Berlin?", "in Berlin", "Berlin, Germany", "em Berlim"]) expect(await p.resolvePlace(n), n).toMatchObject({ name: "Berlin" });
+    // A failing gazetteer (missing file) falls back too.
+    const broken = geoProvidersFrom(sources({ resolvePlace: () => Promise.reject(new Error("no such table")), cities }));
+    expect(await broken.resolvePlace("Berlin")).toMatchObject({ name: "Berlin" });
+  });
 });

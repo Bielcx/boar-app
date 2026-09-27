@@ -69,6 +69,12 @@ export interface CatalogModel {
    * embeddings, opened directly (src/rag/packs.ts).
    */
   format?: "json" | "sqlite-pack" | "poi-pack";
+  /**
+   * Ids of assets this one is useless without, installed with it: a places
+   * pack needs the world gazetteer to answer "restaurants in <city>" (PL-1).
+   * Resolved in the asset registry (src/models/assetRegistry.ts).
+   */
+  requires?: string[];
 }
 
 // Decimal, as the bounty and the phone count it (50 GB = 50e9 bytes; Prism N-14).

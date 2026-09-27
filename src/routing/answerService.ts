@@ -12,6 +12,7 @@
 import { defaultContextSize, llamaEngine } from "../inference/LlamaEngine";
 import { getDeviceTotalRamBytes } from "ram-monitor";
 import { retrieve } from "../rag/retrieve";
+import { seedKnowledgeBaseIfEmpty } from "../rag/seedCorpus";
 import { assemblePrompt, assembleChatMessages } from "../rag/pure";
 import { ModelManager } from "../models/ModelManager";
 import { MODEL_CATALOG } from "../models/manifest";
@@ -53,9 +54,24 @@ async function listInstalledLlms(): Promise<InstalledLlm[]> {
     }));
 }
 
+/**
+ * The knowledge base indexed, once per session: joins (or starts) the seed run the chat starts
+ * after the models load, so a question asked during the first boot's indexing waits for it.
+ * Later questions don't re-read the corpus packs; a new pack is indexed by the chat as before.
+ */
+let knowledgeIndexed: Promise<void> | null = null;
+function knowledgeReady(): Promise<void> {
+  knowledgeIndexed ??= seedKnowledgeBaseIfEmpty().catch((e) => {
+    knowledgeIndexed = null; // retry on the next question
+    console.warn("[answer] knowledge indexing failed:", e?.message ?? e);
+  });
+  return knowledgeIndexed;
+}
+
 export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAnswerer({
   engine: llamaEngine,
   retrieve: (q, k) => retrieve(q, k),
+  knowledgeReady,
   getSettings: getAnswerSettings,
   listInstalledLlms,
   getActiveModelId: () => getActiveModelId("llm"),

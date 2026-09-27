@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const acquireMock = vi.fn(() => true);
 const releaseMock = vi.fn();
@@ -28,10 +28,15 @@ vi.mock("../models/ModelManager", () => ({
       return signalCancelMock(asset);
     }
     async deletePartialDownload() {}
+    async statusOf(asset: { id: string }) {
+      return { present: presentIds.has(asset.id) };
+    }
   },
 }));
+const presentIds = new Set<string>();
 
-import { cancelAllDownloads, getDownloadState, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
+import { cancelAllDownloads, getDownloadState, missingRequirements, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
+import { registerAssetProvider, unregisterAssetProvider } from "../models/assetRegistry";
 import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
@@ -202,6 +207,46 @@ describe("cancelAllDownloads (Erase everything)", () => {
     signalCancelMock.mockClear();
     await cancelAllDownloads();
     expect(signalCancelMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("assets installed together (PL-1: a places pack needs the gazetteer)", () => {
+  const gazetteer = { id: "poi-world-places", filename: "poi/world-places.sqlite", sizeBytes: 10 } as any;
+  const berlin = { id: "poi-berlin", filename: "poi/berlin.sqlite", sizeBytes: 20, requires: ["poi-world-places"] } as any;
+
+  beforeEach(() => {
+    presentIds.clear();
+    registerAssetProvider("test-places", () => [gazetteer, berlin]);
+  });
+  afterEach(() => unregisterAssetProvider("test-places"));
+
+  it("downloading a places pack also downloads the gazetteer when it's missing", async () => {
+    startDownload(berlin);
+    await settle();
+    expect(downloadMock.mock.calls.map((c) => c[0].id).sort()).toEqual(["poi-berlin", "poi-world-places"]);
+    expect(getDownloadState("poi-world-places")).toMatchObject({ downloading: true });
+  });
+
+  it("doesn't download the gazetteer again when it's installed or already downloading", async () => {
+    presentIds.add("poi-world-places");
+    startDownload(berlin);
+    await settle();
+    expect(downloadMock.mock.calls.map((c) => c[0].id)).toEqual(["poi-berlin"]);
+
+    presentIds.clear();
+    resetDownloadState();
+    downloadMock.mockClear();
+    startDownload(gazetteer);
+    startDownload(berlin);
+    await settle();
+    expect(downloadMock.mock.calls.map((c) => c[0].id).sort()).toEqual(["poi-berlin", "poi-world-places"]);
+  });
+
+  it("tells a file import what else to import", async () => {
+    expect((await missingRequirements(berlin)).map((a) => a.id)).toEqual(["poi-world-places"]);
+    presentIds.add("poi-world-places");
+    expect(await missingRequirements(berlin)).toEqual([]);
+    expect(await missingRequirements(gazetteer)).toEqual([]);
   });
 });
 

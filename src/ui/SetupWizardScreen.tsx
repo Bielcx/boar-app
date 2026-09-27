@@ -147,13 +147,23 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   );
   const allPresent = catalog.loaded && assets.every((a) => present[a.id]);
 
+  // Leaving a setup reopened from Settings forgets its progress, or the next launch would resume it.
+  const skip = useMemo(
+    () =>
+      onSkip &&
+      (() => {
+        setSetupProgress(null);
+        onSkip();
+      }),
+    [onSkip]
+  );
   const goBack = useCallback(() => {
     if (step === 3 && !allPresent) setBackOpen(true);
     else if (step > 1) setStep((s) => (s - 1) as Step);
-    else if (onSkip) onSkip();
+    else if (skip) skip();
     else return false;
     return true;
-  }, [step, allPresent, onSkip]);
+  }, [step, allPresent, skip]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", goBack);
@@ -191,7 +201,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           freeBytes={catalog.freeBytes}
           lang={lang}
           onNext={() => setStep(2)}
-          onSkip={onSkip}
+          onSkip={skip}
         />
       )}
       {step === 2 && (
@@ -1302,7 +1312,7 @@ function InstallStep({
 
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
-      {transferring && (
+      {(transferring || indexPhase === "building") && (
         // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
         <View
           style={{
@@ -1320,7 +1330,8 @@ function InstallStep({
             </Text>
           </View>
           <Text variant="footnote">
-            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+            {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
+            {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
         </View>
       )}

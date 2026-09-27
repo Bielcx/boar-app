@@ -6,6 +6,7 @@ import { useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
 import { worldPlacesEntry } from "./adapters";
+import { formatBytes } from "./format";
 
 function labelFor(assetId: string | undefined): string | undefined {
   if (!assetId) return undefined;
@@ -34,7 +35,7 @@ interface Props {
  * screen with the file name until the next pick (Prism F8).
  */
 export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick, hideActive }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
   const pickRef = useRef<View>(null);
@@ -103,6 +104,13 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
                 {t("flows.import.verified", { item: label ?? f.assetId ?? "" })}
               </Text>
             )}
+            {f.status === "verified" &&
+              f.missing?.map((m) => (
+                // Honest about what still won't work, and what does (Ledger PL-1, Boar).
+                <Text key={m.label} variant="footnote" color="warning">
+                  {t("flows.import.missingCities", { name: m.label, size: formatBytes(m.sizeBytes, i18n.language) })}
+                </Text>
+              ))}
             {f.status === "failed" && (
               <>
                 <Text variant="footnote" color="danger">
