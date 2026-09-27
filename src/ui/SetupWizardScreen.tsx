@@ -1274,7 +1274,7 @@ function InstallStep({
       )}
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
-      {downloading && (
+      {transferring && (
         // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
         <View
           style={{
