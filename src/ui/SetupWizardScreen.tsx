@@ -541,6 +541,9 @@ function PackageStep({
         <>
           <Button
             size="lg"
+            // The mockup's CTA carries an arrow (Prism S2F-2).
+            icon="arrow-right"
+            iconPosition="end"
             label={
               chosen.plan.downloadBytes > 0 && !offline
                 ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) })
@@ -949,6 +952,7 @@ function InstallStep({
     return () => clearInterval(id);
   }, [downloading]);
   const stalled = downloading && now - lastMove.current.at > STALL_MS;
+  const transferring = downloading || catalog.imports.some((f) => f.status === "importing");
   // Measured download speed since this screen started receiving bytes: the time left is shown only once measured.
   const rateStart = useRef<{ bytes: number; at: number } | null>(null);
   if (downloading && !rateStart.current && doneBytes > 0) rateStart.current = { bytes: doneBytes, at: Date.now() };
@@ -1116,7 +1120,9 @@ function InstallStep({
         <>
           {/* The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism). */}
           <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
-          {indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
+          {/* No Back while bytes move (download or import), as in the mockup; it returns when nothing is
+              transferring (nothing imported yet, or a failure), and the CTA moves up with it (Iris). */}
+          {!transferring && indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
         </>
       }
     >
