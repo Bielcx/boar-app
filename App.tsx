@@ -14,7 +14,6 @@ import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
 import { initialRoute as bootRoute } from "./src/ui/flows/boot";
-import { BootSplash } from "./src/ui/flows/BootSplash";
 import { registerGeoProviders } from "./src/routing/answerService";
 import { geoProvidersFrom } from "./src/routing/geoWiring";
 import { getCurrentPoint, getLocationFix } from "./src/services/location";
@@ -38,6 +37,9 @@ const modelManager = new ModelManager();
 // Keep the native splash (same canvas, mascot and wordmark) up until the first real screen can
 // draw, instead of flashing a bare spinner between the two (iOS cd50fdc splash sequence).
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// Cut, don't fade: the native splash faded over the first screen and its big boar crossed the loading
+// chat's smaller one for ~4 frames (Prism, Android 8dc234e). On iOS the art under it is the same image.
+SplashScreen.setOptions({ fade: false });
 // Boot timing (splash decision): how long the native splash covers the JS start. Read in logcat / Xcode.
 const BOOT_T0 = Date.now();
 console.info(`[boot] js-start t=${BOOT_T0}`);
@@ -59,21 +61,28 @@ function AppContent() {
   }, []);
 
   const ready = !!initialRoute && (fontsLoaded || !!fontError);
-  // The native splash (a static image) hands over to BootSplash, the same image plus the tagline
-  // and an indeterminate bar, as soon as it has drawn; boot measured ~1.0 s on iOS (Harbor), long
-  // enough for the bar to be seen. If the app is ready before BootSplash mounts, hide on ready.
+  // The native splash stays until the first screen can draw, then cuts straight to it. BootSplash (the
+  // same art + tagline + bar) was measured on screen for 0-90 ms on iOS and Android (Harbor, Piston,
+  // 1c09215): too short to read, it only flashed the tagline. Kept in src/ui/flows for a slower boot.
   const nativeHidden = useRef(false);
-  const hideNative = useCallback(() => {
+  // `via` says which path released the native splash: "image" (BootSplash drew) or "ready" (the app was
+  // ready first, so BootSplash never showed). Ready minus hide = how long BootSplash was on screen.
+  const hideNative = useCallback((via: "image" | "ready") => {
     if (nativeHidden.current) return;
     nativeHidden.current = true;
+    // Boot timing for Tusk's measurements (the native splash is released here).
+    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms via=${via}`);
     SplashScreen.hideAsync().catch(() => {});
   }, []);
   useEffect(() => {
-    if (ready) hideNative();
+    if (!ready) return;
+    console.info(`[boot] ready after=${Date.now() - BOOT_T0}ms`);
+    hideNative("ready");
   }, [ready, hideNative]);
 
   if (!ready) {
-    return <BootSplash onFirstLayout={hideNative} textReady={fontsLoaded || !!fontError} />;
+    // Under the native splash: the same canvas colour, in case the OS reveals this frame.
+    return <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]} />;
   }
   return <RootNavigator initialRoute={initialRoute!} />;
 }

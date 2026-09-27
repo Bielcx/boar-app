@@ -439,7 +439,7 @@
       "samples_one": "{{count}} resposta medida aqui · {{date}}",
       "samples_other": "Mediana de {{count}} respostas medidas aqui · {{date}}",
       "usedLabel": "Usado pelo BOAR",
-      "freeLabel": "Livre no celular",
+      "freeMeta": "{{size}} livres no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
       "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },
@@ -613,6 +613,8 @@
       "percentAnnounce": "{{pct}}% baixado",
       "percentImportedAnnounce": "{{pct}}% importado",
       "queued": "Na fila",
+      "importingLabel": "Importando",
+      "fileOf": "Arquivo {{n}} de {{total}} — {{name}}",
       "bootChecking": "Conferindo os arquivos neste celular…",
       "category": {
         "answer": "Modelo de resposta",
@@ -623,6 +625,7 @@
       "categoryStatus": {
         "failed": "Falhou",
         "moving": "Baixando",
+        "importing": "Importando",
         "ready": "Pronto",
         "queued": "Na fila",
         "import": "Importar"

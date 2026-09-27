@@ -14,7 +14,7 @@ export function CatalogList({ children }: { children: React.ReactNode }) {
     <View>
       {items.map((child, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <View style={{ height: t.size.hairline, backgroundColor: t.color.line.hairline, marginLeft: t.space.base }} />}
+          {i > 0 && <View style={{ height: t.size.hairline, backgroundColor: t.color.line.row, marginLeft: t.space.md + t.space.xxs }} />}
           {child}
         </React.Fragment>
       ))}

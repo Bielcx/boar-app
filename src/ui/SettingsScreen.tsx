@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { voiceInBuild } from "../config/variant";
 import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
+import { screenRhythm } from "./flows/rhythm";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
   Appearance,
@@ -93,10 +94,10 @@ export function SettingsScreen() {
     }
   };
 
-  if (!values) return <Screen>{null}</Screen>;
+  if (!values) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
 
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <Section title={t("flows.settings.answers")} footer={t(answerModeKey(values.quickFirst, values.alwaysComplete))}>
         <ListRow
           icon="message-circle"

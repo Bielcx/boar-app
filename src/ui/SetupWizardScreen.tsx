@@ -41,6 +41,7 @@ import { networkAllowed } from "../config/variant";
 import { ImportList } from "./flows/ImportList";
 import { RadioRow } from "./flows/RadioRow";
 import { InstallCategory, installCategories } from "./flows/installGroups";
+import { likelyTarget } from "./flows/fileImport";
 
 interface Props {
   onReady: () => void;
@@ -952,7 +953,9 @@ function InstallStep({
     return () => clearInterval(id);
   }, [downloading]);
   const stalled = downloading && now - lastMove.current.at > STALL_MS;
-  const transferring = downloading || catalog.imports.some((f) => f.status === "importing");
+  // The file being checked right now (offline import): the hero shows it live (Prism/Iris S3C-1).
+  const activeImport = catalog.imports.find((f) => f.status === "importing");
+  const transferring = downloading || !!activeImport;
   // Measured download speed since this screen started receiving bytes: the time left is shown only once measured.
   const rateStart = useRef<{ bytes: number; at: number } | null>(null);
   if (downloading && !rateStart.current && doneBytes > 0) rateStart.current = { bytes: doneBytes, at: Date.now() };
@@ -1033,7 +1036,16 @@ function InstallStep({
   const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
   // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
-    ? offline
+    ? offline && activeImport
+      ? {
+          label: t("flows.onboarding.importingLabel"),
+          fraction: activeImport.progress,
+          figure: undefined,
+          meta: activeImport.sizeBytes
+            ? [t("flows.onboarding.totalValue", { done: formatBytes(activeImport.sizeBytes * activeImport.progress, lang), total: formatBytes(activeImport.sizeBytes, lang) })]
+            : [],
+        }
+      : offline
       ? {
           label: t("flows.onboarding.importedLabel"),
           fraction: assets.length > 0 ? presentCount / assets.length : 0,
@@ -1053,8 +1065,18 @@ function InstallStep({
         meta: [indexCounter, seedEta != null ? t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) }) : null].filter((x): x is string => !!x),
       };
   // One row per category, like the mockup (Iris, Prism): aggregated honestly, files one tap away.
+  // The file being copied belongs to an item only once verified; its likely item (same size, or the same
+  // name without case/punctuation) lets that category read "Importing" in ember meanwhile (the mockup's STREAMING row).
+  const copyTarget = activeImport ? likelyTarget(activeImport, assets.filter((a) => !catalog.statuses[a.id]?.present)) : undefined;
+  const importingItem = (asset: CatalogModel) => !!copyTarget && copyTarget.id === asset.id;
   const categories = installCategories(
-    states.map(({ asset, state }) => ({ id: asset.id, kind: asset.kind, sizeBytes: asset.sizeBytes, state, importOnly: !canDownload(asset) }))
+    states.map(({ asset, state }) => ({
+      id: asset.id,
+      kind: asset.kind,
+      sizeBytes: asset.sizeBytes,
+      state: importingItem(asset) ? ({ kind: "downloading", phase: "copying", progress: activeImport!.progress } as const) : state,
+      importOnly: !canDownload(asset),
+    }))
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
@@ -1101,7 +1123,7 @@ function InstallStep({
                 <Text variant="footnote" color="secondary">
                   {t(`flows.onboarding.${r.key}`)}
                 </Text>
-                <Text variant="mono" numeric align="right" style={{ flex: 1 }}>
+                <Text variant="footnote" align="right" style={{ flex: 1 }}>
                   {r.value}
                 </Text>
               </View>
@@ -1118,14 +1140,13 @@ function InstallStep({
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
-          {offline && !allPresent ? (
+          {offline && !allPresent && !activeImport ? (
             // Offline, the step's action is choosing the files: it takes the mockup's CTA place (primary, the one accent).
             <Button
               size="lg"
               icon="file-plus"
               label={t("flows.import.pick")}
               fullWidth
-              loading={catalog.imports.some((f) => f.status === "importing")}
               onPress={catalog.importFiles}
             />
           ) : (
@@ -1148,7 +1169,7 @@ function InstallStep({
 
 
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
-      {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
+      {((!allPresent && (!offline || presentCount > 0 || !!activeImport)) || (indexing && seed)) && (
         // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
         // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
         // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
@@ -1169,18 +1190,38 @@ function InstallStep({
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
             ) : (
+              // "62%" is one run in the mockup; Stat draws unit="%" in the number's body (Iris 23a271b, Prism S3C-1).
               <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
             )}
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
+          {!allPresent && offline && activeImport && (
+            <Text variant="footnote" numberOfLines={1} ellipsizeMode="middle">
+              {t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
+            </Text>
+          )}
           {!allPresent && !offline && current && (
             <Text variant="footnote" numberOfLines={2}>
               {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
             </Text>
           )}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: tokens.space.md }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: tokens.space.md }}>
             <MetaLine items={hero.meta} />
             {!allPresent && etaS != null && <MetaLine items={[t("flows.onboarding.minutesLeft", { count: minutesLeft(etaS) })]} />}
+            {offline && activeImport && (
+              // The copy's Cancel sits in the mockup's ETA slot, next to the progress it stops; neutral, not ember,
+              // so it doesn't compete with the bar; 44 pt touch from hitSlop (Iris, Prism).
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
+                onPress={catalog.cancelImports}
+                hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
+              >
+                <Text variant="footnote" color="secondary">
+                  {t("common.cancel")}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </Card>
       )}
@@ -1197,6 +1238,7 @@ function InstallStep({
             onToggle={() => setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }))}
             onRetry={(asset) => catalog.download(asset)}
             lang={lang}
+            importing={offline}
           />
         ))}
         {[
@@ -1258,20 +1300,6 @@ function InstallStep({
         ))}
       </Card>
 
-      {needsImport && !allPresent && (
-        <View style={{ gap: tokens.space.sm }}>
-          {!offline && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.onboarding.importPlacesNote")}
-            </Text>
-          )}
-          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} />
-          <Text variant="footnote" color="secondary" selectable>
-            {t("flows.onboarding.importHow")}
-          </Text>
-        </View>
-      )}
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
       {transferring && (
@@ -1294,6 +1322,24 @@ function InstallStep({
           <Text variant="footnote">
             {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
+        </View>
+      )}
+
+      {/* The files being imported come after "Keep BOAR open", so that card stays on the first screen (Harbor, 02e72b5). */}
+      {needsImport && !allPresent && (
+        <View style={{ gap: tokens.space.sm }}>
+          {!offline && (
+            <Text variant="footnote" color="secondary">
+              {t("flows.onboarding.importPlacesNote")}
+            </Text>
+          )}
+          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} />
+          {!activeImport && (
+            <Text variant="footnote" color="secondary" selectable>
+              {t("flows.onboarding.importHow")}
+            </Text>
+          )}
         </View>
       )}
 
@@ -1389,6 +1435,7 @@ function CategoryRow({
   onToggle,
   onRetry,
   lang,
+  importing,
 }: {
   row: ReturnType<typeof installCategories>[number];
   first: boolean;
@@ -1397,13 +1444,15 @@ function CategoryRow({
   onToggle: () => void;
   onRetry: (asset: CatalogModel) => void;
   lang: string;
+  /** Offline build: bytes arrive by import, so a moving row reads "Importing". */
+  importing?: boolean;
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
   const name = t(`flows.onboarding.category.${row.category}`);
   const failedItem = row.items.find((i) => i.state.kind === "failed");
   const reason = failedItem && failedItem.state.kind === "failed" ? failureLines(failedItem.state, t, lang).cause : undefined;
-  const status = t(`flows.onboarding.categoryStatus.${row.status}`);
+  const status = t(`flows.onboarding.categoryStatus.${row.status === "moving" && importing ? "importing" : row.status}`);
   const pct = Math.floor(row.fraction * 100);
   const icon: IconName = row.status === "failed" ? "alert-octagon" : row.status === "moving" ? "download" : row.status === "ready" ? "check-circle" : CATEGORY_ICON[row.category];
   const iconColor =

@@ -5,6 +5,7 @@ import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Button, ListRow, Mascot, Screen, Section, Text, useToast } from "./components";
 import { useTokens } from "./theme";
+import { screenRhythm } from "./flows/rhythm";
 import { useCatalog } from "./flows/useCatalog";
 import { packName, topicPacks } from "./flows/adapters";
 import { formatBytes } from "./flows/format";
@@ -37,10 +38,10 @@ export function AboutScreen() {
   const build = __DEV__ ? t("flows.about.buildDev") : t("flows.about.buildRelease");
 
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <View style={{ alignItems: "center", gap: tokens.space.sm }}>
         <Mascot size="brand" />
-        <Text variant="title2" align="center">
+        <Text variant="title1" align="center">
           boar
         </Text>
         <Text variant="callout" color="secondary" align="center">
@@ -87,7 +88,7 @@ export function AboutScreen() {
 
       <Section title={t("flows.about.sourceTitle")} footer={t("flows.about.sourceFooter")}>
         <View style={{ padding: tokens.space.base, gap: tokens.space.md }}>
-          <Text variant="mono" selectable>
+          <Text variant="footnote" selectable>
             {REPO_URL}
           </Text>
           <Button

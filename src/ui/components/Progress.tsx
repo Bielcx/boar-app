@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
-import { useTheme } from "../theme";
+import { Tokens, useTheme } from "../theme";
 
 export interface ProgressProps {
   /** 0..1. Omit for indeterminate. */
@@ -10,11 +10,18 @@ export interface ProgressProps {
   label: string;
   tone?: "accent" | "field" | "danger";
   height?: number;
+  /** Draw with these tokens instead of the user's theme (the boot splash is always dark Fogueira). */
+  tokens?: Tokens;
 }
 
 /** Linear progress. Determinate when `value` is set; otherwise an indeterminate sweep (static under reduce motion). */
-export function Progress({ value, valueText, label, tone = "accent", height = 10 }: ProgressProps) {
-  const { tokens: t, reduceMotion } = useTheme();
+export function Progress({ value, valueText, label, tone = "accent", height = 10, tokens }: ProgressProps) {
+  const theme = useTheme();
+  const t = tokens ?? theme.tokens;
+  const reduceMotion = theme.reduceMotion;
+  // The sweep travels the bar's own width, so any width shows it on most frames (a fixed -160..400
+  // px left a 140 pt bar empty ~65% of the time; Loom).
+  const [width, setWidth] = useState(0);
   const sweep = useRef(new Animated.Value(0)).current;
   const indeterminate = value === undefined;
   const fill = tone === "danger" ? t.color.status.danger.solid : tone === "field" ? t.color.field.solid : t.color.accent.solid;
@@ -36,6 +43,7 @@ export function Progress({ value, valueText, label, tone = "accent", height = 10
       accessibilityLabel={label}
       accessibilityState={{ busy: indeterminate }}
       accessibilityValue={indeterminate ? { text: valueText } : { min: 0, max: 100, now: pct, text: valueText ?? `${pct}%` }}
+      onLayout={indeterminate ? (e) => setWidth(e.nativeEvent.layout.width) : undefined}
       style={{ height, borderRadius: height, backgroundColor: t.color.bg.raised, overflow: indeterminate ? "hidden" : "visible" }}
     >
       {indeterminate ? (
@@ -46,7 +54,8 @@ export function Progress({ value, valueText, label, tone = "accent", height = 10
             borderRadius: height,
             backgroundColor: fill,
             opacity: reduceMotion ? 0.5 : 1,
-            transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-160, 400] }) }],
+            ...(tone === "accent" ? { boxShadow: `0px 0px 14px rgba(${t.color.glow}, 0.6)` } : null),
+            transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-0.4 * width, width] }) }],
           }}
         />
       ) : (

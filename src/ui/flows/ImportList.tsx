@@ -24,6 +24,8 @@ interface Props {
   primary?: boolean;
   /** The pick button lives elsewhere (the setup's footer CTA); this lists the files only. */
   hidePick?: boolean;
+  /** The file being checked is shown elsewhere (the setup's hero): list only finished and refused ones. */
+  hideActive?: boolean;
 }
 
 /**
@@ -31,7 +33,7 @@ interface Props {
  * verified as a catalog item, or why it was refused. Refusals stay on
  * screen with the file name until the next pick (Prism F8).
  */
-export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick }: Props) {
+export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick, hideActive }: Props) {
   const { t } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
@@ -68,7 +70,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
   }, [imports, announce, t]);
   return (
     <View style={{ gap: tokens.space.md }}>
-      {imports.map((f) => {
+      {imports.filter((f) => !(hideActive && f.status === "importing")).map((f) => {
         const label = labelFor(f.assetId);
         return (
           <View key={f.name} style={{ gap: tokens.space.xs }}>
@@ -116,7 +118,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
           </View>
         );
       })}
-      {busy && onCancel && (
+      {busy && onCancel && !hideActive && (
         <Button
           variant="outline"
           label={t("common.cancel")}

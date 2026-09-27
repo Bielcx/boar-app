@@ -107,7 +107,7 @@ vi.mock("./fileHash", () => ({
   },
 }));
 
-import { ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
+import { clearVerifiedRecords, ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
 import { registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
 import * as manifestModule from "./manifest";
 import { AssetIntegrityError, DownloadError } from "./integrity";
@@ -241,6 +241,16 @@ describe("statusOf verified flag", () => {
     expect(await mm.verifyChecksum(a)).toBe(true);
     expect((await mm.statusOf(a)).checksumOk).toBe(true);
     put(DEST, Buffer.from("pretend this is a GGUF fil3")); // same size, new mtime
+    expect((await mm.statusOf(a)).checksumOk).toBeNull();
+  });
+  it("is forgotten by Erase everything, on disk and in memory, even for a file that is still there", async () => {
+    const a = asset();
+    const mm = new ModelManager([a]);
+    put(DEST, body);
+    expect(await mm.verifyChecksum(a)).toBe(true);
+    expect([...files.keys()].some((k) => k.endsWith("integrity.json"))).toBe(true);
+    await clearVerifiedRecords();
+    expect([...files.keys()].some((k) => k.endsWith("integrity.json"))).toBe(false);
     expect((await mm.statusOf(a)).checksumOk).toBeNull();
   });
 });

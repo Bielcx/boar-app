@@ -17,7 +17,7 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
   return (
     <View style={[{ gap: t.space.sm }, style]} {...rest}>
       {title && (
-        <Text variant="label" color="secondary" header style={{ paddingHorizontal: t.space.base }}>
+        <Text variant="label" color="secondary" header style={{ paddingHorizontal: t.space.md + t.space.xxs }}>
           {title}
         </Text>
       )}
@@ -40,7 +40,7 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
                   style={{
                     position: "absolute",
                     top: 0,
-                    left: t.space.base,
+                    left: t.space.md + t.space.xxs,
                     right: 0,
                     height: t.size.hairline,
                     backgroundColor: t.color.line.hairline,
@@ -55,7 +55,7 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
         items
       )}
       {footer && (
-        <Text variant="footnote" color="secondary" style={{ paddingHorizontal: t.space.base }}>
+        <Text variant="footnote" color="secondary" style={{ paddingHorizontal: t.space.md + t.space.xxs }}>
           {footer}
         </Text>
       )}
