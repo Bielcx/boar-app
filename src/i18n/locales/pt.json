@@ -737,7 +737,8 @@
       "stoppedListening": "Parou de ouvir",
       "placesFound_one": "{{count}} lugar encontrado",
       "placesFound_other": "{{count}} lugares encontrados",
-      "placesFound_zero": "Nenhum lugar encontrado"
+      "placesFound_zero": "Nenhum lugar encontrado",
+      "locating": "Procurando sua localização. Você também pode digitar a cidade."
     },
     "snippet": {
       "fromSource": "Da fonte",
@@ -978,7 +979,7 @@
       "cityPlaceholder": "ex.: Berlim",
       "dataFrom": "dados de {{date}}",
       "openSettings": "Abrir ajustes",
-      "coveredCities": "Cidades no seu mapa offline",
+      "coveredCities": "Áreas no seu mapa offline",
       "searchCityHint": "Mostra lugares em {{city}}",
       "staleTitle": "Sua última localização foi em {{city}}, há {{ago}}",
       "staleBody": "Sem posição recente agora. Use essa cidade ou escolha onde você está.",
@@ -991,7 +992,9 @@
         "h_other": "{{count}} h",
         "d_one": "{{count}} dia",
         "d_other": "{{count}} dias"
-      }
+      },
+      "locating": "Procurando sua localização…",
+      "locatingBody": "Ou digite a cidade:"
     },
     "assistantName": "boar",
     "suggestionTopics": {

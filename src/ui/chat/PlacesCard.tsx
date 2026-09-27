@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
+  ActivityIndicator,
   findNodeHandle,
   Linking,
   Pressable,
@@ -345,10 +346,13 @@ function CityPrompt({
   onCity,
   onUseLocation,
   focus,
+  locating,
 }: {
   locationStatus?: string;
   onCity: (city: string) => void;
   onUseLocation?: () => void;
+  /** Still waiting for the GPS: say so with a spinner, keep the city field ready (no keyboard pops up). */
+  locating?: boolean;
   /** Just asked: move the keyboard to the city field (so the city isn't typed into the composer as a new question) and the reader to the title. */
   focus?: boolean;
 }) {
@@ -389,13 +393,27 @@ function CityPrompt({
         />
       )}
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}
-      <Text ref={titleRef} variant="headline" header>
-        {tr("chat.places.whichCity")}
-      </Text>
+      {locating ? (
+        <View style={{ gap: t.space.xs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+            <ActivityIndicator size="small" color={t.color.field.solid} />
+            <Text ref={titleRef} variant="headline" header style={{ flex: 1 }}>
+              {tr("chat.places.locating")}
+            </Text>
+          </View>
+          <Text variant="footnote" color="secondary">
+            {tr("chat.places.locatingBody")}
+          </Text>
+        </View>
+      ) : (
+        <Text ref={titleRef} variant="headline" header>
+          {tr("chat.places.whichCity")}
+        </Text>
+      )}
       {/* The title names the field; no second visible "City" label. */}
       <TextField
         ref={inputRef}
-        accessibilityLabel={tr("chat.places.whichCity")}
+        accessibilityLabel={tr(locating ? "chat.places.typeCity" : "chat.places.whichCity")}
         placeholder={tr("chat.places.cityPlaceholder")}
         value={city}
         onChangeText={setCity}
@@ -411,7 +429,7 @@ function CityPrompt({
           accessibilityHint={city.trim() ? undefined : tr("chat.places.searchHint")}
           onPress={submit}
         />
-        {onUseLocation && showUseLocation(true, locationStatus) && (
+        {!locating && onUseLocation && showUseLocation(true, locationStatus) && (
           <Button label={tr("chat.places.useLocation")} variant="secondary" icon="navigation" onPress={onUseLocation} />
         )}
       </View>
@@ -562,4 +580,13 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
       <PlaceSheet place={openPlace} now={now} locale={locale} onClose={() => setOpenPlace(null)} onOpenSource={onOpenSource} />
     </View>
   );
+}
+
+/**
+ * "Finding your location…" while the engine waits for the GPS (up to ~10 s, Boar GPS-1):
+ * the city field, Search and the offline map's areas are usable from the start, so
+ * nobody has to wait. The list replaces this as soon as a fix arrives.
+ */
+export function LocatingPrompt({ onCity }: { onCity: (city: string) => void }) {
+  return <CityPrompt locating onCity={onCity} />;
 }

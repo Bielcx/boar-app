@@ -43,6 +43,9 @@ export function phaseAnnouncement(
   switch (phase) {
     case "searching":
       return { message: t("chat.announce.searching") };
+    case "locating":
+      // Once, when the wait starts: what is happening and that the city can be typed.
+      return { message: t("chat.announce.locating") };
     case "generating":
       return { message: t("chat.announce.answering") };
     case "done":
