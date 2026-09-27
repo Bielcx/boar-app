@@ -23,6 +23,10 @@ describe("englishSearchTerms", () => {
     expect(englishSearchTerms("Meu braço está sangrando muito")).toBe("bleeding");
   });
 
+  it("Sextant RF-1: the plates of the PT suggestion", () => {
+    expect(englishSearchTerms("Por que os terremotos acontecem perto das bordas das placas?")).toBe("plate tectonics plate boundary earthquake");
+  });
+
   it("returns null when it knows no term", () => {
     expect(englishSearchTerms("Quem pintou a Mona Lisa?")).toBeNull();
   });

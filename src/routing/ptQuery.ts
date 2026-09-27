@@ -42,6 +42,8 @@ const PT_EN: Array<[RegExp, string]> = [
   [/ferida|ferimento|machucad[oa]|corte profundo/i, "wound"],
   [/febre/i, "fever"],
   [/alergia/i, "allergy"],
+  // Before "terremoto": the plates (Sextant RF-1, "…perto das bordas das placas?").
+  [/(bordas?|limites?|fronteiras?) (das|entre as) placas|placas? tect[ôo]nicas?|tect[ôo]nica de placas/i, "plate tectonics plate boundary"],
   [/terremoto|sismo|tremor de terra/i, "earthquake"],
   [/enchente|inunda[çc][ãa]o|alagamento/i, "flood"],
   [/furac[ãa]o|tuf[ãa]o|ciclone/i, "hurricane"],
