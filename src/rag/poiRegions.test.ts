@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { allAssets } from "../models/assetRegistry";
-import { POI_REGIONS, WORLD_PLACES, poiCatalogEntries, regionForPoint, regionsForTimeZone, worldPlacesEntry } from "./poiRegions";
+import { POI_REGIONS, WORLD_PLACES, WORLD_PLACES_ID, poiCatalogEntries, regionForPoint, regionsForTimeZone, tileEntry, worldPlacesEntry } from "./poiRegions";
 import { preparednessEntry } from "./preparedness";
 import { cryptoEntry } from "./cryptoPack";
 import { WIKI_EN_SHARDS, wikiEnEntries, wikivoyageEnEntry } from "./wikiEnPacks";
@@ -70,3 +70,14 @@ describe("English Wikipedia shards", () => {
     for (const e of entries) expect(e.sizeBytes).toBeGreaterThan(1e9), expect(e.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+describe("places packs require the gazetteer (PL-1)", () => {
+  it("lists it on every region and tile entry, not on the gazetteer itself", () => {
+    for (const e of poiCatalogEntries()) expect(e.requires).toEqual([WORLD_PLACES_ID]);
+    const tile = tileEntry({ id: "t-N41E012", sizeBytes: 1, sha256: "a".repeat(64), pois: 1, vegan: 0, osmDate: "2026-09-26" });
+    expect(tile.requires).toEqual([WORLD_PLACES_ID]);
+    expect(worldPlacesEntry().id).toBe(WORLD_PLACES_ID);
+    expect(worldPlacesEntry().requires).toBeUndefined();
+  });
+});
+

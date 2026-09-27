@@ -10,7 +10,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { PoiPack, cellRanges, coverageOf, distanceM, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PoiArea } from "./poiPack";
+import { PoiPack, cellRanges, cleanPlaceName, coverageOf, distanceM, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PoiArea } from "./poiPack";
 import type { PackSql } from "./wikiPack";
 import { tileEntry } from "./poiRegions";
 
@@ -224,3 +224,24 @@ describe("tile index in the gazetteer", () => {
     expect(pending.sourceUrl).toBe("");
   });
 });
+
+describe("place names as questions write them (PL-1)", () => {
+  it("strips punctuation and a leading preposition, and splits off a country", () => {
+    expect(cleanPlaceName("Berlin?")).toEqual({ name: "Berlin" });
+    expect(cleanPlaceName("in Berlin")).toEqual({ name: "Berlin" });
+    expect(cleanPlaceName("em São Paulo.")).toEqual({ name: "São Paulo" });
+    expect(cleanPlaceName("Berlin, Germany")).toEqual({ name: "Berlin", country: "Germany" });
+  });
+
+  it("resolves those forms in the gazetteer, the given country first", async () => {
+    expect((await resolvePlaceIn(places, "Testville?"))?.lat).toBe(10);
+    expect((await resolvePlaceIn(places, "in Testville"))?.lat).toBe(10);
+    // Two places named Testville: the smaller one when its country is named.
+    expect((await resolvePlaceIn(places, "Testville, Otherland"))?.lat).toBe(50);
+  });
+
+  it("reads a region pack's biggest places, for resolving without the gazetteer", () => {
+    expect(pack.meta.cities.map((c) => c.name)).toContain("Testville");
+  });
+});
+
