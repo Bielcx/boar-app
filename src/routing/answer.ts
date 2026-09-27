@@ -28,6 +28,7 @@ import {
   healthExtract,
   healthSourceIndex,
   coreProcedure,
+  excerptRules,
   emergencyLine,
   healthTopicTerms,
   onHealthTopic,
@@ -668,9 +669,9 @@ export function createAnswerer(deps: AnswerDeps) {
         // Score on each source's full text: compression keeps the sentences matching the question
         // words, which can leave out a first-aid text's instructions.
         const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
-        const procedure = coreProcedure(healthTopicTerms(req.query, english));
-        const i = healthSourceIndex(fullSources, procedure);
-        const text = healthExtract(fullSources[i], i + 1, pt, procedure);
+        const rules = excerptRules(req.query, healthTopicTerms(req.query, english));
+        const i = healthSourceIndex(fullSources, rules.procedure ?? null);
+        const text = healthExtract(fullSources[i], i + 1, pt, rules);
         markVisible();
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
@@ -801,9 +802,9 @@ export function createAnswerer(deps: AnswerDeps) {
             if (risky && sources.length) {
               reasonCodes.push(`grounding:health-unsafe-${risky}`);
               const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
-              const procedure = coreProcedure(healthTopicTerms(req.query, english));
-              const i = healthSourceIndex(fullSources, procedure);
-              text = healthExtract(fullSources[i], i + 1, pt, procedure);
+              const rules = excerptRules(req.query, healthTopicTerms(req.query, english));
+              const i = healthSourceIndex(fullSources, rules.procedure ?? null);
+              text = healthExtract(fullSources[i], i + 1, pt, rules);
             } else if (!/emergency number|emerg[êe]ncia/i.test(text)) {
               // A model-written health answer ends with the emergency line too.
               text = `${text.trim()}\n\n${emergencyLine(pt)}`;

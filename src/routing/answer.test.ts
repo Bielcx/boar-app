@@ -243,7 +243,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f.retrieved = [lead, treatment];
     const { result } = await collect("How do I stop a nosebleed?");
     // Starts at the core procedure (pinch, lean forward), then the emergency line.
-    expect(result.text).toMatch(/^From the offline source:\nTreatment: Pinch the soft part of the nose and lean forward for 10 to 15 minutes\. \[\d\]\n\nIn an emergency, call your local emergency number/);
+    expect(result.text).toMatch(/^From the offline source:\nTreatment: (Most anterior nosebleeds .*)?Pinch the soft part of the nose and lean forward for 10 to 15 minutes\. \[\d\]\n\nIn an emergency, call your local emergency number/);
   });
 
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
@@ -432,6 +432,27 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
       expect(result.text, q).toMatch(/emergency number|serviço de emergência/);
       expect(f.generations, q).toHaveLength(0);
     }
+  });
+
+  it("Boar decision A (real Ready.gov text): a burn excerpt stops before any ointment/cream/oil/aloe line", async () => {
+    const READY_GOV_BURNS = "How to Treat Minor Burns: - Remove all clothing, diapers, jewelry and metal from the burned area. These can hide underlying burns and retain heat, which can increase skin damage.\n- Use cool water, not cold water or ice. The extreme cold from ice can cause additional injury.\n- If possible, particularly if the burn is caused by chemicals, hold the burned skin under cool running water for 10 to 15 minutes until it is less painful. Use a sink, shower or garden hose.\n- If you don\u2019t have access to cool running water, put a cool, clean wet cloth on the burn, or soak the burn in a cool water bath for five minutes.\n- Clean the burn gently with soap and water.\n- Do not break blisters. An opened blister can get infected.\n- You may put a thin layer of ointment, such as petroleum jelly or aloe vera on the burn. The ointment does not need to have antibiotics in it. Some antibiotic ointments can cause an allergic reaction. Do not use cream, lotion, oil, cortisone, butter, or egg white.\n- You can cover the burn with a sterile non-stick gauze lightly taped or wrapped over it. But don\u2019t use one that can shed fibers, because they can get caught in the burn. Change the dressing once a day.";
+    for (const q of ["My child spilled boiling water on their arm. What do I do?", "Meu filho derramou água fervendo no braço. O que eu faço?", "How do I treat a burn?"]) {
+      f = makeFake();
+      f.retrieved = [{ ...chunk("r", "US government: Preventing and Treating Burns (Ready.gov)", READY_GOV_BURNS), action: true }] as any;
+      const { result } = await collect(q);
+      expect(result.text, q).toMatch(/Remove all clothing, diapers, jewelry and metal/);
+      expect(result.text, q).toMatch(/cool running water for 10 to 15 minutes/);
+      expect(result.text, q).toMatch(/Do not break blisters/);
+      expect(result.text, q).not.toMatch(/ointment|petroleum jelly|aloe|butter|\blotion\b/i);
+      expect(result.text, q).toMatch(/emergency number|serviço de emergência/);
+    }
+  });
+
+  it("for a child or boiling water, the source's 'seek medical care' line is kept even past the cut", async () => {
+    f.retrieved = [{ ...chunk("b", "Burn", "Management: Cool the burn under cool running water for 20 minutes. You may apply aloe vera gel. Seek medical care for any burn on a child."), action: true }] as any;
+    const { result } = await collect("My child spilled boiling water on their arm. What do I do?");
+    expect(result.text).toMatch(/Cool the burn under cool running water for 20 minutes\. Seek medical care for any burn on a child\./);
+    expect(result.text).not.toMatch(/aloe/i);
   });
 
   it("gate 2329dc0: a disaster answer never cites an article about one event (Marash, Kamchatka)", async () => {

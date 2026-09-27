@@ -528,20 +528,56 @@ export function emergencyLine(pt: boolean): string {
     : "In an emergency, call your local emergency number (911 in the US, 112 in Europe).";
 }
 
-export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean, procedure: RegExp | null = null): string {
+// Burns (Boar, decision A): the excerpt stops before any line about ointments, creams, oils,
+// butter or aloe: the core procedure is cooling with running water; the rest stays in the source.
+const BURN_REMEDY = /\b(ointments?|creams?|lotions?|oils?|butter|aloe( vera)?|petroleum jelly|egg white|toothpaste)\b|pomada|\bcreme\b|[óo]leo|manteiga|babosa|pasta de dente/i;
+/** A child or boiling water: the excerpt keeps the source's "seek medical care" line if it has one. */
+const SEEK_CARE = /\b(seek|get) (medical|emergency) (care|attention|help|treatment)|\bsee a (doctor|healthcare)|\bcall (911|112|999|your doctor|a doctor)|\bemergency (room|department)|procure (atendimento|um m[ée]dico)/i;
+const HIGH_RISK_BURN = /\b(child|children|kid|baby|infant|toddler|son|daughter|boiling)\b|crian[çc]a|beb[êe]|filh[oa]|fervend|fervent/i;
+
+export interface ExcerptRules {
+  /** Core procedure: the excerpt starts at it when the steps before it don't fit. */
+  procedure?: RegExp | null;
+  /** Stop before the first sentence that matches (burn remedies). */
+  cutAt?: RegExp | null;
+  /** Append the source's sentence that matches, if the excerpt lacks it (seek care). */
+  mustInclude?: RegExp | null;
+}
+
+/** Excerpt rules for a health question and its topic terms. */
+export function excerptRules(query: string, topic: Iterable<string>): ExcerptRules {
+  const burn = [...topic].some((t) => /^(burn|scald|queimad)/.test(t));
+  return {
+    procedure: coreProcedure(topic),
+    cutAt: burn ? BURN_REMEDY : null,
+    mustInclude: burn && HIGH_RISK_BURN.test(query) ? SEEK_CARE : null,
+  };
+}
+
+export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean, rulesOrProcedure: ExcerptRules | RegExp | null = null): string {
+  const rules: ExcerptRules = rulesOrProcedure instanceof RegExp || rulesOrProcedure === null ? { procedure: rulesOrProcedure } : rulesOrProcedure;
+  const procedure = rules.procedure ?? null;
   // Steps first: start at the first sentence that tells what to do, keeping the section heading
   // ("Treatment > First aid: Snakebite first aid recommendations vary..." opens with background).
   const colon = source.body.indexOf(":");
   const heading = colon > 0 && colon <= 120 ? source.body.slice(0, colon) : "";
   const sentences = splitSentences(heading ? source.body.slice(colon + 1).replace(/^[:\s]+/, "") : source.body);
-  // Start at the core procedure when the passage has it ("Drop, Cover and Hold..."), else at the first step.
+  // Start at the first step; jump to the core procedure ("Drop, Cover and Hold...") only when it
+  // wouldn't fit from there (a list's earlier steps, "Remove clothing and jewelry", are kept).
   const core = procedure ? sentences.findIndex((x) => procedure.test(x)) : -1;
-  const firstStep = core >= 0 ? core : sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
-  const from = firstStep > 0 ? sentences.slice(firstStep) : sentences;
+  const action = sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
+  const firstAction = action >= 0 ? action : 0;
+  const reach = (from: number, to: number) => sentences.slice(from, to + 1).join(" ").length + heading.length + 2;
+  const start = core >= 0 && (core < firstAction || reach(firstAction, core) > HEALTH_EXTRACT_MAX_CHARS) ? core : firstAction;
   let text = heading ? `${heading}:` : "";
-  for (const s of from) {
+  for (const s of sentences.slice(start)) {
+    if (rules.cutAt?.test(s)) break;
     if (text.length > heading.length + 1 && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
     text = text ? `${text} ${s}` : s;
+  }
+  if (rules.mustInclude && !rules.mustInclude.test(text)) {
+    const care = sentences.find((x) => rules.mustInclude!.test(x) && !rules.cutAt?.test(x));
+    if (care) text = `${text} ${care}`;
   }
   // Steps = an instructions-like source AND at least one sentence that tells what to do
   // (a heading plus an image caption, "During an Earthquake: Image", is not an answer).
