@@ -1055,7 +1055,9 @@
         "d_other": "{{count}} days"
       },
       "locating": "Finding your location…",
-      "locatingBody": "Or type the city:"
+      "locatingBody": "Or type the city:",
+      "byDietCity": "Sorted by diet tag, then distance from the centre",
+      "byDistanceCity": "Sorted by distance from the centre"
     },
     "assistantName": "boar",
     "suggestionTopics": {
