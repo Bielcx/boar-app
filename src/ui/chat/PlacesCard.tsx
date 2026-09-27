@@ -96,8 +96,8 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
             <Text variant="footnote" color="secondary">
               {tags}
               {tags && state ? " · " : ""}
-              {/* Neutral either way: the words carry it, and amber here competed with the OSM credit (Iris). */}
-              {state && <Text variant="footnote" color="secondary">{openStateLabel(state, tr)}</Text>}
+              {/* Closed stands out at a glance (geo-result-card G5); the words carry it too. */}
+              {state && <Text variant="footnote" color={state.open ? "secondary" : "warning"}>{openStateLabel(state, tr)}</Text>}
             </Text>
           )}
           {!distance && place.address && (
