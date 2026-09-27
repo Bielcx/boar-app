@@ -90,8 +90,8 @@ export function SettingsLengthScreen() {
           {MAX_TOKENS_OPTIONS.map((n) => (
             <RadioRow
               key={n}
-              title={t("flows.settings.tokens", { count: n })}
-              subtitle={t(`flows.length.hint${n}`)}
+              title={t(`flows.length.hint${n}`)}
+              subtitle={t("flows.length.words", { count: n, words: Math.round(n * 0.75) })}
               selected={selected === n}
               onPress={() => {
                 setSelected(n);

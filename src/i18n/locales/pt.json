@@ -109,7 +109,7 @@
   "personalities": {
     "succinct": {
       "label": "Sucinto e Direto",
-      "description": "Mais rápido — 2–3 parágrafos curtos ou tópicos, sem introdução. Padrão para celular."
+      "description": "Mais rápido: 2–3 parágrafos curtos ou tópicos. Padrão."
     },
     "detailed": {
       "label": "Completo e Detalhado",
@@ -121,7 +121,7 @@
     },
     "custom": {
       "label": "Personalizado",
-      "description": "Escreva seu próprio prompt de sistema."
+      "description": "Escreva suas próprias instruções."
     }
   },
   "evaluation": {
@@ -171,7 +171,7 @@
     "deleteChatA11y": "Apagar conversa: {{title}}",
     "deleteChatTitle": "Apagar esta conversa?",
     "deleteChatBody": "\"{{title}}\" será removida deste aparelho. Não dá para desfazer.",
-    "deleteChatConfirm": "Apagar conversa",
+    "deleteChatConfirm": "Apagar",
     "chatDeleted": "Conversa apagada",
     "activeSession": "atual",
     "setup": "Configuração"
@@ -233,7 +233,7 @@
       "length": "Tamanho máximo",
       "tokens_one": "{{count}} token",
       "tokens_other": "{{count}} tokens",
-      "quickFirst": "Resposta rápida primeiro",
+      "quickFirst": "Resposta rápida",
       "alwaysComplete": "Sempre resposta completa",
       "answerMode": {
         "quickModel": "Mostra um trecho das suas fontes na hora. Se ele responde, para ali; senão, o modelo escolhido responde. Você pode pedir a resposta completa.",
@@ -245,8 +245,8 @@
       "models": "Modelos",
       "knowledge": "Conhecimento",
       "history": "Histórico de conversas",
-      "keepLast_one": "Manter a última {{count}}",
-      "keepLast_other": "Manter as últimas {{count}}",
+      "keepLast_one": "Última {{count}}",
+      "keepLast_other": "Últimas {{count}}",
       "keepAll": "Manter todas",
       "appearance": "Aparência",
       "theme": "Tema",
@@ -277,7 +277,7 @@
       "eraseConfirm": "Apagar tudo",
       "saveFailed": "Não foi possível salvar essa mudança. Tente de novo.",
       "resetFailed": "Não foi possível apagar os dados: {{error}}",
-      "quickFirstHint": "Mostra um trecho das suas fontes em menos de um segundo.",
+      "quickFirstHint": "Mostra um trecho das fontes em até 1 segundo.",
       "alwaysCompleteHint": "Pesquisa cada parte da pergunta. Mais lento.",
       "palette": "Cores",
       "paletteFogueira": "Fogueira",
@@ -293,7 +293,8 @@
       "hint256": "Um parágrafo curto",
       "hint512": "Alguns parágrafos",
       "hint1024": "Uma página",
-      "hint2048": "Uma resposta longa, mais lenta"
+      "hint2048": "Uma resposta longa, mais lenta",
+      "words": "Até ~{{words}} palavras"
     },
     "history": {
       "autoTitles": "Dar nome às conversas automaticamente",
@@ -305,7 +306,7 @@
       "turns_other": "{{count}} mensagens",
       "keep": "Conversas guardadas",
       "keepFooter": "As mais antigas são apagadas quando passar do limite.",
-      "clear": "Apagar todas as conversas",
+      "clear": "Apagar conversas",
       "clearTitle": "Apagar todas as conversas?",
       "clearBody": "Todas as conversas deste celular serão apagadas. Não dá para desfazer.",
       "cleared": "Conversas apagadas"
@@ -316,14 +317,14 @@
     "row": {
       "copying": "Copiando",
       "downloading": "Baixando",
-      "verifying": "Conferindo o arquivo",
+      "verifying": "Conferindo",
       "loading": "Carregando",
       "failed": "Falhou",
       "failedAnnounce": "{{name}} falhou. Dá para tentar de novo.",
-      "verified": "Arquivo conferido",
+      "verified": "Conferido",
       "importChecking": "Conferindo {{name}}",
       "importOther": "{{name}} é outro item, não este. Escolha o arquivo deste item.",
-      "unverified": "Instalado, sem verificação",
+      "unverified": "Não conferido",
       "active": "Ativo",
       "usedFor": "Usado para: {{roles}}",
       "role": {
@@ -384,7 +385,7 @@
       "mayClose": "Pode fechar o app",
       "mayCloseWhy": "grande demais para a memória deste celular",
       "didNotOpen": "Não abriu aqui",
-      "wontFitHere": "Grande demais para este celular",
+      "wontFitHere": "Grande demais",
       "wontFitWhy": "precisa de mais memória do que este celular tem",
       "wontFitNumbers": "precisa de ~{{need}} de memória · este celular tem {{total}}",
       "didNotOpenBefore": "O BOAR fechou da última vez que carregou o ",
@@ -498,7 +499,7 @@
       "lastAnswer": "Última resposta",
       "ttft": "Começou a responder em",
       "speed": "Velocidade de escrita",
-      "rate": "{{rate}} tokens/s",
+      "rate": "~{{words}} palavras/s",
       "total": "Tempo total",
       "load": "carga",
       "usedSources": "usou suas fontes",
@@ -541,7 +542,9 @@
         "switched": "modelo trocado",
         "resident": "modelo já pronto",
         "unknown": ""
-      }
+      },
+      "startLabel": "Início",
+      "memoryLabel": "Memória"
     },
     "about": {
       "tagline": "Pesquisa offline no seu celular",

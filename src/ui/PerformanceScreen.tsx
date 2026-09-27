@@ -19,6 +19,9 @@ import { getAppPeakRssBytes } from "../services/telemetry";
 import { PerfBand, PERF_BANDS_PROVISIONAL, recordTokPerSec, summarizeRecent, tokPerSecBand, ttftBand } from "./flows/perfBands";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatRam, formatRate, formatSeconds } from "./flows/format";
+
+/** Rough English/Portuguese average; the screen shows words, not tokens (copy-wrap: no jargon). */
+const WORDS_PER_TOKEN = 0.75;
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -150,7 +153,7 @@ export function PerformanceScreen() {
               {lastRate != null && (
                 <Metric
                   label={t("flows.performance.speed")}
-                  value={t("flows.performance.rate", { rate: formatRate(lastRate, lang) })}
+                  value={t("flows.performance.rate", { words: formatRate(lastRate * WORDS_PER_TOKEN, lang) })}
                   band={tokPerSecBand(lastRate)}
                 />
               )}
@@ -178,7 +181,7 @@ export function PerformanceScreen() {
             {typical.tokPerSec != null && (
               <Metric
                 label={t("flows.performance.speed")}
-                value={t("flows.performance.rate", { rate: formatRate(typical.tokPerSec, lang) })}
+                value={t("flows.performance.rate", { words: formatRate(typical.tokPerSec * WORDS_PER_TOKEN, lang) })}
                 band={tokPerSecBand(typical.tokPerSec)}
               />
             )}
@@ -283,10 +286,13 @@ export function PerformanceLogsScreen() {
         {records.map((r) => {
           const rate = recordTokPerSec(r);
           const parts = [
-            r.ttftMs != null && `TTFT ${formatSeconds(r.ttftMs, lang)}`,
-            rate != null && t("flows.performance.rate", { rate: formatRate(rate, lang) }),
+            r.ttftMs != null && `${t("flows.performance.startLabel")} ${formatSeconds(r.ttftMs, lang)}`,
+            rate != null && t("flows.performance.rate", { words: formatRate(rate * WORDS_PER_TOKEN, lang) }),
             r.totalLatencyMs != null && `${t("flows.performance.total")} ${formatSeconds(r.totalLatencyMs, lang)}`,
-            r.peakRssBytes != null && `RSS ${formatBytes(r.peakRssBytes, lang)}`,
+          ].filter(Boolean);
+          // Copy-wrap: memory and load go on their own line so the first one stays short.
+          const extra = [
+            r.peakRssBytes != null && `${t("flows.performance.memoryLabel")} ${formatBytes(r.peakRssBytes, lang)}`,
             r.modelLoadMs != null && `${t("flows.performance.load")} ${formatSeconds(r.modelLoadMs, lang)}`,
           ].filter(Boolean);
           return (
@@ -294,7 +300,7 @@ export function PerformanceLogsScreen() {
               key={r.id}
               title={r.modelId ?? t("flows.performance.noModel")}
               value={t(`flows.performance.outcome.${r.outcome ?? "success"}`)}
-              subtitle={[parts.join(" · "), [r.taskType, t(residencyKey(r)), new Date(r.createdAt).toLocaleString(lang)].filter(Boolean).join(" · ")].join("\n")}
+              subtitle={[parts.join(" · "), extra.join(" · "), [r.taskType, t(residencyKey(r)), new Date(r.createdAt).toLocaleString(lang)].filter(Boolean).join(" · ")].filter(Boolean).join("\n")}
             />
           );
         })}
