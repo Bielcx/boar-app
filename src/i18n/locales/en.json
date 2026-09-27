@@ -6,7 +6,9 @@
     "back": "Back",
     "remove": "Remove",
     "retry": "Retry",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "yes": "Yes",
+    "no": "No"
   },
   "time": {
     "justNow": "just now",
@@ -18,69 +20,6 @@
     "subtitle": "Adaptive Local Intelligence",
     "newChat": "New Research Session",
     "recentSessions": "RECENT SESSIONS"
-  },
-  "modelCatalogScreen": {
-    "title": "MODEL CATALOG",
-    "subtitle": "Verified Local Offline Weights",
-    "filters": {
-      "all": "ALL",
-      "llm": "LLM",
-      "corpus": "CORPUS",
-      "community": "COMMUNITY"
-    },
-    "removedToast": "Removed \"{{label}}\"",
-    "activeModelToast": "Active {{kind}} model set to \"{{label}}\"",
-    "browserSectionTitle": "HUGGING FACE REPOSITORY SEARCH"
-  },
-  "modelBrowser": {
-    "hint": "Search Hugging Face for other GGUF models. Not vetted by BOAR — check RAM fit and licensing yourself on the model's page before downloading.",
-    "searchPlaceholder": "e.g. llama 3.2 3b instruct",
-    "searchFailedTitle": "Search failed",
-    "loadFilesFailedTitle": "Couldn't load files",
-    "addedTitle": "Added",
-    "addedMessage": "\"{{label}}\" was added to the model list above — download it from there.",
-    "addFailedTitle": "Couldn't add model",
-    "downloadsLikes": "{{downloads}} downloads · {{likes}} likes",
-    "noChecksum": "no checksum available",
-    "adding": "Adding…",
-    "addButton": "➕ Add",
-    "noGgufFiles": "No .gguf files found in this repo."
-  },
-  "catalogItemCard": {
-    "calculating": "Calculating…",
-    "removeFromListTitle": "Remove from list?",
-    "removeFromListMessage": "This model isn't downloaded. It will be removed from your list; you can add it again from the Hugging Face search.",
-    "removeCorpusTitle": "Remove Knowledge Base Pack?",
-    "removeModelTitle": "Remove Model Weights?",
-    "removeCorpusMessage": "This deletes the local dataset and frees {{size}}. Its topics will not be searchable offline until re-downloaded.",
-    "removeModelMessage": "This deletes the local weights file and frees {{size}}.",
-    "removeAssetButton": "Remove Asset",
-    "kind": {
-      "llm": "LLM",
-      "embedding": "EMBEDDING",
-      "corpus": "CORPUS"
-    },
-    "default": "DEFAULT",
-    "compat": {
-      "green": "Runs Great on this device",
-      "yellow": "High RAM / 12GB Required",
-      "red": "Incompatible (Exceeds Device RAM)"
-    },
-    "downloadingAsset": "DOWNLOADING ASSET",
-    "eta": "ETA: {{eta}}",
-    "retryDownload": "🔄 Retry Download",
-    "downloadAsset": "📥 Download Asset",
-    "loadingModel": "Loading model…",
-    "selectUse": "🔘 Select & Use",
-    "indexedNote": "Indexed in offline knowledge base",
-    "activeNote": "Active inference model",
-    "deleteAccessibility": "Delete model asset",
-    "badge": {
-      "downloading": "DOWNLOADING",
-      "notOnDisk": "NOT ON DISK",
-      "active": "ACTIVE",
-      "cached": "CACHED"
-    }
   },
   "modelLoadErrorCard": {
     "corrupt": {
@@ -107,202 +46,10 @@
     "settings": "Settings",
     "setupWizard": "Setup Wizard"
   },
-  "usageStatsScreen": {
-    "back": "‹ BACK",
-    "title": "SYSTEM TELEMETRY",
-    "subtitle": "Hardware & Compliance Audit",
-    "live": "LIVE"
-  },
-  "systemMonitor": {
-    "title": "LIVE COMPLIANCE GAUGES",
-    "diskLabel": "Disk Storage (Cap: 50GB)",
-    "ramLabel": "Process RSS Memory (Cap: 12GB)",
-    "exceeded": "⚠️ EXCEEDED",
-    "noRssNote": "Process RSS readout requires Android native dev-client build."
-  },
   "drawerFooterStats": {
     "ram": "RAM",
     "disk": "DISK",
     "lastQuery": "{{rate}} tok/s last query"
-  },
-  "modelSetupScreen": {
-    "header": {
-      "title": "SETTINGS",
-      "subtitle": "BOAR — Adaptive Local Intelligence"
-    },
-    "sections": {
-      "tone": "Assistant Tone & Response Style",
-      "models": "Reasoning Models",
-      "knowledgeBase": "Offline Knowledge Base (RAG)",
-      "memory": "Memory & Context Settings",
-      "telemetry": "Hardware Telemetry & Compliance",
-      "displayTheme": "Display & Theme",
-      "language": "Language",
-      "voice": "Voice Input Configuration",
-      "recovery": "System Recovery & Danger Zone"
-    },
-    "installedModels": "INSTALLED MODELS",
-    "discoverHfModels": "DISCOVER HUGGING FACE GGUF MODELS",
-    "toasts": {
-      "indexed": "Indexed \"{{name}}\" in offline knowledge base",
-      "removed": "Removed \"{{name}}\"",
-      "activeSet": "Active {{kind}} model set to \"{{name}}\"",
-      "loadFailed": "Couldn't load \"{{name}}\": {{error}}",
-      "resetFailed": "Reset failed: {{error}}"
-    },
-    "recovery": {
-      "wizardTitle": "SETUP WIZARD",
-      "wizardDesc": "Re-run the initial 3-step onboarding flow to re-scan device hardware or switch your base model tier.",
-      "wizardButton": "Relaunch Setup Wizard ➔",
-      "dangerBadge": "CRITICAL DANGER ZONE",
-      "dangerDesc": "Permanently wipes all downloaded GGUF weights, offline SQLite database indices, and conversation logs from this device.",
-      "dangerButton": "🚨 Purge All Data & Reset App"
-    },
-    "dangerModal": {
-      "title": "CONFIRM DESTRUCTIVE RESET",
-      "subtitle": "This action is immediate, permanent, and cannot be undone.",
-      "consequencesHeader": "THE FOLLOWING WILL BE REMOVED:",
-      "consequenceModels": "All downloaded GGUF model files (~2.3 GB+)",
-      "consequenceEmbeddings": "All offline SQLite document collections & embeddings",
-      "consequenceHistory": "All chat session history and generated summaries",
-      "confirmButton": "Purge All Data"
-    }
-  },
-  "setupWizard": {
-    "calculating": "Calculating…",
-    "estimating": "Estimating…",
-    "steps": {
-      "hardware": "HARDWARE",
-      "modelTier": "MODEL TIER",
-      "install": "INSTALL",
-      "indexing": "INDEXING"
-    },
-    "step1": {
-      "terminalTitle": "AIR-GAPPED FIELD TERMINAL",
-      "terminalText": "Designed for remote expeditions, crisis zones, and off-grid research. After this initial setup, BOAR operates 100% locally with zero network telemetry, no accounts, and no cloud dependencies.",
-      "hardwareTitle": "DEVICE HARDWARE VERIFICATION",
-      "deviceRam": "Device RAM",
-      "verified": "Verified",
-      "availableStorage": "Available Disk Storage",
-      "sufficient": "Sufficient",
-      "ramBudget": "RAM Budget",
-      "under12gb": "Under 12GB Limit",
-      "inferenceEngine": "Inference Engine",
-      "inferenceEngineValue": "ARM64 llama.rn (Offline)",
-      "verifiedBadge": "HARDWARE VERIFIED FOR LOCAL INFERENCE",
-      "selectTierButton": "Select Model Tier ➔"
-    },
-    "step2": {
-      "title": "SELECT OFFLINE MODEL TIER",
-      "subtitle": "Weights are downloaded once to local storage and executed via mmap.",
-      "recommended": "RECOMMENDED",
-      "runsGreat": "🟢 Runs Great",
-      "ramFootprint": "RAM: ~1.7 GB Working Set",
-      "installButton": "Install Weights & Index ➔",
-      "backButton": "‹ Back to Diagnostics"
-    },
-    "step3": {
-      "title": "OFFLINE CORE INITIALIZATION",
-      "subtitle": "Downloading the open-weights models and knowledge you chose. This is the only time BOAR uses the internet.",
-      "assetsCached": "ASSETS CACHED TO DISK",
-      "downloadingWeights": "DOWNLOADING WEIGHTS",
-      "eta": "ETA: {{eta}}",
-      "phaseModel": "Reasoning Models",
-      "phaseEmbedding": "Embedding Model & Vectors",
-      "phaseKnowledgeBase": "Offline Knowledge Base & FTS",
-      "interfaceCustomization": "INTERFACE CUSTOMIZATION",
-      "customizeWhileWaiting": "While you wait, make it yours — pick a theme and font below.",
-      "tipLabel": "💡 FIELD TERMINAL NOTICE",
-      "tipText": "Once initialized, BOAR is completely self-contained. You can toggle airplane mode and use the app in complete isolation without loss of functionality.",
-      "launchButton": "🐗 Launch BOAR Terminal",
-      "indexingError": "Indexing error: {{error}}",
-      "buildingIndex": "Building local knowledge base & vector index…",
-      "waitingForDownloads": "Waiting for downloads…",
-      "downloadFailedLabel": "Download failed",
-      "retryDownloads": "Retry Download",
-      "keepOpenLabel": "⚠ KEEP BOAR OPEN",
-      "keepOpenText": "Downloads pause automatically if you switch to another app and resume where they left off when you come back — but they don't progress while backgrounded. Keep BOAR in the foreground for the fastest one-time setup.",
-      "assetCounter": "Model {{current}} of {{total}} — {{label}}",
-      "restartDownloads": "⟳ Downloads stuck? Tap to restart"
-    },
-    "step4": {
-      "title": "INDEXING OFFLINE KNOWLEDGE",
-      "subtitle": "Building the local knowledge base and search index on this phone. No internet needed.",
-      "counter": "Indexed {{done}} of {{total}}"
-    },
-    "phaseStatus": {
-      "complete": "COMPLETE",
-      "streaming": "STREAMING",
-      "indexing": "INDEXING",
-      "pending": "PENDING",
-      "queued": "QUEUED"
-    }
-  },
-  "personalitySettings": {
-    "title": "Assistant tone & response style",
-    "customPromptPlaceholder": "Write your own system prompt…",
-    "maxOutputTokens": "Max output tokens",
-    "maxOutputTokensNote": "Caps how long a single response can be — lower is faster and more battery-friendly on phone hardware.",
-    "deepResearchTitle": "Deep Research Mode",
-    "deepResearchNote": "Breaks your question into sub-questions, researches each separately, then synthesizes one answer. Several sequential model calls on the same model — noticeably slower than a normal reply, not multiple AI models running at once. Independent from the response style above: it changes how much research goes into an answer, not its tone — the two combine (e.g. Deep Research + Succinct still synthesizes a short final answer).",
-    "adaptiveRoutingTitle": "Adaptive Routing",
-    "adaptiveRoutingNote": "Classifies each message and picks which downloaded model answers it (e.g. a lightweight model for small talk, a stronger one for research/comparison questions), switching between them as needed. On by default and independent from Deep Research — if it fails for any reason, chat falls back to your normal active model automatically, it never leaves you without a response."
-  },
-  "corpusSettingsTab": {
-    "downloadablePacks": "Downloadable knowledge packs",
-    "yourDocuments": "Your documents"
-  },
-  "personalDocumentsManager": {
-    "hint": "Import your own .txt, .md, .csv, .json, or .pdf notes — indexed on this device only, never uploaded anywhere. PDFs need selectable text (scanned/image-only pages won't extract — there's no OCR), and password-protected PDFs aren't supported.",
-    "nameRequiredTitle": "Name required",
-    "nameRequiredMessage": "Give this collection a name before importing.",
-    "importFailedTitle": "Import failed",
-    "exportFailedTitle": "Export failed",
-    "removeConfirmTitle": "Remove this collection?",
-    "removeConfirmMessage": "This deletes \"{{name}}\" ({{count}} chunks) from your local knowledge base. This can't be undone — export it first if you want to keep a copy.",
-    "namePlaceholder": "Collection name (e.g. Project Specs)",
-    "pickButton": "Pick Files & Import",
-    "stageReading": "Reading files…",
-    "stageChunking": "Splitting into chunks…",
-    "stageEmbedding": "Embedding {{current}}/{{total}}…",
-    "empty": "No custom collections yet.",
-    "docCount_one": "{{count}} doc",
-    "docCount_other": "{{count}} docs",
-    "chunkCount_one": "{{count}} chunk",
-    "chunkCount_other": "{{count}} chunks",
-    "exportButton": "Export / Share",
-    "exporting": "Exporting…"
-  },
-  "memorySettings": {
-    "title": "Chat history & memory",
-    "autoSummarizeLabel": "Background context summarization",
-    "autoSummarizeValue": "Condenses older turns so long chats don't lose context",
-    "turnsBeforeSummarizing": "Recent turns before summarizing",
-    "maxSavedSessions": "Max saved chat sessions",
-    "unlimited": "Unlimited",
-    "autoTitlesLabel": "Auto-generate chat titles",
-    "autoTitlesValue": "Names new chats from your first message",
-    "clearAllConfirmTitle": "Clear all chat history?",
-    "clearAllConfirmMessage": "This permanently deletes every saved chat session and message on this device. This can't be undone.",
-    "clearAllButton": "Clear All",
-    "clearAllChatHistory": "Clear All Chat History"
-  },
-  "voiceSettings": {
-    "title": "Voice Input",
-    "enabledLabel": "Voice input",
-    "enabledValue": "Show the microphone button in the chat to dictate messages.",
-    "speechEngineLabel": "Speech-to-text engine",
-    "checking": "Checking…",
-    "available": "Android SpeechRecognizer (offline)",
-    "unavailable": "Unavailable on this device",
-    "unavailableNote": "No system speech-recognition service was found — common on GrapheneOS / de-Googled builds. An embedded whisper.cpp model would remove this dependency but is a separate project on the scale of the llama.rn integration itself; not implemented in this version."
-  },
-  "interfaceSettings": {
-    "hapticFeedbackLabel": "Haptic feedback",
-    "hapticFeedbackValue": "Vibrate on taps, sends, and responses finishing — app-wide, not just voice input."
-  },
-  "knowledgeBaseScreen": {
-    "title": "MY DOCUMENTS"
   },
   "chatScreen": {
     "initializingCore": "Initializing local offline core…",
@@ -343,21 +90,6 @@
     "stageTimedOut": "A research step took too long and was cut short",
     "interruptedByBackground": "Paused — app was backgrounded. Ask again to continue."
   },
-  "aboutScreen": {
-    "title": "ABOUT BOAR",
-    "heroSubtitle": "ADAPTIVE LOCAL INTELLIGENCE",
-    "versionBadge": "v{{version}} • {{build}}",
-    "buildDevelopment": "DEVELOPMENT BUILD",
-    "buildRelease": "RELEASE BUILD",
-    "airGappedTitle": "AIR-GAPPED SOVEREIGN AI",
-    "airGappedBody": "BOAR is an offline-first mobile AI system exploring adaptive model routing, local retrieval, and resource-aware inference. It performs local LLM inference via llama.rn / llama.cpp and local hybrid retrieval (SQLite FTS5 + on-device embeddings) with zero cloud dependencies.",
-    "hardwareTitle": "HARDWARE ARCHITECTURE & BUDGET",
-    "hardwareBody": "Complies with strict mobile field constraints: resident memory remains capped under 12GB RAM using memory-mapped weights (mmap), and total storage is audited against a 50GB storage envelope.",
-    "benchmarkTitle": "BENCHMARK IT YOURSELF",
-    "benchmarkBody": "BOAR measures every answer on your own phone: model load time, time to first token, tokens/sec, peak memory and which sources were used. Run the built-in evaluation from Execution Telemetry → 🧪 Evaluate to compare any installed model on the same questions, or drive it from a computer with npm run eval:device.",
-    "repoTitle": "OPEN SOURCE REPOSITORY",
-    "repoBody": "Source code, quantized model manifests, and offline indexing scripts are available at:"
-  },
   "sourceFootnotes": {
     "title": "OFFLINE VERIFIED SOURCES",
     "localIndex": "LOCAL INDEX"
@@ -391,26 +123,6 @@
       "label": "Custom",
       "description": "Write your own system prompt."
     }
-  },
-  "executionTelemetry": {
-    "title": "EXECUTION TELEMETRY",
-    "subtitle": "{{count}} recent runs",
-    "exportJson": "⬇ JSON",
-    "exportCsv": "⬇ CSV",
-    "clear": "🗑 Clear",
-    "clearTitle": "Clear execution telemetry?",
-    "clearMessage": "Deletes all persisted execution records on this device. This cannot be undone.",
-    "clearConfirm": "Clear",
-    "exportFailedTitle": "Export failed",
-    "empty": "No executions recorded yet. Send a message to record your first run.",
-    "noModel": "no model",
-    "tokPerSec": "Speed",
-    "loadTime": "Load",
-    "ttft": "TTFT",
-    "totalTime": "Total",
-    "memory": "Peak Mem",
-    "tokens": "Tokens",
-    "runEvaluation": "🧪 Evaluate"
   },
   "evaluation": {
     "title": "EVALUATION",
@@ -766,6 +478,392 @@
         "body": "The model file is on this phone, but the engine couldn’t start it here (first on the GPU, then on the CPU).",
         "hint": "Try again. If it keeps failing, try a smaller model in Settings (this can also be a memory limit). The engine said:"
       }
+    }
+  },
+  "flows": {
+    "settings": {
+      "answers": "Answers",
+      "tone": "Tone",
+      "length": "Maximum length",
+      "tokens_one": "{{count}} token",
+      "tokens_other": "{{count}} tokens",
+      "quickFirst": "Quick answer first",
+      "alwaysComplete": "Always full answer",
+      "answerMode": {
+        "quickModel": "Shows a passage from your sources right away. If it answers the question, it stops there; otherwise your chosen model answers. You can ask for a full answer.",
+        "quickComplete": "Shows a passage from your sources as a preview, then writes a full answer: it splits the question, researches each part and checks the result. Slower.",
+        "directComplete": "Always writes a full answer: it splits the question, researches each part and checks the result. Slower.",
+        "directModel": "Your chosen model always answers. Ask for a full answer when you need one."
+      },
+      "library": "Library",
+      "models": "Models",
+      "knowledge": "Knowledge",
+      "history": "Conversation history",
+      "keepLast_one": "Keep the last {{count}}",
+      "keepLast_other": "Keep the last {{count}}",
+      "keepAll": "Keep all",
+      "appearance": "Appearance",
+      "theme": "Theme",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "textSize": "Text size",
+      "textCompact": "Smaller",
+      "textStandard": "Standard",
+      "textLarge": "Larger",
+      "language": "Language",
+      "haptics": "Vibration on touch",
+      "input": "Input",
+      "voice": "Voice input",
+      "voiceNote": "Uses your phone's speech recognition. On some phones it sends audio to an online service, so it is off by default.",
+      "performance": "Performance",
+      "about": "About BOAR",
+      "recovery": "Recovery",
+      "rerunSetup": "Run setup again",
+      "eraseAll": "Erase all data",
+      "eraseTitle": "Erase all data?",
+      "eraseBody": "This removes from this phone:",
+      "eraseModels": "Downloaded and imported models",
+      "eraseKnowledge": "Knowledge packs and your document collections",
+      "eraseHistory": "All conversations",
+      "eraseSettings": "Your settings",
+      "eraseConfirm": "Erase everything",
+      "saveFailed": "Couldn't save that change. Try again.",
+      "resetFailed": "Couldn't erase the data: {{error}}",
+      "quickFirstHint": "Shows a passage from your sources in under a second.",
+      "alwaysCompleteHint": "Researches each part of the question. Slower.",
+      "palette": "Colors",
+      "paletteFogueira": "Campfire",
+      "paletteLuar": "Moonlight"
+    },
+    "tone": {
+      "footer": "Changes how answers are written, starting with the next question.",
+      "customLabel": "Your instructions",
+      "customHelper": "Tell the model how to answer, for example: \"Answer in bullet points.\""
+    },
+    "length": {
+      "footer": "The model stops after this many tokens. A token is about three quarters of a word.",
+      "hint256": "A short paragraph",
+      "hint512": "A few paragraphs",
+      "hint1024": "A page",
+      "hint2048": "A long answer, slower"
+    },
+    "history": {
+      "autoTitles": "Name conversations automatically",
+      "autoTitlesHint": "Uses the first question as the title.",
+      "autoSummarize": "Summarize long conversations",
+      "autoSummarizeHint": "Keeps answers fast by summarizing older messages.",
+      "summarizeAfter": "Summarize after",
+      "turns_one": "{{count}} message",
+      "turns_other": "{{count}} messages",
+      "keep": "Conversations to keep",
+      "keepFooter": "Older conversations are deleted when you go over the limit.",
+      "clear": "Delete all conversations",
+      "clearTitle": "Delete all conversations?",
+      "clearBody": "Every conversation on this phone will be deleted. This can't be undone.",
+      "cleared": "Conversations deleted"
+    },
+    "common": {
+      "loading": "Loading"
+    },
+    "row": {
+      "copying": "Copying",
+      "downloading": "Downloading",
+      "verifying": "Checking the file",
+      "loading": "Loading",
+      "failed": "Failed",
+      "failedAnnounce": "{{name}} failed. Retry is available.",
+      "verified": "Verified",
+      "unverified": "Installed, not verified",
+      "role": {
+        "answer": "Answers",
+        "deep": "Deep answers",
+        "search": "Search"
+      },
+      "kind": {
+        "llm": "Language model",
+        "embedding": "Search model",
+        "corpus": "Knowledge"
+      },
+      "progressLabel": "{{name}} progress",
+      "fit": {
+        "streaming": "Bigger than this phone's memory: parts are read from storage as needed, so it runs slower.",
+        "thrashing": "May be slow on this phone: it needs most of its memory.",
+        "insufficient": "Won't fit: this phone doesn't have enough free memory to run it."
+      },
+      "error": {
+        "network": "No connection. Connect and try again.",
+        "storage": "Not enough free space on the phone.",
+        "hash-mismatch": "The file doesn't match the expected one. Download it again.",
+        "size-mismatch": "The file is incomplete. Download it again.",
+        "offline-variant": "This version has no internet access. Import the file instead.",
+        "load": "Couldn't load this model.",
+        "unknown": "Something went wrong.",
+        "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item."
+      },
+      "download": "Download {{size}}",
+      "retry": "Try again",
+      "use": "Use for answers",
+      "remove": "Remove",
+      "inUseHint": "In use. Choose another model before removing this one.",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody": "Frees {{size}} on this phone. You can download it again later.",
+      "removed": "{{name}} removed",
+      "wontFitTitle": "{{name}} won't fit on this phone",
+      "downloadAnyway": "Download anyway ({{size}})",
+      "fitDetail": "It needs about {{need}} of working memory that can't be read from storage; about {{free}} is free of {{total}}. Estimate.",
+      "importFile": "Import file ({{size}})",
+      "importAnyway": "Import anyway ({{size}})",
+      "notOnDisk": "Not on disk",
+      "fitShort": {
+        "resident": "Fits in memory",
+        "streaming": "Reads from storage",
+        "thrashing": "May be slow",
+        "insufficient": "Won't fit"
+      }
+    },
+    "models": {
+      "storage": "BOAR uses {{used}} · {{free}} free on this phone",
+      "inUse": "In use",
+      "inUseFooter": "The answer model writes your answers; the search model finds passages in your knowledge.",
+      "installed": "Installed",
+      "available": "Available",
+      "availableFooter": "Bigger models answer better but are slower and need more memory.",
+      "allInstalled": "Every model in the catalog is installed.",
+      "advanced": "Advanced",
+      "searchTitle": "Search Hugging Face",
+      "searchFooter": "Add other GGUF models. They are not tested with BOAR and may not have a checksum.",
+      "searchIntro": "Search uses the internet. Models you add appear under Available.",
+      "searchPlaceholder": "Model name, for example qwen 3b",
+      "searchButton": "Search",
+      "searchFailed": "Search failed",
+      "noResults": "No models found",
+      "noResultsBody": "Try a shorter name.",
+      "repoMeta": "{{downloads}} downloads · {{likes}} likes",
+      "repoHint": "Shows the files you can add",
+      "filesFailed": "Couldn't list the files. Try again.",
+      "noGguf": "No GGUF files in this repository.",
+      "noChecksum": "no checksum",
+      "addToList": "Add to Models",
+      "added": "{{name}} added to Models",
+      "addFailed": "Couldn't add it: {{error}}",
+      "nowAnswering": "{{name}} now writes your answers"
+    },
+    "knowledge": {
+      "intro": "What BOAR can cite in its answers, all stored on this phone.",
+      "indexing": "Indexing {{done}} of {{total}}",
+      "indexingLabel": "Knowledge indexing",
+      "appCollections": "BOAR collections",
+      "appFooter": "Built from Wikipedia (CC BY-SA 4.0).",
+      "builtin": "Built-in articles",
+      "builtinSub": "Always available, no download.",
+      "packReady": "{{name}} is ready",
+      "yourCollections": "Your collections",
+      "emptyTitle": "Add your own documents",
+      "emptyBody": "PDFs, text or notes. BOAR will cite them in answers.",
+      "add": "Add documents",
+      "collectionMeta": "{{docs}} · {{chunks}} · {{size}}",
+      "docs_one": "{{count}} document",
+      "docs_other": "{{count}} documents",
+      "chunks_one": "{{count}} passage",
+      "chunks_other": "{{count}} passages",
+      "useInAnswers": "Use {{name}} in answers",
+      "export": "Export",
+      "exportA11y": "Export {{name}}",
+      "exportFailed": "Couldn't export: {{error}}",
+      "removeA11y": "Remove {{name}}",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody_one": "Its {{count}} passage will be deleted from this phone.",
+      "removeBody_other": "Its {{count}} passages will be deleted from this phone.",
+      "stage": {
+        "reading": "Reading files",
+        "chunking": "Splitting into passages",
+        "embedding": "Indexing passage {{current}} of {{total}}"
+      },
+      "importingLabel": "Import progress",
+      "imported": "{{name}} added",
+      "importFailed": "Couldn't import the documents",
+      "pickAgain": "Choose files again",
+      "nameTitle": "Name this collection",
+      "filesPicked_one": "{{count}} file selected",
+      "filesPicked_other": "{{count}} files selected",
+      "nameLabel": "Collection name",
+      "import": "Import",
+      "indexed": "Indexed",
+      "indexError": "Indexing failed: {{error}}",
+      "importCancelled": "Import cancelled",
+      "cancelImportA11y": "Cancel importing {{name}}"
+    },
+    "performance": {
+      "provisional": "Speed ratings are provisional until they are measured on phones.",
+      "lastAnswer": "Last answer",
+      "ttft": "Started answering in",
+      "speed": "Writing speed",
+      "rate": "{{rate}} tokens/s",
+      "total": "Total time",
+      "load": "load",
+      "usedSources": "used your sources",
+      "noSources": "no sources",
+      "empty": "Ask a question to see measurements here.",
+      "typical_one": "Typical (last {{count}} answer)",
+      "typical_other": "Typical (last {{count}} answers)",
+      "typicalFooter": "Medians. A token is about three quarters of a word.",
+      "band": {
+        "fast": "Fast",
+        "ok": "OK",
+        "slow": "Slow"
+      },
+      "fits": "Fits on this phone",
+      "fitsFooter": "Limits of the offline AI challenge this build targets: {{ram}} of memory and {{storage}} of storage.",
+      "memory": "Peak memory this session",
+      "storage": "Storage",
+      "ofLimit": "{{used}} of {{limit}}",
+      "storageSplit": "Models {{models}} · knowledge {{knowledge}}",
+      "deviceRam": "This phone has {{ram}} of memory.",
+      "loadFailed": "Couldn't read the measurements",
+      "logsTitle": "Detailed logs",
+      "logsEmpty": "No logs yet",
+      "evaluationTitle": "Evaluation on this phone",
+      "evaluationSub": "Runs a fixed set of questions on installed models.",
+      "exportJson": "Export JSON",
+      "exportCsv": "Export CSV",
+      "exportFailed": "Couldn't export: {{error}}",
+      "clear": "Clear logs",
+      "clearTitle": "Clear all logs?",
+      "clearBody": "The measurements of past answers will be deleted. Conversations stay.",
+      "noModel": "No model",
+      "outcome": {
+        "success": "OK",
+        "failure": "Failed",
+        "cancelled": "Stopped"
+      },
+      "residency": {
+        "cold": "model loaded",
+        "switched": "model switched",
+        "resident": "model ready",
+        "unknown": ""
+      }
+    },
+    "about": {
+      "tagline": "Offline research on your phone",
+      "version": "Version {{version}} · {{build}}",
+      "buildDev": "development build",
+      "buildRelease": "release build",
+      "howTitle": "How it works",
+      "how1": "BOAR answers with a language model that runs on this phone, using llama.cpp. After setup it needs no internet.",
+      "how2": "Before answering, it searches the knowledge stored on the phone (Wikipedia collections and your documents) and cites the passages it used.",
+      "how3": "Every answer is measured on the phone. See Performance for speed and memory.",
+      "installedTitle": "Installed on this phone",
+      "installedFooter": "Each model and collection keeps its own license.",
+      "nothingInstalled": "Nothing installed yet",
+      "sourceTitle": "Source code",
+      "sourceFooter": "Code, model list and build scripts are public.",
+      "copy": "Copy link",
+      "copyHint": "Copies the repository address",
+      "copied": "Link copied",
+      "fontsTitle": "Fonts"
+    },
+    "onboarding": {
+      "tagline": "AI research that runs entirely on your phone, without internet.",
+      "point1": "Works offline once it is set up.",
+      "point2": "Your questions never leave the phone.",
+      "point3": "Shows the sources behind each answer.",
+      "start": "Get started",
+      "backToApp": "Back to the app",
+      "stepOf": "Step {{step}} of {{total}}",
+      "stepAnnounce": "Step {{step}} of 3, {{title}}",
+      "step2Title": "Choose what to install",
+      "step2Sub": "Everything is downloaded once and then works offline.",
+      "step3Title": "Installing",
+      "step3Sub": "This is the only time BOAR uses the internet.",
+      "device": "This phone: {{ram}} of memory · {{free}} free",
+      "deviceUnknown": "Couldn't read this phone's memory and storage.",
+      "unknown": "unknown",
+      "package": {
+        "essential": {
+          "name": "Essential",
+          "body": "Answer and search models, plus the core Wikipedia topic collections."
+        },
+        "encyclopedia": {
+          "name": "Encyclopedia",
+          "body": "Essential plus the Wikipedia Vital Articles pack, for broader questions."
+        }
+      },
+      "recommended": "Recommended",
+      "download": "Download: {{size}}",
+      "alreadyDownloaded": "Already downloaded",
+      "diskAfter": "Space after install: {{size}}",
+      "time": "About {{minutes}} min at {{speed}}/s (estimate)",
+      "noSpace": "Not enough space: {{size}} more is needed.",
+      "install": "Download {{size}}",
+      "continue": "Continue",
+      "back": "Back",
+      "laterNote": "You can add or remove models and collections later in Settings.",
+      "backTitle": "Go back to the packages?",
+      "backBody": "Downloads already running keep going while BOAR is open.",
+      "stay": "Stay here",
+      "goBack": "Go back",
+      "totalLabel": "Total download",
+      "totalValue": "{{done}} of {{total}}",
+      "percentAnnounce": "{{pct}}% downloaded",
+      "queued": "Waiting",
+      "downloadingLine": "{{pct}}% · {{done}} of {{total}}",
+      "ready": "Ready",
+      "indexRow": "Search index on the phone",
+      "waitingDownloads": "Starts when the downloads finish",
+      "indexStarting": "Starting",
+      "indexCounter": "{{done}} of {{total}} articles",
+      "minutesLeft_one": "about {{count}} min left",
+      "minutesLeft_other": "about {{count}} min left",
+      "indexFailed": "Building the index failed",
+      "downloadFailed": "A download failed",
+      "restart": "Downloads stuck? Restart them",
+      "keepOpen": "Keep BOAR open until it finishes. If you leave, the download may pause; it continues where it stopped when you come back.",
+      "doneTitle": "Ready",
+      "doneBody": "Everything runs offline from now on.",
+      "doneAnnounce": "Setup finished. BOAR is ready.",
+      "open": "Open BOAR",
+      "languageAnnounce": "Language: English",
+      "smallerPackage": "Choose a smaller package",
+      "importSize": "Files to import: {{size}}",
+      "importTitle": "Import the files",
+      "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
+      "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
+      "toImport": "Not imported yet"
+    },
+    "places": {
+      "title": "Places (offline)",
+      "footer": "Restaurants and places from OpenStreetMap (ODbL) and travel tips from Wikivoyage (CC BY-SA). Searched on the phone, no internet.",
+      "none": "Place packs are not available in this version yet.",
+      "meta": "{{places}} places · {{size}}",
+      "citiesMore_one": "{{cities}} and {{count}} more city",
+      "citiesMore_other": "{{cities}} and {{count}} more cities",
+      "travelTitle": "Travel",
+      "include": "Include places for {{region}}",
+      "reason": {
+        "timezone": "Suggested from your phone's time zone.",
+        "location": "Suggested from your location.",
+        "manual": "Chosen by you."
+      },
+      "noRegionHere": "No places pack covers your region yet.",
+      "useLocation": "Use my location",
+      "locationDeclined": "Location not allowed. The suggestion uses your time zone.",
+      "locationUnavailable": "Couldn't get a location fix. Try again outdoors.",
+      "rationaleTitle": "Use your location?",
+      "rationaleBody": "BOAR reads your position from the phone's GPS, which works without internet, to suggest places near you. It never leaves the phone.",
+      "notNow": "Not now",
+      "continue": "Continue",
+      "openSettings": "Open app settings",
+      "otherRegion": "Choose another region"
+    },
+    "import": {
+      "title": "Import files",
+      "footer": "Each file is checked by size and SHA-256 against the catalog. The file name doesn't matter.",
+      "pick": "Choose files",
+      "checking": "Checking {{name}}",
+      "checkingValue": "Checking, {{pct}}%",
+      "verified": "Verified: {{item}}",
+      "checkingAnnounce": "{{name}}: {{pct}}% checked"
     }
   }
 }

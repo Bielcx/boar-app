@@ -8,8 +8,15 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<DrawerParamList> | undefined;
   Setup: undefined;
   Settings: undefined;
+  SettingsTone: undefined;
+  SettingsLength: undefined;
+  SettingsHistory: undefined;
+  Models: undefined;
+  ModelSearch: undefined;
   Knowledge: undefined;
   Performance: undefined;
+  PerformanceLogs: undefined;
+  Evaluation: undefined;
   About: undefined;
   /** Dev-only component catalog for visual QA. */
   Catalog: undefined;
