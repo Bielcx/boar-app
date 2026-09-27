@@ -304,15 +304,6 @@
   "knowledgeBaseScreen": {
     "title": "MEUS DOCUMENTOS"
   },
-  "chatHeader": {
-    "openDrawer": "Abrir menu de navegação",
-    "offline": "OFFLINE",
-    "localLlmCore": "NÚCLEO LLM LOCAL",
-    "cycleTone": "Alternar tom do assistente",
-    "newChatSession": "Nova sessão de chat",
-    "deepResearch": "Pesquisa Aprofundada",
-    "deepResearchActive": "Pesquisa Aprofundada Ativa"
-  },
   "chatScreen": {
     "initializingCore": "Inicializando núcleo offline local…",
     "mountingWeights": "Carregando pesos GGUF locais…",

@@ -304,15 +304,6 @@
   "knowledgeBaseScreen": {
     "title": "MY DOCUMENTS"
   },
-  "chatHeader": {
-    "openDrawer": "Open Navigation Drawer",
-    "offline": "OFFLINE",
-    "localLlmCore": "LOCAL LLM CORE",
-    "cycleTone": "Cycle Assistant Tone",
-    "newChatSession": "New Chat Session",
-    "deepResearch": "Deep Research",
-    "deepResearchActive": "Deep Research Active"
-  },
   "chatScreen": {
     "initializingCore": "Initializing local offline core…",
     "mountingWeights": "Mounting local GGUF weights…",
