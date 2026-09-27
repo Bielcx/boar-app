@@ -115,9 +115,9 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
               ))}
             {f.status === "failed" &&
               (f.sizeBytes === 0 ? (
-                // An empty file is a failed copy, not an unknown one (Prism IM-2).
+                // A 0 from the picker can be an empty file OR a >2 GiB file read wrong (IMP-2GB): say only what we know (Prism).
                 <Text variant="footnote" color="danger">
-                  {t("flows.import.emptyFile")}
+                  {t("flows.import.sizeUnread")}
                 </Text>
               ) : (
                 <>
