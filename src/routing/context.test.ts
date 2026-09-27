@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  sentenceNamesSubject,
   falseQuantumClaims,
   isSubstantive,
   identifiersIn,
@@ -691,5 +692,13 @@ describe("falseQuantumClaims (gate 394bf31, crypto-named-001 seed 5)", () => {
       "Nenhum algoritmo de assinatura clássica, como RSA ou DSA, é intrinsecamente resistente a computadores quânticos.",
       "Breaking a 256-bit ECC key would require thousands of logical qubits, highlighting the need for migration to quantum-resistant schemes.",
     ]) expect(falseQuantumClaims(ok), ok).toEqual([]);
+  });
+});
+
+describe("sentenceNamesSubject (Sextant q7)", () => {
+  it("the sentence must name the subject its title shares with the question", () => {
+    expect(sentenceNamesSubject("Greenhouse effect", "Greenhouse effect", "Surface heating can happen from an internal heat source or come from an external source, such as a host star.")).toBe(false);
+    expect(sentenceNamesSubject("Greenhouse effect", "Greenhouse effect", "The greenhouse effect occurs when heat-trapping gases prevent the planet from losing heat.")).toBe(true);
+    expect(sentenceNamesSubject("What is the capital of Australia?", "Canberra", "Canberra is the capital city of Australia.")).toBe(true);
   });
 });

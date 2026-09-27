@@ -707,6 +707,20 @@ export function isSubstantive(chunk: RetrievedChunk): boolean {
 
 const IDENTIFIER = /\b(EIP|ERC|BIP|RFC)[-\s]?(\d{1,5})\b/gi;
 
+/**
+ * Whether a sentence names the subject the question and its source share (the question's terms in the source's
+ * title): "Greenhouse effect" for "O que causa o efeito estufa?" (Sextant q7: the instant snippet was "Surface
+ * heating can happen from an internal heat source … host star", a sentence of the Greenhouse effect article that
+ * scored only through its title). No shared subject (Canberra for "capital of Australia"): no constraint.
+ */
+export function sentenceNamesSubject(matchQuery: string, title: string, sentence: string): boolean {
+  const q = new Set(tokenizeTerms(matchQuery));
+  const subject = tokenizeTerms(mainTitle(title)).filter((t) => [...q].some((x) => sameTerm(x, t)));
+  if (!subject.length) return true;
+  const words = tokenizeTerms(sentence);
+  return subject.some((t) => words.some((w) => sameTerm(w, t)));
+}
+
 /** Standard identifiers a question names ("EIP-7251", "ERC 4337"), normalized as "EIP-7251". */
 export function identifiersIn(text: string): string[] {
   return [...new Set([...text.matchAll(IDENTIFIER)].map((m) => `${m[1].toUpperCase()}-${m[2]}`))];
