@@ -23,6 +23,7 @@ import {
   currentEventAnswer,
   temperatureConversion,
   mentionsNow,
+  falseQuantumClaims,
   isSubstantive,
   identifiersIn,
   titleHasIdentifier,
@@ -977,6 +978,29 @@ export function createAnswerer(deps: AnswerDeps) {
             return finish(genTier, "success", "", [], baseReceipt);
           }
         }
+      }
+      // A known-false claim (classical public-key crypto called quantum resistant, gate 394bf31): the compact
+      // model declines; the 4B loses the sentence. Deterministic, whatever the sampling seed.
+      const falseClaims = !health && gen.mode !== "multipass" ? falseQuantumClaims(text) : [];
+      if (falseClaims.length) {
+        if (isCompactModel(genLlm) && !req.answerAnyway) {
+          reasonCodes.push("grounding:false-claim-declined-compact");
+          emit({
+            type: "warning",
+            answerId,
+            code: "weak_sources",
+            declined: true,
+            message: sources.length
+              ? pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer."
+              : pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
+          });
+          finalText = "";
+          return finish(genTier, "success", "", [], baseReceipt);
+        }
+        reasonCodes.push(`grounding:false-claim-removed-${falseClaims.length}`);
+        for (const claim of falseClaims) text = text.replace(claim, "");
+        text = text.replace(/[ \t]{2,}/g, " ").trim();
+        finalText = text;
       }
       // Its inverse (Boar, gate 9ef80f9): a sentence without [n] that an on-topic source supports, by
       // the same measure, gets that source's [n]. Never without support.
