@@ -53,7 +53,10 @@ ios_plugin_change() { git -C "$SRC" diff "$1" "$HASH" -- plugins | grep -qE '^[+
 if [[ ! -d "$APP" || "${IOS_FIDELITY_REBUILD:-0}" == "1" ]]; then
   [[ -d "$SRC" ]] || git -C "$REPO" worktree add --detach -q "$SRC" "$HASH"
   git -C "$SRC" fetch -q origin
-  git -C "$SRC" checkout -q --detach "$HASH"
+  # $SRC is a build-only worktree: drop the build scripts copied into it last
+  # time (tracked or not) before switching refs, then copy the newest ones again.
+  git -C "$SRC" clean -q -f -- scripts
+  git -C "$SRC" checkout -q -f --detach "$HASH"
   cp "$REPO"/scripts/ios-*.sh "$SRC/scripts/"   # the newest build scripts, whatever the ref
   # Marker of the last full prebuild ("<hash> <variant>"; the variant renames the
   # Xcode project, so a switch needs a prebuild). Local builds keep it next to
