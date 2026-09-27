@@ -613,16 +613,27 @@
       "percentAnnounce": "{{pct}}% baixado",
       "percentImportedAnnounce": "{{pct}}% importado",
       "queued": "Na fila",
+      "category": {
+        "answer": "Modelo de resposta",
+        "search": "Modelo de busca",
+        "knowledge": "Conhecimento",
+        "places": "Lugares"
+      },
+      "categoryStatus": {
+        "failed": "Falhou",
+        "moving": "Baixando",
+        "ready": "Pronto",
+        "queued": "Na fila",
+        "import": "Importar"
+      },
+      "categoryHint": "Mostra os arquivos",
+      "categoryA11y": "{{name}}, {{done}} de {{total}} arquivos, {{pct}}%",
+      "openWhenReady": "Disponível quando todos os arquivos estiverem no celular",
       "llmLabel": "Modelo de resposta",
       "workingMemory": "precisa de ~{{size}} de memória",
       "useStandard": "Usar o Padrão",
       "useCompact": "Usar o Compacto",
       "currentItem": "Item {{n}} de {{total}} — {{name}}",
-      "groupModels": "Modelos",
-      "groupKnowledge": "Conhecimento",
-      "groupIndex": "No celular",
-      "filesReady_one": "O {{count}} item desta instalação está no celular",
-      "filesReady_other": "Os {{count}} itens desta instalação estão no celular",
       "keepOpenTitle": "Mantenha o BOAR aberto",
       "stage": {
         "start": "Início",
