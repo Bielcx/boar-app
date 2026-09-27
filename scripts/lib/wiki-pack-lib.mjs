@@ -236,6 +236,8 @@ export function cleanWikivoyage(wikitext) {
     .replace(/<gallery[\s\S]*?<\/gallery>/g, "")
     .replace(/^\{\|[\s\S]*?^\|\}/gm, "");
   t = stripTemplates(t);
+  // Before splitting into lines: an image caption can span several.
+  if (t.includes("[[")) t = stripMediaLinks(t);
   const lines = [];
   for (const raw of t.split("\n")) {
     const m = raw.match(/^(={2,6})\s*(.*?)\s*=+\s*$/);

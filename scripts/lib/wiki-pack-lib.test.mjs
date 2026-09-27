@@ -111,6 +111,11 @@ describe("cleanWikivoyage", () => {
     );
   });
 
+  it("drops image links whose captions span several lines", () => {
+    const wikitext = "[[File:Heimlich.jpg|thumb|Abdominal thrusts\n1 - fist above the navel\n2 - pull inward and up]]\nChoking is a blocked airway.";
+    expect(cleanWikivoyage(wikitext)).toBe("Choking is a blocked airway.");
+  });
+
   it("drops image links whose captions hold nested links", () => {
     const wikitext = "[[File:Trail.jpg|thumb|A trail in [[Jotunheimen]], [[Norway]]]]\nHiking is walking in [[nature]].";
     expect(cleanWikivoyage(wikitext)).toBe("Hiking is walking in nature.");
