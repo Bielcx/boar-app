@@ -27,7 +27,7 @@ describe("needsEmergencyNote (Boar E-1)", () => {
   });
 
   it("stays off for everyday questions", () => {
-    for (const q of ["Why do we have seasons on Earth?", "What is 30 °C in Fahrenheit?", "Compare Raft and Paxos", "vegan restaurants in Berlin", "vegan places in Spain", "a painting by Goya", "Doral is a city", "How does a firewall work?", "raio-x do pulmão é seguro?", "Lost in Translation plot"]) {
+    for (const q of ["Why do we have seasons on Earth?", "What is 30 °C in Fahrenheit?", "Compare Raft and Paxos", "vegan restaurants in Berlin", "vegan places in Spain", "a painting by Goya", "Doral is a city", "How does a firewall work?", "raio-x do pulmão é seguro?", "Lost in Translation plot", "Why do earthquakes happen near plate boundaries?", "Por que os terremotos acontecem perto das bordas das placas?", "What causes hurricanes?", "How to configure a firewall"]) {
       expect(needsEmergencyNote(q, [wiki])).toBe(false);
     }
   });

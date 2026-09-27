@@ -7,12 +7,14 @@
  * `version` and `validatedAt`. A model not listed gets no suggestions.
  */
 export const SUGGESTION_VALIDATION = {
-  version: 1,
-  validatedAt: "2026-09-26",
-  evidence: "eval/results/suggestions/verdicts.v1.json (feat/eval-frontier)",
+  version: 2,
+  validatedAt: "2026-09-27",
+  // v1: q1-q4. v2 (Sextant 20463ed): q5-q7 on the builtin corpus, 3 seeds, graded by hand. q6 EN failed
+  // because the app sent the geology question down the safety path (fixed; Sextant revalidates).
+  evidence: "eval/results/suggestions/verdicts.v1.json + verdicts.v2.json (feat/eval-frontier)",
   byModel: {
-    "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4"], pt: ["q1", "q2", "q3", "q4"] },
-    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4"], pt: ["q3"] },
+    "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: ["q1", "q2", "q3", "q4", "q6", "q7"] },
+    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: ["q3"] },
   } as Record<string, Record<"en" | "pt", string[]>>,
 };
 
@@ -37,23 +39,34 @@ export interface SuggestionSource {
   key: string;
   corpus: string[];
   expect: string[];
+  /**
+   * Languages where Sextant's check found an on-topic source in the app's top-3 (27/09: every
+   * English one; Portuguese search is Bramble's PT-1, so none confirmed yet).
+   */
+  langs: ("en" | "pt")[];
 }
 
 export const SUGGESTION_SOURCES: SuggestionSource[] = [
-  { key: "q1", corpus: ["wiki-vital5"], expect: ["Season", "Axial tilt"] },
-  { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"] },
-  { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius"] },
-  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis"] },
-  { key: "q5", corpus: ["builtin"], expect: ["Monsoon"] },
-  { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"] },
-  { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"] },
+  { key: "q1", corpus: ["wiki-vital5"], expect: ["Season", "Axial tilt", "Autumn", "Winter", "Summer", "Spring"], langs: ["en"] },
+  { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"], langs: ["en"] },
+  { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius", "Temperature"], langs: ["en"] },
+  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis"], langs: ["en"] },
+  { key: "q5", corpus: ["builtin"], expect: ["Monsoon"], langs: ["en"] },
+  { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"], langs: ["en"] },
+  { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"], langs: ["en"] },
 ];
 
-/** Keys whose on-topic source is installed. `installed` holds knowledge ids; "builtin" is implied. */
-export function coveredSuggestions(keys: string[], installed: Iterable<string>): string[] {
+/**
+ * Keys whose on-topic source is installed and was found in that language. `installed` holds
+ * knowledge ids; "builtin" is implied.
+ */
+export function coveredSuggestions(keys: string[], installed: Iterable<string>, lang: "en" | "pt" = "en"): string[] {
   const have = new Set<string>(["builtin", ...installed]);
   const byKey = new Map(SUGGESTION_SOURCES.map((s) => [s.key, s]));
-  return keys.filter((k) => byKey.get(k)?.corpus.some((c) => have.has(c)) ?? false);
+  return keys.filter((k) => {
+    const src = byKey.get(k);
+    return !!src && src.langs.includes(lang) && src.corpus.some((c) => have.has(c));
+  });
 }
 
 /** What the empty chat offers: validated for the model and language, and covered by the installed knowledge. */
@@ -61,7 +74,8 @@ export function suggestionsFor(modelId: string | undefined, language: string | u
   if (!modelId) return [];
   const byLang = SUGGESTION_VALIDATION.byModel[modelId];
   if (!byLang) return [];
-  return coveredSuggestions(byLang[language?.startsWith("pt") ? "pt" : "en"] ?? [], installed);
+  const lang = language?.startsWith("pt") ? "pt" : "en";
+  return coveredSuggestions(byLang[lang] ?? [], installed, lang);
 }
 
 /** Below this many suggestions, the empty chat adds "Add a knowledge pack for more topics" (Iris). */
