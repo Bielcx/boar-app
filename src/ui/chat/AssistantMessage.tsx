@@ -9,7 +9,7 @@ import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { generatingSteps, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
-import { answerSourceSplit, groupSources, sourcesCardMode, relevancePercents, sourceParts } from "./sourceLabel";
+import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
@@ -291,19 +291,45 @@ function Receipt({
   );
 }
 
-/** The mockup's relevance bar and percentage; nothing when there is no measured value. */
-function RelevanceBar({ pct }: { pct: number | null }) {
+const BANDS: RelevanceBand[] = ["high", "medium", "low"];
+
+/**
+ * The mockup's relevance bar, in three steps with the band's name; nothing without a measured value.
+ * Iris: the label column is as wide as the widest band in this language (all three share one cell,
+ * the others invisible at zero height), so bars line up across rows and at any font size; it never
+ * shrinks (the title gives way); "Low" is secondary, amber reads as strong provenance.
+ */
+function RelevanceBar({ band }: { band: RelevanceBand | null }) {
   const t = useTokens();
-  if (pct == null) return null;
+  const { t: tr } = useTranslation();
+  if (band == null) return null;
   const track = t.space.xxl + t.space.xs;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+    <View
+      style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, flexShrink: 0 }}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+    >
       <View style={{ width: track, height: t.space.xs, borderRadius: t.radius.full, backgroundColor: t.color.bg.raised, overflow: "hidden" }}>
-        <View style={{ width: (track * pct) / 100, height: "100%", borderRadius: t.radius.full, backgroundColor: t.color.field.solid }} />
+        <View style={{ width: track * BAND_FILL[band], height: "100%", borderRadius: t.radius.full, backgroundColor: t.color.field.solid }} />
       </View>
-      <Text variant="caption" weight="semibold" color="field" numeric>
-        {`${pct}%`}
-      </Text>
+      <View>
+        {BANDS.map((b) => (
+          <Text
+            key={b}
+            variant="caption"
+            weight="semibold"
+            color={band === "low" ? "secondary" : "field"}
+            numberOfLines={1}
+            style={b === band ? undefined : { height: 0, opacity: 0 }}
+            // Sizing only: never read (the row's label already says "relevance high").
+            accessibilityElementsHidden={b !== band}
+            importantForAccessibility={b === band ? "auto" : "no-hide-descendants"}
+          >
+            {tr(`chat.sources.band.${b}`)}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }
@@ -331,8 +357,8 @@ function SourceList({
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
   const groups = groupSources(answer.sources, only);
-  // Measured relevance only (Boar), absolute 0-100 (Prism CT-2); a row without it has no bar.
-  const pct = relevancePercents(answer.sources);
+  // Measured relevance only (Boar), as a band (Tusk: the raw value's scale depends on the query); none without it.
+  const bands = relevanceBands(answer.sources);
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingHorizontal: t.space.xs }}>
@@ -349,7 +375,7 @@ function SourceList({
         const origin = first.collectionId ? tr("chat.sources.myDocuments") : parts.name ?? tr("chat.sources.corpus");
         const numbers = g.indexes.map((i) => i + 1).join(", ");
         const passages = g.indexes.length;
-        const groupPct = Math.max(0, ...g.indexes.map((i) => pct[i] ?? 0)) || null;
+        const groupBand = bestBand(g.indexes.map((i) => bands[i]));
         return (
           <View
             key={g.key}
@@ -366,7 +392,7 @@ function SourceList({
               accessibilityRole="button"
               accessibilityLabel={
                 tr("chat.sources.groupLabel", { numbers, title: g.title, origin, count: passages }) +
-                (groupPct ? `, ${tr("chat.sources.relevance", { pct: groupPct })}` : "")
+                (groupBand ? `, ${tr("chat.sources.relevance", { band: tr(`chat.sources.band.${groupBand}`) })}` : "")
               }
               accessibilityHint={tr("chat.sources.expandHint")}
               accessibilityState={{ expanded: open }}
@@ -403,7 +429,7 @@ function SourceList({
                 </Text>
                 {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
               </View>
-              <RelevanceBar pct={groupPct} />
+              <RelevanceBar band={groupBand} />
               <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
             </Pressable>
             {open && (

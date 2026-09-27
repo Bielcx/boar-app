@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerSourceSplit, citedSplit, sourcesCardMode, groupSources, relevancePercents, sourceParts } from "./sourceLabel";
+import { answerSourceSplit, bestBand, citedSplit, sourcesCardMode, groupSources, relevanceBands, sourceParts } from "./sourceLabel";
 
 describe("sourceParts", () => {
   it("splits the corpus 'Name — URL (license)' string (Prism S-2)", () => {
@@ -46,20 +46,16 @@ describe("groupSources", () => {
   });
 });
 
-describe("relevancePercents (measured bar, absolute: Prism CT-2)", () => {
-  it("shows the engine's absolute relevance, never normalized by the best one", () => {
-    expect(relevancePercents([{ relevance: 0.8 }, { relevance: 0.75 }, { relevance: 0.4 }])).toEqual([80, 75, 40]);
-    // The football case: a weak best match no longer reads as 100 %.
-    expect(relevancePercents([{ relevance: 0.31 }])).toEqual([31]);
+describe("relevanceBands (Tusk: the raw value's scale depends on the query)", () => {
+  it("maps the engine's relevance to high/medium/low at 0.75 and 0.5", () => {
+    expect(relevanceBands([{ relevance: 1 }, { relevance: 0.75 }, { relevance: 0.59 }, { relevance: 0.5 }, { relevance: 0.49 }])).toEqual(["high", "high", "medium", "medium", "low"]);
   });
-
-  it("gives no bar to a source without a measured value", () => {
-    expect(relevancePercents([{ relevance: 0.5 }, {}, { relevance: 0 }])).toEqual([50, null, null]);
-    expect(relevancePercents([{}, {}])).toEqual([null, null]);
+  it("gives no band to a source without a measured value", () => {
+    expect(relevanceBands([{}, { relevance: 0 }, { relevance: Number.NaN }])).toEqual([null, null, null]);
   });
-
-  it("never rounds a measured source down to 0% nor above 100%", () => {
-    expect(relevancePercents([{ relevance: 1 }, { relevance: 0.001 }, { relevance: 1.2 }])).toEqual([100, 1, 100]);
+  it("a group takes its best passage's band", () => {
+    expect(bestBand([null, "low", "medium"])).toBe("medium");
+    expect(bestBand([null])).toBeNull();
   });
 });
 

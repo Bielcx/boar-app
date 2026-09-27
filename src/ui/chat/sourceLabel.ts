@@ -61,18 +61,34 @@ export function groupSources(sources: Chunk[], only?: number[]): SourceGroup[] {
   return groups;
 }
 
+export type RelevanceBand = "high" | "medium" | "low";
+
+/** Thresholds on the engine's relevance (0..1), suggested by Tusk. */
+export const RELEVANCE_BANDS = { high: 0.75, medium: 0.5 } as const;
+
 /**
- * The relevance bar of each source, 0-100, straight from the engine's absolute relevance (0..1,
- * Tusk: RetrievedChunk.relevance). Never normalized by the best one (Prism CT-2: a weak best match
- * read as "100 %"). A source without a positive value gets no bar (null). Measured, never fixed.
+ * The relevance of each source as a band, not a percentage (Tusk, CT-2 follow-up): the engine's
+ * relevance is the share of the match query's terms the best sentence covers, so its scale depends
+ * on the query's length (a PT question through the dictionary becomes 3 canonical terms and tends
+ * to 1.0; the same question in EN reads 0.59). A band says what the number can support.
+ * A source without a positive measured value gets none (null).
  */
-export function relevancePercents(sources: object[]): (number | null)[] {
-  return sources.map((s) => {
-    const v = (s as { relevance?: unknown }).relevance;
-    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
-    return Math.min(100, Math.max(1, Math.round(v * 100)));
-  });
+export function relevanceBands(sources: object[]): (RelevanceBand | null)[] {
+  return sources.map((s) => bandOf((s as { relevance?: unknown }).relevance));
 }
+
+export function bandOf(v: unknown): RelevanceBand | null {
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
+  return v >= RELEVANCE_BANDS.high ? "high" : v >= RELEVANCE_BANDS.medium ? "medium" : "low";
+}
+
+/** The best band among a group's passages. */
+export function bestBand(bands: (RelevanceBand | null)[]): RelevanceBand | null {
+  return bands.includes("high") ? "high" : bands.includes("medium") ? "medium" : bands.includes("low") ? "low" : null;
+}
+
+/** How much of the bar a band fills (3 steps). */
+export const BAND_FILL: Record<RelevanceBand, number> = { high: 1, medium: 2 / 3, low: 1 / 3 };
 
 /**
  * Which sources the answer actually rests on (Prism CT-2, Tusk done.cited): `cited` are the
