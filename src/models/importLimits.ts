@@ -48,7 +48,7 @@ const LABEL: Record<ImportKind, string> = {
 
 const HINT: Record<ImportKind, string> = {
   llm: "Pick a smaller quantization.",
-  embedding: "Pick the model listed in docs/OFFLINE_INSTALL.md.",
+  embedding: "Pick the model from the offline install list.",
   "knowledge-pack": "Pick a smaller pack.",
   "places-pack": "Pick a smaller region.",
   "corpus-json": "Split it into smaller files.",
