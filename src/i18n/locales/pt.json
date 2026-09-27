@@ -1076,9 +1076,9 @@
     },
     "loadCrash": {
       "message": "O {{model}} fechou o app: este celular não tem memória para ele. Voltamos ao {{fallback}}.",
-      "previousModel": "modelo anterior",
       "seeModels": "Ver modelos",
-      "dismiss": "Dispensar"
+      "dismiss": "Dispensar",
+      "messageNoFallback": "O {{model}} fechou o app: este celular não tem memória para ele. Escolha um modelo menor."
     }
   },
   "location": {

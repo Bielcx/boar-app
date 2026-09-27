@@ -1076,9 +1076,9 @@
     },
     "loadCrash": {
       "message": "{{model}} closed the app: this phone doesn’t have enough memory for it. We switched back to {{fallback}}.",
-      "previousModel": "the previous model",
       "seeModels": "See models",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "messageNoFallback": "{{model}} closed the app: this phone doesn’t have enough memory for it. Choose a smaller model."
     }
   },
   "location": {

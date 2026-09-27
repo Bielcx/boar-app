@@ -148,10 +148,8 @@ describe("loadCrashMessage (Boar CR-2)", () => {
     );
   });
 
-  it("says nothing without a crash, and falls back to 'the previous model' without its name", () => {
+  it("says nothing without a crash, and doesn't claim a switch back without a previous model", () => {
     expect(loadCrashMessage(null, t)).toBeNull();
-    expect(loadCrashMessage({ crashedLabel: "Qwen3 4B", fallbackLabel: " " }, t)).toBe(
-      'chat.loadCrash.message{"model":"Qwen3 4B","fallback":"chat.loadCrash.previousModel"}'
-    );
+    expect(loadCrashMessage({ crashedLabel: "Qwen3 4B", fallbackLabel: "" }, t)).toBe('chat.loadCrash.messageNoFallback{"model":"Qwen3 4B"}');
   });
 });
