@@ -356,6 +356,30 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(f.generations).toHaveLength(1);
   });
 
+  it("Iris 54202b7: the source list shown for a health question is the filtered one, empty with no on-topic source", async () => {
+    f.retrieved = [
+      chunk("x1", "Ancraophobia", "Ancraophobia is the fear of wind. Sufferers may bleed from the nose in panic, some reports say."),
+      chunk("x2", "Tickling", "Tickling is the act of touching a part of the body so as to cause involuntary laughter."),
+      chunk("x3", "Eminectomy", "Eminectomy is a surgical procedure. Nosebleed is a rare complication."),
+      chunk("x4", "Guitar", "A guitar is a fretted musical instrument."),
+      chunk("x5", "Stop sign", "A stop sign is a traffic sign."),
+      chunk("x6", "Nose flute", "The nose flute is played with the nose."),
+    ];
+    const { events, result } = await collect("How do I stop a nosebleed?");
+    expect(events.some((e) => e.type === "sources")).toBe(false);
+    expect(events.some((e) => e.type === "instant")).toBe(false);
+    expect(result.sources).toEqual([]);
+    expect(result.text).toMatch(/don't have a reliable offline source/);
+    expect(f.generations).toHaveLength(0);
+
+    f = makeFake();
+    f.retrieved = [chunk("x1", "Ancraophobia", "Ancraophobia is the fear of wind."), NOSEBLEED];
+    const onTopic = await collect("How do I stop a nosebleed?");
+    const shown = (onTopic.events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(shown.map((c) => c.title)).toEqual(["Nosebleed"]);
+    expect(onTopic.result.sources.map((c) => c.title)).toEqual(["Nosebleed"]);
+  });
+
   it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
     for (const [q, retrieved] of [
       ["What should I do after a snake bite?", []],
