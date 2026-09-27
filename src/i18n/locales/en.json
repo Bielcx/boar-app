@@ -323,7 +323,6 @@
     "hideReasoning": "Hide reasoning",
     "messageReused": "Message copied to the input",
     "stopping": "Stopping… (finishing the current step)",
-    "toneChanged": "Tone: {{tone}}",
     "modelDownloadComplete": "✅ \"{{label}}\" download complete",
     "drawerItems": {
       "prompts": "Prompt Ideas",
@@ -622,7 +621,6 @@
       "offlineBodyDownloader": "Questions, search and answers run on this phone. This build can download models when you ask it to; answering never uses the network.",
       "modelLoaded": "Model: {{label}}",
       "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
-      "tone": "Change tone",
       "offlineSeal": "Offline",
       "offlineAnswersSeal": "Answers offline",
       "offlineSealSpoken": "Offline: no network used"

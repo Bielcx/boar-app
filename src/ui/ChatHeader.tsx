@@ -13,17 +13,17 @@ interface Props {
   activeModelLabel?: string;
   voiceEnabled: boolean;
   onOpenDrawer: () => void;
-  onCycleTone: () => void;
   onNewChat: () => void;
 }
 
 /**
  * Chat top bar: menu, title, the offline badge (tap for what "offline" means
- * in this build), tone and new chat. Name and model always stay readable:
+ * in this build) and new chat. Tone lives in Settings > Personality (the mockup
+ * has no tone button, and it cost the seal its text on 393-412pt phones). Name and model always stay readable:
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
  */
-export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCycleTone, onNewChat }: Props) {
+export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNewChat }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
@@ -36,8 +36,9 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
     width,
     fontScale,
     touch: t.size.touch,
-    // Row padding + the gaps between its children (outer row and title group).
-    chrome: t.space.sm * 2 + t.space.xs * 4 + t.space.sm * 2,
+    buttons: 2,
+    // Row padding + the gaps between its children (outer row: 2, title group: 2).
+    chrome: t.space.sm * 2 + t.space.xs * 2 + t.space.sm * 2,
     avatar: t.size.avatar + t.space.sm,
     sealChars: sealLabel.length,
   });
@@ -82,7 +83,6 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
           )}
         </Pressable>
       </View>
-      <IconButton icon="type" label={tr("chat.header.tone")} onPress={onCycleTone} />
       <IconButton icon="edit-3" label={tr("chat.header.newChat")} onPress={onNewChat} />
 
       <Sheet visible={offlineOpen} onClose={() => setOfflineOpen(false)} title={tr("chat.header.offlineTitle")}>

@@ -323,7 +323,6 @@
     "hideReasoning": "Ocultar raciocínio",
     "messageReused": "Mensagem copiada para a caixa de texto",
     "stopping": "Parando… (terminando a etapa atual)",
-    "toneChanged": "Tom: {{tone}}",
     "modelDownloadComplete": "✅ Download de \"{{label}}\" concluído",
     "drawerItems": {
       "prompts": "Ideias de Prompts",
@@ -622,7 +621,6 @@
       "offlineBodyDownloader": "Perguntas, busca e respostas rodam neste celular. Esta versão pode baixar modelos quando você pede; responder nunca usa a rede.",
       "modelLoaded": "Modelo: {{label}}",
       "voiceCaveat": "A entrada por voz usa o reconhecedor do sistema, que pode não ser offline.",
-      "tone": "Mudar tom",
       "offlineSeal": "Offline",
       "offlineAnswersSeal": "Respostas offline",
       "offlineSealSpoken": "Offline: sem uso de rede"

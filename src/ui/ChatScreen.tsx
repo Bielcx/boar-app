@@ -16,7 +16,6 @@ import {
   getActiveModelId,
   getHidePromptIdeas,
   getPersonalityId,
-  setPersonalityId,
   getCustomSystemPrompt,
   getMaxTokens,
   getMemorySettings,
@@ -24,7 +23,7 @@ import {
   DEFAULT_MEMORY_SETTINGS,
   getVoiceInputEnabled,
 } from "../models/settings";
-import { getPersonality, PersonalityId, PERSONALITIES } from "../constants/personalities";
+import { getPersonality } from "../constants/personalities";
 import {
   createSession,
   addMessage as persistMessage,
@@ -107,7 +106,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
   const [voiceInputEnabled, setVoiceInputEnabledState] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [personalityId, setPersonalityIdState] = useState<PersonalityId>("succinct");
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [deviceEvalRequest, setDeviceEvalRequest] = useState<EvalRequest | null>(null);
@@ -185,7 +183,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   useEffect(() => {
     (async () => {
       setShowSuggestions(!(await getHidePromptIdeas()));
-      setPersonalityIdState(await getPersonalityId());
       memorySettingsRef.current = await getMemorySettings();
       setVoiceInputEnabledState(await getVoiceInputEnabled());
       const list = await listSessions();
@@ -514,15 +511,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [activeSessionId, refreshSessions, resetToNewChat]
   );
 
-  const cycleTone = useCallback(async () => {
-    const customPrompt = (await getCustomSystemPrompt()) ?? "";
-    const order = PERSONALITIES.map((p) => p.id).filter((id) => id !== "custom" || customPrompt.trim().length > 0);
-    const next = order[(order.indexOf(personalityId) + 1) % order.length];
-    setPersonalityIdState(next);
-    await setPersonalityId(next);
-    toast({ message: t("chatScreen.toneChanged", { tone: `${getPersonality(next).icon} ${t(`personalities.${next}.label`)}` }) });
-  }, [personalityId, t, toast]);
-
   const openSettings = useCallback(() => navigation.navigate("Settings"), [navigation]);
 
   // Set while another screen (Settings, Models, ...) is pushed on top of the chat;
@@ -685,7 +673,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           refreshSessions();
           navigation.dispatch(DrawerActions.openDrawer());
         }}
-        onCycleTone={cycleTone}
         onNewChat={resetToNewChat}
       />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
