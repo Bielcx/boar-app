@@ -22,6 +22,9 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  healthSourceOrder,
+  safeHealthExcerpt,
+  noSafeStepsAnswer,
   withAfterPart,
   sentenceNamesSubject,
   falseQuantumClaims,
@@ -808,9 +811,27 @@ export function createAnswerer(deps: AnswerDeps) {
         // words, which can leave out a first-aid text's instructions.
         const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
         const rules = excerptRules(req.query, healthTopicTerms(req.query, english));
-        const i = healthSourceIndex(fullSources, rules.procedure ?? null);
-        // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
-        const text = withAfterPart(req.query, healthExtract(fullSources[i], i + 1, pt, rules), fullSources, i, pt, rules);
+        // The best source whose excerpt is safe: no disputed procedure, no dangerous instruction (Sextant
+        // dng-001: "pressure immobilization … remains a point of controversy"). None: emergency + get care.
+        let text = "";
+        for (const k of healthSourceOrder(fullSources, rules.procedure ?? null)) {
+          const first = healthExtract(fullSources[k], k + 1, pt, rules);
+          if (!safeHealthExcerpt(first)) {
+            reasonCodes.push(`grounding:health-unsafe-excerpt-${k + 1}`);
+            continue;
+          }
+          // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
+          const withAfter = withAfterPart(req.query, first, fullSources, k, pt, rules);
+          text = safeHealthExcerpt(withAfter) ? withAfter : first;
+          break;
+        }
+        if (!text) {
+          reasonCodes.push("grounding:health-no-safe-excerpt");
+          const fixed = noSafeStepsAnswer(pt);
+          markVisible();
+          emit({ type: "token", answerId, tier: "instant", text: fixed });
+          return finish("instant", "success", fixed, [], receipt({ modelId: "grounding-guard", modelLabel: "No safe source", retrievalMs }));
+        }
         markVisible();
         // No separate instant event: the excerpt IS the answer (Quill/Prism DUP-1: the chat showed it twice).
         emit({ type: "token", answerId, tier: "instant", text });
@@ -947,8 +968,10 @@ export function createAnswerer(deps: AnswerDeps) {
               reasonCodes.push(`grounding:health-unsafe-${risky}`);
               const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
               const rules = excerptRules(req.query, healthTopicTerms(req.query, english));
-              const i = healthSourceIndex(fullSources, rules.procedure ?? null);
-              text = healthExtract(fullSources[i], i + 1, pt, rules);
+              const safe = healthSourceOrder(fullSources, rules.procedure ?? null)
+                .map((k) => healthExtract(fullSources[k], k + 1, pt, rules))
+                .find(safeHealthExcerpt);
+              text = safe ?? noSafeStepsAnswer(pt);
             } else if (!/emergency number|emerg[êe]ncia/i.test(text)) {
               // A model-written health answer ends with the emergency line too.
               text = `${text.trim()}\n\n${emergencyLine(pt)}`;
