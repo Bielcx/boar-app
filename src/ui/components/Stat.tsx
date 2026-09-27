@@ -27,7 +27,7 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
     <View
       accessible
       accessibilityLabel={[label, unit ? `${value} ${unit}` : value].filter(Boolean).join(": ")}
-      style={{ alignItems: align === "right" ? "flex-end" : "flex-start", gap: t.space.xs }}
+      style={{ alignItems: align === "right" ? "flex-end" : "flex-start", gap: t.space.sm + t.space.xxs }}
     >
       {label ? <Text variant="label" color="field">{label}</Text> : null}
       <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.xxs }}>

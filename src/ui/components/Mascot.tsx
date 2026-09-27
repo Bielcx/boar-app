@@ -6,13 +6,14 @@ import { discImage } from "./mascotFrame";
 
 export interface MascotProps {
   /**
-   * Whole boar: hero 170 (chat empty state), md 120 (model loading/error, download hero).
+   * Whole boar: hero = 170×150 box with a 200 pt image overflowing it (chat empty state),
+   * md 120 (model loading/error, download hero).
    * Face in an accent disc: brand 48 (setup brand line), avatar 42 (chat header), avatarSm 26 (message row).
    */
   size?: "hero" | "md" | "brand" | "avatar" | "avatarSm";
   /** Whole boar only: the ember glow under it (empty state, download hero). */
   glow?: boolean;
-  /** Dimmed while waiting (model loading, failed load). */
+  /** Dimmed while waiting (model loading, failed load): mockup opacity .7. */
   dim?: boolean;
 }
 
@@ -40,7 +41,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
           borderRadius: side / 2,
           overflow: "hidden",
           backgroundColor: t.color.accent.solid,
-          opacity: dim ? 0.55 : 1,
+          opacity: dim ? 0.7 : 1,
         }}
       >
         <Image
@@ -52,8 +53,39 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
     );
   }
 
+  if (size === "hero") {
+    // Mockup: a 170×150 layout box with the 200 pt boar overflowing it at (-15, -25) on purpose,
+    // so whatever follows (the wordmark) sits 6 pt under the box and overlaps the feet slightly.
+    const img = t.size.mascotImage;
+    const dx = (img - side) / 2;
+    const dy = (img - t.size.mascotBoxHeight) / 2;
+    return (
+      <View {...hidden} style={{ width: side, height: t.size.mascotBoxHeight, opacity: dim ? 0.7 : 1 }}>
+        {glow && !dim && (
+          // Mockup: the glow box is 10 pt wider each side and sinks 30 pt below the layout box.
+          <View
+            style={{
+              position: "absolute",
+              left: -t.space.sm - t.space.xxs,
+              right: -t.space.sm - t.space.xxs,
+              bottom: -t.space.xxl + t.space.xxs,
+              height: t.size.mascotBoxHeight * 0.8,
+              experimental_backgroundImage: mascotGlow(t.color.glow),
+            }}
+          />
+        )}
+        <Image
+          source={SOURCE}
+          style={{ position: "absolute", left: -dx, top: -dy, width: img, height: img }}
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+        />
+      </View>
+    );
+  }
+
   return (
-    <View {...hidden} style={{ width: side, height: side, opacity: dim ? 0.55 : 1 }}>
+    <View {...hidden} style={{ width: side, height: side, opacity: dim ? 0.7 : 1 }}>
       {glow && !dim && (
         // An ellipse 10% wider than the boar whose peak (60% down the box) sits at its feet;
         // the box spans 0.5..1.3 of the boar's height so the glow fades out inside it.
