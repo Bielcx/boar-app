@@ -10,6 +10,8 @@ import {
 } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
 import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
+import { englishNamesIn, looksPortuguese, type Lexicon } from "./ptLexicon";
+import { ptLexicon } from "./ptLexiconAsset";
 
 export type { RetrievedChunk } from "./retrieve.types";
 
@@ -103,16 +105,37 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
 export async function retrieve(
   query: string,
   topK = 6,
-  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean } = {}
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; lexicon?: Lexicon } = {}
 ): Promise<RetrievedChunk[]> {
-  const { includeWikiPacks = true } = opts;
+  const main = await retrieveOne(query, topK, opts);
+  // A Portuguese question against English sources: search again with the English names it mentions
+  // (Wikipedia's own interlanguage links, src/rag/ptLexicon.ts), and put those results first. The English
+  // embedder and keyword index barely match Portuguese words, so the first search alone finds noise.
+  if (!looksPortuguese(query)) return main;
+  const names = englishNamesIn(query, opts.lexicon ?? ptLexicon());
+  if (!names.length) return main;
+  const found = await retrieveOne(names.join(" "), topK, { includeWikiPacks: opts.includeWikiPacks, titles: names });
+  // Sources without a title boost (bundled corpus, format-1 packs): the article whose title is one of the names first.
+  const named = new Set(names.map((n) => n.toLowerCase()));
+  const english = [...found.filter((c) => named.has(c.title.toLowerCase())), ...found.filter((c) => !named.has(c.title.toLowerCase()))];
+  const seen = new Set<string>();
+  const merged = [...english.slice(0, Math.ceil((topK * 2) / 3)), ...main, ...english].filter((c) => !seen.has(c.chunkId) && (seen.add(c.chunkId), true));
+  return merged.slice(0, topK);
+}
+
+async function retrieveOne(
+  query: string,
+  topK: number,
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; titles?: string[] }
+): Promise<RetrievedChunk[]> {
+  const { includeWikiPacks = true, titles } = opts;
   const queryVec = opts.queryVec ?? (await embeddingEngine.embed(query));
   const [lexical, semantic, packs, wiki] = await Promise.all([
     lexicalSearch(query, topK * 2),
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
-    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec }).catch(() => []) : Promise.resolve([]),
+    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec, ...(titles ? { titles } : {}) }).catch(() => []) : Promise.resolve([]),
   ]);
 
   // Large-pack passages from articles the question names come first, in the

@@ -470,3 +470,33 @@ Time grows linearly, ~44 ms per pack at the median and ~90 ms at p95, so a phone
 half a second searching on this machine's speed alone; a phone is slower. UNKNOWN: on-device numbers (not measured).
 Options to measure next: search packs concurrently (expo-sqlite opens each pack as its own database), or stop early
 once a named article is found.
+
+## Portuguese questions against English sources (PT-1)
+
+The keyword index and the embedder (bge-small, English) barely match Portuguese words, so a Portuguese question used
+to retrieve noise ("Por que existem as estações do ano?" → a Portuguese Appropedia page). `retrieve()` now detects a
+Portuguese question (`looksPortuguese`: two Portuguese function words, or one plus an accented lower-case word; 0 false
+positives on 348 English eval questions, 90 of 91 Portuguese detected) and runs a second search with the English
+article names it mentions, those results first, and an article whose title is one of the names ahead of the rest.
+
+The names come from `assets/lexicon/pt-en.json` (104,677 Portuguese names, 4.0 MB), built by
+`scripts/build-pt-lexicon.mjs` from Wikipedia itself: for each English title of the bundled corpora, wiki-vital5 and
+the topic packs (57,159), the title of the same article on pt.wikipedia and its Portuguese redirects. An exact title
+beats one with a "(…)" qualifier, which beats a redirect; a one-word name only comes from an exact title (a single
+word spelled like an English title, "Fahrenheit", also counts). No model, no network on the phone.
+
+Measured on Sextant's Portuguese questions with the English questions' gold titles (`eval/retrieval/pt.test.ts`,
+42 questions, packs: crypto, preparedness v2, English Wikivoyage, Wikipedia sample; `results/pt-vs-en-sextant-v2.json`):
+
+| Mode | recall@1 | recall@3 | recall@6 |
+|---|---|---|---|
+| English question | 0.095 | 0.214 | 0.429 |
+| Portuguese question as typed | 0.024 | 0.048 | 0.071 |
+| **Portuguese + English names (what `retrieve()` does)** | **0.548** | **0.619** | **0.643** |
+
+The English row is lower because an English question only gets the title boost when it names the article exactly;
+the Portuguese route always searches by name. On wiki-vital5 (format 1, keyword only) the suggestion questions put the
+right article first: estações do ano → *Season*, vacinas → *Immune system*/*Vaccine*, vírus, queimadura → *Burn*,
+efeito estufa, monções, pandemia/epidemia, fissão nuclear, Rota da Seda, Grande Barreira de Corais, sangramento nasal
+→ *Nosebleed*, Fahrenheit. Misses: "picada de abelha" (wiki-vital5 has no *Bee sting*). Remaining noise: a few generic
+names ("homem" → *Man*). Not measured yet: a model translating the question, and a multilingual embedder.
