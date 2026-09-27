@@ -324,6 +324,8 @@
       "importChecking": "Conferindo {{name}}",
       "importOther": "{{name}} é outro item, não este. Escolha o arquivo deste item.",
       "unverified": "Instalado, sem verificação",
+      "active": "Ativo",
+      "usedFor": "Usado para: {{roles}}",
       "role": {
         "answer": "Respostas",
         "deep": "Aprofundar",
