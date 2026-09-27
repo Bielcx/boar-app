@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Button, ListRow, Screen, Section, Sheet, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
+import { screenRhythm } from "./flows/rhythm";
 import { MAX_TOKENS_OPTIONS, PERSONALITIES, PersonalityId } from "../constants/personalities";
 import {
   getCustomSystemPrompt,
@@ -21,6 +22,7 @@ import { getChatBridge } from "./navigation/chatBridge";
 import { RadioRow } from "./flows/RadioRow";
 
 export function SettingsToneScreen() {
+  const tokens = useTokens();
   const { t } = useTranslation();
   const [selected, setSelected] = useState<PersonalityId | null>(null);
   const [custom, setCustom] = useState("");
@@ -32,9 +34,9 @@ export function SettingsToneScreen() {
     })();
   }, []);
 
-  if (!selected) return <Screen>{null}</Screen>;
+  if (!selected) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <Section footer={t("flows.tone.footer")}>
         <View accessibilityRole="radiogroup">
           {PERSONALITIES.map((p) => (
@@ -70,15 +72,16 @@ export function SettingsToneScreen() {
 }
 
 export function SettingsLengthScreen() {
+  const tokens = useTokens();
   const { t } = useTranslation();
   const [selected, setSelected] = useState<number | null>(null);
   useEffect(() => {
     getMaxTokens().then(setSelected);
   }, []);
 
-  if (selected == null) return <Screen>{null}</Screen>;
+  if (selected == null) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <Section footer={t("flows.length.footer")}>
         <View accessibilityRole="radiogroup">
           {MAX_TOKENS_OPTIONS.map((n) => (
@@ -118,9 +121,9 @@ export function SettingsHistoryScreen() {
     setMemorySettings(patch);
   };
 
-  if (!memory) return <Screen>{null}</Screen>;
+  if (!memory) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <Section>
         <ListRow
           title={t("flows.history.autoTitles")}

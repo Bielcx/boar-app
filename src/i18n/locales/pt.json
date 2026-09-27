@@ -439,7 +439,7 @@
       "samples_one": "{{count}} resposta medida aqui · {{date}}",
       "samples_other": "Mediana de {{count}} respostas medidas aqui · {{date}}",
       "usedLabel": "Usado pelo BOAR",
-      "freeLabel": "Livre no celular",
+      "freeMeta": "{{size}} livres no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
       "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },
