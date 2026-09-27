@@ -956,13 +956,15 @@ function InstallStep({
           status: t("flows.onboarding.ready"),
           spoken: undefined as string | undefined,
           tone: "secondary" as TextColor,
+          group: undefined as string | undefined,
         },
       ]
     : states.map(({ asset, state }) => ({
         key: asset.id,
         icon: <PhaseIcon state={state} />,
-        // Models say what they are; knowledge items are named by their title alone (Prism S3-3).
-        title: asset.kind === "corpus" ? asset.label : `${t(`flows.row.kind.${asset.kind}`)} · ${asset.label}`,
+        // Grouped under a MODELS / KNOWLEDGE overline, so each row is just the name (Prism S3-3).
+        group: asset.kind === "corpus" ? t("flows.onboarding.groupKnowledge") : t("flows.onboarding.groupModels"),
+        title: asset.label,
         status: shortStatus(state, asset, t),
         spoken: statusLine(state, asset, t, lang) as string | undefined,
         tone: (state.kind === "failed" ? "danger" : moving(state) ? "accent" : "secondary") as TextColor,
@@ -1004,8 +1006,9 @@ function InstallStep({
       {(!allPresent || (indexing && seed)) && (
         <Card style={{ gap: tokens.space.md }}>
           <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
-            <Stat size="lg" label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
-            <Mascot size="brand" />
+            {/* xl only for the download, the one figure of the setup; the index stays lg (Iris). */}
+            <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
+            <Mascot size="hero" glow />
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
           <MetaLine items={hero.meta} />
@@ -1035,18 +1038,27 @@ function InstallStep({
                       ? t("flows.onboarding.ready")
                       : t("flows.onboarding.indexFailed"),
             spoken: undefined,
-            tone: (indexPhase === "error" ? "danger" : indexPhase === "building" ? "accent" : "secondary") as TextColor,
+            // The hero carries the index progress in accent; the row stays secondary (R-IDX-2).
+            tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
+            group: t("flows.onboarding.groupIndex"),
           },
         ].map((row, i, rows) => (
+          <React.Fragment key={row.key}>
+          {row.group && row.group !== rows[i - 1]?.group && (
+            <View style={{ paddingHorizontal: tokens.space.base, paddingTop: tokens.space.md }}>
+              <Text variant="label" color="secondary">
+                {row.group}
+              </Text>
+            </View>
+          )}
           <View
-            key={row.key}
             accessible
             accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
             style={{
               gap: tokens.space.xs,
               paddingHorizontal: tokens.space.base,
               paddingVertical: tokens.space.md,
-              borderBottomWidth: i < rows.length - 1 ? tokens.size.hairline : 0,
+              borderBottomWidth: i < rows.length - 1 && rows[i + 1].group === row.group ? tokens.size.hairline : 0,
               borderBottomColor: tokens.color.line.hairline,
             }}
           >
@@ -1067,6 +1079,7 @@ function InstallStep({
               </Text>
             )}
           </View>
+          </React.Fragment>
         ))}
       </Card>
 

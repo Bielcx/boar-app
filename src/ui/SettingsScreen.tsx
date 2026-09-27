@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
+import { voiceInBuild } from "../config/variant";
 import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -203,9 +204,16 @@ export function SettingsScreen() {
         />
       </Section>
 
-      <Section title={t("flows.settings.input")} footer={t("flows.settings.voiceNote")}>
-        <ListRow icon="mic" title={t("flows.settings.voice")} switch={{ value: values.voice, onValueChange: (v) => update("voice", v, setVoiceInputEnabled) }} />
-      </Section>
+      {/* The offline build has no microphone permission: say so instead of offering a switch that contradicts the manifest (Prism P4-1). */}
+      {voiceInBuild() ? (
+        <Section title={t("flows.settings.input")} footer={t("flows.settings.voiceNote")}>
+          <ListRow icon="mic" title={t("flows.settings.voice")} switch={{ value: values.voice, onValueChange: (v) => update("voice", v, setVoiceInputEnabled) }} />
+        </Section>
+      ) : (
+        <Section title={t("flows.settings.input")}>
+          <ListRow icon="mic-off" title={t("flows.settings.voice")} subtitle={t("flows.settings.voiceNotInBuild")} />
+        </Section>
+      )}
 
       <Section>
         <ListRow icon="activity" title={t("flows.settings.performance")} onPress={() => navigation.navigate("Performance")} />
