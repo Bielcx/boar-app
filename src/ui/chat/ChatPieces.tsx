@@ -1,9 +1,9 @@
-import React, { memo, useState } from "react";
-import { Pressable, View } from "react-native";
+import React, { memo, useEffect, useRef, useState } from "react";
+import { Animated, Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Icon, Mascot, Progress, Sheet, Text, useToast } from "../components";
-import { useTokens } from "../theme";
+import { useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
 import { showsKnowledgeHint } from "./suggestions";
@@ -197,9 +197,28 @@ export function ChatEmptyState({
 /** The model is still loading: the dimmed mascot with what is happening, centred where the answers will be. */
 export function ChatModelLoading({ label, progress }: { label: string; progress?: number }) {
   const t = useTokens();
+  const { reduceMotion } = useTheme();
+  // The mascot comes in once the native splash has gone: two boars crossed for ~4 frames on Android while the
+  // splash faded (Prism). A short fade after the splash's exit; under reduce motion, just the wait.
+  const appear = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.sequence([
+      Animated.delay(t.motion.duration.slow),
+      Animated.timing(appear, {
+        toValue: 1,
+        duration: reduceMotion ? 0 : t.motion.duration.base,
+        easing: t.motion.easing.enter,
+        useNativeDriver: true,
+      }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [appear, reduceMotion, t.motion]);
   return (
     <View style={{ flexGrow: 1, justifyContent: "center", alignItems: "center", gap: t.space.md }}>
-      <Mascot size="md" dim />
+      <Animated.View style={{ opacity: appear }}>
+        <Mascot size="md" dim />
+      </Animated.View>
       <Text variant="footnote" color="secondary" align="center">
         {label}
       </Text>
