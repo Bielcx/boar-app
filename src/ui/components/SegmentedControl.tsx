@@ -43,7 +43,8 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
         flexDirection: vertical ? "column" : "row",
         padding: inset,
         gap: inset,
-        borderRadius: t.radius.full,
+        // Stacked at large text: a pill radius on a tall box bent the options (Prism SEG-1).
+        borderRadius: vertical ? t.radius.card : t.radius.full,
         backgroundColor: t.color.bg.sunken,
       }}
     >
@@ -70,7 +71,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
                 justifyContent: vertical ? "flex-start" : "center",
                 gap: t.space.xs,
                 paddingHorizontal: t.space.sm,
-                borderRadius: t.radius.full,
+                borderRadius: vertical ? t.radius.md : t.radius.full,
                 backgroundColor: selected ? t.color.bg.raised : "transparent",
                 // Selection is marked by border + weight + check, not by fill alone.
                 borderWidth: selected ? t.size.border : 0,
