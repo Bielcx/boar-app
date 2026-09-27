@@ -9,8 +9,8 @@ import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { generatingSteps, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
-import { groupSources, relevancePercents, sourceParts } from "./sourceLabel";
-import { showsEmergencyNote } from "./safetyNote";
+import { answerSourceSplit, groupSources, sourcesCardMode, relevancePercents, sourceParts } from "./sourceLabel";
+import { answerShowsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -315,12 +315,23 @@ function RelevanceBar({ pct }: { pct: number | null }) {
  * normal case (Prism S-2), and each passage with its citation number and first
  * lines. The full passage opens in the source sheet.
  */
-function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
+function SourceList({
+  answer,
+  onOpenSource,
+  only,
+  related,
+}: {
+  answer: AnswerState;
+  onOpenSource: (i: number) => void;
+  /** CT-2: only the sources the final text cites; undefined shows every source. */
+  only?: number[];
+  related?: number[];
+}) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
-  const groups = groupSources(answer.sources);
-  // Measured relevance only (Boar): 0-100 within the answer; a row without it has no bar.
+  const groups = groupSources(answer.sources, only);
+  // Measured relevance only (Boar), absolute 0-100 (Prism CT-2); a row without it has no bar.
   const pct = relevancePercents(answer.sources);
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
@@ -329,7 +340,7 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
         <Text variant="label" header style={{ flex: 1 }}>
           {tr("chat.sources.heading")}
         </Text>
-        <Badge label={String(answer.sources.length)} tone="field" emphasis="solid" />
+        <Badge label={String(only?.length ?? answer.sources.length)} tone="field" emphasis="solid" />
       </View>
       {groups.map((g) => {
         const open = expanded === g.key;
@@ -429,7 +440,46 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
           </View>
         );
       })}
+      {related && related.length > 0 && <RelatedSources answer={answer} indexes={related} />}
     </Card>
+  );
+}
+
+/**
+ * Retrieved but not cited (Prism CT-2): collapsed under "Related in your library", no number
+ * (they are not citations), no percentage, no amber. Inside the sources card, or alone in its
+ * slot when the answer cites nothing.
+ */
+function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: number[] }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const groups = groupSources(answer.sources, indexes);
+  return (
+    <View style={{ gap: t.space.sm }}>
+      {/* Neutral text action, no ember inside the amber card (Iris); becomes TextAction once 62a6944 is integrated. */}
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        hitSlop={{ top: t.space.md, bottom: t.space.md }}
+        style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xxs, paddingHorizontal: t.space.sm }}
+      >
+        <Text variant="footnote" color="secondary">
+          {tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
+        </Text>
+        <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+      </Pressable>
+      {open &&
+        groups.map((g) => (
+          <View key={g.key} style={{ gap: t.space.xxs, paddingHorizontal: t.space.sm }}>
+            <Text variant="footnote" numberOfLines={2}>
+              {g.title}
+            </Text>
+            <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name ?? tr("chat.sources.corpus")]} variant="caption" />
+          </View>
+        ))}
+    </View>
   );
 }
 
@@ -597,7 +647,8 @@ function InstantSnippet({
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const snippet = answer.instant!;
-  const source = answer.sources[snippet.sourceIndex - 1];
+  // 0-based, as the engine sends it ("[n]" = sourceIndex + 1).
+  const source = answer.sources[snippet.sourceIndex];
   // Collapses to a short preview once the model's answer is done, unless the user chose otherwise.
   const autoCollapsed = answer.fast?.outcome === "success" && !isFinal;
   const expanded = userExpanded ?? !autoCollapsed;
@@ -621,12 +672,12 @@ function InstantSnippet({
         )}
         {source && (
           <Button
-            label={`[${snippet.sourceIndex}]`}
+            label={`[${snippet.sourceIndex + 1}]`}
             variant="ghost"
             size="sm"
             icon="book"
-            accessibilityLabel={tr("chat.snippet.openSource", { n: snippet.sourceIndex, title: source.title })}
-            onPress={() => onOpenSource(snippet.sourceIndex - 1)}
+            accessibilityLabel={tr("chat.snippet.openSource", { n: snippet.sourceIndex + 1, title: source.title })}
+            onPress={() => onOpenSource(snippet.sourceIndex)}
           />
         )}
       </View>
@@ -642,10 +693,12 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   // No strong source: no [n] citations, even if weak passages came back (weak-sources spec rule 4).
   const sourceTitles = answer.weakSources ? [] : answer.sources.map((s) => s.title);
   const placesOnly = !!answer.places && !answer.fast;
+  const split = answerSourceSplit(answer);
+  const cardMode = sourcesCardMode(!!active, split);
   const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
   const instantOnly = !!answer.instantDone && !answer.fast;
   const lastTier = answer.deep ?? answer.fast;
-  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.places?.places.length);
+  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
   const done = !active && (lastTier?.outcome || instantOnly);
   const steps = active && !stopping ? generatingSteps(answer, tr) : null;
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
@@ -693,6 +746,15 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
 
       {answer.instant && !answer.weakSources && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
+      {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
+      {answer.extract ? (
+        <TierBody
+          tier={{ text: answer.extract, stage: null, outcome: answer.instantDone?.outcome }}
+          streaming={!answer.instantDone}
+          sourceTitles={sourceTitles}
+          onOpenSource={onOpenSource}
+        />
+      ) : null}
 
       {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
       {props.waitingLibrary ? (
@@ -743,17 +805,27 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
 
 
-      {answer.sources.length > 0 && !placesOnly && !answer.weakSources && <SourceList answer={answer} onOpenSource={onOpenSource} />}
+      {answer.sources.length > 0 && !placesOnly && !answer.weakSources && (
+        // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
+        // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
+        cardMode === "found" ? (
+          <Card radius="card" padding="compact" style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+            <Icon name="book-open" size="sm" color={t.color.text.secondary} />
+            <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+              {tr("chat.sources.found", { count: answer.sources.length })}
+            </Text>
+          </Card>
+        ) : cardMode === "related" && split ? (
+          <Card radius="card" padding="compact">
+            <RelatedSources answer={answer} indexes={split.related} />
+          </Card>
+        ) : (
+          <SourceList answer={answer} onOpenSource={onOpenSource} only={split?.cited} related={split?.related} />
+        )
+      )}
       {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
       {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} />}
-      {showsEmergencyNote({
-        question: props.question ?? "",
-        sources: answer.sources,
-        hasModelText: !!(answer.fast?.text || answer.deep?.text),
-        hasSnippet: !!answer.instant,
-        placesOnly,
-        safety: answer.safety,
-      }) && <EmergencyNote />}
+      {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>

@@ -1,7 +1,8 @@
-import { EXTRACTIVE_MODEL_ID, type AnswerReceipt } from "./answerEvents";
+import { EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID, type AnswerReceipt } from "./answerEvents";
 import { answerPhase, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds, formatTokPerSec } from "./shareFormat";
 import { placesEmptyTitle } from "./placesFormat";
+import { answerSourceSplit } from "./sourceLabel";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -62,7 +63,12 @@ export function phaseAnnouncement(
           ? { message: `${t("chat.weak.declinedTitleIncomplete")}. ${t("chat.weak.declinedBodyIncomplete")}` }
           : { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
       if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
-      return { message: t("chat.announce.ready", { count: state.sources.length }) };
+      {
+        // CT-2: count what the card shows, the cited sources; none cited reads as no source.
+        const cited = answerSourceSplit(state)?.cited.length ?? state.sources.length;
+        if (cited === 0 && state.sources.length > 0) return { message: t("chat.announce.readyNoSource") };
+        return { message: t("chat.announce.ready", { count: cited }) };
+      }
     case "stopped":
       return { message: t("chat.announce.stopped") };
     case "error":
@@ -97,6 +103,8 @@ export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
   const total = t("chat.receipt.answeredIn", { time: formatSeconds(r.totalMs, locale) });
   if (r.modelId === EXTRACTIVE_MODEL_ID) return [total, t("chat.receipt.sourcePassage"), t("chat.receipt.offline")].join(" · ");
   if (r.modelId === PLACES_MODEL_ID) return [total, t("chat.receipt.offlineMap"), t("chat.receipt.offline")].join(" · ");
+  // I18N-2: the engine's label is English; say it in the app's language.
+  if (r.modelId === GROUNDING_GUARD_MODEL_ID) return [total, t("chat.receipt.noOfflineSource"), t("chat.receipt.offline")].join(" · ");
   const parts = [total, r.modelLabel || t("chat.receipt.localModel")];
   if (r.tokPerSec > 0) parts.push(`${formatTokPerSec(r.tokPerSec, locale)} tok/s`);
   if (r.ttftMs > 0) parts.push(t("chat.receipt.started", { time: formatSeconds(r.ttftMs, locale) }));

@@ -14,12 +14,16 @@ export interface StoredAnswer {
   v: 1;
   sources: (Pick<RetrievedChunk, "chunkId" | "docId" | "title" | "body" | "source" | "collectionId"> & { relevance?: number })[];
   instant?: { text: string; sourceIndex: number };
+  /** NB-1: the literal excerpt answer (health/safety). */
+  extract?: string;
   /** Older records stored only the receipt of an extractive answer. */
   extractiveReceipt?: AnswerReceipt;
   instantDone?: { outcome: AnswerOutcome; receipt: AnswerReceipt; errorCode?: string };
   places?: PlacesResult;
   fast?: StoredTier;
   deep?: StoredTier;
+  /** CT-2: the [n] the final text kept; absent in older records (every source shown). */
+  cited?: number[];
 }
 
 function storeTier(t: TierState | undefined): StoredTier | undefined {
@@ -53,12 +57,14 @@ export function toStoredAnswer(state: AnswerState): string {
       ...(relevance != null ? { relevance } : {}),
     })),
     instant: state.instant ? { text: state.instant.text, sourceIndex: state.instant.sourceIndex } : undefined,
+    ...(state.extract ? { extract: state.extract } : {}),
     instantDone: state.instantDone
       ? { outcome: state.instantDone.outcome, receipt: state.instantDone.receipt, errorCode: state.instantDone.error?.code }
       : undefined,
     places: state.places,
     fast: storeTier(state.fast),
     deep: storeTier(state.deep),
+    ...(state.cited ? { cited: state.cited } : {}),
   };
   return JSON.stringify(stored);
 }
@@ -84,6 +90,7 @@ export function fromStoredAnswer(id: string, text: string, meta: string | null):
     answerIds: [id],
     sources: stored.sources.map((s) => ({ ...s, score: 0, matchType: "hybrid" as const })),
     instant: stored.instant ? { ...stored.instant, confidence: 1 } : undefined,
+    ...(typeof stored.extract === "string" ? { extract: stored.extract } : {}),
     instantDone: stored.instantDone
       ? {
           outcome: stored.instantDone.outcome,
@@ -98,6 +105,7 @@ export function fromStoredAnswer(id: string, text: string, meta: string | null):
     places: stored.places,
     fast: restoreTier(stored.fast),
     deep: restoreTier(stored.deep),
+    ...(Array.isArray(stored.cited) ? { cited: stored.cited } : {}),
   };
 }
 
@@ -111,5 +119,5 @@ export function answerTextForHistory(state: AnswerState): string {
   if (state.places?.places.length) {
     return state.places.places.map((p, i) => `${i + 1}. ${p.name}${p.address ? ` (${p.address})` : ""}`).join("\n");
   }
-  return state.instant?.text ?? "";
+  return state.extract ?? state.instant?.text ?? "";
 }

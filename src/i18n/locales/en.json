@@ -815,11 +815,16 @@
       "fullPassageN": "Full passage {{n}}",
       "groupLabel_one": "Source {{numbers}}: {{title}}, {{origin}}",
       "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages",
-      "relevance": "relevance {{pct}}%"
+      "relevance": "relevance {{pct}}%",
+      "related": "Related in your library · {{count}}",
+      "hideRelated": "Hide related",
+      "found_one": "Found {{count}} passage",
+      "found_other": "Found {{count}} passages"
     },
     "receipt": {
       "sourcePassage": "Source passage",
       "localModel": "Local model",
+      "noOfflineSource": "No offline source",
       "started": "started in {{time}}",
       "offline": "offline",
       "details": "Performance details",

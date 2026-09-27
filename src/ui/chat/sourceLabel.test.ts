@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupSources, relevancePercents, sourceParts } from "./sourceLabel";
+import { answerSourceSplit, citedSplit, sourcesCardMode, groupSources, relevancePercents, sourceParts } from "./sourceLabel";
 
 describe("sourceParts", () => {
   it("splits the corpus 'Name — URL (license)' string (Prism S-2)", () => {
@@ -46,17 +46,55 @@ describe("groupSources", () => {
   });
 });
 
-describe("relevancePercents (measured bar, Boar)", () => {
-  it("normalizes the engine's relevance within the answer, the best = 100", () => {
-    expect(relevancePercents([{ relevance: 0.8 }, { relevance: 0.75 }, { relevance: 0.4 }])).toEqual([100, 94, 50]);
+describe("relevancePercents (measured bar, absolute: Prism CT-2)", () => {
+  it("shows the engine's absolute relevance, never normalized by the best one", () => {
+    expect(relevancePercents([{ relevance: 0.8 }, { relevance: 0.75 }, { relevance: 0.4 }])).toEqual([80, 75, 40]);
+    // The football case: a weak best match no longer reads as 100 %.
+    expect(relevancePercents([{ relevance: 0.31 }])).toEqual([31]);
   });
 
   it("gives no bar to a source without a measured value", () => {
-    expect(relevancePercents([{ relevance: 0.5 }, {}, { relevance: 0 }])).toEqual([100, null, null]);
+    expect(relevancePercents([{ relevance: 0.5 }, {}, { relevance: 0 }])).toEqual([50, null, null]);
     expect(relevancePercents([{}, {}])).toEqual([null, null]);
   });
 
-  it("never rounds a measured source down to 0%", () => {
-    expect(relevancePercents([{ relevance: 1 }, { relevance: 0.001 }])).toEqual([100, 1]);
+  it("never rounds a measured source down to 0% nor above 100%", () => {
+    expect(relevancePercents([{ relevance: 1 }, { relevance: 0.001 }, { relevance: 1.2 }])).toEqual([100, 1, 100]);
+  });
+});
+
+describe("citedSplit / answerSourceSplit (Prism CT-2, Tusk done.cited)", () => {
+  it("is null while the engine said nothing: every source shows as before", () => {
+    expect(citedSplit(3, undefined)).toBeNull();
+    expect(answerSourceSplit({ sources: [1, 2] })).toBeNull();
+  });
+
+  it("an answer with no [n] cites nothing: all related, no sources card", () => {
+    expect(citedSplit(3, [])).toEqual({ cited: [], related: [0, 1, 2] });
+  });
+
+  it("maps [n] to indexes and drops numbers out of range", () => {
+    expect(citedSplit(3, [3, 1, 9, 0, 1.5])).toEqual({ cited: [0, 2], related: [1] });
+  });
+
+  it("counts the shown instant passage as cited, not when weak", () => {
+    expect(answerSourceSplit({ sources: [1, 2, 3], cited: [], instant: { sourceIndex: 1 } })).toEqual({ cited: [1], related: [0, 2] });
+    expect(answerSourceSplit({ sources: [1, 2], cited: [], instant: { sourceIndex: 1 }, weakSources: true })).toEqual({ cited: [], related: [0, 1] });
+  });
+});
+
+describe("groupSources with only", () => {
+  it("keeps the original indexes of the chosen sources", () => {
+    const g = groupSources([{ docId: "a", title: "A" }, { docId: "b", title: "B" }, { docId: "a", title: "A" }], [1, 2]);
+    expect(g).toEqual([{ key: "b", title: "B", indexes: [1] }, { key: "a", title: "A", indexes: [2] }]);
+  });
+});
+
+describe("sourcesCardMode (Prism: no shrinking card while streaming)", () => {
+  it("only the count while writing, then cited or related; all without the engine's cited", () => {
+    expect(sourcesCardMode(true, null)).toBe("found");
+    expect(sourcesCardMode(false, null)).toBe("all");
+    expect(sourcesCardMode(false, { cited: [] })).toBe("related");
+    expect(sourcesCardMode(true, { cited: [0] })).toBe("cited"); // Deepen running: the fast pass's card stays
   });
 });

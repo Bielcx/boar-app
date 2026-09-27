@@ -30,7 +30,13 @@ export interface AnswerState {
   /** Global, deduplicated list: "[n]" in any tier's text is sources[n - 1]. */
   /** As the engine sent them, with relevance (0..1) when measured. */
   sources: SourceChunk[];
+  /** sourceIndex is 0-based into sources ("[n]" = sourceIndex + 1, as the engine sends it). */
   instant?: { text: string; sourceIndex: number; confidence: number };
+  /**
+   * The engine's literal excerpt answer, streamed as instant-tier tokens (health/safety with an
+   * on-topic source: lead, the source's steps with [n], emergency line). Prism NB-1: it was dropped.
+   */
+  extract?: string;
   fast?: TierState;
   deep?: TierState;
   /**
@@ -49,6 +55,11 @@ export interface AnswerState {
   weakSources?: boolean;
   /** …and the compact model declined to answer without a source (weak-sources state A); "Answer anyway" asks again. */
   weakDeclined?: boolean;
+  /**
+   * The [n] left in the final text of the finished tiers (Tusk done.cited, Prism CT-2), merged
+   * across fast and deep. Undefined until a tier reports it: the card then shows every source.
+   */
+  cited?: number[];
   /** The engine classified the question as health/safety (done.safety): literal passage, emergency note. */
   safety?: boolean;
 }
@@ -60,6 +71,13 @@ export function initialAnswer(answerId: string): AnswerState {
 /** Routes a follow-up answer() (Deepen) into this message. */
 export function attachAnswer(state: AnswerState, answerId: string): AnswerState {
   return state.answerIds.includes(answerId) ? state : { ...state, answerIds: [...state.answerIds, answerId] };
+}
+
+/** CT-2: read defensively, the field is new in the engine's done event. */
+function withCited(state: AnswerState, cited: unknown): AnswerState {
+  if (!Array.isArray(cited)) return state;
+  const nums = cited.filter((n): n is number => typeof n === "number");
+  return { ...state, cited: [...new Set([...(state.cited ?? []), ...nums])].sort((a, b) => a - b) };
 }
 
 function mergeSources(current: SourceChunk[], incoming: SourceChunk[]): SourceChunk[] {
@@ -109,16 +127,21 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       return updateTier(state, event.tier, (t) => ({ ...t, stage: event.stage, detail: event.detail }));
 
     case "token":
-      if (event.tier === "instant" || state[event.tier]?.outcome) return state;
+      if (event.tier === "instant") return state.instantDone ? state : { ...state, extract: (state.extract ?? "") + event.text };
+      if (state[event.tier]?.outcome) return state;
       return updateTier(state, event.tier, (t) => ({ ...t, stage: "generating", text: t.text + event.text }));
 
     case "done":
       if (event.safety) state = { ...state, safety: true };
       if (event.tier === "instant") {
         if (state.instantDone) return state;
+        state = withCited(state, (event as { cited?: unknown }).cited);
+        const finalText = (event as { finalText?: string }).finalText;
+        if (state.extract != null && finalText != null) state = { ...state, extract: finalText };
         return { ...state, instantDone: { outcome: event.outcome, receipt: event.receipt, error: event.error } };
       }
       if (state[event.tier]?.outcome) return state;
+      state = withCited(state, (event as { cited?: unknown }).cited);
       return updateTier(state, event.tier, (t) => ({
         ...t,
         // CT-1: the engine removed [n] the sources don't support; its final text replaces the streamed one.

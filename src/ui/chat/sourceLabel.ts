@@ -42,11 +42,13 @@ export interface SourceGroup {
   indexes: number[];
 }
 
-/** One group per article, in the order the article is first cited. */
-export function groupSources(sources: Chunk[]): SourceGroup[] {
+/** One group per article, in the order the article is first cited; `only` limits it to those indexes. */
+export function groupSources(sources: Chunk[], only?: number[]): SourceGroup[] {
   const groups: SourceGroup[] = [];
   const byKey = new Map<string, SourceGroup>();
+  const keep = only ? new Set(only) : null;
   sources.forEach((s, i) => {
+    if (keep && !keep.has(i)) return;
     const key = s.docId || `#${i}`;
     let g = byKey.get(key);
     if (!g) {
@@ -60,16 +62,48 @@ export function groupSources(sources: Chunk[]): SourceGroup[] {
 }
 
 /**
- * The relevance bar of each source, 0-100 within this answer (the most relevant = 100), from the
- * engine's comparable relevance (asked of Tusk: RetrievedChunk.relevance, 0..1). A source without
- * it gets no bar (null), and so does every source when none has a positive value. Never a fixed
- * number: the percentage is measured, as the r4to/Boar decision requires.
+ * The relevance bar of each source, 0-100, straight from the engine's absolute relevance (0..1,
+ * Tusk: RetrievedChunk.relevance). Never normalized by the best one (Prism CT-2: a weak best match
+ * read as "100 %"). A source without a positive value gets no bar (null). Measured, never fixed.
  */
 export function relevancePercents(sources: object[]): (number | null)[] {
-  const vals = sources.map((s) => {
+  return sources.map((s) => {
     const v = (s as { relevance?: unknown }).relevance;
-    return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
+    return Math.min(100, Math.max(1, Math.round(v * 100)));
   });
-  const max = Math.max(0, ...vals.map((v) => v ?? 0));
-  return vals.map((v) => (v == null || max <= 0 ? null : Math.max(1, Math.round((v / max) * 100))));
+}
+
+/**
+ * Which sources the answer actually rests on (Prism CT-2, Tusk done.cited): `cited` are the
+ * indexes whose [n] stayed in the final text, plus the instant passage when it is shown; the
+ * rest are only "related". null when the engine said nothing about it (older answers, a tier
+ * still running): every source is shown as before.
+ */
+export function citedSplit(count: number, cited: number[] | undefined, instantIndex?: number): { cited: number[]; related: number[] } | null {
+  if (!cited) return null;
+  const set = new Set(cited.filter((n) => Number.isInteger(n) && n >= 1 && n <= count).map((n) => n - 1));
+  if (instantIndex != null && instantIndex >= 0 && instantIndex < count) set.add(instantIndex);
+  const all = Array.from({ length: count }, (_, i) => i);
+  return { cited: all.filter((i) => set.has(i)), related: all.filter((i) => !set.has(i)) };
+}
+
+/** citedSplit for an answer: the instant passage counts as cited when it is shown. */
+export function answerSourceSplit(a: {
+  sources: unknown[];
+  cited?: number[];
+  instant?: { sourceIndex: number };
+  weakSources?: boolean;
+}): { cited: number[]; related: number[] } | null {
+  return citedSplit(a.sources.length, a.cited, a.instant && !a.weakSources ? a.instant.sourceIndex : undefined);
+}
+
+/**
+ * What the sources slot shows (Prism CT-2): while the answer is written and the engine hasn't said
+ * which [n] stayed, only the count; then the cited sources, or only "Related" when none is cited.
+ * "all" = an engine or a record without cited: every source, as before.
+ */
+export function sourcesCardMode(active: boolean, split: { cited: number[] } | null): "found" | "related" | "cited" | "all" {
+  if (!split) return active ? "found" : "all";
+  return split.cited.length === 0 ? "related" : "cited";
 }

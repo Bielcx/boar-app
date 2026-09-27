@@ -66,3 +66,11 @@ describe("number formatting", () => {
     expect(formatSeconds(83_400, "en-US")).toBe("83 s");
   });
 });
+
+describe("formatForCopy with the cited sources (CT-2)", () => {
+  it("lists only the cited ones, each with its own number, and none when nothing is cited", () => {
+    const srcs = [chunk({ title: "A" }), chunk({ title: "B" }), chunk({ title: "C" })];
+    expect(formatForCopy("x [3]", srcs, labels, [2])).toBe("x [3]\n\nSources:\n[3] C");
+    expect(formatForCopy("x", srcs, labels, [])).toBe("x");
+  });
+});

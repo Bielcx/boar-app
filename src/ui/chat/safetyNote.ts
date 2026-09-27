@@ -43,3 +43,19 @@ export function showsEmergencyNote(a: {
   if (a.placesOnly || (!a.hasModelText && !a.hasSnippet)) return false;
   return needsEmergencyNote(a.question, a.sources, a.safety);
 }
+
+/** showsEmergencyNote for a chat answer: the model's text, the instant passage or the engine's literal excerpt (NB-1). */
+export function answerShowsEmergencyNote(
+  answer: { sources: Src[]; fast?: { text: string }; deep?: { text: string }; instant?: unknown; extract?: string; safety?: boolean },
+  question: string,
+  placesOnly: boolean
+): boolean {
+  return showsEmergencyNote({
+    question,
+    sources: answer.sources,
+    hasModelText: !!(answer.fast?.text || answer.deep?.text),
+    hasSnippet: !!answer.instant || !!answer.extract,
+    placesOnly,
+    safety: answer.safety,
+  });
+}

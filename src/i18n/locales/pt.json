@@ -815,11 +815,16 @@
       "fullPassageN": "Trecho completo {{n}}",
       "groupLabel_one": "Fonte {{numbers}}: {{title}}, {{origin}}",
       "groupLabel_other": "Fontes {{numbers}}: {{title}}, {{origin}}, {{count}} trechos",
-      "relevance": "relevância {{pct}}%"
+      "relevance": "relevância {{pct}}%",
+      "related": "Relacionados no seu acervo · {{count}}",
+      "hideRelated": "Ocultar relacionados",
+      "found_one": "{{count}} trecho encontrado",
+      "found_other": "{{count}} trechos encontrados"
     },
     "receipt": {
       "sourcePassage": "Trecho da fonte",
       "localModel": "Modelo local",
+      "noOfflineSource": "Sem fonte offline",
       "started": "começou em {{time}}",
       "offline": "offline",
       "details": "Detalhes de desempenho",

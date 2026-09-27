@@ -39,6 +39,9 @@ describe("phaseAnnouncement", () => {
   it("announces transitions, never tokens, and errors assertively", () => {
     expect(phaseAnnouncement("searching", state, t)).toEqual({ message: "chat.announce.searching" });
     expect(phaseAnnouncement("done", state, t)).toEqual({ message: 'chat.announce.ready{"count":3}' });
+    // CT-2: the count follows the cited sources; nothing cited reads as no source.
+    expect(phaseAnnouncement("done", { ...state, cited: [2] }, t)).toEqual({ message: 'chat.announce.ready{"count":1}' });
+    expect(phaseAnnouncement("done", { ...state, cited: [] }, t)).toEqual({ message: "chat.announce.readyNoSource" });
     expect(phaseAnnouncement("error", state, t)).toEqual({ message: "chat.error.generic", assertive: true });
     expect(phaseAnnouncement("reading", state, t)).toBeNull();
   });
@@ -77,6 +80,12 @@ describe("receiptLine", () => {
     );
     expect(receiptLine({ ...receipt, modelId: "places", tokens: 0, totalMs: 300 }, "en-US", t)).toBe(
       'chat.receipt.answeredIn{"time":"0.3 s"} · chat.receipt.offlineMap · chat.receipt.offline'
+    );
+  });
+
+  it("names the engine's no-source answer in the app's language (I18N-2), never its English label", () => {
+    expect(receiptLine({ ...receipt, modelId: "grounding-guard", modelLabel: "No offline source", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 200 }, "pt-BR", t)).toBe(
+      'chat.receipt.answeredIn{"time":"0,2 s"} · chat.receipt.noOfflineSource · chat.receipt.offline'
     );
   });
 
