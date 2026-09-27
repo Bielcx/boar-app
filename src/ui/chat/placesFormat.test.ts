@@ -11,6 +11,7 @@ import {
   placeA11yLabel,
   placeDetailLine,
   spokenDistance,
+  deviceClockApplies,
 } from "./placesFormat";
 
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -128,5 +129,14 @@ describe("rows", () => {
   it("gives coordinates and a geo: URI for offline maps apps", () => {
     expect(coordinatesText(place)).toBe("-23.55052, -46.63331");
     expect(geoUri(place)).toBe("geo:-23.550520,-46.633309?q=-23.550520,-46.633309(M%C3%A3o%20Verde)");
+  });
+});
+
+describe("deviceClockApplies", () => {
+  it("uses the phone's clock near me, and in a named city only when the phone is inside it", () => {
+    expect(deviceClockApplies({ kind: "near" })).toBe(true);
+    expect(deviceClockApplies({ kind: "city", deviceInside: true })).toBe(true);
+    expect(deviceClockApplies({ kind: "city", deviceInside: false })).toBe(false);
+    expect(deviceClockApplies({ kind: "city" })).toBe(false);
   });
 });

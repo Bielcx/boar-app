@@ -13,6 +13,7 @@ import {
   formatDistance,
   geoUri,
   filterName,
+  deviceClockApplies,
   openStateAt,
   openStateLabel,
   placesEmptyTitle,
@@ -279,7 +280,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
   const clock = useMinuteClock();
   const r = answer.places!;
   // Open/closed needs the place's local time; only a "near" list shares the device's clock.
-  const now = r.area.kind === "near" ? clock : null;
+  const now = deviceClockApplies(r.area) ? clock : null;
 
   if (r.coverage === "needs_place") {
     return <CityPrompt locationStatus={answer.location?.status} onCity={onCity} onUseLocation={onUseLocation} />;
