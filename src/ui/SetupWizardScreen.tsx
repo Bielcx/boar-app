@@ -1001,7 +1001,8 @@ function InstallStep({
       seed && seed.total > 0 && { key: "doneIndex", value: t("flows.onboarding.doneArticles", { count: seed.total, value: formatCount(seed.total, lang) }) },
     ].filter((r): r is { key: string; value: string } => !!r);
     return (
-      <Screen center edges={["top", "bottom", "left", "right"]} footer={<Button label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
+      // ambient: the same ember light as the Welcome, so both ends of setup rhyme (Iris).
+      <Screen center ambient edges={["top", "bottom", "left", "right"]} footer={<Button label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
         <View style={{ alignItems: "center", gap: tokens.space.md }}>
           <Mascot size="hero" glow />
           <Text ref={titleRef} variant="title1" align="center" header>
