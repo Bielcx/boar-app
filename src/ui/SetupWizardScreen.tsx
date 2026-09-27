@@ -952,7 +952,9 @@ function InstallStep({
     return () => clearInterval(id);
   }, [downloading]);
   const stalled = downloading && now - lastMove.current.at > STALL_MS;
-  const transferring = downloading || catalog.imports.some((f) => f.status === "importing");
+  // The file being checked right now (offline import): the hero shows it live (Prism/Iris S3C-1).
+  const activeImport = catalog.imports.find((f) => f.status === "importing");
+  const transferring = downloading || !!activeImport;
   // Measured download speed since this screen started receiving bytes: the time left is shown only once measured.
   const rateStart = useRef<{ bytes: number; at: number } | null>(null);
   if (downloading && !rateStart.current && doneBytes > 0) rateStart.current = { bytes: doneBytes, at: Date.now() };
@@ -1033,7 +1035,16 @@ function InstallStep({
   const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
   // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
-    ? offline
+    ? offline && activeImport
+      ? {
+          label: t("flows.onboarding.importingLabel"),
+          fraction: activeImport.progress,
+          figure: undefined,
+          meta: activeImport.sizeBytes
+            ? [t("flows.onboarding.totalValue", { done: formatBytes(activeImport.sizeBytes * activeImport.progress, lang), total: formatBytes(activeImport.sizeBytes, lang) })]
+            : [],
+        }
+      : offline
       ? {
           label: t("flows.onboarding.importedLabel"),
           fraction: assets.length > 0 ? presentCount / assets.length : 0,
@@ -1118,14 +1129,13 @@ function InstallStep({
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
-          {offline && !allPresent ? (
+          {offline && !allPresent && !activeImport ? (
             // Offline, the step's action is choosing the files: it takes the mockup's CTA place (primary, the one accent).
             <Button
               size="lg"
               icon="file-plus"
               label={t("flows.import.pick")}
               fullWidth
-              loading={catalog.imports.some((f) => f.status === "importing")}
               onPress={catalog.importFiles}
             />
           ) : (
@@ -1148,12 +1158,23 @@ function InstallStep({
 
 
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
-      {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
+      {((!allPresent && (!offline || presentCount > 0 || !!activeImport)) || (indexing && seed)) && (
         // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
         // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
         // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
         <Card style={{ gap: tokens.space.md - tokens.space.xxs, borderRadius: tokens.radius.hero }}>
-          {fontScale > LARGE_TEXT ? (
+          {offline && activeImport ? (
+            // The copy's Cancel takes the boar's corner, never over the figure (Iris S3C-1).
+            <View style={{ position: "absolute", top: tokens.space.sm, right: tokens.space.xs }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                label={t("common.cancel")}
+                accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
+                onPress={catalog.cancelImports}
+              />
+            </View>
+          ) : fontScale > LARGE_TEXT ? (
             // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
             <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
               <Mascot size="brand" />
@@ -1173,6 +1194,11 @@ function InstallStep({
             )}
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
+          {!allPresent && offline && activeImport && (
+            <Text variant="footnote" numberOfLines={1} ellipsizeMode="middle">
+              {t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
+            </Text>
+          )}
           {!allPresent && !offline && current && (
             <Text variant="footnote" numberOfLines={2}>
               {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
@@ -1258,20 +1284,6 @@ function InstallStep({
         ))}
       </Card>
 
-      {needsImport && !allPresent && (
-        <View style={{ gap: tokens.space.sm }}>
-          {!offline && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.onboarding.importPlacesNote")}
-            </Text>
-          )}
-          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} />
-          <Text variant="footnote" color="secondary" selectable>
-            {t("flows.onboarding.importHow")}
-          </Text>
-        </View>
-      )}
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
       {transferring && (
@@ -1294,6 +1306,24 @@ function InstallStep({
           <Text variant="footnote">
             {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
+        </View>
+      )}
+
+      {/* The files being imported come after "Keep BOAR open", so that card stays on the first screen (Harbor, 02e72b5). */}
+      {needsImport && !allPresent && (
+        <View style={{ gap: tokens.space.sm }}>
+          {!offline && (
+            <Text variant="footnote" color="secondary">
+              {t("flows.onboarding.importPlacesNote")}
+            </Text>
+          )}
+          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} />
+          {!activeImport && (
+            <Text variant="footnote" color="secondary" selectable>
+              {t("flows.onboarding.importHow")}
+            </Text>
+          )}
         </View>
       )}
 

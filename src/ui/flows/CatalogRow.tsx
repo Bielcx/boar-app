@@ -52,7 +52,8 @@ function seal(state: RowState, t: TFunction): Seal {
       return { label: t("flows.row.failed"), tone: "danger", emphasis: "soft" };
     case "in-use":
       // A solid seal is a status (Active); the role goes in the metadata, the kind is already the overline (Iris).
-      return { label: t("flows.row.active"), tone: "accent", emphasis: "solid" };
+      // Amber (field) = on the phone and in use; ember stays for the one selection on the screen (Iris P2-6).
+      return { label: t("flows.row.active"), tone: "field", emphasis: "solid" };
     case "installed":
       return state.verified
         ? { label: t("flows.row.verified"), tone: "field", emphasis: "soft" }
@@ -102,7 +103,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
     state.kind === "downloading" ? state.progress : state.kind === "verifying" ? state.progress ?? undefined : undefined;
 
   return (
-    <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
+    // 14 pt inset like the mockup's lists and the Section/ListRow (Iris dfe6950).
+    <View style={{ padding: tokens.space.md + tokens.space.xxs, gap: tokens.space.sm }}>
       {/* The mockup's catalog card: kind overline and status seal, then the name with its size, then one metadata line. */}
       {showKind && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>

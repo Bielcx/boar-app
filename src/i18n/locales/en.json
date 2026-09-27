@@ -613,6 +613,8 @@
       "percentAnnounce": "{{pct}}% downloaded",
       "percentImportedAnnounce": "{{pct}}% imported",
       "queued": "Waiting",
+      "importingLabel": "Importing",
+      "fileOf": "File {{n}} of {{total}} — {{name}}",
       "bootChecking": "Checking the files on this phone…",
       "category": {
         "answer": "Answer model",
