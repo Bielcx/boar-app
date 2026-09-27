@@ -408,6 +408,15 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     }
   });
 
+  it("Bramble 0d82f09: a lay first-aid source that names the condition in its text is quoted over the clinical one", async () => {
+    f.retrieved = [
+      { ...chunk("c", "Snakebite", "Treatment > First aid: Some have little local effect, but life-threatening systemic effects, in which case pressure immobilization is desirable."), action: true },
+      { ...chunk("l", "US government: US Army Survival Manual FM 21-76: CHAPTER 4 - BASIC SURVIVAL MEDICINE", "Before you start treating a snakebite, keep the victim still, remove rings and watches, and get medical help."), action: false },
+    ] as any;
+    const { result } = await collect("I just got bitten by a snake while hiking. What do I do right now?");
+    expect(result.text).toMatch(/Before you start treating a snakebite, keep the victim still/);
+  });
+
   it("gate 2329dc0: a disaster answer never cites an article about one event (Marash, Kamchatka)", async () => {
     for (const q of ["An earthquake starts while I'm inside a hotel room. What should I do?", "O que fazer durante um terremoto?"]) {
       f = makeFake();

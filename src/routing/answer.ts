@@ -590,7 +590,8 @@ export function createAnswerer(deps: AnswerDeps) {
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
       // A PT question without English words can't be matched word for word against English sources: no guard.
       const guarded = gen?.mode !== "multipass" && (!pt || !!english);
-      if (guarded && sources.length) {
+      // Health has its own, stricter topic filter below (the condition, lay sources allowed).
+      if (guarded && !health && sources.length) {
         const kept = sources.filter((c) => onTopic(matchQuery, c));
         if (kept.length < sources.length) reasonCodes.push(`grounding:off-topic-dropped-${sources.length - kept.length}`);
         if (!kept.length) reasonCodes.push("grounding:no-good-source");

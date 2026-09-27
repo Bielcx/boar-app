@@ -357,8 +357,10 @@ export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolea
   if (titleNames(chunk.title, topic)) return true;
   if ((action !== false || LAY_SOURCE.test(chunk.title)) && titleNames(sectionHeading(chunk), topic)) return true;
   // A pack's action section counts only when its text names the condition too
-  // ("Oral rehydration therapy › Treatment" is an action section, not about burns).
-  return action === true && titleNames(chunk.body, topic);
+  // ("Oral rehydration therapy › Treatment" is an action section, not about burns). So does a
+  // lay first-aid source whose text names it (Army FM 21-76 "Before you start treating a
+  // snakebite...", Wikibooks "Outdoor Survival/First Aid › Insect and animal bite").
+  return (action === true || LAY_SOURCE.test(chunk.title)) && titleNames(chunk.body, topic);
 }
 
 /** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
@@ -469,7 +471,9 @@ export function healthSourceIndex(sources: RetrievedChunk[]): number {
   sources.forEach((c, i) => {
     if (anyAction && flag(c) !== true && !LAY_SOURCE.test(c.title)) return;
     // Laypeople's first-aid text beats a clinical Treatment section ("Active external rewarming involves...").
-    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + (LAY_SOURCE.test(c.title) ? 4 : 0) - i * 0.05;
+    // Lay first-aid text that gives steps beats a clinical Treatment section.
+    const lay = LAY_SOURCE.test(c.title) ? (healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE ? 6 : 2) : 0;
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;
