@@ -308,6 +308,8 @@ export function healthTopicTerms(query: string, articleTerms: string | null): Se
         ...(query.match(new RegExp(DISASTER.source, "giu")) ?? []),
       ].join(" ");
   const terms = new Set(tokenizeTerms(source).filter((t) => !GENERIC_TOPIC.has(t)));
+  // "snakebite snake bite": the parts only count together (via COMPOUNDS), never alone ("Dog bite").
+  for (const [compound, parts] of Object.entries(COMPOUNDS)) if (terms.has(compound)) parts.forEach((p) => terms.delete(p));
   // Drinking water: the condition is contamination / purification, not "water".
   if (/\b(drink|flood|contaminat|potavel|purif)/i.test(source)) ["contaminat", "purification", "purify", "disinfect", "boil", "flood"].forEach((t) => terms.add(t));
   return terms;
@@ -357,9 +359,26 @@ function sameTerm(a: string, b: string): boolean {
   return short.length >= 5 && long.startsWith(short) && long.length - short.length <= 3;
 }
 
+/**
+ * Conditions written as one word or two ("snakebite" / "snake bite", Wikibooks'
+ * "Animal bites > Snakes"): the compound matches a title with both parts.
+ */
+const COMPOUNDS: Record<string, [string, string]> = {
+  snakebite: ["snake", "bite"],
+  nosebleed: ["nose", "bleed"],
+  heatstroke: ["heat", "stroke"],
+  frostbite: ["frost", "bite"],
+};
+
 function titleNames(title: string, terms: Iterable<string>): boolean {
   const t = tokenizeTerms(title);
-  for (const q of terms) if (t.some((x) => sameTerm(x, q))) return true;
+  const has = (q: string) => t.some((x) => sameTerm(x, q));
+  for (const q of terms) {
+    if (has(q)) return true;
+    // Parts on the raw words: the tiny stemmer turns "bites" into "bit".
+    const parts = COMPOUNDS[q];
+    if (parts && parts.every((p) => new RegExp(`\\b${p}(s|es)?\\b`, "i").test(title))) return true;
+  }
   return false;
 }
 

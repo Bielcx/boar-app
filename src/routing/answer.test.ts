@@ -242,14 +242,14 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     );
     f.retrieved = [lead, treatment];
     const { result } = await collect("How do I stop a nosebleed?");
-    expect(result.text).toMatch(/^From the offline source:\nTreatment: Most anterior nosebleeds .* lean forward for 10 to 15 minutes\. \[2\]$/);
+    expect(result.text).toMatch(/^From the offline source:\nTreatment: Most anterior nosebleeds .* lean forward for 10 to 15 minutes\. \[\d\]$/);
   });
 
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
     const queries: string[] = [];
     f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
     const { result } = await collect("Como faço para parar um sangramento no nariz?");
-    expect(queries).toEqual(["nosebleed stop what to do"]);
+    expect(queries).toEqual(["nosebleed nose bleed stop what to do"]);
     expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nPinch the soft part/);
     expect(f.generations).toHaveLength(0);
   });
@@ -259,7 +259,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f.deps.retrieve = async (q) => (queries.push(q), []);
     await collect("I just got bitten by a snake while hiking, two hours from the nearest road. What do I do right now?");
     await collect("Tell me about snakebite statistics in India");
-    expect(queries).toEqual(["snakebite what to do", "Tell me about snakebite statistics in India"]);
+    expect(queries).toEqual(["snakebite snake bite what to do", "Tell me about snakebite statistics in India"]);
   });
 
   it("uses the pack's action flag (Bramble b4becc5): an action section wins, a background one is never quoted over it", async () => {

@@ -9,9 +9,9 @@
 
 // Longest phrases first: "sangramento no nariz" before "sangramento".
 const PT_EN: Array<[RegExp, string]> = [
-  [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz sangrando|epistaxe/i, "nosebleed"],
+  [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz sangrando|epistaxe/i, "nosebleed nose bleed"],
   [/primeiros socorros/i, "first aid"],
-  [/picada de (cobra|serpente)|mordida de (cobra|serpente)|picad[ao] por (uma )?(cobra|serpente)|mordid[ao] por (uma )?(cobra|serpente)|(cobra|serpente)[^.]{0,30}(picou|mordeu)|(picou|mordeu)[^.]{0,30}(cobra|serpente)/i, "snakebite"],
+  [/picada de (cobra|serpente)|mordida de (cobra|serpente)|picad[ao] por (uma )?(cobra|serpente)|mordid[ao] por (uma )?(cobra|serpente)|(cobra|serpente)[^.]{0,30}(picou|mordeu)|(picou|mordeu)[^.]{0,30}(cobra|serpente)/i, "snakebite snake bite"],
   [/picada de (abelha|vespa)|ferroada/i, "bee sting"],
   [/picada de escorpi[ãa]o/i, "scorpion sting"],
   [/parada card[íi]aca/i, "cardiac arrest"],
@@ -25,7 +25,7 @@ const PT_EN: Array<[RegExp, string]> = [
   [/(tremend\w*|tremores?|calafrios?)[^.]{0,80}\bfrio\b|\bfrio\b[^.]{0,80}(tremend\w*|tremores?|calafrios?)/i, "hypothermia"],
   [/[áa]gua pot[áa]vel|[áa]gua (segura|limpa) para beber|tornar a [áa]gua (segura|pot[áa]vel)/i, "safe drinking water"],
   [/[áa]gua contaminada/i, "contaminated water"],
-  [/insola[çc][ãa]o|golpe de calor/i, "heat stroke"],
+  [/insola[çc][ãa]o|golpe de calor/i, "heatstroke heat stroke"],
   [/rea[çc][ãa]o al[ée]rgica|choque anafil[áa]tico|anafilaxia/i, "anaphylaxis allergic reaction"],
   [/sangramento|hemorragia|sangrando/i, "bleeding"],
   [/queimadura|queimou|queimad[oa]/i, "burn"],
@@ -69,10 +69,10 @@ export function englishSearchTerms(query: string): string | null {
 // English first-aid questions phrased as a story ("I just got bitten by a snake while hiking")
 // share few words with the articles (Snakebite, Burn, Hypothermia): search with their names.
 const EN_CANONICAL: Array<[RegExp, string]> = [
-  [/\b(bitten|bit) by (a |an )?(snake|viper|rattlesnake|cobra)|\bsnake ?bites?\b/i, "snakebite"],
+  [/\b(bitten|bit) by (a |an )?(snake|viper|rattlesnake|cobra)|\bsnake ?bites?\b/i, "snakebite snake bite"],
   [/\b(spill\w*|splash\w*|scald\w*|pour\w*)\b[^.]{0,40}\b(boiling|hot) (water|oil|coffee|tea)|\b(boiling|hot) (water|oil)[^.]{0,40}\b(spill\w*|scald\w*|burn\w*)|\bscalds?\b/i, "burn scald"],
   [/\bshiver\w*[^.]{0,80}\bcold\b|\bcold\b[^.]{0,80}\bshiver\w*/i, "hypothermia"],
-  [/\bnose ?bleeds?\b|\bbleeding (from )?(the |my |his |her )?nose\b/i, "nosebleed"],
+  [/\bnose ?bleeds?\b|\bbleeding (from )?(the |my |his |her )?nose\b/i, "nosebleed nose bleed"],
   [/\bchok(e|ing)\b/i, "choking"],
   // Earthquakes and floods: the question's own words find the "During an earthquake" sections better.
 ];

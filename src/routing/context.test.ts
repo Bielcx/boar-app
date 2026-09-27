@@ -7,6 +7,8 @@ import {
   instantFinalBlock,
   isHealthQuestion,
   isSafetyQuery,
+  healthTopicTerms,
+  onHealthTopic,
   riskyHealthInstruction,
   mergeSources,
   scoreSentences,
@@ -327,5 +329,15 @@ describe("isSafetyQuery (one classifier for the emergency line, engine and chat)
       expect(isSafetyQuery(q), q).toBe(true);
     }
     expect(isSafetyQuery("Which painting did Monet make first?")).toBe(false);
+  });
+});
+
+describe("health topic with compound conditions (Bramble 55bb09f)", () => {
+  const c = (title: string, body: string, action?: boolean) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const, ...(action === undefined ? {} : { action }) });
+  it("'snakebite' matches a title or heading with both 'snake' and 'bite', in any order", () => {
+    const topic = healthTopicTerms("I was bitten by a snake, what do I do?", "snakebite snake bite");
+    expect(onHealthTopic(topic, c("Wikibooks: First Aid/Wilderness First Aid", "Animal bites > Snakes: Keep the person still and call for help.", true))).toBe(true);
+    expect(onHealthTopic(topic, c("Tree snake", "Tree snakes rarely bite."))).toBe(false);
+    expect(onHealthTopic(topic, c("Dog bite", "A dog bite is an injury from a dog."))).toBe(false);
   });
 });
