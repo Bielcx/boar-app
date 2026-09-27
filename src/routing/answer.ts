@@ -23,6 +23,7 @@ import {
   currentEventAnswer,
   temperatureConversion,
   mentionsNow,
+  sourceLanguageLead,
   isTodayInHistory,
   historyDate,
   todayLine,
@@ -731,7 +732,11 @@ export function createAnswerer(deps: AnswerDeps) {
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();
-          emit({ type: "instant", answerId, snippet: { text: snip.text, sourceIndex }, confidence: snip.confidence });
+          // A source in another language than the question says so in the snippet itself (Quill, q8).
+          const lead = sourceLanguageLead(pt, snip.text);
+          const shown = lead ? `${lead}\n${snip.text}` : snip.text;
+          if (lead) reasonCodes.push("instant:source-language-lead");
+          emit({ type: "instant", answerId, snippet: { text: shown, sourceIndex }, confidence: snip.confidence });
           const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
           if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
           if (plan.instant === "may-finish" && block === null) {
@@ -740,7 +745,7 @@ export function createAnswerer(deps: AnswerDeps) {
             return finish(
               "instant",
               "success",
-              snip.text,
+              shown,
               sources,
               receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs })
             );

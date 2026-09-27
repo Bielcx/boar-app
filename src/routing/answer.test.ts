@@ -968,6 +968,23 @@ describe("answer(): PT questions naming identifiers (ea21e82 v2-pt)", () => {
   });
 });
 
+describe("answer(): the instant snippet says when the source is in another language (Quill, Sextant q8)", () => {
+  it("PT question, English source: 'Da fonte offline (em inglês):' in the snippet and the final text; EN question: none", async () => {
+    const MONSOON = chunk("m", "Monsoon", "A monsoon is traditionally a seasonal reversing wind accompanied by corresponding changes in precipitation.");
+    f.retrieved = [MONSOON];
+    f.deps.englishNames = () => ["Monsoon"];
+    const pt = await collect("O que é uma monção?");
+    const inst = pt.events.find((e) => e.type === "instant") as any;
+    expect(inst.snippet.text).toMatch(/^Da fonte offline \(em inglês\):\nA monsoon is/);
+    expect(pt.result.tier).toBe("instant");
+    expect(pt.result.text).toMatch(/^Da fonte offline \(em inglês\):/);
+    f = makeFake();
+    f.retrieved = [MONSOON];
+    const en = await collect("What is a monsoon?");
+    expect((en.events.find((e) => e.type === "instant") as any).snippet.text).toMatch(/^A monsoon is/);
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
