@@ -17,7 +17,7 @@
 // leaves.json: Geofabrik's index-v1.json features without children
 // ([{ id, name, continent, pbf }]). Needs osmium-tool and curl.
 import { execFileSync, spawnSync } from "node:child_process";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statfsSync, writeFileSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { createGunzip, createGzip } from "node:zlib";
@@ -95,7 +95,17 @@ async function extract() {
       log(`${leaf.id}: unreadable download (${String(e.stderr ?? e.message).trim().slice(0, 80)}), downloading again`);
       rmSync(pbf, { force: true });
       execFileSync("curl", ["-fsSL", "--retry", "20", "--retry-all-errors", "-o", pbf, leaf.pbf]);
-      execFileSync("osmium", ["tags-filter", "--overwrite", "-o", food, pbf, ...FILTER]);
+      try {
+        execFileSync("osmium", ["tags-filter", "--overwrite", "-o", food, pbf, ...FILTER], { stdio: ["ignore", "ignore", "pipe"] });
+      } catch {
+        // Still not a PBF (Geofabrik answers some retired regions with an HTML page and status 200): skip the region,
+        // record it, and go on; its parent region's neighbours cover most of it.
+        const head = readFileSync(pbf, { encoding: "utf8", flag: "r" }).slice(0, 15);
+        log(`${leaf.id}: SKIPPED, not a PBF (${/<!doctype|<html/i.test(head) ? "the server sent an HTML page" : "unreadable twice"})`);
+        appendFileSync(join(o.work, "skipped.txt"), `${leaf.id}\t${leaf.pbf}\n`);
+        for (const f of [pbf, food, geo]) rmSync(f, { force: true });
+        continue;
+      }
     }
     const header = spawnSync("osmium", ["fileinfo", "-g", "header.option.osmosis_replication_timestamp", pbf], { encoding: "utf8" }).stdout.trim();
     execFileSync("osmium", ["export", "--overwrite", "-f", "geojsonseq", "-a", "type,id", "-o", geo, food]);
