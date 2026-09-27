@@ -271,3 +271,20 @@ export function formatDataMonth(iso: string | undefined, locale: string): string
   if (Number.isNaN(d.getTime())) return null;
   return new Intl.DateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC" }).format(d);
 }
+
+/**
+ * City names to offer as one-tap chips (from the installed map packs), without
+ * the city just asked and without repeats, keeping the given order (biggest first).
+ */
+export function citySuggestions(cities: { name: string }[], exclude?: string, max = 6): string[] {
+  const seen = new Set<string>(exclude ? [exclude.trim().toLocaleLowerCase()] : []);
+  const out: string[] = [];
+  for (const c of cities) {
+    const key = c.name.trim().toLocaleLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(c.name.trim());
+    if (out.length >= max) break;
+  }
+  return out;
+}

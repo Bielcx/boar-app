@@ -970,7 +970,9 @@
       "dietToVerify": "Etiqueta de dieta do OSM a conferir",
       "cityPlaceholder": "ex.: Berlim",
       "dataFrom": "dados de {{date}}",
-      "openSettings": "Abrir ajustes"
+      "openSettings": "Abrir ajustes",
+      "coveredCities": "Cidades no seu mapa offline",
+      "searchCityHint": "Mostra lugares em {{city}}"
     },
     "assistantName": "boar",
     "suggestionTopics": {

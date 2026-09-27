@@ -970,7 +970,9 @@
       "dietToVerify": "OSM diet tag to double-check",
       "cityPlaceholder": "e.g. Berlin",
       "dataFrom": "data from {{date}}",
-      "openSettings": "Open settings"
+      "openSettings": "Open settings",
+      "coveredCities": "Cities in your offline map",
+      "searchCityHint": "Shows places in {{city}}"
     },
     "assistantName": "boar",
     "suggestionTopics": {
