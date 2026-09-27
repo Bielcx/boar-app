@@ -40,6 +40,8 @@ import {
   termCoverage,
 } from "./context";
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
+import { englishNamesIn } from "../rag/ptLexicon";
+import { ptLexicon } from "../rag/ptLexiconAsset";
 import { checkCitations } from "./citations";
 import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
@@ -239,6 +241,9 @@ export interface EffectiveAnswerModel {
   /** The user's saved model, not used here (low RAM without confirmation, or its load killed the app). */
   downgradedFrom?: { id: string; label: string; reason: "low-ram" | "load-crashed" };
 }
+
+/** The bundled PT->EN lexicon's names: every caller gets the PT topic guard (the eval runner passed no englishNames, gate ea5978c). */
+const defaultEnglishNames = (query: string) => englishNamesIn(query, ptLexicon());
 
 export function createAnswerer(deps: AnswerDeps) {
   let current: AnswerHandle | null = null;
@@ -590,7 +595,7 @@ export function createAnswerer(deps: AnswerDeps) {
       const english = pt ? englishSearchTerms(req.query) : isHealthQuestion(req.query) ? canonicalHealthTerms(req.query) : null;
       if (english) reasonCodes.push("retrieve:pt-en-terms");
       // Any other PT question: the English names it mentions, from the lexicon (PT-1, "estacoes do ano" -> Season).
-      const names = pt && !english ? (deps.englishNames?.(req.query) ?? []) : [];
+      const names = pt && !english ? (deps.englishNames ?? defaultEnglishNames)(req.query) : [];
       if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
       const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
