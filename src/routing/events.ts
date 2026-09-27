@@ -189,7 +189,8 @@ export type AnswerEvent =
   | (Base & {
       /** A model loaded but its weights stream from storage (see src/inference/memoryFit.ts). */
       type: "warning";
-      code: "model_streams_from_storage";
+      /** weak_sources: no retrieved source covers the question well; show the sources as weak and suggest a knowledge pack. */
+      code: "model_streams_from_storage" | "weak_sources";
       message: string;
     });
 
