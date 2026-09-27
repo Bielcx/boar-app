@@ -14,7 +14,8 @@ export const SUGGESTION_VALIDATION = {
   evidence: "eval/results/suggestions/verdicts.v1.json + verdicts.v2.json (feat/eval-frontier)",
   byModel: {
     "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: ["q1", "q2", "q3", "q4", "q6", "q7"] },
-    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: ["q3"] },
+    // 1.5B PT: q3 fails the source check (answer shows "Cold", "Absolute zero"); empty until PT-1.
+    "qwen2.5-1.5b-instruct-q4km": { en: ["q1", "q2", "q3", "q4", "q5", "q7"], pt: [] },
   } as Record<string, Record<"en" | "pt", string[]>>,
 };
 
@@ -41,7 +42,7 @@ export interface SuggestionSource {
   expect: string[];
   /**
    * Languages where Sextant's check found an on-topic source in the app's top-3 (27/09: every
-   * English one; Portuguese search is Bramble's PT-1, so none confirmed yet).
+   * English one; in Portuguese only q4 and q6 until Bramble's PT-1 fixes Portuguese search).
    */
   langs: ("en" | "pt")[];
 }
@@ -50,9 +51,9 @@ export const SUGGESTION_SOURCES: SuggestionSource[] = [
   { key: "q1", corpus: ["wiki-vital5"], expect: ["Season", "Axial tilt", "Autumn", "Winter", "Summer", "Spring"], langs: ["en"] },
   { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"], langs: ["en"] },
   { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius", "Temperature"], langs: ["en"] },
-  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis"], langs: ["en"] },
+  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis"], langs: ["en", "pt"] },
   { key: "q5", corpus: ["builtin"], expect: ["Monsoon"], langs: ["en"] },
-  { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"], langs: ["en"] },
+  { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"], langs: ["en", "pt"] },
   { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"], langs: ["en"] },
 ];
 
