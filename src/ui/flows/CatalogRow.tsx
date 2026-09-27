@@ -10,6 +10,7 @@ import { formatBytes, formatRam } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
+import type { FileImport } from "./useCatalog";
 
 interface Props {
   model: CatalogModel;
@@ -29,6 +30,8 @@ interface Props {
   fit?: MemoryFit;
   /** The kind overline; off where the whole screen is one kind (Knowledge, Prism KN-3). */
   showKind?: boolean;
+  /** The file this row asked for (useCatalog.importFor): its check, refusal or mismatch shows here. */
+  fileImport?: FileImport;
 }
 
 type Seal = { label: string; tone: Tone; emphasis: "solid" | "soft" | "outline"; icon?: IconName };
@@ -57,7 +60,7 @@ function seal(state: RowState, t: TFunction): Seal {
 
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true, fileImport }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -144,6 +147,27 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Text variant="caption" color="secondary" selectable>
             {state.message}
           </Text>
+        </View>
+      )}
+
+      {fileImport && (
+        <View style={{ gap: tokens.space.xs }} accessibilityLiveRegion="polite">
+          {fileImport.status === "importing" ? (
+            <>
+              <Text variant="footnote" color="secondary">
+                {t("flows.row.importChecking", { name: fileImport.name })}
+              </Text>
+              <Progress label={t("flows.row.importChecking", { name: fileImport.name })} value={fileImport.progress} />
+            </>
+          ) : fileImport.status === "failed" ? (
+            <Text variant="footnote" color="danger">
+              {`${fileImport.name}: ${t(`flows.row.error.${fileImport.errorKind ?? "unknown"}`)}`}
+            </Text>
+          ) : (
+            <Text variant="footnote" color="warning">
+              {t("flows.row.importOther", { name: fileImport.name })}
+            </Text>
+          )}
         </View>
       )}
 

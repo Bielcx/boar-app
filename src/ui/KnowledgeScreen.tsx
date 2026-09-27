@@ -185,6 +185,7 @@ export function KnowledgeScreen() {
               meta={t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) })}
               details={[t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") })]}
               view={catalog.view(pack.entry)}
+              fileImport={catalog.importFor(pack.entry.id)}
               onDownload={() => catalog.install([pack.entry])}
               onRemove={() => catalog.remove(pack.entry)}
             />
@@ -203,7 +204,8 @@ export function KnowledgeScreen() {
             model={pack}
             details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
-            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.importFiles())}
+            fileImport={catalog.importFor(pack.id)}
+            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.install([pack]))}
             onRemove={() => catalog.remove(pack)}
           />
         ))}
@@ -248,6 +250,7 @@ export function KnowledgeScreen() {
                     : cities.names.join(", "),
                 ].filter(Boolean)}
                 view={catalog.view(entry)}
+                fileImport={catalog.importFor(entry.id)}
                 onDownload={() => catalog.install(placesInstall(r))}
                 onRemove={() => catalog.remove(entry)}
               />

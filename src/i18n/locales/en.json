@@ -321,6 +321,8 @@
       "failed": "Failed",
       "failedAnnounce": "{{name}} failed. Retry is available.",
       "verified": "File checked",
+      "importChecking": "Checking {{name}}",
+      "importOther": "{{name}} is a different item, not this one. Choose this item's file.",
       "unverified": "Installed, not verified",
       "role": {
         "answer": "Answers",
