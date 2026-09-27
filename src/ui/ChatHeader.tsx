@@ -22,6 +22,9 @@ interface Props {
   onOpenDrawer: () => void;
 }
 
+/** The model line under "boar" grows with the text up to here (Prism AX-5: at AX-XXL it covered the answer). */
+const HEADER_META_MAX_SCALE = 1.5;
+
 /**
  * Chat top bar, as the mockup: menu, avatar, name + model, and the offline
  * badge (tap for what "offline" means in this build). New chat lives in the
@@ -30,9 +33,6 @@ interface Props {
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
  */
-/** The model line under "boar" grows with the text up to here (Prism AX-5: at AX-XXL it covered the answer). */
-const HEADER_META_MAX_SCALE = 1.5;
-
 export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voiceEnabled, onOpenDrawer }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
