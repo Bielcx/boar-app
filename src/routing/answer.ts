@@ -22,6 +22,9 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  isPhraseQuestion,
+  splitSentences,
+  wrongScriptSentences,
   stripModelDisclaimer,
   withSeekCare,
   PT_ANSWER_LANGUAGE,
@@ -866,6 +869,15 @@ export function createAnswerer(deps: AnswerDeps) {
       // A knowledge question with nothing retrieved: the model answers, but not as if it came from a source.
       const fromMemory =
         !health && plan.retrieve && gen?.mode !== "multipass" && sources.length === 0 && ["lookup", "research", "compare", "extract"].includes(taskType);
+      // A phrase or translation question with no source: no model answers it from memory (trv-007).
+      if (fromMemory && genLlm && !req.answerAnyway && isPhraseQuestion(req.query)) {
+        reasonCodes.push("grounding:phrase-no-source-declined");
+        markVisible();
+        const message = pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        finalText = message;
+        return finish(genTier, "success", message, [], receipt({ retrievalMs }));
+      }
       if (fromMemory && genLlm && isCompactModel(genLlm) && !req.answerAnyway) {
         // Product decision (Iris/Boar): the compact model doesn't answer from memory unless asked to.
         reasonCodes.push("grounding:declined-compact");
@@ -1052,6 +1064,16 @@ export function createAnswerer(deps: AnswerDeps) {
             return finish(genTier, "success", message, [], baseReceipt);
           }
         }
+      }
+      // A word in the wrong script for the language asked about ("obrigado em tailandês" answered in Khmer,
+      // trv-007-pt): the answer's core is wrong, and what's left would mislead ("it's the same for men and women"):
+      // the decline, both models, unless asked to answer anyway.
+      if (!health && gen.mode !== "multipass" && !req.answerAnyway && wrongScriptSentences(req.query, text).length) {
+        reasonCodes.push("grounding:wrong-script-declined");
+        const message = pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        finalText = message;
+        return finish(genTier, "success", message, [], baseReceipt);
       }
       // A known-false claim (classical public-key crypto called quantum resistant, gate 394bf31): the compact
       // model declines; the 4B loses the sentence. Deterministic, whatever the sampling seed.

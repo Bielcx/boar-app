@@ -1362,6 +1362,55 @@ describe("answer(): one 'not from an offline source' notice (gate cd1478a, dup-d
   });
 });
 
+describe("answer(): trv-007-pt, a Thai word in Khmer script (gate 39a2508)", () => {
+  it("both models decline instead of showing the wrong script; answerAnyway shows it", async () => {
+    const q = "Como se diz obrigado em tailandês, e muda se eu for homem ou mulher?";
+    const khmer = 'Obrigado em tailandês é "សួស្តី" (sàa-ssàa), e não muda com o sexo. É usado de forma neutra por homens e mulheres.';
+    for (const big of [false, true]) {
+      f = makeFake();
+      if (big) { f.installed = [lfm]; f.activeId = "lfm8"; }
+      f.retrieved = [];
+      f.deps.engine.generate = async () => khmer;
+      const { result } = await collect(q);
+      expect(result.text, String(big)).toBe("Não encontrei isso no acervo deste celular.");
+      // No source: a phrase question is declined before generation (91b17a2); with a source, the script check.
+      expect(result.receipt.reasonCodes.some((c) => /grounding:(phrase-no-source|wrong-script)-declined/.test(c)), String(big)).toBe(true);
+    }
+  });
+
+  it("with a source in the prompt, a wrong-script answer is still declined (the script check)", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [chunk("t", "Thai language", "Thai is the official language of Thailand, written in the Thai script.")];
+    f.deps.englishNames = () => ["Thai language"];
+    f.deps.engine.generate = async () => 'Obrigado em tailandês é "សួស្តី" [1].';
+    const { result } = await collect("Como se diz obrigado em tailandês?");
+    expect(result.receipt.reasonCodes).toContain("grounding:wrong-script-declined");
+  });
+});
+
+describe("answer(): a phrase question with no source is declined by both models (trv-007, 91b17a2)", () => {
+  it("the 4B doesn't answer 'khop khun' from memory; other no-source questions still get the 4B's answer", async () => {
+    for (const q of ["Como se diz obrigado em tailandês, e muda se eu for homem ou mulher?", "How do I say thank you in Thai, and does it change if I'm a man or a woman?"]) {
+      f = makeFake();
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+      f.retrieved = [];
+      f.deps.engine.generate = async () => "Khop khun, the same for men and women.";
+      const { result } = await collect(q);
+      expect(f.generations, q).toHaveLength(0);
+      expect(result.receipt.reasonCodes, q).toContain("grounding:phrase-no-source-declined");
+    }
+    f = makeFake();
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "Canberra was a compromise.";
+    const other = await collect("How do I say 'I am allergic to peanuts' in French?");
+    expect(other.result.receipt.reasonCodes).not.toContain("grounding:phrase-no-source-declined");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
