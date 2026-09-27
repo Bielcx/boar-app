@@ -4,7 +4,7 @@
  * manifest (flows-spec §4.1); nothing is typed in by hand.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Text as RNText, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Text, useAnnounce } from "./components";
 import type { TextColor } from "./components/Text";
@@ -57,6 +57,8 @@ function setupRhythm(t: ReturnType<typeof useTokens>) {
 
 /** Narrowest screen (pt) where the language cards keep their EN/PT monogram (393 yes, 360 no). */
 const MONOGRAM_MIN_WIDTH = 380;
+
+const ANSWER_FIT_TONE = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" } as const;
 
 /** Above this OS font scale the two language cards stack instead of sitting side by side. */
 const LARGE_TEXT = 1.15;
@@ -508,6 +510,8 @@ function PackageStep({
     if (restored && loaded && !answerChosen && recommendedTier) onAnswerTier(recommendedTier);
   }, [restored, loaded, answerChosen, recommendedTier, onAnswerTier]);
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
+  // Computed from Tusk's estimate for this phone: the honest stand-in for the mockup's "Runs Great / RAM".
+  const answerFit = answerModel ? fitFor(answerModel) : undefined;
   const { t } = useTranslation();
   const tokens = useTokens();
   const offline = !networkAllowed();
@@ -550,20 +554,66 @@ function PackageStep({
               {t("flows.onboarding.noSpace", { size: formatBytes(chosen.shortfall, lang) })}
             </Text>
           )}
-          <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} />
+          {/* The mockup's back link: 13.5 text in mu with an arrow, not an accent button. */}
+          <Pressable
+            accessibilityRole="button"
+            onPress={onBack}
+            style={{ minHeight: tokens.size.touch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.space.xs + tokens.space.xxs }}
+          >
+            <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
+            <Text variant="subhead" color="secondary">
+              {t("flows.onboarding.back")}
+            </Text>
+          </Pressable>
         </>
       }
     >
       <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
-      <Text variant="mono" color="secondary" numeric>
-        {deviceRamBytes > 0 || freeBytes > 0
-          ? t("flows.onboarding.device", {
-              ram: deviceRamBytes > 0 ? formatRam(deviceRamBytes, lang) : t("flows.onboarding.unknown"),
-              free: freeBytes > 0 ? formatBytes(freeBytes, lang) : t("flows.onboarding.unknown"),
-            })
-          : t("flows.onboarding.deviceUnknown")}
-      </Text>
-      <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
+      {/* The mockup's model card on top: what will answer, with a computed fact in place of "Runs Great" (FIDELITY). */}
+      {answerModel && (
+        <Card padding="compact" style={{ gap: tokens.space.sm }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
+            <Text variant="label" color="field">
+              {t("flows.onboarding.llmLabel")}
+            </Text>
+            <Badge label={t(`flows.onboarding.answerTier.${answerTier}`)} emphasis="outline" />
+            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" />}
+            <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
+              {formatBytes(answerModel.sizeBytes, lang)}
+            </Text>
+          </View>
+          <Text variant="headline">{answerModel.label}</Text>
+          {answerFit && (
+            <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.xs + tokens.space.xxs }}>
+              <Badge label={t(`flows.row.fitShort.${answerFit.verdict}`)} tone={ANSWER_FIT_TONE[answerFit.verdict]} dot caps={false} />
+              <Text variant="caption" color="secondary" numeric>
+                {t("flows.onboarding.workingMemory", { size: formatRam(answerFit.anonBytes + (answerFit.expertFraction === 0 ? answerFit.fileBytes : 0), lang) })}
+              </Text>
+            </View>
+          )}
+          {choices.compact && choices.default && (
+            <>
+              {compactSuggested && (
+                <Text variant="caption" color="secondary">
+                  {pick?.reason === "compact-low-ram"
+                    ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                    : t("flows.onboarding.compactWhy")}
+                </Text>
+              )}
+              {/* The standard/compact choice stays one tap away, without a second list on the screen. */}
+              <View style={{ alignSelf: "flex-start", marginLeft: -tokens.space.md }}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  label={t(answerTier === "compact" ? "flows.onboarding.useStandard" : "flows.onboarding.useCompact")}
+                  onPress={() => onUserAnswer(answerTier === "compact" ? "default" : "compact")}
+                />
+              </View>
+            </>
+          )}
+        </Card>
+      )}
+      <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
         {plans.map((p) => {
           const warning =
             p.shortfall > 0
@@ -601,40 +651,7 @@ function PackageStep({
           );
         })}
       </View>
-      {choices.compact && choices.default && (
-        <View style={{ gap: tokens.space.md }}>
-          <Text variant="label" color="secondary">
-            {t("flows.onboarding.answerModelTitle")}
-          </Text>
-          <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
-            {(["default", "compact"] as const).map((tierId) => {
-              const m = choices[tierId]!;
-              return (
-                <OptionCard
-                  key={tierId}
-                  title={t(`flows.onboarding.answerTier.${tierId}`)}
-                  selected={answerTier === tierId}
-                  onPress={() => onUserAnswer(tierId)}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
-                  trailing={formatBytes(m.sizeBytes, lang)}
-                  meta={[m.label]}
-                />
-              );
-            })}
-          </View>
-          <Text variant="footnote" color="secondary">
-            {compactSuggested
-              ? pick?.reason === "compact-low-ram"
-                ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
-                : t("flows.onboarding.compactWhy")
-              : t("flows.onboarding.answerModelFooter")}
-          </Text>
-        </View>
-      )}
       <TravelCard selected={travel} onChange={onTravel} lang={lang} trip={trip} onTrip={onTrip} catalog={catalog} />
-      <Text variant="footnote" color="secondary">
-        {t("flows.onboarding.laterNote")}
-      </Text>
     </Screen>
   );
 }

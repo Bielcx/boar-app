@@ -584,9 +584,6 @@
       "step3Sub": "Esta é a única vez que o BOAR usa a internet.",
       "indexTitle": "Criando o índice",
       "indexSub": "Montando o índice de busca no celular. Não precisa de internet.",
-      "device": "Este celular: {{ram}} de memória · {{free}} livres",
-      "deviceUnknown": "Não foi possível ler a memória e o espaço deste celular.",
-      "unknown": "desconhecido",
       "package": {
         "essential": {
           "name": "Essencial",
@@ -603,7 +600,6 @@
       "install": "Baixar {{size}}",
       "continue": "Continuar",
       "back": "Voltar",
-      "laterNote": "Dá para adicionar ou remover modelos e coleções depois, em Ajustes.",
       "backTitle": "Voltar para os pacotes?",
       "backBody": "Os downloads em andamento continuam enquanto o BOAR estiver aberto.",
       "stay": "Ficar aqui",
@@ -617,6 +613,10 @@
       "percentAnnounce": "{{pct}}% baixado",
       "percentImportedAnnounce": "{{pct}}% importado",
       "queued": "Na fila",
+      "llmLabel": "Modelo de resposta",
+      "workingMemory": "precisa de ~{{size}} de memória",
+      "useStandard": "Usar o Padrão",
+      "useCompact": "Usar o Compacto",
       "currentItem": "Item {{n}} de {{total}} — {{name}}",
       "groupModels": "Modelos",
       "groupKnowledge": "Conhecimento",
@@ -665,8 +665,6 @@
       "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",
       "toImport": "Ainda não importado",
       "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo).",
-      "answerModelTitle": "Modelo de respostas",
-      "answerModelFooter": "O padrão responde melhor perguntas difíceis; o compacto é mais rápido e usa menos memória. Dá para trocar depois em Modelos.",
       "compactWhy": "A estimativa de memória indica que o padrão pode não rodar bem neste celular, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
       "answerTier": {
         "default": "Padrão",
