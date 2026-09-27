@@ -1118,8 +1118,20 @@ function InstallStep({
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
-          {/* The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism). */}
-          <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
+          {offline && !allPresent ? (
+            // Offline, the step's action is choosing the files: it takes the mockup's CTA place (primary, the one accent).
+            <Button
+              size="lg"
+              icon="file-plus"
+              label={t("flows.import.pick")}
+              fullWidth
+              loading={catalog.imports.some((f) => f.status === "importing")}
+              onPress={catalog.importFiles}
+            />
+          ) : (
+            // The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism).
+            <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
+          )}
           {/* No Back while bytes move (download or import), as in the mockup; it returns when nothing is
               transferring (nothing imported yet, or a failure), and the CTA moves up with it (Iris). */}
           {!transferring && indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
@@ -1134,20 +1146,6 @@ function InstallStep({
         subtitle={t(`flows.onboarding.${ready ? "doneBody" : indexing ? "indexSub" : offline ? "importSub" : "step3Sub"}`)}
       />
 
-      {needsImport && !allPresent && (
-        <View style={{ gap: tokens.space.sm }}>
-          {!offline && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.onboarding.importPlacesNote")}
-            </Text>
-          )}
-          {/* In the offline build choosing files is the step's action: primary, the one accent (Iris, Prism N-8). */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} primary={offline} />
-          <Text variant="footnote" color="secondary" selectable>
-            {t("flows.onboarding.importHow")}
-          </Text>
-        </View>
-      )}
 
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
       {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
@@ -1259,6 +1257,21 @@ function InstallStep({
           </React.Fragment>
         ))}
       </Card>
+
+      {needsImport && !allPresent && (
+        <View style={{ gap: tokens.space.sm }}>
+          {!offline && (
+            <Text variant="footnote" color="secondary">
+              {t("flows.onboarding.importPlacesNote")}
+            </Text>
+          )}
+          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} />
+          <Text variant="footnote" color="secondary" selectable>
+            {t("flows.onboarding.importHow")}
+          </Text>
+        </View>
+      )}
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
       {downloading && (
