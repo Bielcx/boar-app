@@ -1132,6 +1132,22 @@ describe("answer(): Sextant q7 (chat screen): 'O que causa o efeito estufa?'", (
   }
 });
 
+describe("answer(): arithmetic before places (Sextant 3ccf7c0, v2-pt math)", () => {
+  it("mth-003-pt: the dinner bill in baht is a sum, not a restaurant search; no model, receipt 'calculator'", async () => {
+    const { events, result } = await collect("Minha conta do jantar deu 2.450 baht tailandeses e 1 dólar americano vale 36,5 baht. Quanto dá em dólares, e qual o total com 10% de gorjeta?");
+    expect(events.some((e) => e.type === "places")).toBe(false);
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/67,12 dólares.*73,84 dólares/);
+    expect(result.receipt.modelId).toBe("calculator");
+    expect(result.receipt.reasonCodes).toContain("answer:calculator-currency");
+    expect((events.find((e) => e.type === "done") as any).cited).toEqual([]);
+  });
+  it("a restaurant question is still a places question", async () => {
+    const { result } = await collect("Quais são os melhores restaurantes veganos em Lisboa?");
+    expect(result.receipt.modelId).not.toBe("calculator");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
