@@ -23,6 +23,7 @@ import {
   geoUri,
   filterName,
   deviceClockApplies,
+  formatDataMonth,
   showUseLocation,
   openStateAt,
   openStateLabel,
@@ -393,7 +394,12 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             <Icon name="map" size="sm" color={t.color.text.field} />
             <Text variant="caption" color="field" style={{ flex: 1 }}>
               {r.attribution
-                .map((a) => [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), a.date].filter(Boolean).join(" · "))
+                .map((a) => {
+                  const month = formatDataMonth(a.date, locale);
+                  return [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), month && tr("chat.places.dataFrom", { date: month })]
+                    .filter(Boolean)
+                    .join(" · ");
+                })
                 .join(" · ")}
             </Text>
           </Pressable>

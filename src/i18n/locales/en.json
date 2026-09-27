@@ -439,7 +439,8 @@
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
       "searchHint": "Type a city first",
       "dietToVerify": "OSM diet tag to double-check",
-      "cityPlaceholder": "e.g. Berlin"
+      "cityPlaceholder": "e.g. Berlin",
+      "dataFrom": "data from {{date}}"
     },
     "assistantName": "boar",
     "suggestionTopics": {
