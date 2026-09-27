@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
@@ -14,6 +14,7 @@ import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
 import { initialRoute as bootRoute } from "./src/ui/flows/boot";
+import { BootSplash } from "./src/ui/flows/BootSplash";
 import { registerGeoProviders } from "./src/routing/answerService";
 import { geoProvidersFrom } from "./src/routing/geoWiring";
 import { getCurrentPoint, getLocationFix } from "./src/services/location";
@@ -58,15 +59,21 @@ function AppContent() {
   }, []);
 
   const ready = !!initialRoute && (fontsLoaded || !!fontError);
-  useEffect(() => {
-    if (!ready) return;
-    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms`);
+  // The native splash (a static image) hands over to BootSplash, the same image plus the tagline
+  // and an indeterminate bar, as soon as it has drawn; boot measured ~1.0 s on iOS (Harbor), long
+  // enough for the bar to be seen. If the app is ready before BootSplash mounts, hide on ready.
+  const nativeHidden = useRef(false);
+  const hideNative = useCallback(() => {
+    if (nativeHidden.current) return;
+    nativeHidden.current = true;
     SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
+  }, []);
+  useEffect(() => {
+    if (ready) hideNative();
+  }, [ready, hideNative]);
 
   if (!ready) {
-    // Under the splash; the canvas colour matches it in case the OS reveals this frame.
-    return <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]} />;
+    return <BootSplash onFirstLayout={hideNative} />;
   }
   return <RootNavigator initialRoute={initialRoute!} />;
 }
