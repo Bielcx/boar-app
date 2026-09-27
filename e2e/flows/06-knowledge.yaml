@@ -1,0 +1,11 @@
+appId: ${APP_ID || "team.sopa.aoair"}
+name: knowledge base
+---
+- launchApp
+- tapOn: "Open menu"
+- tapOn: "Knowledge"
+- assertVisible: "TOPIC PACKS"
+- assertVisible: "Emergency and preparedness"
+- assertVisible: "Ethereum and cryptography"
+- takeScreenshot: shots/06-knowledge
+- back

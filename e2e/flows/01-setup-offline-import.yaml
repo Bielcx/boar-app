@@ -1,0 +1,28 @@
+# Offline build, files already in Downloads (adb push, see docs/OFFLINE_INSTALL.md):
+# bge, the 1.5B, corpus-standard.json, corpus-full.json, world-places + a city pack.
+# Selects every file in Downloads at once; each import must end verified (sha256 ok).
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+name: setup (offline, import from file)
+---
+- clearState
+- launchApp
+- tapOn: "Get started"
+- tapOn:
+    text: "Essential, .*"
+- scrollUntilVisible:
+    element: "Continue"
+- tapOn: "Continue"
+- assertVisible: "Import the files"
+- tapOn: "Choose files"
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- longPressOn:
+    text: ".*\\.(gguf|json|sqlite)$"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"
+- extendedWaitUntil:
+    visible: "Open BOAR"
+    timeout: ${SETUP_TIMEOUT || 900000}
+- takeScreenshot: shots/01-setup-offline-ready
+- tapOn: "Open BOAR"

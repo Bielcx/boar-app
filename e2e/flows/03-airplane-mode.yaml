@@ -1,0 +1,14 @@
+# Answers must work with no network at all.
+appId: ${APP_ID || "team.sopa.aoair"}
+name: airplane mode
+---
+- setAirplaneMode: enabled
+- launchApp:
+    stopApp: true
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "What causes the monsoon?"
+- assertVisible: "SOURCES ON THIS PHONE"
+- takeScreenshot: shots/03-airplane-answer
+- setAirplaneMode: disabled

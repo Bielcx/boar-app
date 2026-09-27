@@ -1,0 +1,14 @@
+# Erase all data -> the app goes back to onboarding.
+appId: ${APP_ID || "team.sopa.aoair"}
+name: reset
+---
+- launchApp
+- runFlow: common/open-settings.yaml
+- scrollUntilVisible:
+    element: "Erase all data"
+- tapOn: "Erase all data"
+- assertVisible: "Erase all data?"
+- tapOn: "Erase everything"
+- extendedWaitUntil:
+    visible: "Get started"
+    timeout: 60000

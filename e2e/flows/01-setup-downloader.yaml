@@ -1,0 +1,26 @@
+# Fresh install -> onboarding -> Essential package (compact model is pre-selected
+# on phones with <= 4.5 GB RAM) -> download over the network -> chat.
+# The offline build (team.sopa.aoair.offline) uses 01-setup-offline-import.yaml.
+appId: ${APP_ID || "team.sopa.aoair"}
+name: setup (downloader)
+---
+- clearState
+- launchApp
+- tapOn: "Get started"
+- assertVisible: "Choose what to install"
+- tapOn:
+    text: "Essential, .*"
+- scrollUntilVisible:
+    element:
+      text: "Download [0-9.]+ GB"
+- tapOn:
+    text: "Download [0-9.]+ GB"
+- assertVisible: "Installing"
+- extendedWaitUntil:
+    visible: "Open BOAR"
+    timeout: ${SETUP_TIMEOUT || 1800000}
+- takeScreenshot: shots/01-setup-ready
+- tapOn: "Open BOAR"
+- extendedWaitUntil:
+    visible: "Ask something"
+    timeout: 60000

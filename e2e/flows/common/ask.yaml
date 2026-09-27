@@ -1,0 +1,11 @@
+# Opens a new chat, sends ${QUESTION}, waits until the answer stops streaming.
+appId: ${APP_ID || "team.sopa.aoair"}
+---
+- tapOn: "New chat"
+- tapOn: "Ask something"
+- inputText: ${QUESTION}
+- hideKeyboard
+- tapOn: "Send"
+- extendedWaitUntil:
+    notVisible: "Stop answer"
+    timeout: ${ANSWER_TIMEOUT || 300000}

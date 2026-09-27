@@ -1,0 +1,13 @@
+appId: ${APP_ID || "team.sopa.aoair"}
+name: question with sources
+---
+- launchApp
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "How do I stop a nosebleed?"
+- assertVisible: "SOURCES ON THIS PHONE"
+- tapOn:
+    text: "Sources? [0-9].*"
+- assertVisible: "Full passage.*"
+- takeScreenshot: shots/02-answer-source-expanded
