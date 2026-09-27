@@ -61,3 +61,35 @@ describe("setup progress", () => {
     expect(await getSetupProgress()).toMatchObject({ packageChosen: false, answerChosen: true });
   });
 });
+
+describe("CR-4: crash ledger", () => {
+  beforeEach(() => {
+    files.clear();
+    vi.resetModules();
+  });
+  const PATH = "file:///docs/settings.json";
+  const ID = "qwen3-4b-instruct-2507-q4km";
+  const crash = { crashedModelId: ID, crashedLabel: "Qwen3-4B", fallbackModelId: "", fallbackLabel: "", at: 1 };
+
+  it("interleaved writers don't drop each other's change (the crash at boot and a preference)", async () => {
+    const s = await import("./settings");
+    await Promise.all([s.setVoiceInputEnabled(true), s.recordLoadCrash(crash), s.setLanguageId("pt"), s.setMaxTokens(256)]);
+    expect(await s.getVoiceInputEnabled()).toBe(true);
+    expect(await s.getLoadCrashedIds()).toEqual([ID]);
+    expect(await s.getLanguageId()).toBe("pt");
+    expect(await s.getMaxTokens()).toBe(256);
+  });
+
+  it("a crash recorded by file (before 822b069) is read as the model id and withdraws the confirmation once", async () => {
+    files.set(PATH, JSON.stringify({ activeModelId: {}, loadCrashedIds: [`models/${ID}.gguf`], largeModelConfirmedIds: [ID] }));
+    const s = await import("./settings");
+    expect(await s.getLoadCrashedIds()).toEqual([ID]);
+    expect((await s.getAnswerSettings()).largeModelConfirmedIds).toEqual([]);
+    expect(JSON.parse(files.get(PATH)!).loadCrashedIds).toEqual([ID]);
+    // The user confirms again after the crash: it counts.
+    await s.confirmLargeModel(ID);
+    expect((await s.getAnswerSettings()).largeModelConfirmedIds).toEqual([ID]);
+    await s.recordLoadSuccess(ID);
+    expect(await s.getLoadCrashedIds()).toEqual([]);
+  });
+});
