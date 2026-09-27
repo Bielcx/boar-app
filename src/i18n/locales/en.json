@@ -728,7 +728,7 @@
       "checkingValue": "Checking, {{pct}}%",
       "verified": "Verified: {{item}}",
       "emptyFile": "The file is empty (0 bytes): copying it to the phone may have failed. Copy it again.",
-      "unknownHint": "Choose the exact file from the offline install list: its name and size must match.",
+      "unknownHint": "Choose the exact file from the offline install list: its size and contents must match (the name doesn't matter).",
       "missingCities": "Still missing the city index ({{name}}, {{size}}): questions that name a city won't work until you import it. Places near you by GPS work now.",
       "checkingAnnounce": "{{name}}: {{pct}}% checked",
       "cancelA11y": "Cancel importing {{name}}"
