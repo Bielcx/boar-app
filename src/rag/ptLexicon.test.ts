@@ -51,5 +51,11 @@ describe("ptLexicon", () => {
     expect(englishNamesIn("Meu filho queimou o braço há uma hora. O que eu faço?", generic)).toEqual([]);
     expect(englishNamesIn("Onde comer em Tbilisi?", generic)).toEqual(["Tbilisi"]);
     expect(englishNamesIn("Como tratar uma queimadura?", lexicon)).toEqual(["Burn"]);
+    // Same key without accents, different words: the spelling as written decides.
+    const fruit = { ...lexicon, roma: "Rome", "romã": "Pomegranate" };
+    expect(englishNamesIn("Onde comer bem em Roma?", fruit)).toEqual(["Rome"]);
+    // "romã" never becomes Rome (and a short lower-case word isn't a name on its own anyway).
+    expect(englishNamesIn("Qual é o suco de romã mais saudável?", fruit)).toEqual([]);
+    expect(englishNamesIn("Qual é o suco de Romã mais saudável?", fruit)).toEqual(["Pomegranate"]);
   });
 });

@@ -91,6 +91,8 @@ function englishTitles(lexicon: Lexicon): Map<string, string> {
 export function englishNamesIn(query: string, lexicon: Lexicon, max = 4, maxLen = 5): string[] {
   const words = foldText(query).match(/[a-z0-9]+(?:-[a-z0-9]+)*/g) ?? [];
   const original = query.match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu) ?? [];
+  // The words as written, lower case with accents: "romã" (pomegranate) and "Roma" (Rome) fold to the same key.
+  const accented = original.length === words.length ? original.map((w) => w.normalize("NFC").toLowerCase()) : null;
   // A one-word name must be specific: a long word ("queimadura", "hipotermia") or a proper noun capitalized mid-question
   // ("Tbilisi", "Fahrenheit"). Short common nouns ("hora", "braço", "quarto") map to generic articles that bring noise.
   const specific = (i: number) =>
@@ -105,6 +107,7 @@ export function englishNamesIn(query: string, lexicon: Lexicon, max = 4, maxLen 
       if (STOP.has(gram[0]) || STOP.has(gram[len - 1])) continue;
       if (len === 1 && (gram[0].length < 4 || !specific(i))) continue;
       const hit =
+        (accented ? lexicon[accented.slice(i, i + len).join(" ")] : undefined) ??
         variants(gram).map((k) => lexicon[k]).find(Boolean) ??
         // A single word spelled the same as an English title ("Fahrenheit"): the lexicon keeps one-word Portuguese
         // names from exact titles only, so a cognate that was only a redirect is found this way.
