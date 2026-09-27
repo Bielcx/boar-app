@@ -347,6 +347,8 @@
         "stalled": "O download parou de avançar.",
         "storage": "Falta espaço livre no celular.",
         "hash-mismatch": "O arquivo veio diferente do esperado. Pegue uma cópia nova do arquivo e tente de novo.",
+        "empty-file": "O arquivo está vazio (0 bytes). Copie-o de novo para o celular.",
+        "unreadable-file": "O BOAR não conseguiu ler este arquivo.",
         "size-mismatch": "O arquivo veio incompleto. Pegue uma cópia nova do arquivo e tente de novo.",
         "offline-variant": "Esta versão não acessa a internet. Importe o arquivo.",
         "load": "Não foi possível carregar este modelo.",
