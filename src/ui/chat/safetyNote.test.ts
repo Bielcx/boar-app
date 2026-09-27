@@ -68,3 +68,12 @@ describe("engine safety flag (Tusk 2e88300)", () => {
     expect(showsEmergencyNote({ question: "hmm", sources: [], hasModelText: false, hasSnippet: true, placesOnly: false, safety: true })).toBe(true);
   });
 });
+
+// The engine's isSafetyQuery has the action-cue rule since Tusk 66b73c6.
+describe("disasters need an action cue (Tusk 66b73c6)", () => {
+  it("stays off for science questions about disasters", () => {
+    for (const q of ["Why do earthquakes happen near plate boundaries?", "Por que os terremotos acontecem perto das bordas das placas?", "What causes hurricanes?", "How to configure a firewall"]) {
+      expect(needsEmergencyNote(q, [wiki])).toBe(false);
+    }
+  });
+});
