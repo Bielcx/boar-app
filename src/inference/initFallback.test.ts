@@ -27,6 +27,13 @@ describe("initWithCpuFallback", () => {
     expect(logs[0]).toMatch(/retrying on CPU only/);
   });
 
+  it("retries on llama.rn's only JS-visible message, 'Failed to load model' (RNLlamaJSI.cpp)", async () => {
+    const f = fakeInit(["Failed to load model"]);
+    const r = await initWithCpuFallback(f.init, { model: "m" }, { platform: "ios", cpuDevices: cpu });
+    expect(f.calls[1]).toMatchObject({ n_gpu_layers: 0, devices: ["CPU"], flash_attn_type: "off" });
+    expect(r.backend).toEqual({ kind: "cpu-fallback", reason: "Failed to load model" });
+  });
+
   it("asks iOS for no flash attention up front; leaves Android's params alone", async () => {
     const ios = fakeInit([]);
     expect((await initWithCpuFallback(ios.init, { model: "m" }, { platform: "ios", cpuDevices: cpu })).backend).toEqual({ kind: "default" });
