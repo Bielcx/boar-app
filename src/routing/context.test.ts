@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  isSubstantive,
   identifiersIn,
   passageLanguage,
   sourceLanguageLead,
@@ -651,5 +652,22 @@ describe("identifiersIn / compressContext pinned", () => {
     expect(free).toEqual(["e"]);
     const pinned = compressContext("Ethereum", [eth, eip], { pinned: new Set(["p"]) }).chunks.map((x) => x.chunkId);
     expect(pinned).toEqual(["p", "e"]);
+  });
+});
+
+describe("Sextant cry-020 / cry-012: content, not pointers or metadata", () => {
+  const c = (title: string, body: string) => ({ chunkId: title + body.length, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("instantFinalBlock: a pointer, or a sentence that covers only the identifier, is not final", () => {
+    expect(instantFinalBlock("O que mudou no Ethereum com o Merge (EIP-3675)?", "Full specification of the beacon chain can be found in the `ethereum/consensus-specs` repository.", "Ethereum EIP-3675")).toBe("pointer");
+    expect(instantFinalBlock("What does EIP-3675 upgrade?", "The transition happens at the terminal total difficulty.", "Ethereum upgrade EIP-3675")).toBe("title-only");
+    expect(instantFinalBlock("What is the capital of Australia?", "Canberra is the capital city of Australia.")).toBeNull();
+  });
+  it("isSubstantive: metadata, hex examples, copyright and stubs are not content", () => {
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Status: Final Type: Standards Track (Core) Created: 2016-10-14"))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Example: ``` 0xf86c098504a817c800825208943535353535 ```"))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Hard fork: Spurious Dragon"))).toBe(false);
+    expect(isSubstantive(c("ERC-2400: Transaction Receipt URI", "Copyright: Copyright and related rights waived via CC0."))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Parameters: - FORK_BLKNUM: 2,675,000 - CHAIN_ID: 1 (main net)"))).toBe(true);
+    expect(isSubstantive(c("Canberra", "Canberra is the capital city of Australia."))).toBe(true);
   });
 });

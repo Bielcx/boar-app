@@ -23,6 +23,7 @@ import {
   currentEventAnswer,
   temperatureConversion,
   mentionsNow,
+  isSubstantive,
   identifiersIn,
   titleHasIdentifier,
   sourceLanguageLead,
@@ -687,6 +688,11 @@ export function createAnswerer(deps: AnswerDeps) {
             (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
+      // Passages without content (an EIP's metadata header, a hex example, a copyright notice) never reach
+      // the prompt (Sextant cry-012), and so are never pinned.
+      const substantive = raw.filter(isSubstantive);
+      if (substantive.length < raw.length) reasonCodes.push(`context:no-content-dropped-${raw.length - substantive.length}`);
+      raw = substantive;
       // A retrieved page of an identifier the question names always gets a place, first (Boar, dddd8a8).
       const pinned = new Set(ids.length ? raw.filter((c) => titleHasIdentifier(c.title, ids)).map((c) => c.chunkId) : []);
       if (pinned.size) reasonCodes.push(`context:pinned-${pinned.size}`);
@@ -750,7 +756,8 @@ export function createAnswerer(deps: AnswerDeps) {
           const shown = lead ? `${lead}\n${snip.text}` : snip.text;
           if (lead) reasonCodes.push("instant:source-language-lead");
           emit({ type: "instant", answerId, snippet: { text: shown, sourceIndex }, confidence: snip.confidence });
-          const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
+          const block =
+            plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text, matchQuery) : "low";
           if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
           if (plan.instant === "may-finish" && block === null) {
             reasonCodes.push("instant:final");
