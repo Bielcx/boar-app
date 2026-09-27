@@ -2,10 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Animated, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { notification, NotificationFeedbackType } from "../../services/haptics";
-import { toneColors, useTheme } from "../theme";
+import { icon as iconTokens, toneColors, useTheme } from "../theme";
 import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Icon, IconName } from "./Icon";
+import { useOpticalLine } from "./IconText";
 import { Text } from "./Text";
 
 export interface ToastOptions {
@@ -54,6 +55,7 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
   const anim = useRef(new Animated.Value(0)).current;
   const tone = toast.tone ?? "neutral";
   const tc = toneColors(t.color, tone === "neutral" ? "neutral" : tone);
+  const line = useOpticalLine("callout");
 
   const hide = useCallback(() => {
     Animated.timing(anim, { toValue: 0, duration: reduceMotion ? 0 : t.motion.duration.fast, useNativeDriver: true }).start(onDone);
@@ -81,7 +83,7 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
           marginBottom: insets.bottom + 88,
           flexDirection: "row",
           alignItems: "center",
-          gap: t.space.md,
+          gap: iconTokens.gap,
           paddingLeft: t.space.md,
           paddingRight: toast.actionLabel ? t.space.xs : t.space.base,
           paddingVertical: t.space.xs,
@@ -96,8 +98,12 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
         }}
       >
         {(toast.icon || tone !== "neutral") && (
-          <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: tone === "neutral" ? t.color.accent.soft : tc.bg }}>
-            <Icon name={toast.icon ?? (tone === "danger" ? "x" : "check")} size="sm" color={tone === "neutral" ? t.color.accent.text : tc.fg} />
+          // A wrapped message keeps the disc beside its first line (icon-align rule 1): a slot as tall
+          // as that line plus the text's padding, nudged onto the line's optical centre.
+          <View style={{ alignSelf: "flex-start", height: line.lineHeight + 2 * t.space.sm, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: tone === "neutral" ? t.color.accent.soft : tc.bg }}>
+              <Icon name={toast.icon ?? (tone === "danger" ? "x" : "check")} size={iconTokens.sizeBody} color={tone === "neutral" ? t.color.accent.text : tc.fg} />
+            </View>
           </View>
         )}
         <Text variant="callout" style={{ flex: 1, paddingVertical: t.space.sm }}>

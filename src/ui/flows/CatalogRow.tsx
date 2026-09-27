@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useToast } from "../components";
+import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useOpticalLine, useToast } from "../components";
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
@@ -100,6 +100,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
     lastKind.current = state.kind;
   }, [state.kind, announce, catalogLabel(model, t), t]);
 
+  const metaLine = useOpticalLine("mono");
   const progress =
     state.kind === "downloading" ? state.progress : state.kind === "verifying" ? state.progress ?? undefined : undefined;
 
@@ -125,7 +126,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           </Text>
         </View>
         {/* Without the kind overline, the seal sits on the metadata line, not alone above the title (Prism KN-6). */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+        {/* flex-start + a one-line slot: the seal stays on the metadata's FIRST line when it wraps (icon-align rule 1). */}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.sm }}>
           <View style={{ flex: 1 }}>
             <MetaLine
               items={[
@@ -146,7 +148,11 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
               ]}
             />
           </View>
-          {!showKind && <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />}
+          {!showKind && (
+            <View style={{ height: metaLine.lineHeight, justifyContent: "center" }}>
+              <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+            </View>
+          )}
         </View>
         {details?.map((d) => (
           // Long lines (a pack's sources) fold to two lines (Iris).

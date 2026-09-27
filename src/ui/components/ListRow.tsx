@@ -1,8 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, Switch as RNSwitch, useWindowDimensions, View } from "react-native";
 import { impact, ImpactFeedbackStyle, selection } from "../../services/haptics";
-import { useTokens } from "../theme";
+import { icon as iconTokens, useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
+import { IconSlot, useOpticalLine } from "./IconText";
 import { switchColors } from "./Switch";
 import { Text } from "./Text";
 
@@ -59,6 +60,8 @@ export function ListRow({
   // single word in the title was broken mid-word ('Conversati/on history', Harbor 51f9863 at 1.3).
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= 1.2;
+  // Leading icons form one column (title size, grown with the text) on the title's first line.
+  const line = useOpticalLine("body", "title");
   if (toggle) {
     trailing = (
       <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -76,26 +79,28 @@ export function ListRow({
   const label = accessibilityLabel ?? [title, value, subtitle].filter(Boolean).join(", ");
   const content = (
     <>
-      {icon && <Icon name={icon} color={destructive ? t.color.status.danger.solid : t.color.text.secondary} />}
-      <View style={styles.body}>
-        <View style={stacked ? styles.titleStack : styles.titleLine}>
-          <Text variant="body" color={destructive ? "danger" : "primary"} style={styles.title}>
-            {title}
-          </Text>
-          {value && !trailing && (
-            <Text variant="callout" color="secondary" style={stacked ? undefined : styles.value} numberOfLines={stacked ? undefined : 2}>
-              {value}
+      <View style={[styles.lead, { gap: iconTokens.gap }]}>
+        {icon && <IconSlot name={icon} line={line} color={destructive ? t.color.status.danger.solid : t.color.text.secondary} />}
+        <View style={styles.body}>
+          <View style={stacked ? styles.titleStack : styles.titleLine}>
+            <Text variant="body" color={destructive ? "danger" : "primary"} style={styles.title}>
+              {title}
+            </Text>
+            {value && !trailing && (
+              <Text variant="callout" color="secondary" style={stacked ? undefined : styles.value} numberOfLines={stacked ? undefined : 2}>
+                {value}
+              </Text>
+            )}
+          </View>
+          {subtitle && (
+            <Text variant="footnote" color="secondary">
+              {subtitle}
             </Text>
           )}
         </View>
-        {subtitle && (
-          <Text variant="footnote" color="secondary">
-            {subtitle}
-          </Text>
-        )}
       </View>
       {trailing}
-      {showChevron && <Icon name={chevronName} size="sm" color={t.color.text.tertiary} />}
+      {showChevron && <Icon name={chevronName} size={iconTokens.sizeBody} color={t.color.text.tertiary} edge="end" />}
     </>
   );
   const rowStyle = {
@@ -155,6 +160,8 @@ export function ListRow({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
+  // Icon column + text: the icon stays on line 1 while the row centres the whole block.
+  lead: { flex: 1, flexDirection: "row", alignItems: "flex-start" },
   body: { flex: 1, gap: 2 },
   // Title and value share one line (value right, at most half the width, wrapping in place) instead of
   // the value dropping to a second line on its own (Prism LT-2, 'Keep the last 10').

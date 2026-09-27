@@ -2,7 +2,8 @@ import React from "react";
 import { Pressable, View, ViewStyle } from "react-native";
 import { selection } from "../../services/haptics";
 import { useTokens } from "../theme";
-import { Icon } from "./Icon";
+import { endBearing } from "./Icon";
+import { IconSlot, useOpticalLine } from "./IconText";
 import { MetaLine } from "./MetaLine";
 import { Text } from "./Text";
 
@@ -49,6 +50,8 @@ export function OptionCard({
   const restBorder = t.scheme === "light" ? t.color.line.hairline : "transparent";
   // Mockup: a title-only card (language) centres its row; with a description the radio sits at the top.
   const titleOnly = !description && !meta && !children;
+  // Radio and check sit on the title's first line (iOS draws Baloo ~3.6 pt above its box middle).
+  const line = useOpticalLine("cardTitle");
   const frame = (pressed: boolean): ViewStyle => ({
     flexDirection: "row",
     alignItems: titleOnly ? "center" : "flex-start",
@@ -77,7 +80,11 @@ export function OptionCard({
       }}
       style={({ pressed }) => frame(pressed)}
     >
-      {indicator === "radio" && <Radio on={selected} />}
+      {indicator === "radio" && (
+        <View style={{ height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
+          <Radio on={selected} />
+        </View>
+      )}
       {leading}
       <View style={{ flex: 1, gap: t.space.xxs }}>
         {/* Title and badge wrap together; the deciding figure keeps its column on the right. */}
@@ -115,7 +122,11 @@ export function OptionCard({
         {children}
       </View>
       {/* Mockup: only the selected card shows the check, so an unselected title keeps the full width. */}
-      {indicator === "check" && selected && <Icon name="check" color={t.color.accent.text} />}
+      {indicator === "check" && selected && (
+        <View style={{ marginRight: -endBearing("check", line.iconSize) }}>
+          <IconSlot name="check" line={line} color={t.color.accent.text} />
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -129,8 +140,6 @@ function Radio({ on }: { on: boolean }) {
       style={{
         width: d,
         height: d,
-        // Optically centred on the headline's first line.
-        marginTop: 1,
         borderRadius: d / 2,
         borderWidth: t.size.focusRing,
         // Unselected ring keeps the 3:1 control border (the mockup's bd would fail WCAG 1.4.11).

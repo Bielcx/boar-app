@@ -2,8 +2,8 @@ import React, { forwardRef } from "react";
 import { ActivityIndicator, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
 import { useTokens } from "../theme";
-import { Icon, IconName } from "./Icon";
-import { Text } from "./Text";
+import type { IconName } from "./Icon";
+import { IconText } from "./IconText";
 
 export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "destructive";
 
@@ -90,12 +90,19 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
       {loading ? (
         <ActivityIndicator color={palette.fg} />
       ) : (
-        <View style={[styles.row, { gap: t.space.sm, flexDirection: iconPosition === "end" ? "row-reverse" : "row" }]}>
-          {icon && <Icon name={icon} size={size === "sm" ? "sm" : "md"} color={palette.fg} />}
-          <Text variant={size === "sm" ? "subhead" : size === "lg" ? "buttonLg" : "button"} style={{ color: palette.fg }} numberOfLines={2} align="center">
-            {label}
-          </Text>
-        </View>
+        // Icon and label centred as one group on the label's optical centre (icon-align round):
+        // the icon sits on line 1 and never pushes the label off the button's middle.
+        <IconText
+          icon={icon}
+          iconPosition={iconPosition}
+          variant={size === "sm" ? "subhead" : size === "lg" ? "buttonLg" : "button"}
+          tint={palette.fg}
+          numberOfLines={2}
+          align="center"
+          centerOnBox
+        >
+          {label}
+        </IconText>
       )}
     </Pressable>
   );
@@ -103,6 +110,5 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
 
 const styles = StyleSheet.create({
   base: { alignItems: "center", justifyContent: "center", paddingVertical: 8 },
-  row: { alignItems: "center", justifyContent: "center", flexShrink: 1 },
   fullWidth: { alignSelf: "stretch" },
 });

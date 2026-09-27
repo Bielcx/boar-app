@@ -1,7 +1,8 @@
 import React from "react";
 import { Pressable, View } from "react-native";
-import { useTokens } from "../theme";
-import { Icon, IconName } from "./Icon";
+import { icon as iconTokens, useTokens } from "../theme";
+import type { IconName } from "./Icon";
+import { IconSlot, useOpticalLine } from "./IconText";
 import { Text } from "./Text";
 
 export interface TextActionProps {
@@ -34,7 +35,8 @@ export function TextAction({
   disabled,
 }: TextActionProps) {
   const t = useTokens();
-  const lineHeight = t.type.footnote.lineHeight ?? 18;
+  const line = useOpticalLine("footnote");
+  const lineHeight = line.lineHeight;
   const slop = Math.max(0, (t.size.touch - lineHeight) / 2);
   return (
     <Pressable
@@ -47,12 +49,12 @@ export function TextAction({
       hitSlop={{ top: slop, bottom: slop, left: t.space.sm, right: t.space.sm }}
       style={({ pressed }) => ({ alignSelf: "flex-start", opacity: disabled ? 0.45 : pressed ? 0.6 : 1 })}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs }}>
-        {leadingIcon && <Icon name={leadingIcon} size="sm" color={t.color.text.secondary} />}
-        <Text variant="footnote" color="secondary">
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap }}>
+        {leadingIcon && <IconSlot name={leadingIcon} line={line} color={t.color.text.secondary} />}
+        <Text variant="footnote" color="secondary" style={{ flexShrink: 1 }}>
           {label}
         </Text>
-        {icon && <Icon name={icon} size="sm" color={t.color.text.secondary} />}
+        {icon && <IconSlot name={icon} line={line} color={t.color.text.secondary} />}
       </View>
     </Pressable>
   );
