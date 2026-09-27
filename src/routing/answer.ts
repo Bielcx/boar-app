@@ -11,7 +11,7 @@
  * a double send can never run two completions on one context.
  */
 import { classifyTask } from "./classify";
-import { compressContext, selectInstant, INSTANT_FINAL_CONFIDENCE } from "./context";
+import { compressContext, selectInstant, instantFinalBlock, INSTANT_FINAL_CONFIDENCE } from "./context";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
@@ -215,6 +215,20 @@ export function createAnswerer(deps: AnswerDeps) {
         return finishPlaces("no_pack", noPackAnswer(intent), { kind: intent.near.kind === "device" ? "near" : "city" });
       }
 
+      // A city written in lower case or after "de" counts only when the gazetteer knows it.
+      if (intent.near.kind === "device" && intent.placeCandidates?.length) {
+        for (const c of intent.placeCandidates) {
+          const hit = await geo.resolvePlace(c).catch(() => null);
+          // An alternate-name match on a small town is too weak ("center" -> Ózd): a city, or the same name.
+          const fold = (x: string) => x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (hit && (hit.kind === "city" || fold(hit.name) === fold(c))) {
+            intent = { ...intent, near: { kind: "place", name: c } };
+            reasonCodes.push("places:gazetteer-name");
+            break;
+          }
+        }
+      }
+
       let center: { lat: number; lon: number };
       let area: Extract<AnswerEvent, { type: "places" }>["area"];
       if (intent.near.kind === "place") {
@@ -331,18 +345,22 @@ export function createAnswerer(deps: AnswerDeps) {
       // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
       let fastLlm = activeId ? byId.get(activeId) : undefined;
       if (!fastLlm && installed.length) {
-        const tiered = installed.filter((m) => m.answerTier);
-        if (tiered.length) {
-          const withFit = await Promise.all(
-            tiered.map(async (m) => ({
+        // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
+        const candidates = await Promise.all(
+          installed.map(async (m) => {
+            const tokPerSec = speeds.get(m.id);
+            const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
+            return {
               id: m.id,
               answerTier: m.answerTier,
-              fit: m.answerTier === "default" ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
-            }))
-          );
-          const pick = pickDefaultAnswerModel(withFit, deps.deviceRamBytes?.() ?? 0);
-          fastLlm = pick ? byId.get(pick.id) : undefined;
-        }
+              sizeBytes: m.sizeBytes,
+              tokPerSec,
+              fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+            };
+          })
+        );
+        const pick = pickDefaultAnswerModel(candidates, deps.deviceRamBytes?.() ?? 0);
+        fastLlm = pick ? byId.get(pick.id) : undefined;
         fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
       }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
@@ -450,7 +468,9 @@ export function createAnswerer(deps: AnswerDeps) {
         if (snip && sourceIndex >= 0) {
           markVisible();
           emit({ type: "instant", answerId, snippet: { text: snip.text, sourceIndex }, confidence: snip.confidence });
-          if (plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE) {
+          const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
+          if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
+          if (plan.instant === "may-finish" && block === null) {
             reasonCodes.push("instant:final");
             return finish(
               "instant",

@@ -165,6 +165,15 @@ describe("answer(): instant tier", () => {
     expect(sources.map((s) => s.title)).not.toContain("Mold");
   });
 
+  it("keeps generating when the confident snippet can't answer the question alone", async () => {
+    const { events, result } = await collect("What is the capital of Australia and where is it?");
+    expect(types(events)).toContain("instant");
+    expect(result.tier).toBe("fast");
+    expect(result.receipt.reasonCodes).toContain("instant:not-final-compound");
+    expect(result.receipt.reasonCodes).not.toContain("instant:final");
+    expect(f.generations).toHaveLength(1);
+  });
+
   it("every event carries the same answerId", async () => {
     const { events, result } = await collect("Why was Canberra chosen as the capital?");
     expect(new Set(events.map((e) => e.answerId))).toEqual(new Set([result.answerId]));

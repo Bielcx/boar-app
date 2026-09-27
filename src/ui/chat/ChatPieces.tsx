@@ -108,7 +108,7 @@ export function ChatEmptyState({
   return (
     <View style={{ flexGrow: 1, justifyContent: "center", gap: t.space.xxl, paddingVertical: t.space.xl }}>
       <View style={{ alignItems: "center", gap: t.space.xs }}>
-        <Mascot />
+        <Mascot glow />
         <Text variant="display" align="center" header accessibilityLabel={tr("chat.empty.title")}>
           {tr("chat.assistantName")}
         </Text>

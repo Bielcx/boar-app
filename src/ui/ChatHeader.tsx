@@ -13,28 +13,32 @@ interface Props {
   activeModelLabel?: string;
   voiceEnabled: boolean;
   onOpenDrawer: () => void;
-  onCycleTone: () => void;
   onNewChat: () => void;
 }
 
 /**
  * Chat top bar: menu, title, the offline badge (tap for what "offline" means
- * in this build), tone and new chat. Name and model always stay readable:
+ * in this build) and new chat. Tone lives in Settings > Personality (the mockup
+ * has no tone button, and it cost the seal its text on 393-412pt phones). Name and model always stay readable:
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
  */
-export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCycleTone, onNewChat }: Props) {
+export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNewChat }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
   const [offlineOpen, setOfflineOpen] = useState(false);
+  // Short "OFFLINE" like the mockup only where it is literally true (the build without INTERNET);
+  // the downloader build keeps "Answers offline" (HQ honesty rule R9). Readers hear the long form.
   const sealLabel = tr(OFFLINE_BUILD ? "chat.header.offlineSeal" : "chat.header.offlineAnswersSeal");
+  const sealSpoken = tr(OFFLINE_BUILD ? "chat.header.offlineSealSpoken" : "chat.header.offlineAnswersSeal");
   const fit = headerFit({
     width,
     fontScale,
     touch: t.size.touch,
-    // Row padding + the gaps between its children (outer row and title group).
-    chrome: t.space.sm * 2 + t.space.xs * 4 + t.space.sm * 2,
+    buttons: 2,
+    // Row padding + the gaps between its children (outer row: 2, title group: 2).
+    chrome: t.space.sm * 2 + t.space.xs * 2 + t.space.sm * 2,
     avatar: t.size.avatar + t.space.sm,
     sealChars: sealLabel.length,
   });
@@ -52,19 +56,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
       <IconButton icon="menu" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
         {fit.avatar && (
-          <View
-            style={{
-              width: t.size.avatar,
-              height: t.size.avatar,
-              borderRadius: t.radius.full,
-              backgroundColor: t.color.bg.surface,
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
-            <Mascot size="avatarSm" />
-          </View>
+          <Mascot size="avatar" />
         )}
         <View style={{ flexShrink: 1, flexGrow: 1 }}>
           <Text variant="headline" header numberOfLines={1}>
@@ -83,7 +75,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
           style={{ minHeight: t.size.touch, minWidth: t.size.touch, alignItems: "center", justifyContent: "center" }}
         >
           {fit.seal === "text" ? (
-            <OfflineSeal label={sealLabel} />
+            <OfflineSeal label={sealLabel} accessibilityLabel={sealSpoken} />
           ) : (
             <View style={{ padding: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.field.soft }}>
               <Icon name="wifi-off" size="sm" color={t.color.field.text} />
@@ -91,7 +83,6 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
           )}
         </Pressable>
       </View>
-      <IconButton icon="type" label={tr("chat.header.tone")} onPress={onCycleTone} />
       <IconButton icon="edit-3" label={tr("chat.header.newChat")} onPress={onNewChat} />
 
       <Sheet visible={offlineOpen} onClose={() => setOfflineOpen(false)} title={tr("chat.header.offlineTitle")}>

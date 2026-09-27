@@ -4,6 +4,7 @@ import {
   approxTokens,
   compressContext,
   INSTANT_FINAL_CONFIDENCE,
+  instantFinalBlock,
   mergeSources,
   scoreSentences,
   selectInstant,
@@ -199,5 +200,40 @@ describe("post-quantum question (Vitalik, on camera)", () => {
     if (s) {
       expect(["RSA cryptosystem", "Elliptic Curve Digital Signature Algorithm"]).not.toContain(chunks[s.sourceIndex].title);
     }
+  });
+});
+
+describe("instantFinalBlock", () => {
+  // Snippets the crypto pack actually produced (E2E, integration b5903d0).
+  it("keeps the model for lists, two-part questions, bare mentions and pronoun openings", () => {
+    expect(instantFinalBlock("Which signature algorithms are quantum resistant?", "It initially focuses on key exchange algorithms but by now includes several signature schemes.")).toBe("anaphora");
+    expect(instantFinalBlock("Which signature algorithms are quantum resistant?", "ML-DSA, SLH-DSA and Falcon were selected by NIST.")).toBe("list");
+    expect(instantFinalBlock("What is EIP-4844 and what does it add to Ethereum?", "EIP-4844 is a proposal.")).toBe("compound");
+    expect(
+      instantFinalBlock("What is ML-DSA?", "EIP-8051 specifies only ML-DSA-44, which targets 128-bit classical security.")
+    ).toBe("not-definition");
+  });
+
+  it("lets a self-contained single-fact sentence finish", () => {
+    expect(instantFinalBlock("What is the capital of Australia?", "Canberra is the capital city of Australia.")).toBeNull();
+    expect(instantFinalBlock("What is ML-DSA?", "ML-DSA (Module-Lattice-Based Digital Signature Algorithm) is a post-quantum signature scheme.")).toBeNull();
+    expect(instantFinalBlock("Who is Vitalik Buterin?", "Vitalik Buterin is a co-founder of Ethereum.")).toBeNull();
+    expect(instantFinalBlock("When was Canberra founded?", "Canberra was founded in 1913.")).toBeNull();
+  });
+});
+
+describe("named articles", () => {
+  // Crypto pack E2E: the EIP-4844 spec never repeats "EIP-4844" in its body,
+  // so it lost to secondary pages that mention it and was dropped.
+  it("keeps the article the question names even when its body doesn't repeat the name", () => {
+    const spec = chunk("e1", "Ethereum EIPs/ERCs: EIP-4844: Shard Blob Transactions", "Shard Blob Transactions scale data-availability of Ethereum in a simple, forwards-compatible manner. Status: Final.");
+    const mention = chunk("e2", "ethereum.org: Blockchain Data Storage Strategies", "Starting with the Dencun hardfork the Ethereum blockchain includes EIP-4844, which adds to Ethereum data blobs with a limited lifetime.");
+    const c = compressContext("What is EIP-4844 and what does it add to Ethereum?", [spec, mention]);
+    expect(c.chunks.map((x) => x.chunkId)).toContain("e1");
+  });
+
+  it("doesn't treat a title as named when only some of its words are in the question", () => {
+    const qc = chunk("q1", "Quantum cryptography", "Photons carry the key between the two parties.");
+    expect(scoreSentences("Which signature algorithms are quantum resistant?", [qc])[0].score).toBe(0);
   });
 });

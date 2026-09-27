@@ -11,10 +11,10 @@ export const CRYPTO_PACK = {
   id: "boar-crypto",
   name: { en: "Ethereum and cryptography", pt: "Ethereum e criptografia" },
   filename: "corpus/boar-crypto.sqlite",
-  sizeBytes: 35962880,
-  sha256: "fe75514ed407ea5f9c0310d3261407c9e779719b7787c2d8c4e7f584dae12c5e",
+  sizeBytes: 36093952,
+  sha256: "ae9fbd2c7a46a46a815d46d0283e7b192adb4c342b38a2adc4881e8f9d8831fb",
   /** Pinned to the upload commit on the Hugging Face dataset r4topunk/boar-packs. */
-  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/b309ba92d7392c6a36f0c186dbcb3ce67966a339/topics/boar-crypto.sqlite",
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/a55c1ec8a5fe8bbda99c4197c33474637bef1958/topics/boar-crypto.sqlite",
   docCount: 3141,
   builtAt: "2026-09-26",
 };

@@ -1,6 +1,6 @@
 /**
- * How the chat header fits its width. The bar holds three icon buttons
- * (menu, tone, new chat), the avatar, the name + model and the offline seal.
+ * How the chat header fits its width. The bar holds icon buttons (menu,
+ * new chat), the avatar, the name + model and the offline seal.
  * Name and model always stay; to make room the seal drops its text first
  * (the icon still opens the explanation), then the avatar goes.
  *
@@ -11,6 +11,8 @@ export interface HeaderFitInput {
   fontScale: number;
   /** Minimum touch target of the platform (44 iOS, 48 Android). */
   touch: number;
+  /** Icon buttons in the bar (menu, new chat). */
+  buttons: number;
   /** Row padding (both sides) plus the gaps between its children. */
   chrome: number;
   /** Avatar disc plus its gap. */
@@ -34,7 +36,7 @@ export function sealTextWidth(chars: number): number {
 export function headerFit(o: HeaderFitInput): HeaderFit {
   const scale = Math.max(1, o.fontScale);
   const need = TITLE_MIN * scale;
-  const free = o.width - o.chrome - 3 * o.touch;
+  const free = o.width - o.chrome - o.buttons * o.touch;
   if (free - o.avatar - sealTextWidth(o.sealChars) * scale >= need) return { seal: "text", avatar: true };
   if (free - o.avatar - o.touch >= need) return { seal: "icon", avatar: true };
   return { seal: "icon", avatar: false };
