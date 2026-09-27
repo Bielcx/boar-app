@@ -1168,6 +1168,22 @@ describe("answer(): cry-014 PT, the 1.5B's unsupported EIP-7251 answer (gate 20e
   });
 });
 
+describe("answer(): cry-004-pt, EIP-4844 (gate a11d730)", () => {
+  it("the page's own sentence is the cited instant answer again, not an uncited model answer", async () => {
+    const T = "Ethereum EIPs/ERCs: EIP-4844: Shard Blob Transactions";
+    f.retrieved = [
+      chunk("a", T, "Shard Blob Transactions scale data-availability of Ethereum in a simple, forwards-compatible manner."),
+      chunk("b", T, "Specification > Consensus layer validation: On the consensus layer the blobs are referenced, but not fully encoded, in the beacon block body."),
+      chunk("c", T, "Specification > Cryptographic Helpers: Throughout this proposal we use cryptographic methods and classes defined in the corresponding consensus specs."),
+    ];
+    f.deps.englishNames = () => ["Ethereum"];
+    const { events, result } = await collect("O que é a EIP-4844 e o que são blobs no Ethereum?");
+    const inst = events.find((e) => e.type === "instant") as any;
+    expect(inst.snippet.text).toMatch(/Shard Blob Transactions scale data-availability/);
+    expect(result.receipt.reasonCodes).not.toContain("instant:off-topic");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

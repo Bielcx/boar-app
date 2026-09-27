@@ -113,6 +113,10 @@ const FOOD =
   /\b(food|comida|eat|eating|comer|coffee|breakfast|brunch|lunch|dinner|almo[cç]o|jantar|snack|pizzas?|sushi|ramen|burgers?|hamb[uú]rguer|tacos?|dumplings?|noodles?|street food)\b/i;
 const EXPLANATORY = /^(why|how|what (is|are|was|were|did|does)|when|who|explain|describe|history|por ?que|como|o que|quando|quem|explique)\b/i;
 
+const CUSTOMS =
+  /(?<![\p{L}])(tip|tips|tipping|gorjetas?|etiquette|etiqueta|customs?|costumes?|manners|dress code|smok\w*|fumar|expected|esperad[oa]s?|allowed|permitid[oa]s?|obrigat[óo]ri[oa]|mandatory|service charge|taxa de servi[çc]o|cash|dinheiro|cart[ãa]o|credit cards?|reserv\w*|split the bill|dividir a conta)(?![\p{L}])/iu;
+const LIST_REQUEST = /\b(best|top|where|recommend\w*|suggest\w*|list|melhor(es)?|onde|recomend\w*|sugir\w*|sugest\w*|lista)\b/i;
+
 const CUISINE_TERMS =
   /\b(pizza|sushi|ramen|burger|hamb[uú]rguer|tacos?|dumplings?|noodles?|thai|indian|indiana|japanese|japonesa|chinese|chinesa|italian|italiana|mexican|mexicana|korean|coreana|vietnamese|ethiopian|brunch|breakfast|bakery|padaria|coffee|caf[eé])\b/gi;
 
@@ -173,6 +177,9 @@ export function detectGeoIntent(query: string): GeoIntent | null {
     // "best vegan places in Tokyo", "vegan spots": a diet plus a place noun.
     (diet.length > 0 && DIET_PLACE_NOUN.test(q));
   if (!isPlaces) return null;
+  // A question about customs at restaurants ("Is tipping expected in restaurants in Portugal?", Sextant trv-009)
+  // asks for knowledge, not for places; unless it also asks for a list or a recommendation.
+  if (CUSTOMS.test(q) && !LIST_REQUEST.test(q)) return null;
 
   const near: GeoIntent["near"] = namedPlace ? { kind: "place", name: capital! } : { kind: "device" };
   const cuisine = [...new Set((q.match(CUISINE_TERMS) ?? []).map((t) => t.toLowerCase()))];
