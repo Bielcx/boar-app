@@ -620,6 +620,48 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(events.find((e) => e.type === "instant")).toBeUndefined();
   });
 
+  it("gate ea5978c: an answer that cites none of its sources opens with the not-from-the-library line (4B)", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async (o) => {
+      o.onToken?.("It was a compromise between Sydney and Melbourne.");
+      return "It was a compromise between Sydney and Melbourne.";
+    };
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.cited).toEqual([]);
+    expect(done.finalText).toBe("This answer is not from an offline source on this phone; check it before relying on it.\n\nIt was a compromise between Sydney and Melbourne.");
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-preface");
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+  });
+
+  it("gate ea5978c: the compact model's uncited answer becomes the decline; answerAnyway keeps it with the line", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "It was a compromise.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect((events.find((e) => e.type === "done") as any).finalText).toBe("");
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-declined-compact");
+
+    f = makeFake();
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "A compromise.";
+    const events2: AnswerEvent[] = [];
+    await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
+  });
+
+  it("an answer that cites its source gets no line", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "Canberra is the capital city of Australia [1].";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+    expect(result.receipt.reasonCodes.some((c) => c.startsWith("grounding:uncited"))).toBe(false);
+  });
+
   it("only the incidental page: no snippet, and the model is told it's not from the library", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
