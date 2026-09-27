@@ -34,6 +34,7 @@ import {
 } from "./context";
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
 import { checkCitations } from "./citations";
+import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
@@ -701,6 +702,8 @@ export function createAnswerer(deps: AnswerDeps) {
       }
 
       let loadMs = 0;
+      /** ModelLoadError.kind of the last failed load (memory | engine | corrupt | missing). */
+      let loadFailureKind: LoadFailureKind | undefined;
       const ensureLoaded = async (m: InstalledLlm, tier: AnswerTier): Promise<string | null> => {
         if (deps.engine.getModelInfo()?.filename === m.filename) return null;
         stage("loading_model", tier, m.id);
@@ -712,13 +715,18 @@ export function createAnswerer(deps: AnswerDeps) {
           if (r.backend?.kind === "cpu-fallback") reasonCodes.push("backend:cpu-fallback");
           return null;
         } catch (e: any) {
+          loadFailureKind = e?.kind;
           return e?.message ?? String(e);
         }
       };
 
       const loadError = await ensureLoaded(genLlm, genTier);
       if (loadError) {
-        return finish(genTier, "error", "", sources, receipt({ retrievalMs }), { code: errorCodeOf(loadError, "load"), message: loadError });
+        return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
+          code: errorCodeOf(loadError, "load"),
+          message: loadError,
+          ...(loadFailureKind ? { kind: loadFailureKind } : {}),
+        });
       }
       if (stopRequested) return finish(genTier, "stopped", "", sources, receipt({ retrievalMs, loadMs }));
 

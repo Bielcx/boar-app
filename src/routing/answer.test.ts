@@ -6,6 +6,7 @@ import type { AnswerEvent } from "./events";
 import type { AnswerSettings } from "../models/settings";
 import type { GenerateOptions } from "../inference/LlamaEngine";
 import { approxTokens, HEALTH_GROUNDING_INSTRUCTION, NO_SOURCE_INSTRUCTION } from "./context";
+import { ModelLoadError } from "../inference/loadError";
 
 const chunk = (chunkId: string, title: string, body: string): RetrievedChunk => ({
   chunkId,
@@ -564,6 +565,17 @@ describe("answer(): CR-2 a model whose load killed the app", () => {
     f.settings = { ...f.settings, loadCrashedIds: ["lfm8"], largeModelConfirmedIds: ["lfm8"] };
     await collect("Why was Canberra chosen as the capital of Australia?");
     expect(f.loads).toEqual([lfm.filename]);
+  });
+});
+
+describe("answer(): a failed load says why, as data (Harbor/Quill, iOS dc63525)", () => {
+  it("done.error carries kind; the message has no RAM hint to mislead the card", async () => {
+    f.deps.engine.load = async () => {
+      throw new ModelLoadError('Failed to load "models/q15.gguf": Failed to load model', "engine", "Failed to load model", "this device has ~16GB RAM");
+    };
+    const { events } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.error).toEqual({ code: "load_failed", message: 'Failed to load "models/q15.gguf": Failed to load model', kind: "engine" });
   });
 });
 

@@ -14,6 +14,7 @@ import {
 } from "./memoryFit";
 import { BackendInfo, cpuDeviceNames, initWithCpuFallback } from "./initFallback";
 import type { LoadGuard, LoadMeta } from "./loadMarker";
+import { classifyLoadFailure, ModelLoadError } from "./loadError";
 import { loadGuard as appLoadGuard } from "./loadGuard";
 
 export { contextSizeForRam };
@@ -200,9 +201,8 @@ export class LlamaEngine {
     const modelPath = `${FileSystem.documentDirectory}${modelFilename}`;
     const info = await FileSystem.getInfoAsync(modelPath);
     if (!info.exists) {
-      throw new Error(
-        `Model not found at ${modelPath}. Run the setup wizard to install it first.`
-      );
+      const message = `Model not found at ${modelPath}. Run the setup wizard to install it first.`;
+      throw new ModelLoadError(message, "missing", message);
     }
     const fileSizeBytes = (info as { size?: number }).size ?? 0;
 
@@ -218,7 +218,8 @@ export class LlamaEngine {
     // storage). Best-effort — missing readouts skip the check.
     const fit = await this.estimateFitAt(modelPath, fileSizeBytes, nCtx);
     if (fit?.verdict === "insufficient") {
-      throw new Error(describeFit(modelFilename, fit)!);
+      const message = describeFit(modelFilename, fit)!;
+      throw new ModelLoadError(message, "memory", message);
     }
 
     let backend: BackendInfo = { kind: "default" };
@@ -246,17 +247,16 @@ export class LlamaEngine {
       loadedOk = true;
       this.arch = fit ? this.lastHeaderArch : await this.readArch(modelPath);
     } catch (e: any) {
-      // The native error here (from llama.rn/llama.cpp) is often terse
-      // ("Failed to initialize context" with no further detail) — append
-      // our own RAM estimate so the user (and future debugging) has an
-      // actual hypothesis instead of a dead end.
+      // The native error (llama.rn/llama.cpp) is terse ("Failed to load model"). The cause goes in
+      // `kind`, and our RAM estimate in `hint`, NOT in the message: appended there it made the
+      // chat call a Metal failure "not enough memory" (Harbor, iOS dc63525).
       const nativeMessage = e?.message ?? String(e);
       const hint = fit
-        ? ` (this device has ~${toGb(fit.totalBytes)}GB RAM, ~${toGb(fit.availableBytes)}GB free; ` +
-          `"${modelFilename}" needs ~${toGb(fit.anonBytes)}GB of buffers plus ~${toGb(fit.hotWeightBytes)}GB ` +
-          `of weights per token — likely the cause if those are close)`
-        : "";
-      throw new Error(`Failed to load "${modelFilename}": ${nativeMessage}${hint}`);
+        ? `this device has ~${toGb(fit.totalBytes)}GB RAM, ~${toGb(fit.availableBytes)}GB free; ` +
+          `"${modelFilename}" needs ~${toGb(fit.anonBytes)}GB of buffers plus ~${toGb(fit.hotWeightBytes)}GB of weights per token`
+        : undefined;
+      if (hint) console.warn(`[engine] load failed (${nativeMessage}); ${hint}`);
+      throw new ModelLoadError(`Failed to load "${modelFilename}": ${nativeMessage}`, classifyLoadFailure(nativeMessage, fit?.verdict), nativeMessage, hint);
     } finally {
       // Returned (loaded or failed in JS): the app survived this load.
       await this.guard?.end(meta, loadedOk).catch((e: any) => console.warn("[engine] load marker:", e?.message ?? e));

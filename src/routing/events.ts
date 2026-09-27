@@ -154,7 +154,8 @@ export type AnswerEvent =
       tier: AnswerTier;
       outcome: AnswerOutcome;
       receipt: AnswerReceipt;
-      error?: { code: AnswerErrorCode; message: string };
+      /** kind: why a model load failed (inference/loadError.ts), for the chat's card; the message has no RAM hint. */
+      error?: { code: AnswerErrorCode; message: string; kind?: "memory" | "engine" | "corrupt" | "missing" };
       /**
        * The answer text to show when it differs from the streamed tokens: citations
        * the sources don't support were removed (CT-1). The UI replaces the text.
