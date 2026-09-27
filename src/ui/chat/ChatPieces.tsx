@@ -116,11 +116,12 @@ export function ChatEmptyState({
         flexGrow: 1,
         // Top-aligned under the header, as the mockup; what is left over stays above the composer (Iris).
         justifyContent: "flex-start",
-        gap: t.space.lg,
         marginTop: -t.space.xs,
       }}
     >
-      <View style={{ alignItems: "center" }}>
+      {/* The mockup's hero block has 18 pt above it (Prism, 9b56912: hero 20 pt high, cards already right), so
+          the space moves from between the tagline and the section label to above the hero. */}
+      <View style={{ alignItems: "center", paddingTop: t.space.lg }}>
         <Mascot glow />
         {/* The wordmark sits 6 below the hero box (the mascot image spills over the box, as in the mockup). Starts with the
             visible word, then the
