@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { DrawerActions, useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -337,6 +337,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       askedIds.current.add(assistantId);
       setActive(activeRef.current);
       setInput("");
+      // Close the keyboard through keyboard-controller so it tracks the close: when the keyboard
+      // went away while the list swapped (Prism K-2: composer left floating with the keyboard shut),
+      // its progress stayed at 1. The answer is read next anyway.
+      KeyboardController.dismiss();
       followBottom.current = true;
       scrollToBottom(true);
 
