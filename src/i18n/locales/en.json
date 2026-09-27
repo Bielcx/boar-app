@@ -381,6 +381,8 @@
       },
       "mayClose": "May close the app",
       "mayCloseWhy": "too big for this phone's memory",
+      "didNotOpen": "Didn't open here",
+      "didNotOpenBefore": "BOAR closed the last time it loaded ",
       "mayCloseTitle": "Use this model?",
       "mayCloseBefore": "BOAR may close when it loads ",
       "mayCloseAfter": ". Compact is the recommended one here.",

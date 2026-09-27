@@ -10,6 +10,7 @@ import { failureLines, formatBytes, formatRam } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
+import { confirmLargeModel } from "./adapters";
 import type { FileImport } from "./useCatalog";
 
 interface Props {
@@ -74,7 +75,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const [closeRiskOpen, setCloseRiskOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   // On a low-RAM phone, a model bigger than the compact one asks before loading (CR-1).
-  const requestUse = onUse && (view.mayCloseApp ? () => setCloseRiskOpen(true) : onUse);
+  const requestUse = onUse && (view.confirmUse ? () => setCloseRiskOpen(true) : onUse);
   // A ghost Remove that opens the actions row lines its text up with the column above (Iris).
   const leadsActions = !(view.primary === "download" || view.primary === "explain" || view.primary === "retry" || (view.primary === "use" && onUse));
   const [removing, setRemoving] = useState(false);
@@ -148,7 +149,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       </View>
       {view.mayCloseApp ? (
         <View style={{ flexDirection: "row" }}>
-          <Badge label={t("flows.row.mayClose")} tone="danger" dot caps={false} />
+          <Badge label={t(view.didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} />
         </View>
       ) : view.fitWarning ? (
         <View style={{ flexDirection: "row" }}>
@@ -284,8 +285,10 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
               label={t("flows.row.useAnyway")}
               variant="secondary"
               fullWidth
-              onPress={() => {
+              onPress={async () => {
                 setCloseRiskOpen(false);
+                // Lets the engine load it on this low-RAM phone (Tusk's confirmLargeModel).
+                await confirmLargeModel(model.id);
                 onUse?.();
               }}
             />
@@ -294,7 +297,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       >
         {/* A short title; the model's full name goes in the body, in bold (Iris). */}
         <Text variant="callout">
-          {t("flows.row.mayCloseBefore")}
+          {t(view.didNotOpen ? "flows.row.didNotOpenBefore" : "flows.row.mayCloseBefore")}
           <Text variant="callout" weight="semibold">
             {title ?? model.label}
           </Text>

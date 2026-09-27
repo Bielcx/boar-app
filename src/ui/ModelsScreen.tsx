@@ -135,7 +135,7 @@ export function ModelsScreen() {
                     key={m.id}
                     title={m.label}
                     // Same risk as Use for answers on a low-RAM phone (CR-1).
-                    badge={catalog.view(m).mayCloseApp ? <Badge label={t("flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
+                    badge={catalog.view(m).mayCloseApp ? <Badge label={t(catalog.view(m).didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
                     trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
                     description={

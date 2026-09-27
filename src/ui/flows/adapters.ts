@@ -10,6 +10,7 @@
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
+import * as Settings from "../../models/settings";
 import * as FileSystem from "expo-file-system/legacy";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
 import { availableRamFrom, contextSizeForRam, MemoryFit } from "../../inference/memoryFit";
@@ -136,4 +137,33 @@ export async function installedPoiCities(limit = 6): Promise<PoiCity[]> {
     })
   );
   return topInstalledCities(POI_REGIONS, installed, limit);
+}
+
+/**
+ * Tusk's low-RAM model bookkeeping (CR-1/CR-2, src/models/settings.ts on
+ * feat/engine-routing 8afce4f). Read by feature detection so this compiles and
+ * behaves before and after that branch is integrated: until then, nothing has
+ * crashed, nothing is confirmed, and confirming is a no-op (the engine that
+ * needs it isn't there either).
+ */
+type LowRamSettings = {
+  getLoadCrashedIds?: () => Promise<string[]>;
+  getLargeModelConfirmedIds?: () => Promise<string[]>;
+  confirmLargeModel?: (id: string) => Promise<void>;
+};
+const lowRam = Settings as unknown as LowRamSettings;
+
+/** Models whose last load killed the app on this phone ("Didn't open here"). */
+export async function loadCrashedIds(): Promise<string[]> {
+  return (await lowRam.getLoadCrashedIds?.().catch(() => [])) ?? [];
+}
+
+/** Models the user chose to run anyway on a low-RAM phone. */
+export async function largeModelConfirmedIds(): Promise<string[]> {
+  return (await lowRam.getLargeModelConfirmedIds?.().catch(() => [])) ?? [];
+}
+
+/** "Use anyway": lets the engine load this model on a low-RAM phone. */
+export async function confirmLargeModel(id: string): Promise<void> {
+  await lowRam.confirmLargeModel?.(id);
 }
