@@ -159,4 +159,9 @@ describe("weak sources announcement", () => {
     const st = { answerIds: [], sources: [], weakSources: true } as AnswerState;
     expect(phaseAnnouncement("done", st, t)).toEqual({ message: "chat.announce.readyNoSource" });
   });
+
+  it("state A announces the card as the answer", () => {
+    const st = { answerIds: [], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
+    expect(phaseAnnouncement("done", st, t)).toEqual({ message: "chat.weak.declinedTitle. chat.weak.declinedBody" });
+  });
 });

@@ -38,6 +38,8 @@ export interface AssistantMessageProps {
   onCopyReceipt: (text: string) => void;
   /** Places answers: re-ask for a typed city, or with the device position. */
   onCity: (city: string) => void;
+  /** Weak-sources state A: generate anyway for the same question. */
+  onAnswerAnyway?: () => void;
   onUseLocation?: () => void;
   onGetMap?: () => void;
 }
@@ -478,6 +480,60 @@ function WeakSourceNote({ answer }: { answer: AnswerState }) {
   );
 }
 
+/**
+ * Weak-sources state A (Iris spec, Boar's decision): the compact model found nothing in this phone's
+ * library and didn't guess. The card is the answer; "Answer anyway (may be wrong)" generates for the
+ * same question (state B). No receipt, no primary ember, no amber.
+ */
+function DeclinedNoSource({ answer, onAnswerAnyway }: { answer: AnswerState; onAnswerAnyway?: () => void }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const groups = groupSources(answer.sources);
+  return (
+    <Card style={{ gap: t.space.sm }}>
+      <View accessible accessibilityLabel={`${tr("chat.weak.declinedTitle")}. ${tr("chat.weak.declinedBody")}`} style={{ gap: t.space.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+          <Icon name="search" size="sm" color={t.color.text.secondary} />
+          <Text variant="headline" style={{ flex: 1 }}>
+            {tr("chat.weak.declinedTitle")}
+          </Text>
+        </View>
+        <Text variant="footnote" color="secondary">
+          {tr("chat.weak.declinedBody")}
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+        {onAnswerAnyway && <Button label={tr("chat.weak.answerAnyway")} variant="secondary" size="sm" onPress={onAnswerAnyway} />}
+        {groups.length > 0 && (
+          <Button
+            label={tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
+            variant="ghost"
+            size="sm"
+            accessibilityState={{ expanded: open }}
+            onPress={() => setOpen((o) => !o)}
+          />
+        )}
+      </View>
+      {open && (
+        <View style={{ gap: t.space.sm }}>
+          <Text variant="label" color="secondary" header>
+            {tr("chat.weak.closestTitle")}
+          </Text>
+          {groups.map((g) => (
+            <View key={g.key} style={{ gap: t.space.xxs }}>
+              <Text variant="subhead" numberOfLines={2}>
+                {g.title}
+              </Text>
+              <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
+            </View>
+          ))}
+        </View>
+      )}
+    </Card>
+  );
+}
+
 /** "Not a substitute for emergency services": under health and preparedness answers (Boar E-1). */
 function EmergencyNote() {
   const t = useTokens();
@@ -602,9 +658,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.assistantName")}
           </Text>
           {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
-          {waitingForCity ? null : active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
-        {receipt && !waitingForCity && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
+        {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
 
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
@@ -660,7 +716,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
 
       {answer.sources.length > 0 && !placesOnly && !answer.weakSources && <SourceList answer={answer} onOpenSource={onOpenSource} />}
-      {answer.weakSources && done && !placesOnly && <WeakSourceNote answer={answer} />}
+      {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} />}
+      {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} />}
       {showsEmergencyNote({
         question: props.question ?? "",
         sources: answer.sources,

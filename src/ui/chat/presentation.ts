@@ -55,6 +55,7 @@ export function phaseAnnouncement(
         const empty = placesEmptyTitle(state.places, t);
         return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
+      if (state.weakDeclined) return { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
       if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
       return { message: t("chat.announce.ready", { count: state.sources.length }) };
     case "stopped":

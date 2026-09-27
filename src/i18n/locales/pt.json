@@ -1088,7 +1088,10 @@
       "hideClosest": "Ocultar trechos mais próximos",
       "closestTitle": "Trechos mais próximos (correspondência fraca)",
       "weakMatch": "fraca",
-      "receipt": "conhecimento geral"
+      "receipt": "conhecimento geral",
+      "declinedTitle": "Não encontrei isso no acervo deste celular",
+      "declinedBody": "Sem uma fonte, o modelo compacto costuma errar perguntas assim, então ele não chutou.",
+      "answerAnyway": "Responder mesmo assim (pode errar)"
     }
   },
   "location": {

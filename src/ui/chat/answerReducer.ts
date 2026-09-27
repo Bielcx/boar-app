@@ -45,6 +45,8 @@ export interface AnswerState {
   streamsFromStorage?: boolean;
   /** No offline source covers the question: the model answered from general knowledge (Tusk weak_sources). */
   weakSources?: boolean;
+  /** …and the compact model declined to answer without a source (weak-sources state A); "Answer anyway" asks again. */
+  weakDeclined?: boolean;
 }
 
 export function initialAnswer(answerId: string): AnswerState {
@@ -96,7 +98,11 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
     case "warning":
       if (event.code === "model_streams_from_storage") return { ...state, streamsFromStorage: true };
       // Read as a string until the engine's code union has "weak_sources" (Tusk bdcbf8b).
-      if ((event.code as string) === "weak_sources") return { ...state, weakSources: true };
+      if ((event.code as string) === "weak_sources") {
+        // declined: PROVISIONAL field proposed to Tusk (the compact model didn't generate).
+        const declined = (event as { declined?: boolean }).declined === true;
+        return { ...state, weakSources: true, weakDeclined: declined || undefined };
+      }
       return state;
 
     case "stage":

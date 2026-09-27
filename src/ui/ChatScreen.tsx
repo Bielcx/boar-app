@@ -448,7 +448,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
    * the location permission (that one replaces the answer in place).
    */
   const followUp = useCallback(
-    async (messageId: string, kind: "deep" | "fast" | { place?: string }) => {
+    async (messageId: string, kind: "deep" | "fast" | { place?: string; answerAnyway?: boolean }) => {
       const item = itemsRef.current.find((m) => m.id === messageId);
       if (!item || item.kind !== "assistant" || activeRef.current || !ready) return;
       const sessionId = activeSessionId;
@@ -470,7 +470,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             ? runDeepen(item.question, item.answer.sources, onEvent, ctx)
             : kind === "fast"
               ? runAnswer({ query: item.question, tier: "fast" }, onEvent, ctx)
-              : runAnswer({ query: item.question, place: kind.place }, onEvent, ctx)
+              : runAnswer(
+                  // answerAnyway: PROVISIONAL field proposed to Tusk (weak-sources state A → B).
+                  { query: item.question, place: kind.place, ...(kind.answerAnyway ? { answerAnyway: true } : {}) } as Parameters<typeof runAnswer>[0],
+                  onEvent,
+                  ctx
+                )
         );
         // A redo replaces the answer: keep the saved text in step (Deepen only adds to it).
         if (typeof kind === "object" && sessionId) await upsertMessage(sessionId, "assistant", answerTextForHistory(final), messageId);
@@ -684,6 +689,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
       });
     },
+    answerAnyway: (id) => followUp(id, { answerAnyway: true }),
     city: (id, city) => {
       // Typed while the answer still waits for the GPS: stop it, then search the city once it has ended.
       if (activeRef.current?.messageId === id) {
@@ -719,6 +725,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       rate: (id, r) => rowActions.current.rate(id, r),
       copy: (item) => rowActions.current.copy(item),
       share: (item) => rowActions.current.share(item),
+      answerAnyway: (id) => rowActions.current.answerAnyway(id),
       city: (id, c) => rowActions.current.city(id, c),
       useLocation: (id) => rowActions.current.useLocation?.(id),
       getMap: () => rowActions.current.getMap(),
@@ -894,6 +901,7 @@ interface RowActions {
   rate: (id: string, rating: "up" | "down") => void;
   copy: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
   share: (item: Extract<ChatItem, { kind: "assistant" }>) => void;
+  answerAnyway: (id: string) => void;
   city: (id: string, city: string) => void;
   useLocation?: (id: string) => void;
   getMap: () => void;
@@ -937,6 +945,7 @@ const AssistantRow = memo(function AssistantRow({
       onCopy: () => actions.copy(itemRef.current),
       onShare: () => actions.share(itemRef.current),
       onCity: (city: string) => actions.city(id, city),
+      onAnswerAnyway: () => actions.answerAnyway(id),
       onUseLocation: actions.useLocation ? () => actions.useLocation!(id) : undefined,
       onGetMap: actions.getMap,
       onCopyReceipt: actions.copyReceipt,

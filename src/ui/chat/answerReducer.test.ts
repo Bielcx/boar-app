@@ -216,4 +216,11 @@ describe("weak sources (Tusk weak_sources, Iris spec)", () => {
     expect(s.weakSources).toBe(true);
     expect(answerReducer(base, { type: "warning", answerId: "a", code: "model_streams_from_storage", message: "" }).weakSources).toBeUndefined();
   });
+
+  it("state A: the compact model declined (no generation) until 'Answer anyway'", () => {
+    const base = { answerIds: ["a"], sources: [] } as AnswerState;
+    const declined = answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources", declined: true, message: "" } as never);
+    expect(declined.weakDeclined).toBe(true);
+    expect(answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources", message: "" } as never).weakDeclined).toBeUndefined();
+  });
 });
