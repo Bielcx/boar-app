@@ -449,3 +449,24 @@ top 6; "a tree of hashes checked by light clients" → *Merkle tree* misses), an
 Vitalik's question "Which signature algorithms are quantum resistant?" puts
 *Quantum cryptography* (key distribution, not signatures) first and
 *Post-quantum cryptography* third.
+
+### Search latency with the full English Wikipedia (15 packs)
+
+Measured 2026-09-26 on the Mac mini (M4, 16 GB) with `eval/retrieval/latency.mts`, bundled with esbuild and run on
+4 of the 15 shards (00, 04, 09, 14, downloaded from their pinned URLs and hash-checked), over the 180 eval questions
+(v1 + crypto). The app searches installed packs one after the other (`searchWikiPacks`), so the tool times the whole
+question over N = 1..4 packs, no query vector (the default path), cold (first pass) and warm (second pass).
+Raw numbers: `eval/retrieval/results/latency-en-4of15.json`.
+
+| Packs | p50 warm | p95 warm | p50 cold | p95 cold |
+|---|---|---|---|---|
+| 1 | 43 ms | 94 ms | 50 ms | 106 ms |
+| 2 | 90 ms | 206 ms | 98 ms | 210 ms |
+| 3 | 133 ms | 285 ms | 137 ms | 315 ms |
+| 4 | 175 ms | 366 ms | 174 ms | 367 ms |
+| **15 (linear fit)** | **~660 ms** | **~1.36 s** | ~630 ms | ~1.36 s |
+
+Time grows linearly, ~44 ms per pack at the median and ~90 ms at p95, so a phone with all 15 shards spends well over
+half a second searching on this machine's speed alone; a phone is slower. UNKNOWN: on-device numbers (not measured).
+Options to measure next: search packs concurrently (expo-sqlite opens each pack as its own database), or stop early
+once a named article is found.
