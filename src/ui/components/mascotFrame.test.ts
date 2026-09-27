@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CROP, discImage, OPAQUE, wholeImage } from "./mascotFrame";
+import { CROP, discImage, heroImage, OPAQUE, wholeImage } from "./mascotFrame";
 
 describe("discImage", () => {
   it("matches the mockup window (192% at 72% 40%) with the cropped asset", () => {
@@ -30,5 +30,14 @@ describe("wholeImage", () => {
     expect(w.size).toBeCloseTo(144.1, 1);
     expect(w.left).toBeCloseTo(22.3, 1);
     expect(w.top).toBeCloseTo(25.8, 1);
+  });
+});
+
+describe("heroImage", () => {
+  it("matches the mockup's rendered hero (original at 170 pt, (-15,-10) in the 170x150 box)", () => {
+    const h = heroImage();
+    expect(h.size).toBeCloseTo(122.5, 1);
+    expect(h.left).toBeCloseTo(3.9, 1);
+    expect(h.top).toBeCloseTo(11.9, 1);
   });
 });

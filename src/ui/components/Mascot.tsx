@@ -2,7 +2,7 @@ import React from "react";
 import { Image, View } from "react-native";
 import { useTokens } from "../theme";
 import { mascotGlow } from "../theme/ambient";
-import { discImage, wholeImage } from "./mascotFrame";
+import { discImage, heroImage, wholeImage } from "./mascotFrame";
 
 export interface MascotProps {
   /**
@@ -54,12 +54,9 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
   }
 
   if (size === "hero") {
-    // Mockup: a 170×150 layout box with the 200 pt boar overflowing it at (-15, -25) on purpose,
+    // Mockup: a 170×150 layout box; the boar is drawn where the mockup renders it (heroImage),
     // so whatever follows (the wordmark) sits 6 pt under the box and overlaps the feet slightly.
-    const img = t.size.mascotImage;
-    const dx = (img - side) / 2;
-    const dy = (img - t.size.mascotBoxHeight) / 2;
-    const w = wholeImage(img);
+    const w = heroImage();
     return (
       <View {...hidden} style={{ width: side, height: t.size.mascotBoxHeight, opacity: dim ? 0.7 : 1 }}>
         {glow && !dim && (
@@ -77,7 +74,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
         )}
         <Image
           source={SOURCE}
-          style={{ position: "absolute", left: w.left - dx, top: w.top - dy, width: w.size, height: w.size }}
+          style={{ position: "absolute", left: w.left, top: w.top, width: w.size, height: w.size }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
