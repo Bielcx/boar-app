@@ -26,7 +26,8 @@ const COUNTRIES: CountryNumbers[] = [
   { names: /\b(argentina)\b/i, en: "Argentina: 911 (police), ambulance 107, fire 100.", pt: "Argentina: 911 (polícia), ambulância 107, bombeiros 100." },
   { names: /\b(japan|jap[ãa]o)\b/i, en: "Japan: police 110, fire and ambulance 119.", pt: "Japão: polícia 110, bombeiros e ambulância 119." },
   { names: /\b(china)\b/i, en: "China: police 110, ambulance 120, fire 119.", pt: "China: polícia 110, ambulância 120, bombeiros 119." },
-  { names: /\b(south korea|korea|coreia do sul|coreia)\b/i, en: "South Korea: police 112, fire and ambulance 119.", pt: "Coreia do Sul: polícia 112, bombeiros e ambulância 119." },
+  // Not North Korea ("North Korea", "Coreia do Norte"): South Korea's numbers would be wrong there.
+  { names: /\b(south korea|coreia do sul)\b|(?<!north\s)\bkorea\b|\bcoreia\b(?!\s+do\s+norte)/i, en: "South Korea: police 112, fire and ambulance 119.", pt: "Coreia do Sul: polícia 112, bombeiros e ambulância 119." },
   { names: /\b(india|[íi]ndia)\b/i, en: "India: 112 (all emergencies).", pt: "Índia: 112 (todas as emergências)." },
   { names: /\b(australia|austr[áa]lia)\b/i, en: "Australia: 000 (112 also works from mobile phones).", pt: "Austrália: 000 (112 também funciona em celulares)." },
   { names: /\b(new zealand|nova zel[âa]ndia)\b/i, en: "New Zealand: 111.", pt: "Nova Zelândia: 111." },
