@@ -8,7 +8,7 @@ import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
 import type { CatalogModel } from "../models/manifest";
 import { registerAssetProvider } from "../models/assetRegistry";
-import { PoiPack, cleanPlaceName, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PlaceSuggestion, type PoiArea } from "./poiPack";
+import { PoiPack, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PlaceSuggestion, type PoiArea } from "./poiPack";
 import { tileBbox, tileEntry, tileIdsFor, type PoiTile } from "./poiRegions";
 import type { PlaceMatch, PoiQuery, PoiSearchResult } from "./pois.types";
 import type { PackSql } from "./wikiPack";
@@ -154,31 +154,10 @@ function gazetteer(): Promise<PackSql | null> {
 
 /** A city or town by name, from the world gazetteer; null when unknown or the gazetteer isn't installed. */
 export async function resolvePlace(name: string): Promise<PlaceMatch | null> {
+  // Without the gazetteer this returns null; the one fallback (the places packs' own cities) is the engine's
+  // (src/routing/geoWiring.ts cityByName), which cleans the name with the same cleanPlaceName.
   const db = await gazetteer();
-  const hit = db ? await resolvePlaceIn(db, name) : null;
-  if (hit) return hit;
-  // No gazetteer installed (only a region pack), or it doesn't know the name: the installed region packs know their
-  // own name and biggest places, so "vegan restaurants in Berlin" works wherever "near me" in Berlin does (PL-1).
-  return resolvePlaceInPacks(name);
-}
-
-const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
-async function resolvePlaceInPacks(name: string): Promise<PlaceMatch | null> {
-  const want = fold(cleanPlaceName(name).name);
-  if (!want) return null;
-  for (const area of await installedPoiAreas()) {
-    if (!(area instanceof PoiPack)) continue;
-    const { meta } = area;
-    const city = meta.cities.find((c) => fold(c.name) === want);
-    if (city) return { name: city.name, lat: city.lat, lon: city.lon, kind: "city" };
-    if ([meta.nameEn, meta.namePt].some((n) => n && fold(n) === want)) {
-      const [s, w, n, e] = meta.bbox;
-      const first = meta.cities[0];
-      return { name: meta.nameEn, lat: first?.lat ?? (s + n) / 2, lon: first?.lon ?? (w + e) / 2, kind: "city" };
-    }
-  }
-  return null;
+  return db ? resolvePlaceIn(db, name) : null;
 }
 
 /** City search box: places whose name starts with `query`, most populous first ([] without the gazetteer). */

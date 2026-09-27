@@ -60,6 +60,12 @@ export interface CatalogModel {
    * embeddings, opened directly (src/rag/packs.ts).
    */
   format?: "json" | "sqlite-pack" | "poi-pack";
+  /**
+   * Ids of assets this one is useless without, installed with it: a places
+   * pack needs the world gazetteer to answer "restaurants in <city>" (PL-1).
+   * Resolved in the asset registry (src/models/assetRegistry.ts).
+   */
+  requires?: string[];
 }
 
 export const STORAGE_BUDGET_BYTES = 50 * 1024 * 1024 * 1024; // 50GB
