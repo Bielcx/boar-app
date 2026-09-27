@@ -713,7 +713,8 @@
       "stop": "Stop answer",
       "stopping": "Stopping",
       "notReady": "Loading model… you can type meanwhile",
-      "modelError": "The model didn't load. Fix it above to send."
+      "modelError": "The model didn't load. Fix it above to send.",
+      "placeholderLoading": "Type while the model loads"
     },
     "stage": {
       "searching": "Searching sources…",

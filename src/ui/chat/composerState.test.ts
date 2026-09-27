@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { composerNotice, modelStatus } from "./composerState";
+import { composerNotice, composerPlaceholderKey, modelStatus } from "./composerState";
 
 describe("modelStatus", () => {
   it("puts a load error ahead of the loading flag (iOS shot e927016: both showed at once)", () => {
@@ -24,8 +24,16 @@ describe("composerNotice", () => {
     expect([line, hint]).not.toContain("chat.composer.notReady");
   });
 
-  it("says loading (line and hint) while the model loads, nothing when ready", () => {
-    expect(composerNotice("loading")).toEqual({ line: "chat.composer.notReady", hint: "chat.composer.notReady" });
+  it("while loading, no second line (the top strip names the model), only the hint; nothing when ready", () => {
+    expect(composerNotice("loading")).toEqual({ line: null, hint: "chat.composer.notReady" });
     expect(composerNotice("ready")).toEqual({ line: null, hint: null });
+  });
+});
+
+describe("composerPlaceholderKey (Prism LD-1)", () => {
+  it("tells that typing works while the model loads", () => {
+    expect(composerPlaceholderKey("loading")).toBe("chat.composer.placeholderLoading");
+    expect(composerPlaceholderKey("ready")).toBe("chat.composer.placeholder");
+    expect(composerPlaceholderKey("error")).toBe("chat.composer.placeholder");
   });
 });
