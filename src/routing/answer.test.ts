@@ -671,6 +671,34 @@ describe("answer(): relevance on the sources event", () => {
   });
 });
 
+describe("answer(): a question asked while the knowledge base is still indexing (first boot)", () => {
+  it("searches only after indexing ends (Harbor 5f7d9ca: 15/300 indexed, empty search)", async () => {
+    const order: string[] = [];
+    let indexed!: () => void;
+    f.deps.knowledgeReady = () => new Promise<void>((r) => (indexed = () => (order.push("indexed"), r())));
+    const retrieve = f.deps.retrieve;
+    f.deps.retrieve = async (q, k) => (order.push("retrieve"), retrieve(q, k));
+    const pending = collect("Why was Canberra chosen as the capital of Australia?");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(order).toEqual([]);
+    indexed();
+    const { result } = await pending;
+    expect(order).toEqual(["indexed", "retrieve"]);
+    expect(result.sources.map((c) => c.title)).toContain("Canberra");
+  });
+
+  it("stop() during the wait ends the answer at once", async () => {
+    f.deps.knowledgeReady = () => new Promise<void>(() => {});
+    const events: AnswerEvent[] = [];
+    const h = createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?" }, (e) => events.push(e), ctx);
+    await new Promise((r) => setTimeout(r, 20));
+    const t = Date.now();
+    await h.stop();
+    expect((await h.done).outcome).toBe("stopped");
+    expect(Date.now() - t).toBeLessThan(100);
+  });
+});
+
 describe("answer(): backend fallback", () => {
   it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
     const load = f.deps.engine.load;
