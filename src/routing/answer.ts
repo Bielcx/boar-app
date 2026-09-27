@@ -20,6 +20,7 @@ import {
   isHealthQuestion,
   MIN_TERM_COVERAGE,
   noGoodSourceAnswer,
+  NO_SOURCE_INSTRUCTION,
   noHealthSourceAnswer,
   onTopic,
   PT_QUESTION,
@@ -601,7 +602,15 @@ export function createAnswerer(deps: AnswerDeps) {
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
       }
-      const styleReminder = [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
+      // A knowledge question with nothing retrieved: the model answers, but not as if it came from a source.
+      const fromMemory =
+        !health && plan.retrieve && gen?.mode !== "multipass" && sources.length === 0 && ["lookup", "research", "compare", "extract"].includes(taskType);
+      if (fromMemory) {
+        reasonCodes.push("grounding:no-source-memory");
+        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+      }
+      const styleReminder =
+        [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
 
       // 3. Generation.
       if (!gen || !genLlm) {

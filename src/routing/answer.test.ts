@@ -5,7 +5,7 @@ import { AnswerDeps, createAnswerer, InstalledLlm } from "./answer";
 import type { AnswerEvent } from "./events";
 import type { AnswerSettings } from "../models/settings";
 import type { GenerateOptions } from "../inference/LlamaEngine";
-import { approxTokens, HEALTH_GROUNDING_INSTRUCTION } from "./context";
+import { approxTokens, HEALTH_GROUNDING_INSTRUCTION, NO_SOURCE_INSTRUCTION } from "./context";
 
 const chunk = (chunkId: string, title: string, body: string): RetrievedChunk => ({
   chunkId,
@@ -208,6 +208,15 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.sources).toEqual([]);
     expect(result.receipt.modelId).toBe("grounding-guard");
     expect(result.receipt.reasonCodes).toContain("grounding:no-source-answer");
+  });
+
+  it("nothing retrieved for a knowledge question: the model answers, told to say it's not from an offline source", async () => {
+    f.retrieved = [];
+    const { events, result } = await collect("Which signature algorithms are quantum resistant?");
+    expect(f.generations).toHaveLength(1);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+    expect(result.receipt.reasonCodes).toContain("grounding:no-source-memory");
   });
 
   it("drops an off-topic source when an on-topic one exists", async () => {

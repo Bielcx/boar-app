@@ -245,6 +245,16 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   return termCoverage(query, `${chunk.title} ${chunk.body}`) >= MIN_TERM_COVERAGE;
 }
 
+/**
+ * Next to the question when a knowledge question found no offline source at
+ * all: the model may answer, but says so and only states what it is sure of
+ * (the post-quantum question without a pack: the 1.5B otherwise named
+ * "Rainbow" and "McEliece" as signature standards).
+ */
+export const NO_SOURCE_INSTRUCTION =
+  "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
+  "Only state what you are sure of; if you are not sure, say so.";
+
 /** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
