@@ -8,7 +8,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isGeneralKnowledge, isLocating, type AnswerState, type TierState } from "./answerReducer";
-import { generatingSteps, offersAskModel, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -215,15 +215,15 @@ function TierBody({
  * The measured receipt: a short numbers-only line ("1.4 s · 16 tok/s") that
  * sits by the name and opens the full measurement below the header row.
  */
-function useReceipt(receipt: AnswerReceipt | undefined, locale: string, generalKnowledge = false) {
+function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: string | null = null) {
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   if (!receipt) return null;
   return {
     open,
     toggle: () => setOpen((o) => !o),
-    // "general knowledge" when no offline source covered the question (weak-sources spec).
-    short: generalKnowledge ? [...receiptShort(receipt, locale), tr("chat.weak.receipt")] : receiptShort(receipt, locale),
+    // "general knowledge" / "no source cited" after the numbers (weak-sources spec, Iris CT-5).
+    short: tagKey ? [...receiptShort(receipt, locale), tr(tagKey)] : receiptShort(receipt, locale),
     line: receiptLine(receipt, locale, tr),
     details: receiptDetails(receipt, locale, tr),
   };
@@ -730,9 +730,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const phase = answerPhase(answer);
   // No strong source: no [n] citations, even if weak passages came back (weak-sources spec rule 4).
   const generalKnowledge = isGeneralKnowledge(answer);
-  const uncited = !answer.weakSources && generalKnowledge;
   const sourceTitles = answer.weakSources ? [] : answer.sources.map((s) => s.title);
   const placesOnly = !!answer.places && !answer.fast;
+  const note = noSourceNote(answer, placesOnly);
   const split = answerSourceSplit(answer);
   const cardMode = sourcesCardMode(!!active, split);
   const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
@@ -745,7 +745,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
-  const receipt = useReceipt(topReceipt, locale, generalKnowledge);
+  const receipt = useReceipt(topReceipt, locale, receiptTagKey(answer));
   const locating = isLocating(answer);
   const waitingForCity = answer.places?.coverage === "needs_place" || locating;
   return (
@@ -867,9 +867,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         )
       )}
       {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
-      {generalKnowledge && !answer.weakDeclined && done && !placesOnly && (
-        <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={uncited} />
-      )}
+      {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>

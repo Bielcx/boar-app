@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -251,5 +251,34 @@ describe("offersAskModel (Prism CT-4)", () => {
     expect(offersAskModel({ ...r("extractive"), fast: {} })).toBe(false);
     expect(offersAskModel({ ...r("places"), places: {} })).toBe(false);
     expect(offersAskModel({})).toBe(false);
+  });
+});
+
+describe("receiptTagKey (Iris CT-5)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "T", body: "b", score: 1, matchType: "hybrid" as const }];
+  const base = { answerIds: ["a"], sources: src, fast: { text: "x", stage: null, outcome: "success", receipt } } as AnswerState;
+  it("general knowledge only when nothing covered the question; no source cited when found passages weren't cited", () => {
+    expect(receiptTagKey({ ...base, weakSources: true, cited: [] })).toBe("chat.weak.receipt");
+    expect(receiptTagKey({ ...base, cited: [] })).toBe("chat.weak.receiptUncited");
+    expect(receiptTagKey({ ...base, cited: [1] })).toBeNull();
+    expect(receiptTagKey(base)).toBeNull();
+  });
+});
+
+describe("tag and note together (Prism: the tag changes, the warning never goes)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "T", body: "b", score: 1, matchType: "hybrid" as const }];
+  const base = { answerIds: ["a"], sources: src, fast: { text: "x", stage: null, outcome: "success", receipt } } as AnswerState;
+  it("cited = [] with passages → 'no source cited' + the CT-5 note", () => {
+    const a = { ...base, cited: [] };
+    expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receiptUncited", "uncited"]);
+  });
+  it("weak_sources → 'general knowledge' + note B", () => {
+    const a = { ...base, weakSources: true };
+    expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receipt", "weak"]);
+  });
+  it("a cited answer has neither; a decline and a places list have their own cards", () => {
+    expect([receiptTagKey({ ...base, cited: [1] }), noSourceNote({ ...base, cited: [1] }, false)]).toEqual([null, null]);
+    expect(noSourceNote({ ...base, weakSources: true, weakDeclined: true }, false)).toBeNull();
+    expect(noSourceNote({ ...base, cited: [] }, true)).toBeNull();
   });
 });

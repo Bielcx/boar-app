@@ -1138,6 +1138,7 @@
       "closestTitle": "Closest passages (weak match)",
       "weakMatch": "weak match",
       "receipt": "general knowledge",
+      "receiptUncited": "no source cited",
       "declinedTitle": "I couldn't find this in this phone's library",
       "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
       "answerAnyway": "Answer anyway (may be wrong)",
