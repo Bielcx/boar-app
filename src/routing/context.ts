@@ -525,6 +525,23 @@ export function todayLine(date: Date, pt: boolean): string {
   return pt ? `Hoje é ${text} (data deste aparelho).` : `Today is ${text} (this device's date).`;
 }
 
+const TODAY_IN_HISTORY =
+  /\b(today|this day)\b[^?.!]{0,30}\bin history\b|\bon this day\b|\bthis day in history\b|(^|[^\p{L}])(hoje na hist[óo]ria|neste dia na hist[óo]ria|num dia como hoje|hoje[^?.!]{0,30}na hist[óo]ria)(?![\p{L}])/iu;
+
+/** "What happened today in history?": a question about the device's calendar date (Boar/Piston R3). */
+export function isTodayInHistory(query: string): boolean {
+  return TODAY_IN_HISTORY.test(query);
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** The date as the sources write it: search words ("September 27") and what an on-topic source must contain. */
+export function historyDate(date: Date): { search: string; mentioned: RegExp } {
+  const month = MONTHS[date.getMonth()];
+  const day = date.getDate();
+  return { search: `${month} ${day}`, mentioned: new RegExp(`\\b(${month} ${day}|${day} ${month})\\b`, "i") };
+}
+
 export function isCurrentEventQuery(query: string): boolean {
   return CURRENT_TIME.test(query) && EVENT_INTENT.test(query) && !HISTORY_FRAME.test(query);
 }

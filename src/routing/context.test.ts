@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  isTodayInHistory,
+  historyDate,
   onTopic,
   namedByLexicon,
   healthSourceIndex,
@@ -480,5 +482,18 @@ describe("shown relevance (Prism BAND-1)", () => {
     const out = compressContext("What causes the monsoon?", chunks).chunks as any[];
     const air = out.find((x) => x.chunkId === "a");
     if (air) expect(air.relevance).toBe(0.5);
+  });
+});
+
+describe("isTodayInHistory / historyDate (Boar R3)", () => {
+  it("today/this day in history, EN and PT; not other questions", () => {
+    for (const q of ["What happened today in history?", "What happened on this day?", "O que aconteceu hoje na história?", "O que aconteceu hoje na historia?"]) expect(isTodayInHistory(q), q).toBe(true);
+    for (const q of ["Who won the football match yesterday?", "What is the history of Rome?", "What happened in the 1906 earthquake?"]) expect(isTodayInHistory(q), q).toBe(false);
+  });
+  it("the date as sources write it", () => {
+    const d = historyDate(new Date(2026, 8, 27));
+    expect(d.search).toBe("September 27");
+    expect(d.mentioned.test("On 27 September 1825 the railway opened")).toBe(true);
+    expect(d.mentioned.test("September 2 and 7")).toBe(false);
   });
 });
