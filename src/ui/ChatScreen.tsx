@@ -790,7 +790,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           (Prism K-1, Android offline 06f508b). The native window position fixes any offset above. */}
       <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         {loadCrash && (
-          <View style={{ paddingHorizontal: tk.space.gutter, paddingTop: tk.space.sm }}>
+          <View style={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm }}>
             <Banner
               tone="warning"
               icon="alert-triangle"
