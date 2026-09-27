@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { detectGeoIntent, formatDistance, GeoProviders, PoiRecord } from "./geo";
-import { createAnswerer, AnswerDeps, DEVICE_INSIDE_TIMEOUT_MS } from "./answer";
+import { createAnswerer, AnswerDeps, DEVICE_INSIDE_TIMEOUT_MS, LOCATING_SIGNAL_MS } from "./answer";
 import type { AnswerEvent } from "./events";
 
 describe("detectGeoIntent", () => {
@@ -336,5 +336,66 @@ describe("answer(): places path", () => {
     const { places } = await ask("Which signature algorithms are quantum resistant?");
     expect(places).toBeUndefined();
     expect(geo.calls).toEqual([]);
+  });
+});
+
+describe("answer(): 'near me' location wait (GPS-1) and age rule", () => {
+  const NEAR = "Tell me the best vegan restaurants in the city I am currently in";
+  const locEvents = (events: AnswerEvent[]) => events.filter((e) => e.type === "location").map((e: any) => e.status);
+
+  it("a fix of 5 min or less is used at once, with no 'locating'", async () => {
+    geo.getLocationFix = async () => ({ lat: -23.56, lon: -46.65, accuracyM: 20, ageS: 120 });
+    const { events, places } = await ask(NEAR);
+    expect(locEvents(events)).toEqual(["granted"]);
+    expect(places!.area.kind).toBe("near");
+    expect(places!.places.length).toBeGreaterThan(0);
+  });
+
+  it("cold GPS: says 'locating', then lists as soon as the fix arrives", async () => {
+    geo.getLocationFix = () => new Promise((r) => setTimeout(() => r({ lat: -23.56, lon: -46.65, accuracyM: 30, ageS: 0 }), LOCATING_SIGNAL_MS + 150));
+    const { events, places, r } = await ask(NEAR);
+    expect(locEvents(events)).toEqual(["locating", "granted"]);
+    expect(places!.coverage).toBe("ok");
+    expect(r.receipt.reasonCodes).toContain("location:locating");
+  });
+
+  it("Piston's case: only a 23-min-old fix (Berlin) -> never lists Berlin, offers it by name", async () => {
+    geo.getLocationFix = async () => ({ error: "stale" as const, last: { lat: 52.52, lon: 13.4, accuracyM: 15, ageS: 1380 } });
+    geo.nearestCity = async () => ({ name: "Berlin", country: "Germany" });
+    const { events, places } = await ask(NEAR);
+    expect(geo.calls).not.toContain("search");
+    expect(events.find((e) => e.type === "location")).toMatchObject({ status: "stale", ageS: 1380 });
+    expect(places!.coverage).toBe("needs_place");
+    expect(places!.area).toEqual({ kind: "near", lastKnown: { city: "Berlin", country: "Germany", ageS: 1380 } });
+    expect((await ask(NEAR)).r.text).toBe("I couldn't get a current location. The last one was in Berlin, 23 min ago. Are you still there, or which city are you in?");
+  });
+
+  it("an old fix with no known city just asks for the city", async () => {
+    geo.getLocationFix = async () => ({ error: "stale" as const, last: { lat: 0, lon: 0, ageS: 3600 } });
+    geo.nearestCity = async () => null;
+    const { places } = await ask(NEAR);
+    expect(places!.area).toEqual({ kind: "near" });
+    expect(places!.coverage).toBe("needs_place");
+  });
+
+  it("no fix at all within the wait -> asks for the city", async () => {
+    geo.getLocationFix = async () => ({ error: "timeout" as const });
+    const { events, places } = await ask(NEAR);
+    expect(locEvents(events)).toEqual(["unavailable"]);
+    expect(places!.coverage).toBe("needs_place");
+  });
+
+  it("stop() while waiting for the GPS ends the answer at once (the user typed a city)", async () => {
+    geo.getLocationFix = () => new Promise(() => {});
+    const events: AnswerEvent[] = [];
+    const h = createAnswerer(deps()).answer({ query: NEAR }, (e) => events.push(e), { maxTokens: 256 });
+    await new Promise((r) => setTimeout(r, LOCATING_SIGNAL_MS + 50));
+    expect(locEvents(events)).toEqual(["locating"]);
+    const t = Date.now();
+    await h.stop();
+    const r = await h.done;
+    expect(Date.now() - t).toBeLessThan(100);
+    expect(r.outcome).toBe("stopped");
+    expect(events.at(-1)).toMatchObject({ type: "done", outcome: "stopped" });
   });
 });

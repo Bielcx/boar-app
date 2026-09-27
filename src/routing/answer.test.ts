@@ -5,7 +5,7 @@ import { AnswerDeps, createAnswerer, InstalledLlm } from "./answer";
 import type { AnswerEvent } from "./events";
 import type { AnswerSettings } from "../models/settings";
 import type { GenerateOptions } from "../inference/LlamaEngine";
-import { approxTokens } from "./context";
+import { approxTokens, HEALTH_GROUNDING_INSTRUCTION } from "./context";
 
 const chunk = (chunkId: string, title: string, body: string): RetrievedChunk => ({
   chunkId,
@@ -177,6 +177,125 @@ describe("answer(): instant tier", () => {
   it("every event carries the same answerId", async () => {
     const { events, result } = await collect("Why was Canberra chosen as the capital?");
     expect(new Set(events.map((e) => e.answerId))).toEqual(new Set([result.answerId]));
+  });
+});
+
+describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
+  const DEAN_LEE = chunk(
+    "dl",
+    "Dean Lee",
+    "Dean Lee (born 1971) is an American nuclear theorist. He also works on new technologies and computational paradigms such as eigenvector continuation, machine learning tools to find correlations, and quantum computing algorithms for the nuclear many-body problem."
+  );
+  const PUBLIC_KEY = chunk(
+    "pk",
+    "Public-key cryptography",
+    "Public-key cryptography is the field of cryptographic systems that use pairs of related keys. There are many kinds of public-key cryptosystems, including digital signature, Diffie-Hellman key exchange and public-key encryption."
+  );
+  const NOSEBLEED = chunk(
+    "nb",
+    "Nosebleed",
+    "A nosebleed is bleeding from the nose. Pinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back."
+  );
+
+  it("Q-1 without the crypto pack: off-topic sources only -> says so, no model, no snippet, no sources", async () => {
+    f.retrieved = [DEAN_LEE, PUBLIC_KEY];
+    const { events, result } = await collect("Which signature algorithms are quantum resistant?");
+    expect(f.generations).toHaveLength(0);
+    expect(events.some((e) => e.type === "instant")).toBe(false);
+    expect(events.some((e) => e.type === "sources")).toBe(false);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+    expect(result.text).toMatch(/didn't find a good source for this in the offline library/);
+    expect(result.sources).toEqual([]);
+    expect(result.receipt.modelId).toBe("grounding-guard");
+    expect(result.receipt.reasonCodes).toContain("grounding:no-source-answer");
+  });
+
+  it("drops an off-topic source when an on-topic one exists", async () => {
+    f.retrieved = [DEAN_LEE, CANBERRA];
+    const { events } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources.map((c) => c.title)).toEqual(["Canberra"]);
+  });
+
+  it("E-1 nosebleed: the answer is the source's own text, cited, with no model", async () => {
+    f.retrieved = [NOSEBLEED];
+    const { result } = await collect("How do I stop a nosebleed?");
+    expect(f.generations).toHaveLength(0);
+    expect(result.tier).toBe("instant");
+    expect(result.receipt.modelId).toBe("extractive");
+    expect(result.text).toBe(
+      "From the offline source:\nA nosebleed is bleeding from the nose. Pinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back. [1]"
+    );
+    expect(result.receipt.reasonCodes).toContain("grounding:health-extractive");
+  });
+
+  it("E-1: quotes the source that says what to do, not the definition", async () => {
+    const lead = chunk("n1", "Nosebleed", "A nosebleed, also known as epistaxis, is bleeding from the nasal cavity. Most cases are minor.");
+    const treatment = chunk(
+      "n2",
+      "Nosebleed",
+      "Treatment: Most anterior nosebleeds can be stopped by applying direct pressure. Pinch the soft part of the nose and lean forward for 10 to 15 minutes."
+    );
+    f.retrieved = [lead, treatment];
+    const { result } = await collect("How do I stop a nosebleed?");
+    expect(result.text).toMatch(/^From the offline source:\nTreatment: Most anterior nosebleeds .* lean forward for 10 to 15 minutes\. \[2\]$/);
+  });
+
+  it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
+    const queries: string[] = [];
+    f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
+    const { result } = await collect("Como faço para parar um sangramento no nariz?");
+    expect(queries).toEqual(["nosebleed stop"]);
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nA nosebleed is bleeding/);
+    expect(f.generations).toHaveLength(0);
+  });
+
+  it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
+    f.installed = [qwen15, moe];
+    f.retrieved = [NOSEBLEED];
+    const { result } = await collect("How do I stop a nosebleed?", "deep");
+    expect(result.receipt.reasonCodes).toContain("grounding:health-no-multipass");
+    expect(f.multipassCalls).toBe(0);
+    expect(f.generations).toHaveLength(1);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(HEALTH_GROUNDING_INSTRUCTION);
+  });
+
+  it("'Deeper answer' on health: temperature 0, nothing streamed, and a dangerous model line falls back to the source", async () => {
+    f.installed = [qwen15, moe];
+    f.retrieved = [NOSEBLEED];
+    const seen: any[] = [];
+    f.deps.engine.generate = async (o) => {
+      seen.push(o);
+      o.onToken?.("streamed");
+      return "Pinch the soft part of your nose and blow your nose gently [1].";
+    };
+    const { events, result } = await collect("How do I stop a nosebleed?", "deep");
+    expect(seen[0].temperature).toBe(0);
+    expect(events.filter((e) => e.type === "token").map((e: any) => e.text)).toEqual([result.text]);
+    expect(result.text).toMatch(/^From the offline source:\nA nosebleed is bleeding from the nose\./);
+    expect(result.receipt.reasonCodes).toContain("grounding:health-unsafe-blow-nose");
+  });
+
+  it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
+    for (const [q, retrieved] of [
+      ["What should I do after a snake bite?", []],
+      ["How do I treat a burn?", [MOLD]],
+      ["O que fazer em caso de picada de cobra?", []],
+    ] as const) {
+      f = makeFake();
+      f.retrieved = [...retrieved];
+      const { result } = await collect(q);
+      expect(f.generations).toHaveLength(0);
+      expect(result.text).toMatch(/emergency|emergência/);
+      expect(result.receipt.reasonCodes).toContain("grounding:health-no-source");
+    }
+  });
+
+  it("leaves Portuguese questions alone (English sources can't be matched word for word)", async () => {
+    f.retrieved = [CANBERRA];
+    const { result } = await collect("Por que Canberra virou a capital da Austrália?");
+    expect(f.generations).toHaveLength(1);
+    expect(result.receipt.reasonCodes.some((c) => c.startsWith("grounding:"))).toBe(false);
   });
 });
 

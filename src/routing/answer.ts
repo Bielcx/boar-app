@@ -11,7 +11,24 @@
  * a double send can never run two completions on one context.
  */
 import { classifyTask } from "./classify";
-import { compressContext, selectInstant, instantFinalBlock, INSTANT_FINAL_CONFIDENCE } from "./context";
+import {
+  compressContext,
+  selectInstant,
+  instantFinalBlock,
+  INSTANT_FINAL_CONFIDENCE,
+  HEALTH_GROUNDING_INSTRUCTION,
+  isHealthQuestion,
+  MIN_TERM_COVERAGE,
+  noGoodSourceAnswer,
+  noHealthSourceAnswer,
+  onTopic,
+  PT_QUESTION,
+  healthExtract,
+  healthSourceIndex,
+  riskyHealthInstruction,
+  termCoverage,
+} from "./context";
+import { englishSearchTerms } from "./ptQuery";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
@@ -25,6 +42,7 @@ import {
   needsPlaceAnswer,
   noDataAnswer,
   noPackAnswer,
+  staleLocationAnswer,
   toPlace,
   toSourceChunk,
 } from "./geo";
@@ -101,6 +119,10 @@ export interface AnswerDeps {
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
+/** "Near me" without a fix of 5 minutes or less: how long to wait for a new one (a cold GPS takes seconds). */
+export const LOCATION_WAIT_MS = 10_000;
+/** A fix that isn't in by then is not a cached one: tell the UI we're locating. */
+export const LOCATING_SIGNAL_MS = 150;
 /** City path: a fix that is not in by the end of the POI search is ignored for PlacesArea.deviceInside. */
 export const DEVICE_INSIDE_TIMEOUT_MS = 150;
 /** A named city's reach from its center for deviceInside (metro areas included). */
@@ -137,6 +159,9 @@ export function createAnswerer(deps: AnswerDeps) {
     const answerId = newAnswerId();
     const previous = current;
     let stopRequested = false;
+    // Resolves on stop(), so a wait (the GPS) ends at once instead of running out its timeout.
+    let signalStop: () => void = () => {};
+    const stopSignal = new Promise<"stopped">((r) => (signalStop = () => r("stopped")));
     const emit = (e: AnswerEvent) => {
       try {
         onEvent(e);
@@ -167,6 +192,7 @@ export function createAnswerer(deps: AnswerDeps) {
       answerId,
       async stop() {
         stopRequested = true;
+        signalStop();
         await deps.engine.stop();
       },
       done,
@@ -251,11 +277,36 @@ export function createAnswerer(deps: AnswerDeps) {
         deviceNow = pending;
         geo.getLocation({ timeoutMs: DEVICE_INSIDE_TIMEOUT_MS }).then((v) => (pending.value = v), () => {});
       } else {
-        const loc = await geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS }).catch(() => ({ error: "unavailable" as const }));
+        // A fix of 5 minutes or less comes back at once; otherwise wait for a new one (cold GPS),
+        // telling the UI, which offers "Type the city" meanwhile. stop() ends the wait.
+        const request = (
+          geo.getLocationFix
+            ? geo.getLocationFix({ timeoutMs: LOCATION_WAIT_MS })
+            : geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS })
+        ).catch(() => ({ error: "unavailable" as const }));
+        const quick = await Promise.race([request, new Promise<"pending">((r) => setTimeout(() => r("pending"), LOCATING_SIGNAL_MS)), stopSignal]);
+        if (quick === "pending") {
+          emit({ type: "location", answerId, status: "locating" });
+          reasonCodes.push("location:locating");
+        }
+        const loc = quick === "pending" ? await Promise.race([request, stopSignal]) : quick;
+        if (loc === "stopped") {
+          reasonCodes.push("location:stopped");
+          const r = receipt();
+          emit({ type: "done", answerId, tier: "instant", outcome: "stopped", receipt: r });
+          return { answerId, tier: "instant", outcome: "stopped", text: "", sources: [], receipt: r };
+        }
         if ("error" in loc) {
+          reasonCodes.push(`location:${loc.error}`);
+          if (loc.error === "stale") {
+            // Never list the old area by itself (a traveler would get the city they left): offer it.
+            emit({ type: "location", answerId, status: "stale", ageS: loc.last.ageS });
+            const city = await geo.nearestCity?.(loc.last).catch(() => null);
+            const area: Extract<AnswerEvent, { type: "places" }>["area"] = { kind: "near", ...(city ? { lastKnown: { city: city.name, country: city.country, ageS: loc.last.ageS } } : {}) };
+            return finishPlaces("needs_place", staleLocationAnswer(intent, city?.name ?? null, loc.last.ageS), area);
+          }
           const status = loc.error === "timeout" ? "unavailable" : loc.error;
           emit({ type: "location", answerId, status });
-          reasonCodes.push(`location:${loc.error}`);
           return finishPlaces("needs_place", needsPlaceAnswer(intent), { kind: "near" });
         }
         emit({ type: "location", answerId, status: "granted", accuracyM: loc.accuracyM, ageS: loc.ageS });
@@ -420,7 +471,13 @@ export function createAnswerer(deps: AnswerDeps) {
           if (why) reasonCodes.push(`deep-auto:skip-${m.id}-${why}${m.tokPerSec !== undefined ? `-${m.tokPerSec.toFixed(1)}tps` : ""}`);
         }
       }
-      const gen = plan.generation;
+      // Health never goes through multi-pass Deep Research: it would answer from memory past the grounding guard.
+      const health = isHealthQuestion(req.query);
+      const gen =
+        health && plan.generation?.mode === "multipass"
+          ? { ...plan.generation, mode: "single" as const, retrieveK: Math.max(plan.generation.retrieveK, 6) }
+          : plan.generation;
+      if (gen !== plan.generation) reasonCodes.push("grounding:health-no-multipass");
       const genTier: AnswerTier = gen?.tier ?? "fast";
       const genLlm = gen ? byId.get(gen.modelId) : undefined;
 
@@ -446,13 +503,18 @@ export function createAnswerer(deps: AnswerDeps) {
         return { answerId, tier, outcome, text, sources, receipt: r };
       };
 
-      // 1. Sources.
+      // 1. Sources. A Portuguese question searches the (English) packs with English words when it has known terms.
+      const pt = PT_QUESTION.test(req.query);
+      const english = pt ? englishSearchTerms(req.query) : null;
+      if (english) reasonCodes.push("retrieve:pt-en-terms");
+      /** What the sources are matched against: the English words for a translated PT question. */
+      const matchQuery = english ?? req.query;
       let raw: RetrievedChunk[] = req.reuseSources ?? [];
       let retrievalMs: number | undefined;
       if (plan.retrieve && gen?.mode !== "multipass") {
         stage("retrieving", plan.instant !== "off" ? "instant" : genTier);
         const rs = deps.now();
-        raw = await deps.retrieve(req.query, gen?.retrieveK ?? 6).catch((e) => {
+        raw = await deps.retrieve(matchQuery, gen?.retrieveK ?? 6).catch((e) => {
           console.warn("[answer] retrieval failed, answering without sources:", e?.message ?? e);
           return [] as RetrievedChunk[];
         });
@@ -472,18 +534,36 @@ export function createAnswerer(deps: AnswerDeps) {
             (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
-      const compressed = compressContext(req.query, raw, { tokenBudget: budget });
+      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget });
       let sources = compressed.chunks;
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
+
+      // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
+      // A PT question without English words can't be matched word for word against English sources: no guard.
+      const guarded = gen?.mode !== "multipass" && (!pt || !!english);
+      let noGoodSource = false;
+      if (guarded && sources.length) {
+        const kept = sources.filter((c) => onTopic(matchQuery, c));
+        if (kept.length < sources.length) reasonCodes.push(`grounding:off-topic-dropped-${sources.length - kept.length}`);
+        noGoodSource = kept.length === 0;
+        sources = kept;
+      }
+      if (noGoodSource) {
+        reasonCodes.push("grounding:no-good-source");
+        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+      }
+      if (health) reasonCodes.push("grounding:health-strict");
       if (sources.length && gen?.mode !== "multipass") {
         emit({ type: "sources", answerId, tier: plan.instant !== "off" ? "instant" : genTier, sources });
       }
 
-      // 2. Instant snippet (no LLM).
+      // 2. Instant snippet (no LLM): only a sentence that covers the question.
       if (plan.instant !== "off" && raw.length) {
-        const snip = selectInstant(req.query, raw);
-        const sourceIndex = snip ? compressed.keptIndices.indexOf(snip.sourceIndex) : -1;
-        if (snip && sourceIndex >= 0) {
+        const snip = selectInstant(matchQuery, raw);
+        const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === raw[snip.sourceIndex].chunkId) : -1;
+        const covers = !!snip && termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
+        if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
+        if (snip && sourceIndex >= 0 && covers) {
           markVisible();
           emit({ type: "instant", answerId, snippet: { text: snip.text, sourceIndex }, confidence: snip.confidence });
           const block = plan.instant === "may-finish" && snip.confidence >= INSTANT_FINAL_CONFIDENCE ? instantFinalBlock(req.query, snip.text) : "low";
@@ -500,6 +580,28 @@ export function createAnswerer(deps: AnswerDeps) {
           }
         }
       }
+
+      // No good source: never an answer from memory (health: point to emergency services).
+      if ((health && gen?.mode !== "multipass" && sources.length === 0) || noGoodSource) {
+        reasonCodes.push(health ? "grounding:health-no-source" : "grounding:no-source-answer");
+        const text = health ? noHealthSourceAnswer(pt) : noGoodSourceAnswer(pt);
+        markVisible();
+        emit({ type: "token", answerId, tier: genTier, text });
+        return finish(genTier, "success", text, [], receipt({ modelId: "grounding-guard", modelLabel: "No offline source", retrievalMs }));
+      }
+      // Health with a good source: the answer IS the source's text, not the model's
+      // retelling (Sextant: the models misplaced the pinch point, iced snake bites,
+      // put cream on burns). "Deeper answer" (tier deep) lets the model summarize it, strictly.
+      if (health && sources.length && req.tier !== "deep") {
+        reasonCodes.push("grounding:health-extractive");
+        const i = healthSourceIndex(sources);
+        const full = raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i];
+        const text = healthExtract(full, i + 1, pt);
+        markVisible();
+        emit({ type: "token", answerId, tier: "instant", text });
+        return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
+      }
+      const styleReminder = [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
 
       // 3. Generation.
       if (!gen || !genLlm) {
@@ -578,14 +680,27 @@ export function createAnswerer(deps: AnswerDeps) {
             // Reasoning models think before answering: bounded on the fast tier, off on the streaming MoE.
             thinkingBudget: gen.thinking ? (genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET) : undefined,
             enableThinking: gen.thinking ? undefined : false,
-            onToken,
+            // Health: no sampling noise, and nothing reaches the screen before the safety check below.
+            ...(health ? { temperature: 0 } : {}),
+            onToken: health ? () => {} : onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };
           text = await deps.engine.generate(
             useTemplate
-              ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, ctx.styleReminder) }
-              : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, ctx.styleReminder) }
+              ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+              : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
           );
+          if (health) {
+            // A known-dangerous instruction the model added ("blow your nose", "tilt the head back"): show the source instead.
+            const risky = riskyHealthInstruction(text);
+            if (risky && sources.length) {
+              reasonCodes.push(`grounding:health-unsafe-${risky}`);
+              const i = healthSourceIndex(sources);
+              text = healthExtract(raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i], i + 1, pt);
+            }
+            markVisible();
+            emit({ type: "token", answerId, tier: genTier, text });
+          }
         }
       } catch (e: any) {
         const message = e?.message ?? String(e);
