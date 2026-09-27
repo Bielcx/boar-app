@@ -331,18 +331,22 @@ export function createAnswerer(deps: AnswerDeps) {
       // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
       let fastLlm = activeId ? byId.get(activeId) : undefined;
       if (!fastLlm && installed.length) {
-        const tiered = installed.filter((m) => m.answerTier);
-        if (tiered.length) {
-          const withFit = await Promise.all(
-            tiered.map(async (m) => ({
+        // Header reads only where the fit can change the pick: the default tier, and other models measured fast.
+        const candidates = await Promise.all(
+          installed.map(async (m) => {
+            const tokPerSec = speeds.get(m.id);
+            const needsFit = m.answerTier === "default" || (!m.answerTier && tokPerSec !== undefined);
+            return {
               id: m.id,
               answerTier: m.answerTier,
-              fit: m.answerTier === "default" ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
-            }))
-          );
-          const pick = pickDefaultAnswerModel(withFit, deps.deviceRamBytes?.() ?? 0);
-          fastLlm = pick ? byId.get(pick.id) : undefined;
-        }
+              sizeBytes: m.sizeBytes,
+              tokPerSec,
+              fit: needsFit ? (await deps.engine.estimateFit(m.filename).catch(() => null))?.verdict : undefined,
+            };
+          })
+        );
+        const pick = pickDefaultAnswerModel(candidates, deps.deviceRamBytes?.() ?? 0);
+        fastLlm = pick ? byId.get(pick.id) : undefined;
         fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
       }
       const toDepth = (m: InstalledLlm, fit?: MemoryFit | null): DepthModel => ({
