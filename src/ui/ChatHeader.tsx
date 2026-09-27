@@ -53,7 +53,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onNew
         paddingVertical: t.space.xs,
       }}
     >
-      <IconButton icon="menu" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
+      <IconButton icon="menu" variant="surface" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
         {fit.avatar && (
           <Mascot size="avatar" />
