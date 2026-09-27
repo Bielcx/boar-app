@@ -55,6 +55,12 @@
           "imageWidth": 360,
           "resizeMode": "contain",
           "backgroundColor": "#17110D",
+          "ios": {
+            "image": "./assets/splash-icon.png",
+            "imageWidth": 360,
+            "resizeMode": "contain",
+            "backgroundColor": "#17110F"
+          },
           "android": {
             "image": "./assets/splash-icon-android.png",
             "imageWidth": 240,
