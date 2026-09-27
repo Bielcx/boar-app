@@ -69,6 +69,7 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 
 | Variant | Font | Size / line | Notes |
 |---|---|---|---|
+| `hero` | Baloo 2 800 | 56 / 56, −1.2 | The one figure a screen is about (download %): `Stat size="xl"`. Capped at 1.2× |
 | `display` | Baloo 2 800 | 34 / 37 | Wordmark "boar", hero numbers. Capped 1.5× |
 | `title1` | Baloo 2 800 | 26 / 30 | |
 | `title2` | Baloo 2 800 | 22 / 26 | Screen titles in content |
@@ -127,14 +128,14 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Text` | All text. `variant`, `color`, `numeric`, `weight`, `align`, `header` | Headers for titles; OS font scale on |
 | `Icon` | Feather glyph | Hidden unless `label` |
 | `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
-| `IconButton` | Icon-only; `plain`/`tonal`/`filled`; `selected` | `label` required, `selected` state |
+| `IconButton` | Icon-only; `plain` / `surface` (neutral disc: header chrome) / `tonal` (soft accent: counts as the screen's accent) / `filled`; `selected` | `label` required, `selected` state |
 | `Card` | Grouped content; `level`, `onPress` | Button role when pressable |
 | `Section` | Titled group; `inset` draws the grouped surface with hairlines; `footer` explains effect | Title is a header |
 | `ListRow` | Settings/navigation row: `title`, `value`, `subtitle`, `icon`, `trailing` (non-interactive), `switch={{ value, onValueChange }}`, `destructive` | One focus stop reading "title, value, subtitle"; with `switch` the whole row is role switch + `checked`; title/value wrap instead of truncating |
 | `Switch` | Immediate on/off only | role switch, `checked`, named by the row text |
 | `SegmentedControl` | 2-4 exclusive options; `size="compact"` for forms | radiogroup + radio `checked`; turns vertical at ≥ 1.35 font scale; compact keeps the touch target through `hitSlop` |
 | `OptionCard` | One choice among sibling cards (install tier, model, language): `title`, `badge` (on the title line), `trailing` (the deciding figure, right), `description`, `meta`, `leading`, `indicator` radio/check/none | role radio + `selected`/`checked`; selection = accent border + `raised` surface + filled indicator (a soft accent wash would hide soft accent badges) |
-| `Stat` | The number that leads a card: `value`, `unit`, `label` overline, `size` lg 34 / md 26 / sm 17 | One focus stop "label: value unit"; tabular |
+| `Stat` | The number that leads a card: `value`, `unit`, `label` overline (4 above the number), `size` xl 56 / lg 34 / md 26 / sm 17 | One focus stop "label: value unit"; tabular |
 | `Mascot` | The boar from the identity file (transparent asset). `hero` 128 = whole boar, `glow` adds the ember ellipse under it (empty state; AA for primary text over it is in `ambient.test.ts`), `dim` while waiting. `brand` 56 / `avatar` 32 / `avatarSm` 24 = the face framed in an accent disc (mockup: 192% at 72% 40%; geometry in `mascotFrame.ts`). Don't wrap it in another circle; never use `assets/boar.png` (opaque square) | Decorative, hidden |
 | `MetaLine` | One line of secondary facts, "978 MB · ~4 min"; falsy items dropped | Read with commas; tabular |
 | `Stepper` | Linear flow progress: bar + short label per step | One progressbar stop with the caller's "Step 2 of 4: Model"; value is text ("2/4"), never a numeric range (iOS would speak a percentage) |
