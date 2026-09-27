@@ -47,6 +47,7 @@ function placeholders(text: string): string[] {
 // Keys built from template strings in the flow screens, expanded by hand.
 const expand = (prefix: string, parts: string[]) => parts.map((p) => `${prefix}${p}`);
 const DYNAMIC_KEYS = [
+  ...expand("flows.catalog.label.", ["corpus-standard", "corpus-full", "wiki-vital5"]),
   ...expand("flows.about.how", ["1", "2", "3"]),
   ...expand("flows.knowledge.stage.", ["reading", "chunking", "embedding"]),
   ...expand("flows.length.hint", ["256", "512", "1024", "2048"]),

@@ -753,6 +753,13 @@
       "otherCity": "Search another city",
       "goingTo": "Travelling somewhere?",
       "tripChosen": "Include {{label}}"
+    },
+    "catalog": {
+      "label": {
+        "corpus-standard": "Standard knowledge base (+1,000 topics)",
+        "corpus-full": "Full knowledge base (+4,000 topics)",
+        "wiki-vital5": "Wikipedia Vital Articles (+50,000 articles)"
+      }
     }
   },
   "chat": {
