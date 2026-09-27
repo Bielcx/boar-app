@@ -742,8 +742,9 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     const { events, result } = await collect("Why do we have seasons on Earth?");
     expect(f.generations).toHaveLength(0);
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "I didn't find this in this phone's library." });
-    expect(events.at(-1)).toMatchObject({ type: "done", outcome: "success" });
-    expect(result.text).toBe("");
+    expect(events.at(-1)).toMatchObject({ type: "done", outcome: "success", finalText: "I didn't find this in this phone's library." });
+    // The decline is the answer's text: a screen never shows an empty answer (gate 20e8c65).
+    expect(result.text).toBe("I didn't find this in this phone's library.");
     expect(result.receipt.reasonCodes).toContain("grounding:declined-compact");
 
     f = makeFake();
@@ -769,7 +770,7 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     const compact = await run(() => {});
     expect(compact.events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "The passages found don't support this answer." });
     expect(compact.events.some((e) => e.type === "sources")).toBe(true);
-    expect((compact.events.find((e) => e.type === "done") as any).finalText).toBe("");
+    expect((compact.events.find((e) => e.type === "done") as any).finalText).toBe("The passages found don't support this answer.");
     expect(compact.result.receipt.reasonCodes).toContain("grounding:all-citations-removed-declined-compact");
     const anyway = await run(() => {}, { answerAnyway: true });
     expect(anyway.result.text).toBe("Mold grows in damp bathrooms.");
@@ -1081,7 +1082,7 @@ describe("answer(): a known-false quantum claim (gate 394bf31)", () => {
     f.deps.engine.generate = async () => seed5;
     const { events, result } = await collect("Which signature algorithms are quantum resistant?");
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
-    expect(result.text).toBe("");
+    expect(result.text).toBe("The passages found don't support this answer.");
     expect(result.receipt.reasonCodes).toContain("grounding:false-claim-declined-compact");
   });
   it("the 4B loses the false sentence and keeps the rest", async () => {
@@ -1110,7 +1111,7 @@ describe("answer(): Sextant q7 (chat screen): 'O que causa o efeito estufa?'", (
     ["1.5B", () => {}],
     ["4B", () => { f.installed = [lfm]; f.activeId = "lfm8"; }],
   ] as const) {
-    it(`${label}: no off-topic instant snippet, and never an empty answer while the source is on topic`, async () => {
+    it(`${label}: no off-topic instant snippet, and never an empty screen`, async () => {
       for (const q of ["O que causa o efeito estufa?", "What causes the greenhouse effect?"]) {
         f = makeFake();
         setup();
@@ -1124,9 +1125,15 @@ describe("answer(): Sextant q7 (chat screen): 'O que causa o efeito estufa?'", (
           expect(s.instant, q).not.toMatch(/Surface heating|host star/);
           expect(s.instant, q).toMatch(/greenhouse/i);
         }
-        expect(s.declined, q).toBe(false);
+        // Never an empty screen. The 1.5B's PT answer loses its [1] (CT-1 can't verify PT against English)
+        // and declines honestly (gate 20e8c65: the cross-language exception let confident errors through).
         expect(result.text.trim().length, q).toBeGreaterThan(0);
+        expect(s.done.finalText ?? result.text, q).not.toBe("");
         expect(result.text, q).not.toMatch(/host star/);
+        if (label === "1.5B" && q.startsWith("O que")) {
+          expect(s.declined, q).toBe(true);
+          expect(result.text, q).toBe("Os trechos encontrados não sustentam esta resposta.");
+        } else expect(s.declined, q).toBe(false);
       }
     });
   }
@@ -1145,6 +1152,19 @@ describe("answer(): arithmetic before places (Sextant 3ccf7c0, v2-pt math)", () 
   it("a restaurant question is still a places question", async () => {
     const { result } = await collect("Quais são os melhores restaurantes veganos em Lisboa?");
     expect(result.receipt.modelId).not.toBe("calculator");
+  });
+});
+
+describe("answer(): cry-014 PT, the 1.5B's unsupported EIP-7251 answer (gate 20e8c65)", () => {
+  it("declines again, with the decline as the answer's text", async () => {
+    f.retrieved = [chunk("e", "Ethereum EIPs/ERCs: EIP-7251: Increase the MAX_EFFECTIVE_BALANCE", "Abstract: Increases the constant MAX_EFFECTIVE_BALANCE to 2048 ETH while keeping the minimum staking balance 32 ETH.")];
+    f.deps.englishNames = () => ["Ethereum"];
+    f.deps.engine.generate = async () => "O saldo efetivo máximo de um validador é de 32 ETH [1].";
+    const { events, result } = await collect("Qual é o saldo efetivo máximo de um validador do Ethereum depois da EIP-7251?");
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect(result.text).toBe("Os trechos encontrados não sustentam esta resposta.");
+    expect(result.receipt.reasonCodes).toContain("grounding:all-citations-removed-declined-compact");
+    expect(result.receipt.reasonCodes).not.toContain("grounding:all-citations-removed-kept-cross-language");
   });
 });
 
