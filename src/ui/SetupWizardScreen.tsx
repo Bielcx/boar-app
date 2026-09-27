@@ -1258,20 +1258,6 @@ function InstallStep({
         ))}
       </Card>
 
-      {needsImport && !allPresent && (
-        <View style={{ gap: tokens.space.sm }}>
-          {!offline && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.onboarding.importPlacesNote")}
-            </Text>
-          )}
-          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} />
-          <Text variant="footnote" color="secondary" selectable>
-            {t("flows.onboarding.importHow")}
-          </Text>
-        </View>
-      )}
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
       {transferring && (
@@ -1293,6 +1279,22 @@ function InstallStep({
           </View>
           <Text variant="footnote">
             {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+          </Text>
+        </View>
+      )}
+
+      {/* The files being imported come after "Keep BOAR open", so that card stays on the first screen (Harbor, 02e72b5). */}
+      {needsImport && !allPresent && (
+        <View style={{ gap: tokens.space.sm }}>
+          {!offline && (
+            <Text variant="footnote" color="secondary">
+              {t("flows.onboarding.importPlacesNote")}
+            </Text>
+          )}
+          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} />
+          <Text variant="footnote" color="secondary" selectable>
+            {t("flows.onboarding.importHow")}
           </Text>
         </View>
       )}
