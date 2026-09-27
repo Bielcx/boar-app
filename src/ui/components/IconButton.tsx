@@ -8,7 +8,11 @@ export interface IconButtonProps extends Omit<PressableProps, "children" | "styl
   icon: IconName;
   /** Required: an icon-only button has no other accessible name. */
   label: string;
-  variant?: "plain" | "tonal" | "filled";
+  /**
+   * plain: no fill · surface: a neutral disc (header chrome, mockup's menu button) ·
+   * tonal: soft accent disc (counts as an accent) · filled: solid accent (the primary icon action).
+   */
+  variant?: "plain" | "surface" | "tonal" | "filled";
   size?: "md" | "sm";
   selected?: boolean;
   color?: string;
@@ -33,8 +37,17 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
   const visual = size === "sm" ? t.size.controlSm : t.size.touch;
   const slop = Math.max(0, (t.size.touch - visual) / 2);
   const bg =
-    variant === "filled" ? c.accent.solid : variant === "tonal" || selected ? c.accent.soft : "transparent";
-  const fg = color ?? (variant === "filled" ? c.accent.on : selected ? c.accent.text : c.text.secondary);
+    variant === "filled"
+      ? c.accent.solid
+      : variant === "tonal" || selected
+        ? c.accent.soft
+        : variant === "surface"
+          ? c.bg.surface
+          : "transparent";
+  const fg =
+    color ?? (variant === "filled" ? c.accent.on : selected ? c.accent.text : variant === "surface" ? c.text.primary : c.text.secondary);
+  // A surface disc lifts when pressed (dark planes read by lightness); the others sink.
+  const pressedBg = variant === "filled" ? c.accent.pressed : variant === "surface" ? c.bg.raised : c.bg.sunken;
 
   return (
     <Pressable
@@ -55,7 +68,7 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
           borderRadius: t.radius.full,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: pressed ? (variant === "filled" ? c.accent.pressed : c.bg.sunken) : bg,
+          backgroundColor: pressed ? pressedBg : bg,
           opacity: disabled ? 0.45 : 1,
           ...(variant === "filled" && !disabled ? (t.elevation.glow as object) : null),
         },
