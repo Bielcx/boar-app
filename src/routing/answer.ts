@@ -22,6 +22,7 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  withAfterPart,
   sentenceNamesSubject,
   falseQuantumClaims,
   isSubstantive,
@@ -54,6 +55,7 @@ import { englishNamesIn } from "../rag/ptLexicon";
 import { ptLexicon } from "../rag/ptLexiconAsset";
 import { attributeCitations, checkCitations } from "./citations";
 import { calculate } from "./calculators";
+import { emergencyNumbersAnswer } from "./emergencyNumbers";
 import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
@@ -512,6 +514,15 @@ export function createAnswerer(deps: AnswerDeps) {
       // exactly, before anything else: "Minha conta do jantar deu 2.450 baht…" is a sum, not a restaurant
       // search (Sextant 3ccf7c0, mth-003-pt went to task:places).
       if (!req.reuseSources && req.tier !== "deep") {
+        // A country's emergency numbers: a fixed table, never a guess (Sextant trv-001-pt).
+        const numbers = emergencyNumbersAnswer(req.query, PT_QUESTION.test(req.query));
+        if (numbers) {
+          markVisible();
+          const r: AnswerReceipt = { modelId: "grounding-guard", modelLabel: "Offline library", tokens: 0, tokPerSec: 0, ttftMs: deps.now() - t0, totalMs: deps.now() - t0, reasonCodes: ["answer:emergency-numbers"] };
+          emit({ type: "token", answerId, tier: "instant", text: numbers });
+          emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r, cited: [] });
+          return { answerId, tier: "instant", outcome: "success", text: numbers, sources: [], receipt: r, cited: [] };
+        }
         const calc = calculate(req.query, PT_QUESTION.test(req.query));
         if (calc) {
           markVisible();
@@ -803,7 +814,8 @@ export function createAnswerer(deps: AnswerDeps) {
         const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
         const rules = excerptRules(req.query, healthTopicTerms(req.query, english));
         const i = healthSourceIndex(fullSources, rules.procedure ?? null);
-        const text = healthExtract(fullSources[i], i + 1, pt, rules);
+        // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
+        const text = withAfterPart(req.query, healthExtract(fullSources[i], i + 1, pt, rules), fullSources, i, pt, rules);
         markVisible();
         // No separate instant event: the excerpt IS the answer (Quill/Prism DUP-1: the chat showed it twice).
         emit({ type: "token", answerId, tier: "instant", text });
