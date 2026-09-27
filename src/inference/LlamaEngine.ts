@@ -121,6 +121,11 @@ export interface LoadOptions {
   nThreads?: number;
   /** Who this model is, for the crash marker (CR-2): shown as "<label> closed the app". */
   meta?: { modelId?: string; label?: string };
+  /**
+   * Loading progress, 0..1 (llama.rn's weight loading). It reaches 1 before initLlama
+   * returns: on the first init after install, iOS still compiles Metal after that.
+   */
+  onProgress?: (fraction: number) => void;
 }
 
 export interface LoadResult {
@@ -228,8 +233,9 @@ export class LlamaEngine {
     await this.guard?.begin(meta, previous).catch((e: any) => console.warn("[engine] load marker:", e?.message ?? e));
     let loadedOk = false;
     try {
+      const onProgress = opts?.onProgress;
       const loaded = await initWithCpuFallback(
-        initLlama,
+        onProgress ? (p) => initLlama(p, (pct: number) => onProgress(Math.min(1, Math.max(0, pct / 100)))) : initLlama,
         {
           model: modelPath,
           use_mmap: true,
