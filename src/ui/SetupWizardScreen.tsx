@@ -1189,7 +1189,8 @@ function InstallStep({
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
             ) : (
-              <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
+              // "62%" is one run in the mockup (same size and colour), not a number with a small unit (Prism S3C-1).
+              <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={`${Math.floor(hero.fraction * 100)}%`} />
             )}
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
