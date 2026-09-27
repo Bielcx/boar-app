@@ -573,6 +573,14 @@ describe("compressContext keeps the rest of a chosen passage when the budget all
     expect(p.body).toContain("continental drift");
     expect(p.body).toContain("are called tectonics");
   });
+  it("only the most relevant passage is filled (Boar: prefill cost)", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large tectonic plates. The model builds on continental drift. Plates meet at boundaries where earthquakes occur.");
+    const quake = c("q", "Earthquake", "An earthquake is the shaking of the surface of the Earth. Most occur at plate boundaries. Seismometers record them all over the world.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates, quake]).chunks;
+    const filled = out.filter((x) => /continental drift|Seismometers/.test(x.body));
+    expect(filled).toHaveLength(1);
+  });
+
   it("a tight budget still keeps only the matching sentences", () => {
     const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large plates. The model builds on continental drift and many other long ideas from the twentieth century. Plates meet at boundaries where earthquakes occur.");
     const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates], { tokenBudget: 30 }).chunks;
