@@ -3,7 +3,6 @@ import {
   IMPORT_LIMITS,
   MAX_ASSET_IMPORT_BYTES,
   checkImportSize,
-  formatBytes,
   importKindOfAsset,
   importKindOfDocument,
 } from "./importLimits";
@@ -17,7 +16,7 @@ describe("checkImportSize", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.limitBytes).toBe(limit);
-      expect(r.message).toMatch(/^This file is 25\.0 MB\. Notes and text documents can be at most 25\.0 MB\. Split it/);
+      expect(r.message).toMatch(/^This file is 25 MB\. Notes and text documents can be at most 25 MB\. Split it/);
     }
   });
 
@@ -44,22 +43,5 @@ describe("kinds", () => {
     expect(importKindOfAsset({ kind: "corpus" })).toBe("corpus-json");
     expect(importKindOfDocument("Notes.PDF")).toBe("document-pdf");
     expect(importKindOfDocument("trip.md")).toBe("document-text");
-  });
-
-  it("formats sizes for people", () => {
-    expect(formatBytes(20_811_776)).toBe("20.8 MB");
-    expect(formatBytes(986_048_768)).toBe("986.0 MB");
-    expect(formatBytes(24 * 1000 ** 3)).toBe("24.0 GB");
-    expect(formatBytes(10)).toBe("1 kB");
-  });
-
-  it("uses decimal units, as Android's file picker does (Prism N-14)", () => {
-    // The crypto pack: 35.96 MB in the system picker, so 36.0 MB here, not 34.3 MB.
-    expect(formatBytes(35_962_880)).toBe("36.0 MB");
-    expect(formatBytes(1_500)).toBe("2 kB");
-    expect(formatBytes(999_999_999)).toBe("1.0 GB");
-    expect(formatBytes(999_600)).toBe("1.0 MB");
-    expect(formatBytes(999_400)).toBe("999 kB");
-    expect(formatBytes(1_000_000_000)).toBe("1.0 GB");
   });
 });

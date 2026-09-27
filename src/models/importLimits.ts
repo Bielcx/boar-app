@@ -1,4 +1,5 @@
 import type { CatalogModel } from "./manifest";
+import { formatBytes } from "./units";
 
 /**
  * Size ceilings for anything a user brings in from a file. Assets matched
@@ -19,7 +20,6 @@ export type ImportKind =
 // file must read the same size in BOAR and in the system (Prism N-14).
 const GB = 1000 ** 3;
 const MB = 1000 ** 2;
-const kB = 1000;
 
 export const IMPORT_LIMITS: Record<ImportKind, number> = {
   // Largest model worth running in 12 GB of RAM is ~13 GB on disk (35B-A3B at 2-bit); leave room.
@@ -78,13 +78,8 @@ export function importKindOfDocument(filename: string): ImportKind {
   return filename.toLowerCase().endsWith(".pdf") ? "document-pdf" : "document-text";
 }
 
-/** Decimal (1 MB = 1,000,000 bytes), matching what Android shows for the same file. */
-export function formatBytes(bytes: number): string {
-  // Next unit up where this one would round to 1000 ("1000.0 MB" reads as 1.0 GB).
-  if (bytes >= 999.95 * MB) return `${(bytes / GB).toFixed(1)} GB`;
-  if (bytes >= 999.5 * kB) return `${(bytes / MB).toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / kB))} kB`;
-}
+// Sizes in messages use the app-wide formatter (decimal, like the system picker).
+export { formatBytes };
 
 export type SizeCheck = { ok: true } | { ok: false; limitBytes: number; message: string };
 
