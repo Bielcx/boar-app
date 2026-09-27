@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, View } from "react-native";
+import { Animated, Easing, Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, IconSlot, IconText, Mascot, MetaLine, Text, TextAction, useOpticalLine, type IconName } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, IconSlot, IconText, LARGE_TEXT_SCALE, LineSlot, Mascot, MetaLine, Text, TextAction, useOpticalLine, type IconName } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { icon, useTheme, useTokens } from "../theme";
 import { META_SEPARATOR, metaItems } from "../components/metaItems";
@@ -106,15 +106,17 @@ function StepsCard({ steps }: { steps: GeneratingStep[] }) {
           <Text variant="footnote" weight={s.status === "active" ? "semibold" : "regular"} color={s.status === "pending" ? "secondary" : "primary"} style={{ flex: 1 }}>
             {s.label}
           </Text>
-          <View style={{ height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
-            {s.status === "active" ? (
-              <StepSpinner />
-            ) : s.status === "done" ? (
-              <Icon name="check" size={line.iconSize} color={t.color.status.success.solid} edge="end" />
-            ) : (
-              <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
-            )}
-          </View>
+          {s.status === "done" ? (
+            <IconSlot name="check" line={line} color={t.color.status.success.solid} edge="end" />
+          ) : (
+            <LineSlot line={line}>
+              {s.status === "active" ? (
+                <StepSpinner />
+              ) : (
+                <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
+              )}
+            </LineSlot>
+          )}
         </View>
       ))}
     </Card>
@@ -364,6 +366,10 @@ function SourceList({
   const [expanded, setExpanded] = useState<string | null>(null);
   const groups = groupSources(answer.sources, only);
   const labelLine = useOpticalLine("label");
+  // Prism AX-2/AX-3: at large text the row stacks (number + title on the full width, up to 2 lines;
+  // band and chevron below) and the title loses the number's indent, so no word breaks mid-way.
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= LARGE_TEXT_SCALE;
   // Measured relevance only (Boar), as a band (Tusk: the raw value's scale depends on the query); none without it.
   const bands = relevanceBands(answer.sources);
   return (
@@ -407,8 +413,8 @@ function SourceList({
               accessibilityHint={tr("chat.sources.expandHint")}
               accessibilityState={{ expanded: open }}
               style={({ pressed }) => ({
-                flexDirection: "row",
-                alignItems: "center",
+                flexDirection: stacked ? "column" : "row",
+                alignItems: stacked ? "stretch" : "center",
                 gap: t.space.sm,
                 minHeight: t.size.controlSm,
                 paddingHorizontal: t.space.sm,
@@ -418,35 +424,53 @@ function SourceList({
               })}
               hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
             >
-              <View
-                style={{
-                  minWidth: t.size.iconLg,
-                  minHeight: t.size.iconLg,
-                  paddingHorizontal: t.space.xs,
-                  borderRadius: t.radius.full,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: t.color.bg.raised,
-                }}
-              >
-                <Text variant="caption" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
-                  {g.indexes[0] + 1}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="footnote" numberOfLines={open ? undefined : 1}>
-                  {g.title}
-                </Text>
-                {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
-              </View>
-              <RelevanceBar band={groupBand} />
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} edge="end" />
+              {stacked ? (
+                <>
+                  <Text variant="footnote" numberOfLines={open ? undefined : 2}>
+                    <Text variant="footnote" weight="semibold" numeric>{`${g.indexes[0] + 1}  `}</Text>
+                    {g.title}
+                  </Text>
+                  {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" />}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+                    <RelevanceBar band={groupBand} />
+                    <View style={{ flex: 1 }} />
+                    <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} edge="end" />
+                  </View>
+                </>
+              ) : (
+                <>
+                <View
+                  style={{
+                    minWidth: t.size.iconLg,
+                    minHeight: t.size.iconLg,
+                    paddingHorizontal: t.space.xs,
+                    borderRadius: t.radius.full,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: t.color.bg.raised,
+                  }}
+                >
+                  <Text variant="caption" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
+                    {g.indexes[0] + 1}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="footnote" numberOfLines={open ? undefined : 1}>
+                    {g.title}
+                  </Text>
+                  {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
+                </View>
+                <RelevanceBar band={groupBand} />
+                <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} edge="end" />
+                </>
+              )}
             </Pressable>
             {open && (
               <View style={{ gap: t.space.sm, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
                 {/* The mockup's overline line: where it comes from on the left, its path on the right. */}
-                <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-                  <Text variant="label" color="field" numberOfLines={1} style={{ flexShrink: 0 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+                  {/* Iris: the caps origin shrinks before it touches the icon; one gap token. */}
+                  <Text variant="label" color="field" numberOfLines={1} style={{ flexShrink: 1 }}>
                     {origin}
                   </Text>
                   {parts.url && (
@@ -455,7 +479,8 @@ function SourceList({
                     </Text>
                   )}
                   {/* Says the passage below opens the full source (Iris). */}
-                  <Icon name="maximize-2" size="sm" color={t.color.text.secondary} edge="end" />
+                  {!parts.url && <View style={{ flex: 1 }} />}
+                  <IconSlot name="maximize-2" line={labelLine} color={t.color.text.secondary} edge="end" />
                 </View>
                 {/* The passage itself opens the full source (no extra "Full passage" line, as in the mockup). */}
                 {g.indexes.map((i) => (
@@ -758,6 +783,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const sourceTitles = sourceless === "weak" ? [] : answer.sources.map((s) => s.title);
 
   const placesOnly = !!answer.places && !answer.fast;
+  const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
   const note = noSourceNote(answer, placesOnly);
   const split = answerSourceSplit(answer);
   const cardMode = sourcesCardMode(!!active, split);
@@ -895,7 +921,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
 
       {done && hasText && (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+        // Prism AX-1: the row wraps; at large text "Copy answer" takes a line of its own, label kept.
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.sm }}>
           <IconButton
             icon="thumbs-up"
             variant="surface"
@@ -915,7 +942,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             onPress={() => props.onRate("down")}
           />
           <IconButton icon="share-2" variant="surface" size="sm" label={tr("chat.actions.share")} onPress={props.onShare} />
-          <View style={{ flex: 1 }} />
+          <View style={largeText ? { flexBasis: "100%", height: 0 } : { flex: 1 }} />
           {/* The mockup's "Copy response" pill: s1, caption in secondary. */}
           <Pressable
             onPress={props.onCopy}
@@ -923,7 +950,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             accessibilityLabel={tr("chat.actions.copyAnswer")}
             hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
             style={({ pressed }) => ({
-              height: t.size.controlSm,
+              minHeight: t.size.controlSm,
+              paddingVertical: largeText ? t.space.xs : 0,
               justifyContent: "center",
               paddingHorizontal: t.space.md,
               borderRadius: t.radius.full,

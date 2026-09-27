@@ -30,6 +30,9 @@ interface Props {
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
  */
+/** The model line under "boar" grows with the text up to here (Prism AX-5: at AX-XXL it covered the answer). */
+const HEADER_META_MAX_SCALE = 1.5;
+
 export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voiceEnabled, onOpenDrawer }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
@@ -73,7 +76,8 @@ export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voi
           </Text>
           {activeModelLabel && !downgradedFrom && (
             // The mockup's model line: caps, secondary, raised from 9.5 px to the 12 pt floor.
-            <Text variant="capsMeta" color="secondary" numberOfLines={1}>
+            // Prism AX-5: capped at 1.5x, so at AX-XXL the model line stays inside the header.
+            <Text variant="capsMeta" color="secondary" numberOfLines={1} maxFontSizeMultiplier={HEADER_META_MAX_SCALE}>
               {activeModelLabel}
             </Text>
           )}
@@ -86,7 +90,16 @@ export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voi
               hitSlop={{ top: t.space.sm, bottom: t.space.sm }}
             >
               {/* Icon-align (Iris): gap 8, seal-sized info icon on the caps line. */}
-              <IconText icon="info" iconPosition="end" variant="capsMeta" color="secondary" iconColor={t.color.text.secondary} iconRole="seal" numberOfLines={1}>
+              <IconText
+                icon="info"
+                iconPosition="end"
+                variant="capsMeta"
+                color="secondary"
+                iconColor={t.color.text.secondary}
+                iconRole="seal"
+                numberOfLines={1}
+                maxFontSizeMultiplier={HEADER_META_MAX_SCALE}
+              >
                 {activeModelLabel}
               </IconText>
             </Pressable>
