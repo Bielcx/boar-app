@@ -15,11 +15,17 @@ import { buildLexicalQuery, cosineSimilarityInt8, filterByMinScore, filterByTerm
 import type { RetrievedChunk } from "./retrieve.types";
 import { decompress } from "fzstd";
 import { WikiPack, type PackHit, type PackSearchOptions, type Stem } from "./wikiPack";
+import { guard, type Guarded } from "./guardedDb";
 
 const PACK_CANDIDATES = 400;
 const EMBEDDING_SHA256 = MODEL_CATALOG.find((m) => m.kind === "embedding" && m.required)!.sha256;
 
-const openPacks = new Map<string, SQLite.SQLiteDatabase>();
+// Guarded connections (src/rag/guardedDb.ts): closing one waits for the searches running on it (RS-1).
+const openPacks = new Map<string, Guarded<SQLite.SQLiteDatabase>>();
+// One open at a time per pack: two searches starting together share it instead of opening the file twice.
+const opening = new Map<string, Promise<SQLite.SQLiteDatabase | null>>();
+// Bumped by closeAllPacks(): an open still in progress then closes what it opened instead of keeping it.
+let generation = 0;
 /** Format-2 packs (scripts/build-wiki-pack.mjs), keyed like openPacks. */
 const wikiPacks = new Map<string, WikiPack>();
 
@@ -53,14 +59,18 @@ export async function knowledgePacks(): Promise<CatalogModel[]> {
   return [...catalog, ...extra];
 }
 
+/** Closes a pack's connection once the searches running on it finish; later calls on it reject in JS. Idempotent. */
 export async function closePack(id: string): Promise<void> {
-  const db = openPacks.get(id);
+  const conn = openPacks.get(id);
   openPacks.delete(id);
   wikiPacks.delete(id);
-  await db?.closeAsync().catch(() => {});
+  await conn?.close().catch(() => {});
 }
 
+/** Closes every pack (before a reset deletes corpus/), including ones still being opened. Idempotent. */
 export async function closeAllPacks(): Promise<void> {
+  generation++;
+  await Promise.all([...opening.values()].map((p) => p.catch(() => null)));
   await Promise.all([...openPacks.keys()].map(closePack));
 }
 
@@ -74,11 +84,20 @@ async function openPack(pack: CatalogModel): Promise<SQLite.SQLiteDatabase | nul
     return null;
   }
   const cached = openPacks.get(pack.id);
-  if (cached) return cached;
+  if (cached) return cached.db;
+  const pending = opening.get(pack.id);
+  if (pending) return pending;
+  const started = generation;
+  const p = openPackFile(pack, uri, started).finally(() => opening.delete(pack.id));
+  opening.set(pack.id, p);
+  return p;
+}
 
+async function openPackFile(pack: CatalogModel, uri: string, started: number): Promise<SQLite.SQLiteDatabase | null> {
   const path = uri.replace(/^file:\/\//, "");
   const slash = path.lastIndexOf("/");
-  const db = await SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash));
+  const conn = guard(await SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash)), `pack ${pack.id}`);
+  const db = conn.db;
   const meta = await db
     .getAllAsync<{ key: string; value: string }>("SELECT key, value FROM meta")
     .then((rows) => Object.fromEntries(rows.map((r) => [r.key, r.value])))
@@ -99,7 +118,13 @@ async function openPack(pack: CatalogModel): Promise<SQLite.SQLiteDatabase | nul
       return null;
     }
   }
-  openPacks.set(pack.id, db);
+  if (generation !== started) {
+    // closeAllPacks() ran while this pack was opening (a reset): don't keep a connection to a file about to go.
+    wikiPacks.delete(pack.id);
+    await conn.close().catch(() => {});
+    return null;
+  }
+  openPacks.set(pack.id, conn);
   return db;
 }
 

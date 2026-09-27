@@ -12,6 +12,8 @@ import { PoiPack, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PlaceSugg
 import { tileBbox, tileEntry, tileIdsFor, type PoiTile } from "./poiRegions";
 import type { PlaceMatch, PoiQuery, PoiSearchResult } from "./pois.types";
 import type { PackSql } from "./wikiPack";
+import { guard, type Guarded } from "./guardedDb";
+import { registerStoreCloser } from "../services/resetOrder";
 
 export type { Diet, DietLevel, PlaceMatch, Poi, PoiQuery, PoiSearchResult } from "./pois.types";
 export type { PlaceSuggestion } from "./poiPack";
@@ -20,26 +22,55 @@ export const POI_DIR = "poi/";
 export const PLACES_FILE = "world-places.sqlite";
 
 const opened = new Map<string, PoiPack>();
+// Every connection this module opened, guarded (src/rag/guardedDb.ts): closing one waits for the searches running
+// on it, and later calls on it reject in JS instead of reaching a closed native connection (RS-1).
+const conns = new Map<string, Guarded<SQLite.SQLiteDatabase>>();
+const opening = new Map<string, Promise<PoiPack | null>>();
 let places: PackSql | null = null;
+let placesOpening: Promise<PackSql | null> | null = null;
 let tileIndex: Map<string, PoiTile> | null = null;
+// Bumped by closeAllPoiPacks(): an open still in progress closes what it opened instead of keeping it.
+let generation = 0;
 
 async function open(file: string): Promise<SQLite.SQLiteDatabase> {
   const path = `${FileSystem.documentDirectory}${POI_DIR}${file}`.replace(/^file:\/\//, "");
   const slash = path.lastIndexOf("/");
-  return SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash));
+  const conn = guard(await SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash)), `places ${file}`);
+  await conns.get(file)?.close().catch(() => {});
+  conns.set(file, conn);
+  return conn.db;
 }
 
-async function openPack(file: string): Promise<PoiPack | null> {
+async function closeConn(file: string): Promise<void> {
+  const conn = conns.get(file);
+  conns.delete(file);
+  await conn?.close().catch(() => {});
+}
+
+function openPack(file: string): Promise<PoiPack | null> {
   const hit = opened.get(file);
-  if (hit) return hit;
-  try {
-    const p = await PoiPack.open(await open(file));
-    opened.set(file, p);
-    return p;
-  } catch (e: any) {
-    console.warn(`[pois] ${file} isn't a places pack:`, e?.message ?? e);
-    return null;
+  if (hit) return Promise.resolve(hit);
+  let p = opening.get(file);
+  if (!p) {
+    const started = generation;
+    p = (async () => {
+      try {
+        const pack = await PoiPack.open(await open(file));
+        if (generation !== started) {
+          await closeConn(file);
+          return null;
+        }
+        opened.set(file, pack);
+        return pack;
+      } catch (e: any) {
+        console.warn(`[pois] ${file} isn't a places pack:`, e?.message ?? e);
+        await closeConn(file);
+        return null;
+      }
+    })().finally(() => opening.delete(file));
+    opening.set(file, p);
   }
+  return p;
 }
 
 /**
@@ -64,26 +95,57 @@ export async function installedPoiAreas(): Promise<PoiArea[]> {
       if (p) areas.push(p);
     }
   }
-  for (const n of [...opened.keys()]) if (!names.includes(n)) opened.delete(n);
+  for (const n of [...opened.keys()]) if (!names.includes(n)) await closePoiPack(n);
   return areas;
 }
 
-/** Forgets an open pack before its file is deleted. */
-export function closePoiPack(filename: string): void {
-  opened.delete(filename.replace(/^.*\//, ""));
+/** Closes an open pack before its file is deleted, once the searches running on it finish. */
+export async function closePoiPack(filename: string): Promise<void> {
+  const file = filename.replace(/^.*\//, "");
+  opened.delete(file);
+  if (file === PLACES_FILE) places = null;
+  await closeConn(file);
 }
+
+/**
+ * Closes every places pack and the gazetteer (a reset deletes poi/ next), including ones still being opened, and
+ * forgets the caches. Idempotent; registered with the reset order below.
+ */
+export async function closeAllPoiPacks(): Promise<void> {
+  generation++;
+  await Promise.all([...opening.values(), placesOpening].map((p) => p?.catch(() => null)));
+  opened.clear();
+  places = null;
+  placesOpening = null;
+  tileIndex = null;
+  await Promise.all([...conns.keys()].map(closeConn));
+}
+
+registerStoreCloser("places", closeAllPoiPacks);
 
 export async function searchPois(q: PoiQuery): Promise<PoiSearchResult> {
   return searchPoiPacks(await installedPoiAreas(), q);
 }
 
-async function gazetteer(): Promise<PackSql | null> {
-  if (!places) {
-    const info = await FileSystem.getInfoAsync(`${FileSystem.documentDirectory}${POI_DIR}${PLACES_FILE}`);
-    if (!info.exists) return null;
-    places = await open(PLACES_FILE);
+function gazetteer(): Promise<PackSql | null> {
+  if (places) return Promise.resolve(places);
+  if (!placesOpening) {
+    const started = generation;
+    placesOpening = (async () => {
+      const info = await FileSystem.getInfoAsync(`${FileSystem.documentDirectory}${POI_DIR}${PLACES_FILE}`);
+      if (!info.exists) return null;
+      const db = await open(PLACES_FILE);
+      if (generation !== started) {
+        await closeConn(PLACES_FILE);
+        return null;
+      }
+      places = db;
+      return db;
+    })().finally(() => {
+      placesOpening = null;
+    });
   }
-  return places;
+  return placesOpening;
 }
 
 /** A city or town by name, from the world gazetteer; null when unknown or the gazetteer isn't installed. */

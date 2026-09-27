@@ -12,6 +12,7 @@ export {
 import { embeddingEngine } from "./embed";
 import minimumCorpus from "../../assets/corpus/corpus.json";
 import { CORPUS_CATALOG, CatalogModel } from "../models/manifest";
+import { isStopped, trackWork } from "./cancellation";
 
 /**
  * Knowledge base sources, layered:
@@ -149,13 +150,27 @@ export async function removeCorpusPackIndex(pack: Pick<CatalogModel, "id" | "for
  * inserting the same documents twice.
  */
 export function seedKnowledgeBaseIfEmpty(): Promise<void> {
-  running.__boarSeeding ??= seedNow().finally(() => {
+  running.__boarSeeding ??= seedStoppable().finally(() => {
     running.__boarSeeding = null;
   });
   return running.__boarSeeding;
 }
 
-async function seedNow(): Promise<void> {
+/** seedNow, stopped quietly by a reset (RS-1): no "error" state, no rejection for the caller to show. */
+async function seedStoppable(): Promise<void> {
+  const work = trackWork();
+  try {
+    await seedNow(work.signal);
+  } catch (e) {
+    if (!(e instanceof SeedStopped) && !isStopped(e, work.signal)) throw e;
+  } finally {
+    work.done();
+  }
+}
+
+class SeedStopped extends Error {}
+
+async function seedNow(signal: AbortSignal): Promise<void> {
   const db = await getDb();
   await deleteSeedChunks(RETIRED_SEED_IDS);
   const collections: SeedCollection[] = [
@@ -199,6 +214,7 @@ async function seedNow(): Promise<void> {
     setStatus(c.id, { state: "indexing", done: 0, total: c.docs.length });
     try {
       for (const [i, doc] of c.docs.entries()) {
+        if (signal.aborted) throw new SeedStopped();
         done++;
         // About four updates a second is enough to show it's moving.
         const now = Date.now();
@@ -233,6 +249,10 @@ async function seedNow(): Promise<void> {
       }
       setStatus(c.id, { state: "indexed", done: c.docs.length, total: c.docs.length });
     } catch (e: any) {
+      if (e instanceof SeedStopped || isStopped(e, signal)) {
+        clearCollectionIndexStatus(c.id);
+        throw e;
+      }
       setStatus(c.id, { state: "error", done: 0, total: c.docs.length, error: String(e?.message ?? e) });
       throw e;
     }
