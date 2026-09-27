@@ -6,8 +6,9 @@
 //   node scripts/verify-manifest-pins.mjs [--strict] [file.ts ...]
 //
 // Default files: src/models/manifest.ts, plus src/rag/poiRegions.ts (places
-// packs, world gazetteer), src/rag/preparedness.ts and src/rag/cryptoPack.ts
-// when they exist. Entries with an empty
+// packs, world gazetteer), src/rag/preparedness.ts, src/rag/cryptoPack.ts and
+// src/rag/wikiEnPacks.ts when they exist. Hugging Face files are checked
+// through the Hub API (size + LFS sha256), never downloaded when large. Entries with an empty
 // sourceUrl are import-only; they are listed, and fail only with --strict
 // (use it once the packs are hosted).
 import { existsSync, readFileSync } from "node:fs";
@@ -15,7 +16,7 @@ import { createHash } from "node:crypto";
 
 const args = process.argv.slice(2);
 const strict = args.includes("--strict");
-const DEFAULT_FILES = ["src/models/manifest.ts", "src/rag/poiRegions.ts", "src/rag/preparedness.ts", "src/rag/cryptoPack.ts"];
+const DEFAULT_FILES = ["src/models/manifest.ts", "src/rag/poiRegions.ts", "src/rag/preparedness.ts", "src/rag/cryptoPack.ts", "src/rag/wikiEnPacks.ts"];
 const files = args.filter((a) => a !== "--strict");
 const root = new URL("../", import.meta.url);
 const targets = files.length ? files : DEFAULT_FILES.filter((f) => existsSync(new URL(f, root)));
@@ -28,11 +29,11 @@ const entries = [];
 for (const file of targets) {
   const src = readFileSync(new URL(file, root), "utf8");
   for (let m; (m = ENTRY.exec(src)); ) {
-    const before = [...src.slice(0, m.index).matchAll(/\bid:\s*"([^"]+)"/g)].pop();
+    const before = [...src.slice(0, m.index).matchAll(/\b(?:id:\s*"([^"]+)"|part:\s*(\d+))/g)].pop();
     const after = /filename:\s*"([^"]+)"/.exec(src.slice(m.index, m.index + 400));
     const inObject = before && !src.slice(before.index, m.index).includes("},");
     const fileBefore = [...src.slice(Math.max(0, m.index - 400), m.index).matchAll(/filename:\s*"([^"]+)"/g)].pop();
-    entries.push({ id: inObject ? before[1] : after?.[1] ?? fileBefore?.[1] ?? `${file}@${m.index}`, size: Number(m[1]), sha256: m[2], url: m[3] });
+    entries.push({ id: inObject ? before[1] ?? `${file.split("/").pop()} part ${before[2]}` : after?.[1] ?? fileBefore?.[1] ?? `${file}@${m.index}`, size: Number(m[1]), sha256: m[2], url: m[3] });
   }
 }
 
@@ -63,7 +64,8 @@ async function check(e) {
     if (!info) return "file not found at pinned revision";
     if (info.size !== e.size) return `size ${info.size} != manifest ${e.size}`;
     // Small files may live in git, not LFS: then the host has no sha256 and we hash the bytes.
-    if (!info.lfs) return hashDownload(e);
+    // Never download a big one just to hash it (the wiki shards are ~1.2 GB each).
+    if (!info.lfs) return e.size <= SMALL_FILE_BYTES ? hashDownload(e) : "not in LFS: host has no sha256 (not downloaded)";
     if (info.lfs.oid !== e.sha256) return `sha256 ${info.lfs.oid} != manifest ${e.sha256}`;
     return null;
   }

@@ -65,7 +65,7 @@ They are hosted in the dataset
 (sources and licenses per pack in its README: ODbL © OpenStreetMap
 contributors, CC BY-SA 4.0 wiki text, CC BY 4.0 GeoNames, public domain US
 government works, CC0 EIPs, MIT ethereum.org), every link pinned to a dataset commit. Source of truth: `src/rag/poiRegions.ts`,
-`src/rag/preparedness.ts` and `src/rag/cryptoPack.ts`; `npm run manifest:verify` re-checks them.
+`src/rag/preparedness.ts`, `src/rag/cryptoPack.ts` and `src/rag/wikiEnPacks.ts`; `npm run manifest:verify` re-checks them.
 
 | Asset | Size | Places (OSM + Wikivoyage) | Download | SHA-256 |
 |---|---|---|---|---|
@@ -103,6 +103,33 @@ first five taken (`scripts/draw-poi-cities.mjs`; the draw is in the dataset as
 OpenStreetMap, so there the app has to say it has no restaurant data. Places
 for the rest of the world (1°×1° tiles) will be added here when they are
 published.
+
+## English Wikipedia (optional, 15 packs)
+
+The whole English Wikipedia (plus Wikivoyage), split into 15 packs of about
+1.2 GB (18.0 GB and 6,124,620 articles in all). The app searches every pack
+that is installed, so any subset works, and each one installs by file import
+like the others. Built from FineWiki
+([HuggingFaceFW/finewiki](https://huggingface.co/datasets/HuggingFaceFW/finewiki)),
+CC BY-SA 4.0. Source of truth: `src/rag/wikiEnPacks.ts`.
+
+| Shard | Size | Articles | Download | SHA-256 |
+|---|---|---|---|---|
+| 00 | 1.21 GB | 390,522 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-00.sqlite) | `89fc7c1cac60c09e61a636d001e9c5b2a2f3f08f6c10ac1150d2e0e9be53ab14` |
+| 01 | 1.21 GB | 421,215 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-01.sqlite) | `8a8aa91b148cb8a8ceacfcf781e3e8f8b34674a770c940cd1af34c83b8869d99` |
+| 02 | 1.20 GB | 418,631 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-02.sqlite) | `802799c868f790b12e910cdb8b07cc20b66005ab62c5a0238122827a657bc0b2` |
+| 03 | 1.28 GB | 439,892 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-03.sqlite) | `f840226abf35d0d118f8d7c840710f5d2b85d67e8241b4054d0e81f7c7ebac9d` |
+| 04 | 1.20 GB | 424,238 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-04.sqlite) | `af849afa078c43216ad0ac2f82643c88224e8ed8b6c16c5e42cabc89703edf8e` |
+| 05 | 1.20 GB | 430,580 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-05.sqlite) | `e79d11552a58aaab507df4d01971778669795634d7026994a5bd435b47b48da2` |
+| 06 | 1.17 GB | 418,883 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-06.sqlite) | `74caefe917f9ca999d9db95875605d9a580a6f74cf7988ebfaa7646a1cc066e2` |
+| 07 | 1.21 GB | 403,973 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e9afe9658e0f933a36f233749f51967dd57fbe0/wiki/en/boar-wiki-en-07.sqlite) | `2455c805270ac04ecb921176f9110227aa5f1c05fbe7e14830ce13d57a68385b` |
+| 08 | 1.19 GB | 410,973 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-08.sqlite) | `1bd7ef6a215196451042bcc346a4c6de4062f8e6f509b3d003bc3157d6540b48` |
+| 09 | 1.19 GB | 385,785 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-09.sqlite) | `826e991935cfc90ef7f727f7d4916cd45f53ca93b64f247ca76f84a55ea64f1c` |
+| 10 | 1.20 GB | 406,962 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-10.sqlite) | `734e44d8f34ce4a700a05f1607c2a1399465a10f7e21ba1e44ec2b7fc7d4f901` |
+| 11 | 1.20 GB | 386,973 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-11.sqlite) | `47ab500ba03a92fa98c162351d1007c94bf4782324179aed5ed32c04c9530f58` |
+| 12 | 1.21 GB | 403,088 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-12.sqlite) | `23ccdecc6b71b8ef1fd6f0d117ba6762b2c1dcc44bf60a838796bc5b4890cfc8` |
+| 13 | 1.14 GB | 372,746 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-13.sqlite) | `189c1c011ebea6de20c6849ce3233ac723737fa31dae5c570028b42f73cbf24e` |
+| 14 | 1.22 GB | 410,159 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-14.sqlite) | `abb0edb68c7792767a783b2d5bc5fcc1a6af1253c30c4f721e2cde3227985f34` |
 
 ## Size limits
 
