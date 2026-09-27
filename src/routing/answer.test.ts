@@ -717,6 +717,29 @@ describe("answer(): cited sources on done (Prism CT-2)", () => {
   });
 });
 
+describe("answer(): current events (Prism CT-3)", () => {
+  it("'Who won the football match yesterday?': fixed honest answer, no model, no sources, nothing cited", async () => {
+    f.retrieved = [chunk("f", "2021 All-Ireland Senior Ladies' Football Championship final", "Meath won the 2021 All-Ireland Senior Ladies' Football Championship final against Dublin.")];
+    for (const q of ["Who won the football match yesterday?", "Quem ganhou o jogo de ontem?"]) {
+      f.generations.length = 0;
+      const { events, result } = await collect(q);
+      expect(f.generations, q).toHaveLength(0);
+      expect(events.some((e) => e.type === "sources"), q).toBe(false);
+      expect(result.text, q).toMatch(/offline/);
+      expect(result.text, q).not.toMatch(/Meath|\[\d\]/);
+      expect((events.find((e) => e.type === "done") as any).cited, q).toEqual([]);
+    }
+  });
+});
+
+describe("answer(): the instant answer cites its source (Quill, CT-2)", () => {
+  it("done.cited has the snippet's source although the text has no [n]", async () => {
+    const { events, result } = await collect("What is the capital of Australia?");
+    expect(result.tier).toBe("instant");
+    expect((events.find((e) => e.type === "done") as any).cited).toEqual([1]);
+  });
+});
+
 describe("answer(): backend fallback", () => {
   it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
     const load = f.deps.engine.load;

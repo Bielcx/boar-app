@@ -19,6 +19,8 @@ import {
   HEALTH_GROUNDING_INSTRUCTION,
   isHealthQuestion,
   isSafetyQuery,
+  isCurrentEventQuery,
+  currentEventAnswer,
   ACTION_INTENT,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
@@ -546,6 +548,8 @@ export function createAnswerer(deps: AnswerDeps) {
       });
       /** Set when the text differs from the streamed tokens (citations removed, CT-1). */
       let finalText: string | undefined;
+      /** The instant answer is a source's own sentence without "[n]": it cites that source. */
+      let citedOverride: number[] | undefined;
       const finish = (
         tier: AnswerTier,
         outcome: AnswerOutcome,
@@ -556,10 +560,22 @@ export function createAnswerer(deps: AnswerDeps) {
       ): AnswerResult => {
         // CT-2: which sources the final text really cites (after the CT-1 check); none -> the chat
         // shows no "Sources" card for this answer.
-        const cited = [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].filter((n) => n >= 1 && n <= sources.length);
+        const cited =
+          citedOverride ?? [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].filter((n) => n >= 1 && n <= sources.length);
         emit({ type: "done", answerId, tier, outcome, receipt: r, error, cited, ...(finalText !== undefined ? { finalText } : {}) });
         return { answerId, tier, outcome, text, sources, receipt: r, cited };
       };
+
+      // CT-3 (Prism/Piston, 34efdf8): "Who won the football match yesterday?" -> "Meath won... [1]"
+      // with [1] a 2021 final. A current-events question is about what an offline snapshot can't
+      // know: a fixed, honest answer, no model, no sources.
+      if (isCurrentEventQuery(req.query)) {
+        reasonCodes.push("grounding:current-event");
+        const text = currentEventAnswer(PT_QUESTION.test(req.query));
+        markVisible();
+        emit({ type: "token", answerId, tier: "instant", text });
+        return finish("instant", "success", text, [], receipt({ modelId: "grounding-guard", modelLabel: "Offline library" }));
+      }
 
       // 1. Sources. A Portuguese question searches the (English) packs with English words when it has known terms.
       const pt = PT_QUESTION.test(req.query);
@@ -654,6 +670,7 @@ export function createAnswerer(deps: AnswerDeps) {
           if (block && block !== "low") reasonCodes.push(`instant:not-final-${block}`);
           if (plan.instant === "may-finish" && block === null) {
             reasonCodes.push("instant:final");
+            citedOverride = [sourceIndex + 1];
             return finish(
               "instant",
               "success",

@@ -7,6 +7,7 @@ import {
   instantFinalBlock,
   isHealthQuestion,
   isSafetyQuery,
+  isCurrentEventQuery,
   healthTopicTerms,
   onHealthTopic,
   riskyHealthInstruction,
@@ -352,5 +353,30 @@ describe("compressContext relevance (the sources' relevance bar)", () => {
     expect(rel.every((r: number) => r >= 0 && r <= 1)).toBe(true);
     expect(c.chunks[0].title).toBe("Canberra");
     expect(rel[0]).toBeGreaterThanOrEqual(rel[rel.length - 1]);
+  });
+});
+
+describe("isCurrentEventQuery (CT-3)", () => {
+  it("a current-time word plus an event/news intent", () => {
+    for (const q of [
+      "Who won the football match yesterday?",
+      "Quem ganhou o jogo de ontem?",
+      "What's the latest news about the election?",
+      "Qual foi o placar do jogo de hoje?",
+      "What is the weather forecast for tonight?",
+    ]) {
+      expect(isCurrentEventQuery(q), q).toBe(true);
+    }
+  });
+  it("not history, not a timeless 'today'", () => {
+    for (const q of [
+      "What happened in the 1906 earthquake?",
+      "Why is the sky blue today?",
+      "Who won the 1970 World Cup?",
+      "What is the latest theory about dark matter?",
+      "How do vaccines work?",
+    ]) {
+      expect(isCurrentEventQuery(q), q).toBe(false);
+    }
   });
 });
