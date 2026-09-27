@@ -20,6 +20,8 @@ export interface StoredAnswer {
   places?: PlacesResult;
   fast?: StoredTier;
   deep?: StoredTier;
+  /** CT-2: the [n] the final text kept; absent in older records (every source shown). */
+  cited?: number[];
 }
 
 function storeTier(t: TierState | undefined): StoredTier | undefined {
@@ -59,6 +61,7 @@ export function toStoredAnswer(state: AnswerState): string {
     places: state.places,
     fast: storeTier(state.fast),
     deep: storeTier(state.deep),
+    ...(state.cited ? { cited: state.cited } : {}),
   };
   return JSON.stringify(stored);
 }
@@ -98,6 +101,7 @@ export function fromStoredAnswer(id: string, text: string, meta: string | null):
     places: stored.places,
     fast: restoreTier(stored.fast),
     deep: restoreTier(stored.deep),
+    ...(Array.isArray(stored.cited) ? { cited: stored.cited } : {}),
   };
 }
 

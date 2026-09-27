@@ -236,3 +236,19 @@ describe("CT-1 finalText", () => {
     expect(kept.fast?.text).toBe("Canberra [3].");
   });
 });
+
+describe("CT-2 cited", () => {
+  const receipt = { modelId: "q", modelLabel: "Q", tokens: 3, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+  const base = { answerIds: ["a"], sources: [] } as AnswerState;
+  it("stays undefined until a tier reports it (older engines: every source shows)", () => {
+    const s = answerReducer(base, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt } as never);
+    expect(s.cited).toBeUndefined();
+  });
+  it("keeps an empty list (no [n] left) and merges fast with deep", () => {
+    const fast = answerReducer(base, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, cited: [] } as never);
+    expect(fast.cited).toEqual([]);
+    const withDeep = { ...fast, deep: { text: "", stage: null } } as AnswerState;
+    const deep = answerReducer(withDeep, { type: "done", answerId: "a", tier: "deep", outcome: "success", receipt, cited: [3, 1, 3] } as never);
+    expect(deep.cited).toEqual([1, 3]);
+  });
+});

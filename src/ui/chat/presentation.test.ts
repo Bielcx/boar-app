@@ -39,6 +39,9 @@ describe("phaseAnnouncement", () => {
   it("announces transitions, never tokens, and errors assertively", () => {
     expect(phaseAnnouncement("searching", state, t)).toEqual({ message: "chat.announce.searching" });
     expect(phaseAnnouncement("done", state, t)).toEqual({ message: 'chat.announce.ready{"count":3}' });
+    // CT-2: the count follows the cited sources; nothing cited reads as no source.
+    expect(phaseAnnouncement("done", { ...state, cited: [2] }, t)).toEqual({ message: 'chat.announce.ready{"count":1}' });
+    expect(phaseAnnouncement("done", { ...state, cited: [] }, t)).toEqual({ message: "chat.announce.readyNoSource" });
     expect(phaseAnnouncement("error", state, t)).toEqual({ message: "chat.error.generic", assertive: true });
     expect(phaseAnnouncement("reading", state, t)).toBeNull();
   });

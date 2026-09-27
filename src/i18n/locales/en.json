@@ -814,7 +814,9 @@
       "fullPassageN": "Full passage {{n}}",
       "groupLabel_one": "Source {{numbers}}: {{title}}, {{origin}}",
       "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages",
-      "relevance": "relevance {{pct}}%"
+      "relevance": "relevance {{pct}}%",
+      "related": "Related in your library · {{count}}",
+      "hideRelated": "Hide related"
     },
     "receipt": {
       "sourcePassage": "Source passage",

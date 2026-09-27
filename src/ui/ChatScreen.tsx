@@ -59,6 +59,7 @@ import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type Cha
 import { loadCrashMessage, phaseAnnouncement } from "./chat/presentation";
 import { consumeLoadCrash } from "./chat/loadCrashApi";
 import { formatForCopy, formatForShare, type ShareLabels } from "./chat/shareFormat";
+import { answerSourceSplit } from "./chat/sourceLabel";
 import { AssistantMessage } from "./chat/AssistantMessage";
 import { ModelLoadError } from "../inference/loadError";
 import type { ModelErrorKind } from "./chat/modelError";
@@ -770,7 +771,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // Retry redoes the answer in place; without a saved session (it failed before one existed) it asks again.
     retry: (id, question) => (activeSessionId ? followUp(id, {}) : ask(question)),
     rate: (id, r) => rate(id, r),
-    copy: (item) => copyText(copyBody(item) ?? formatForCopy(answerForCopy(item.answer), item.answer.sources, shareLabels), t("chat.actions.copied")),
+    copy: (item) => copyText(copyBody(item) ?? formatForCopy(answerForCopy(item.answer), item.answer.sources, shareLabels, answerSourceSplit(item.answer)?.cited), t("chat.actions.copied")),
     share: (item) => {
       const a = item.answer;
       const receipt = a.deep?.receipt ?? a.fast?.receipt ?? a.instantDone?.receipt;
@@ -778,7 +779,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       Share.share({
         message: places
           ? formatForShare(item.question, places, [], receipt, shareLabels, locale)
-          : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
+          : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale, answerSourceSplit(a)?.cited),
       });
     },
     answerAnyway: (id) => followUp(id, { answerAnyway: true }),

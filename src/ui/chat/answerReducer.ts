@@ -49,6 +49,11 @@ export interface AnswerState {
   weakSources?: boolean;
   /** …and the compact model declined to answer without a source (weak-sources state A); "Answer anyway" asks again. */
   weakDeclined?: boolean;
+  /**
+   * The [n] left in the final text of the finished tiers (Tusk done.cited, Prism CT-2), merged
+   * across fast and deep. Undefined until a tier reports it: the card then shows every source.
+   */
+  cited?: number[];
   /** The engine classified the question as health/safety (done.safety): literal passage, emergency note. */
   safety?: boolean;
 }
@@ -60,6 +65,13 @@ export function initialAnswer(answerId: string): AnswerState {
 /** Routes a follow-up answer() (Deepen) into this message. */
 export function attachAnswer(state: AnswerState, answerId: string): AnswerState {
   return state.answerIds.includes(answerId) ? state : { ...state, answerIds: [...state.answerIds, answerId] };
+}
+
+/** CT-2: read defensively, the field is new in the engine's done event. */
+function withCited(state: AnswerState, cited: unknown): AnswerState {
+  if (!Array.isArray(cited)) return state;
+  const nums = cited.filter((n): n is number => typeof n === "number");
+  return { ...state, cited: [...new Set([...(state.cited ?? []), ...nums])].sort((a, b) => a - b) };
 }
 
 function mergeSources(current: SourceChunk[], incoming: SourceChunk[]): SourceChunk[] {
@@ -119,6 +131,7 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
         return { ...state, instantDone: { outcome: event.outcome, receipt: event.receipt, error: event.error } };
       }
       if (state[event.tier]?.outcome) return state;
+      state = withCited(state, (event as { cited?: unknown }).cited);
       return updateTier(state, event.tier, (t) => ({
         ...t,
         // CT-1: the engine removed [n] the sources don't support; its final text replaces the streamed one.

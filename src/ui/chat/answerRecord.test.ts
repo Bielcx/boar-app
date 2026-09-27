@@ -64,3 +64,11 @@ describe("relevance in the stored answer (Tusk 303caa1)", () => {
     expect(back.sources[1].relevance).toBeUndefined();
   });
 });
+
+describe("cited in the stored answer (CT-2)", () => {
+  it("round-trips, and stays absent in records without it", () => {
+    const state = { answerIds: ["a"], sources: [], cited: [], fast: { text: "t", stage: null, outcome: "success" } } as AnswerState;
+    expect(fromStoredAnswer("a", "t", toStoredAnswer(state)).cited).toEqual([]);
+    expect(fromStoredAnswer("a", "t", toStoredAnswer({ ...state, cited: undefined })).cited).toBeUndefined();
+  });
+});

@@ -2,6 +2,7 @@ import { EXTRACTIVE_MODEL_ID, type AnswerReceipt } from "./answerEvents";
 import { answerPhase, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds, formatTokPerSec } from "./shareFormat";
 import { placesEmptyTitle } from "./placesFormat";
+import { answerSourceSplit } from "./sourceLabel";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -62,7 +63,12 @@ export function phaseAnnouncement(
           ? { message: `${t("chat.weak.declinedTitleIncomplete")}. ${t("chat.weak.declinedBodyIncomplete")}` }
           : { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
       if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
-      return { message: t("chat.announce.ready", { count: state.sources.length }) };
+      {
+        // CT-2: count what the card shows, the cited sources; none cited reads as no source.
+        const cited = answerSourceSplit(state)?.cited.length ?? state.sources.length;
+        if (cited === 0 && state.sources.length > 0) return { message: t("chat.announce.readyNoSource") };
+        return { message: t("chat.announce.ready", { count: cited }) };
+      }
     case "stopped":
       return { message: t("chat.announce.stopped") };
     case "error":
