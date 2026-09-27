@@ -125,6 +125,11 @@ export interface AnswerDeps {
   getModelSpeeds?(): Promise<Map<string, number>>;
   /** Offline places (POI pack + device location); null when not installed/registered. */
   getGeoProviders?(): GeoProviders | null;
+  /**
+   * Resolves once the built-in knowledge base is indexed (the first boot after install indexes it
+   * after the models load). A question asked meanwhile waits instead of searching an empty index.
+   */
+  knowledgeReady?(): Promise<void>;
 }
 
 /** GPS budget: the first useful information must appear in under a second. */
@@ -567,6 +572,12 @@ export function createAnswerer(deps: AnswerDeps) {
       if (plan.retrieve && gen?.mode !== "multipass") {
         stage("retrieving", plan.instant !== "off" ? "instant" : genTier);
         const rs = deps.now();
+        // First boot (Harbor, 5f7d9ca): asked during indexing, the search found an empty index
+        // (15/300) and the answer was "I couldn't find this". Wait for the index; stop() ends the wait.
+        if (deps.knowledgeReady) {
+          const indexed = deps.knowledgeReady().catch(() => {});
+          if ((await Promise.race([indexed, stopSignal])) === "stopped") return finish(genTier, "stopped", "", [], receipt({}));
+        }
         raw = await deps.retrieve(searchQuery, gen?.retrieveK ?? 6).catch((e) => {
           console.warn("[answer] retrieval failed, answering without sources:", e?.message ?? e);
           return [] as RetrievedChunk[];
