@@ -24,6 +24,7 @@ import {
   onTopic,
   PT_QUESTION,
   healthExtract,
+  healthSourceIndex,
   termCoverage,
 } from "./context";
 import { englishSearchTerms } from "./ptQuery";
@@ -558,7 +559,9 @@ export function createAnswerer(deps: AnswerDeps) {
       // put cream on burns). "Deeper answer" (tier deep) lets the model summarize it, strictly.
       if (health && sources.length && req.tier !== "deep") {
         reasonCodes.push("grounding:health-extractive");
-        const text = healthExtract(sources[0], pt);
+        const i = healthSourceIndex(sources);
+        const full = raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i];
+        const text = healthExtract(full, i + 1, pt);
         markVisible();
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));

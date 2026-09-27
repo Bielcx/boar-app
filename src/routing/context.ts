@@ -255,18 +255,36 @@ export function noGoodSourceAnswer(pt: boolean): string {
 /** Longest health excerpt shown as the answer (about 120 words). */
 export const HEALTH_EXTRACT_MAX_CHARS = 700;
 
+// What to DO, not what it is: a treatment / first-aid / "during" section, with instructions.
+const ACTION_SECTION = /^(treatment|first aid|management|what to do|during|immediate|self[- ]care|emergency care|response|stay safe|how to|signs and treatment)/i;
+const ACTION_WORD = /\b(apply|applying|pinch|lean|press|pressure|call|cool|drop|cover|hold|boil|move|remove|keep|seek|get|stay|avoid|do not|don't)\b/gi;
+const HEDGE = /\b(controversial|traditionally|historically|history|studies|evidence is)\b/i;
+
+/** Which source to quote for a health question: the most instructive on-topic one (index into `sources`). */
+export function healthSourceIndex(sources: RetrievedChunk[]): number {
+  let best = 0;
+  let bestScore = -Infinity;
+  sources.forEach((c, i) => {
+    const section = c.body.split(":")[0];
+    const score =
+      (ACTION_SECTION.test(section) ? 2 : 0) + Math.min(2, (c.body.match(ACTION_WORD)?.length ?? 0) * 0.25) - (HEDGE.test(c.body) ? 1 : 0) - i * 0.05;
+    if (score > bestScore) (best = i), (bestScore = score);
+  });
+  return best;
+}
+
 /**
- * A health answer taken word for word from the best source: its selected
- * sentences (compressContext order), cut at a sentence end, cited [1].
+ * A health answer taken word for word from one source (its full text, not
+ * the compressed one), cut at a sentence end and cited by its number.
  */
-export function healthExtract(source: RetrievedChunk, pt: boolean): string {
+export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean): string {
   let text = "";
   for (const s of splitSentences(source.body)) {
     if (text && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
     text = text ? `${text} ${s}` : s;
   }
   const lead = pt ? "Da fonte offline (em inglês):" : "From the offline source:";
-  return `${lead}\n${text} [1]`;
+  return `${lead}\n${text} [${sourceNumber}]`;
 }
 
 /** Health question without a good source: fixed text, no model. */

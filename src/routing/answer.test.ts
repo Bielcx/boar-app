@@ -229,6 +229,18 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.receipt.reasonCodes).toContain("grounding:health-extractive");
   });
 
+  it("E-1: quotes the source that says what to do, not the definition", async () => {
+    const lead = chunk("n1", "Nosebleed", "A nosebleed, also known as epistaxis, is bleeding from the nasal cavity. Most cases are minor.");
+    const treatment = chunk(
+      "n2",
+      "Nosebleed",
+      "Treatment: Most anterior nosebleeds can be stopped by applying direct pressure. Pinch the soft part of the nose and lean forward for 10 to 15 minutes."
+    );
+    f.retrieved = [lead, treatment];
+    const { result } = await collect("How do I stop a nosebleed?");
+    expect(result.text).toMatch(/^From the offline source:\nTreatment: Most anterior nosebleeds .* lean forward for 10 to 15 minutes\. \[2\]$/);
+  });
+
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
     const queries: string[] = [];
     f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
