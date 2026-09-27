@@ -613,16 +613,27 @@
       "percentAnnounce": "{{pct}}% downloaded",
       "percentImportedAnnounce": "{{pct}}% imported",
       "queued": "Waiting",
+      "category": {
+        "answer": "Answer model",
+        "search": "Search model",
+        "knowledge": "Knowledge",
+        "places": "Places"
+      },
+      "categoryStatus": {
+        "failed": "Failed",
+        "moving": "Downloading",
+        "ready": "Ready",
+        "queued": "Waiting",
+        "import": "To import"
+      },
+      "categoryHint": "Shows the files",
+      "categoryA11y": "{{name}}, {{done}} of {{total}} files, {{pct}}%",
+      "openWhenReady": "Available when every file is on the phone",
       "llmLabel": "Answer model",
       "workingMemory": "needs ~{{size}} of memory",
       "useStandard": "Use Standard instead",
       "useCompact": "Use Compact instead",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
-      "groupModels": "Models",
-      "groupKnowledge": "Knowledge",
-      "groupIndex": "On the phone",
-      "filesReady_one": "The {{count}} item of this setup is on the phone",
-      "filesReady_other": "All {{count}} items of this setup are on the phone",
       "keepOpenTitle": "Keep BOAR open",
       "stage": {
         "start": "Start",

@@ -40,6 +40,7 @@ import { locateForUser } from "../services/location";
 import { networkAllowed } from "../config/variant";
 import { ImportList } from "./flows/ImportList";
 import { RadioRow } from "./flows/RadioRow";
+import { InstallCategory, installCategories } from "./flows/installGroups";
 
 interface Props {
   onReady: () => void;
@@ -554,17 +555,7 @@ function PackageStep({
               {t("flows.onboarding.noSpace", { size: formatBytes(chosen.shortfall, lang) })}
             </Text>
           )}
-          {/* The mockup's back link: 13.5 text in mu with an arrow, not an accent button. */}
-          <Pressable
-            accessibilityRole="button"
-            onPress={onBack}
-            style={{ minHeight: tokens.size.touch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.space.xs + tokens.space.xxs }}
-          >
-            <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
-            <Text variant="subhead" color="secondary">
-              {t("flows.onboarding.back")}
-            </Text>
-          </Pressable>
+          <BackLink label={t("flows.onboarding.back")} onPress={onBack} />
         </>
       }
     >
@@ -818,26 +809,6 @@ function TravelCard({
   );
 }
 
-function statusLine(state: RowState, model: CatalogModel, t: ReturnType<typeof useTranslation>["t"], lang: string): string {
-  switch (state.kind) {
-    case "not-installed":
-      return t(canDownload(model) ? "flows.onboarding.queued" : "flows.onboarding.toImport");
-    case "downloading":
-      return t("flows.onboarding.downloadingLine", {
-        pct: Math.round(state.progress * 100),
-        done: formatBytes(model.sizeBytes * state.progress, lang),
-        total: formatBytes(model.sizeBytes, lang),
-      });
-    case "verifying":
-      return t("flows.row.verifying");
-    case "failed":
-      return t(`flows.row.error.${state.errorKind}`);
-    case "loading":
-      return t("flows.row.loading");
-    default:
-      return t("flows.onboarding.ready");
-  }
-}
 
 /** The one-word status at the right of an install row; the full line is what a screen reader hears. */
 function shortStatus(state: RowState, model: CatalogModel, t: ReturnType<typeof useTranslation>["t"]): string {
@@ -1037,29 +1008,11 @@ function InstallStep({
         fraction: seed && seed.total > 0 ? seed.done / seed.total : 0,
         meta: [indexCounter, seedEta != null ? t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) }) : null].filter((x): x is string => !!x),
       };
-  // Once every file is in, the per-file rows collapse into one: the index is what is happening now.
-  const fileRows = allPresent
-    ? [
-        {
-          key: "files",
-          icon: <Icon name="check-circle" color={tokens.color.status.success.solid} />,
-          title: t("flows.onboarding.filesReady", { count: assets.length }),
-          status: t("flows.onboarding.ready"),
-          spoken: undefined as string | undefined,
-          tone: "secondary" as TextColor,
-          group: undefined as string | undefined,
-        },
-      ]
-    : states.map(({ asset, state }) => ({
-        key: asset.id,
-        icon: <PhaseIcon state={state} model={asset} />,
-        // Grouped under a MODELS / KNOWLEDGE overline, so each row is just the name (Prism S3-3).
-        group: asset.kind === "corpus" ? t("flows.onboarding.groupKnowledge") : t("flows.onboarding.groupModels"),
-        title: asset.label,
-        status: shortStatus(state, asset, t),
-        spoken: statusLine(state, asset, t, lang) as string | undefined,
-        tone: (state.kind === "failed" ? "danger" : moving(state) ? "accent" : "secondary") as TextColor,
-      }));
+  // One row per category, like the mockup (Iris, Prism): aggregated honestly, files one tap away.
+  const categories = installCategories(
+    states.map(({ asset, state }) => ({ id: asset.id, kind: asset.kind, sizeBytes: asset.sizeBytes, state, importOnly: !canDownload(asset) }))
+  );
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
@@ -1121,9 +1074,9 @@ function InstallStep({
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
-          {/* The mockup's CTA: large, disabled until everything is on the phone (Iris §3). */}
-          <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled onPress={onReady} />
-          {indexPhase !== "building" && <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} />}
+          {/* The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism). */}
+          <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
+          {indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
         </>
       }
     >
@@ -1188,34 +1141,21 @@ function InstallStep({
         </Card>
       )}
 
-      {/* Right under the progress, where it is seen: downloads pause in the background (Prism S3-5). */}
-      {downloading && (
-        // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
-        <View
-          style={{
-            gap: tokens.space.xs,
-            backgroundColor: tokens.color.status.warning.soft,
-            borderRadius: tokens.radius.lg - tokens.space.xxs,
-            paddingVertical: tokens.space.md,
-            paddingHorizontal: tokens.space.md + tokens.space.xxs,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
-            <Text variant="label" color="warning">
-              {t("flows.onboarding.keepOpenTitle")}
-            </Text>
-          </View>
-          <Text variant="footnote">
-            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
-          </Text>
-        </View>
-      )}
-
       {/* The mockup's list card: 4/14 padding, rows 9 pt tall padding, status in small caps (FIDELITY). */}
       <Card padding="none" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs, paddingVertical: tokens.space.xs }}>
+        {categories.map((c, i) => (
+          <CategoryRow
+            key={c.category}
+            row={c}
+            first={i === 0}
+            assets={assets}
+            expanded={!!expanded[c.category]}
+            onToggle={() => setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }))}
+            onRetry={(asset) => catalog.download(asset)}
+            lang={lang}
+          />
+        ))}
         {[
-          ...fileRows,
           {
             key: "index",
             icon: (
@@ -1236,28 +1176,20 @@ function InstallStep({
             spoken: undefined,
             // The hero carries the index progress in accent; the row stays secondary (R-IDX-2).
             tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
-            group: t("flows.onboarding.groupIndex"),
           },
         ]
           // While the hero shows the index, its row would repeat it (Prism N-10).
           .filter((row) => !(row.key === "index" && indexing && seed))
           .map((row, i, rows) => (
           <React.Fragment key={row.key}>
-          {row.group && row.group !== rows[i - 1]?.group && (
-            <View style={{ paddingTop: tokens.space.md }}>
-              <Text variant="label" color="secondary">
-                {row.group}
-              </Text>
-            </View>
-          )}
           <View
             accessible
             accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
             style={{
               gap: tokens.space.xs,
               paddingVertical: tokens.space.sm,
-              borderBottomWidth: i < rows.length - 1 && rows[i + 1].group === row.group ? tokens.size.hairline : 0,
-              borderBottomColor: tokens.color.line.row,
+              borderTopWidth: categories.length > 0 || i > 0 ? tokens.size.hairline : 0,
+              borderTopColor: tokens.color.line.row,
             }}
           >
             <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
@@ -1281,6 +1213,30 @@ function InstallStep({
           </React.Fragment>
         ))}
       </Card>
+
+      {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
+      {downloading && (
+        // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
+        <View
+          style={{
+            gap: tokens.space.xs,
+            backgroundColor: tokens.color.status.warning.soft,
+            borderRadius: tokens.radius.lg - tokens.space.xxs,
+            paddingVertical: tokens.space.md,
+            paddingHorizontal: tokens.space.md + tokens.space.xxs,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
+            <Text variant="label" color="warning">
+              {t("flows.onboarding.keepOpenTitle")}
+            </Text>
+          </View>
+          <Text variant="footnote">
+            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+          </Text>
+        </View>
+      )}
 
       {failed.length > 0 && (
         <View
@@ -1340,14 +1296,111 @@ function moving(state: RowState): boolean {
   return (state.kind === "downloading" && state.progress > 0) || state.kind === "verifying";
 }
 
-function PhaseIcon({ state, model }: { state: RowState; model: CatalogModel }) {
+/** The mockup's back link: 13.5 text in mu with an arrow, not an accent button; touch >= 44 (Prism). */
+function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const tokens = useTokens();
-  if (state.kind === "installed" || state.kind === "in-use") return <Icon name="check-circle" color={tokens.color.status.success.solid} />;
-  if (state.kind === "failed") return <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />;
-  if (moving(state)) return <Icon name="download" color={tokens.color.accent.text} />;
-  // Waiting: what the item is, like the mockup (database for the search model, book for knowledge);
-  // a file to import says so. Never an empty ring (Prism N-7).
-  const waiting: IconName =
-    state.kind === "not-installed" && !canDownload(model) ? "file-plus" : model.kind === "embedding" ? "database" : model.kind === "corpus" ? "book-open" : "cpu";
-  return <Icon name={waiting} color={tokens.color.text.secondary} />;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={{ minHeight: tokens.size.touch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.space.xs + tokens.space.xxs }}
+    >
+      <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
+      <Text variant="subhead" color="secondary">
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
+
+const CATEGORY_ICON: Record<InstallCategory, IconName> = { answer: "cpu", search: "database", knowledge: "book-open", places: "map-pin" };
+
+/**
+ * One install category (the mockup's "Reasoning Models ... STREAMING"). Reads as one sentence; a tap shows
+ * each file with its status and, for a failed one, Try again (Prism: honest status, files reachable).
+ */
+function CategoryRow({
+  row,
+  first,
+  assets,
+  expanded,
+  onToggle,
+  onRetry,
+  lang,
+}: {
+  row: ReturnType<typeof installCategories>[number];
+  first: boolean;
+  assets: CatalogModel[];
+  expanded: boolean;
+  onToggle: () => void;
+  onRetry: (asset: CatalogModel) => void;
+  lang: string;
+}) {
+  const { t } = useTranslation();
+  const tokens = useTokens();
+  const name = t(`flows.onboarding.category.${row.category}`);
+  const failedItem = row.items.find((i) => i.state.kind === "failed");
+  const reason = failedItem && failedItem.state.kind === "failed" ? failureLines(failedItem.state, t, lang).cause : undefined;
+  const status = t(`flows.onboarding.categoryStatus.${row.status}`);
+  const pct = Math.floor(row.fraction * 100);
+  const icon: IconName = row.status === "failed" ? "alert-octagon" : row.status === "moving" ? "download" : row.status === "ready" ? "check-circle" : CATEGORY_ICON[row.category];
+  const iconColor =
+    row.status === "failed"
+      ? tokens.color.status.danger.solid
+      : row.status === "moving"
+        ? tokens.color.accent.text
+        : row.status === "ready"
+          ? tokens.color.status.success.solid
+          : tokens.color.text.secondary;
+  const tone: TextColor = row.status === "failed" ? "danger" : row.status === "moving" ? "accent" : "secondary";
+  return (
+    <View style={{ borderTopWidth: first ? 0 : tokens.size.hairline, borderTopColor: tokens.color.line.row }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityHint={t("flows.onboarding.categoryHint")}
+        accessibilityLabel={[
+          t("flows.onboarding.categoryA11y", { name, done: row.done, total: row.total, pct }),
+          row.status === "failed" ? `${status}: ${reason ?? ""}` : status,
+        ].join(", ")}
+        onPress={onToggle}
+        style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs, paddingVertical: tokens.space.sm, minHeight: tokens.size.touch }}
+      >
+        <Icon name={icon} size="sm" color={iconColor} />
+        <View style={{ flex: 1 }}>
+          <Text variant="subhead">{name}</Text>
+          {reason && (
+            <Text variant="caption" color="danger">
+              {reason}
+            </Text>
+          )}
+        </View>
+        <Text variant="label" color={tone}>
+          {status}
+        </Text>
+      </Pressable>
+      {expanded &&
+        row.items.map((it) => {
+          const asset = assets.find((a) => a.id === it.id)!;
+          return (
+            <View
+              key={it.id}
+              style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, paddingLeft: tokens.space.xl, paddingBottom: tokens.space.sm }}
+            >
+              <Text variant="footnote" color="secondary" style={{ flex: 1 }} numberOfLines={2}>
+                {asset.label}
+              </Text>
+              {it.state.kind === "failed" ? (
+                <Button size="sm" variant="secondary" label={t("flows.row.retry")} accessibilityLabel={`${t("flows.row.retry")}: ${asset.label}`} onPress={() => onRetry(asset)} />
+              ) : (
+                <Text variant="caption" color={moving(it.state) ? "accent" : "secondary"} numeric>
+                  {shortStatus(it.state, asset, t)}
+                </Text>
+              )}
+            </View>
+          );
+        })}
+    </View>
+  );
+}
+
