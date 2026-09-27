@@ -9,6 +9,7 @@ import { impact, ImpactFeedbackStyle } from "../services/haptics";
 import { llamaEngine } from "../inference/LlamaEngine";
 import { embeddingEngine } from "../rag/embed";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty } from "../rag/seedCorpus";
+import { makeGate } from "./chat/gate";
 import { MODEL_CATALOG, CORPUS_CATALOG, REQUIRED_MODELS, CatalogModel } from "../models/manifest";
 import { listDiscoveredModels } from "../models/discoveredModels";
 import { subscribeDownloads, listDownloadStates } from "../services/downloadManager";
@@ -130,6 +131,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
   const canAsk = modelsRequested && !loadError;
+  // The offline library is ready (seeded, or nothing to seed). A question asked before that waits for it: on a
+  // first boot the index is filled only after the model loads, and a search then would claim "not in this
+  // phone's library" for what is about to be there (Prism HX-1, Harbor 5f7d9ca).
+  const libraryReady = useRef(makeGate(true));
+  const [waitingLibrary, setWaitingLibrary] = useState<string | null>(null);
   // The engine's own cause for a failed load (Tusk 9ec677e: ModelLoadError.kind), when it gives one.
   const [loadErrorKind, setLoadErrorKind] = useState<ModelErrorKind | undefined>(undefined);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
@@ -232,6 +238,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   }, []);
 
   const initModels = useCallback(async () => {
+    // A new gate for this init; opened once the library is seeded (or on failure, so nothing hangs).
+    if (libraryReady.current.done) libraryReady.current = makeGate(false);
+    const gate = libraryReady.current;
     try {
       setLoadError(null);
       setReady(false);
@@ -273,9 +282,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       await seedKnowledgeBaseIfEmpty().finally(() => {
         stopProgress();
         setIndexing(false);
+        gate.open();
       });
       setReady(true);
     } catch (e: any) {
+      gate.open();
       // The native message is the one worth showing (the RAM estimate is only in the log now).
       setLoadErrorKind(e instanceof ModelLoadError ? e.kind : undefined);
       setLoadError(e instanceof ModelLoadError ? e.native || e.message : e?.message ?? String(e));
@@ -428,6 +439,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         await persistMessage(sessionId, "user", query, userItem.id);
 
         const request: AnswerRequest = { query };
+        if (!libraryReady.current.done) {
+          setWaitingLibrary(assistantId);
+          await libraryReady.current.promise;
+          setWaitingLibrary(null);
+        }
         const { result, final } = await runInto(assistantId, (onEvent, ctx) => runAnswer(request, onEvent, ctx));
 
         await persistMessage(sessionId, "assistant", answerTextForHistory(final), assistantId);
@@ -792,13 +808,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         <AssistantRow
           item={item}
           active={activeId === item.id}
+          waitingLibrary={waitingLibrary === item.id ? loadStatus.label : undefined}
           fresh={askedIds.current.has(item.id)}
           stopping={activeId === item.id && stopping}
           locale={locale}
           actions={actions}
         />
       ),
-    [actions, activeId, stopping, locale]
+    [actions, activeId, stopping, locale, waitingLibrary, loadStatus.label]
   );
 
   if (deviceEvalRequest) {
@@ -971,6 +988,7 @@ const UserRow = memo(function UserRow({ text, actions }: { text: string; actions
 const AssistantRow = memo(function AssistantRow({
   item,
   active,
+  waitingLibrary,
   fresh,
   stopping,
   locale,
@@ -978,6 +996,8 @@ const AssistantRow = memo(function AssistantRow({
 }: {
   item: Extract<ChatItem, { kind: "assistant" }>;
   active: boolean;
+  /** The question waits for the offline library to be ready; the current status ("Indexing knowledge 15 / 300"). */
+  waitingLibrary?: string;
   fresh: boolean;
   stopping: boolean;
   locale: string;
@@ -1007,6 +1027,7 @@ const AssistantRow = memo(function AssistantRow({
     <AssistantMessage
       answer={item.answer}
       question={item.question}
+      waitingLibrary={waitingLibrary}
       active={active}
       fresh={fresh}
       stopping={stopping}

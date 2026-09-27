@@ -771,7 +771,8 @@
       "stopping": "Stopping…",
       "reading_one": "Reading {{count}} source…",
       "reading_other": "Reading {{count}} sources…",
-      "writing": "Writing the answer…"
+      "writing": "Writing the answer…",
+      "waitingLibrary": "Preparing this phone’s library; your answer starts when it’s ready"
     },
     "announce": {
       "searching": "Searching sources",
