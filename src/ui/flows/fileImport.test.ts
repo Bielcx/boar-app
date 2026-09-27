@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FileImport, importFor } from "./fileImport";
+import { FileImport, importFor, likelyTarget } from "./fileImport";
 
 const f = (name: string, status: FileImport["status"], extra: Partial<FileImport> = {}): FileImport => ({ name, status, progress: 0, ...extra });
 
@@ -34,5 +34,24 @@ describe("importFor (the row that asked for a file shows its result, Prism IM-1)
 
   it("ignores files picked from the general import list", () => {
     expect(importFor([f("any.gguf", "failed")], "boar-crypto")).toBeUndefined();
+  });
+});
+
+describe("likelyTarget (the row a copy in progress belongs to)", () => {
+  const items = [
+    { id: "q4b", filename: "models/qwen3-4b-instruct-2507-q4km.gguf", sizeBytes: 2_497_281_120 },
+    { id: "q15", filename: "models/qwen2.5-1.5b-instruct-q4km.gguf", sizeBytes: 986_048_768 },
+  ];
+
+  it("matches by exact size, whatever the file is called", () => {
+    expect(likelyTarget({ name: "renamed.gguf", sizeBytes: 2_497_281_120 }, items)?.id).toBe("q4b");
+  });
+
+  it("matches the Hugging Face name to the catalog's canonical file name (Harbor 2e7a026)", () => {
+    expect(likelyTarget({ name: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf" }, items)?.id).toBe("q4b");
+  });
+
+  it("finds nothing for an unrelated file", () => {
+    expect(likelyTarget({ name: "notes.pdf", sizeBytes: 12 }, items)).toBeUndefined();
   });
 });

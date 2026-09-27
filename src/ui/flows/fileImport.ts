@@ -25,3 +25,24 @@ export function importFor(imports: FileImport[], id: string): FileImport | undef
   if (mine.some((f) => f.status === "verified" && f.assetId === id)) return undefined;
   return mine.find((f) => f.status === "importing") ?? mine.find((f) => f.status === "failed") ?? mine.find((f) => f.status === "verified");
 }
+
+const normal = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * The catalog item a file being imported most likely is, before its hash
+ * says so: same size (the picker reports it and the catalog has it exact),
+ * else the same name once case and punctuation are dropped (the catalog
+ * stores 'qwen3-4b-instruct-2507-q4km.gguf' for 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf').
+ * Only for showing progress on the right row; verification still decides.
+ */
+export function likelyTarget<T extends { id: string; filename: string; sizeBytes: number }>(
+  file: Pick<FileImport, "name" | "sizeBytes">,
+  items: T[]
+): T | undefined {
+  if (file.sizeBytes) {
+    const bySize = items.filter((i) => i.sizeBytes === file.sizeBytes);
+    if (bySize.length === 1) return bySize[0];
+  }
+  const name = normal(file.name);
+  return items.find((i) => normal(i.filename.split("/").pop() ?? "") === name);
+}
