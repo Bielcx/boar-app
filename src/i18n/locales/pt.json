@@ -849,8 +849,8 @@
       "q2": "Qual a diferença entre pandemia e epidemia?",
       "q3": "Quanto é 30 °C em Fahrenheit?",
       "q4": "Como estancar um sangramento nasal?",
-      "q5": "Como funciona a fotossíntese?",
-      "q6": "Como as vacinas treinam o sistema imunológico?",
+      "q5": "O que causa as monções?",
+      "q6": "Por que os terremotos acontecem perto das bordas das placas?",
       "q7": "O que causa o efeito estufa?"
     },
     "header": {
@@ -1004,8 +1004,8 @@
       "q2": "Saúde",
       "q3": "Conta rápida",
       "q4": "Primeiros socorros",
-      "q5": "Biologia",
-      "q6": "Saúde",
+      "q5": "Tempo",
+      "q6": "Ciências da Terra",
       "q7": "Clima"
     },
     "modelError": {
