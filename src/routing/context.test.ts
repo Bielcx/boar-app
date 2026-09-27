@@ -562,3 +562,28 @@ describe("nosebleed core procedure includes direct pressure (RF-1, pt4)", () => 
     expect(healthSourceIndex([sources[0], epistaxis], coreProcedure(topic))).toBe(1);
   });
 });
+
+describe("compressContext keeps the rest of a chosen passage when the budget allows (RF-1, Plate tectonics)", () => {
+  const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+  it("all four sentences of the passage; the distractor still out", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory that Earth's lithosphere comprises large tectonic plates. The model builds on the concept of continental drift. Plates meet at boundaries where earthquakes occur. The processes that shape Earth's crust are called tectonics.");
+    const noise = c("n", "Lagrange point", "A Lagrange point is where the gravitational forces of two bodies balance. Earthquakes are not relevant here.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates, noise]).chunks;
+    const p = out.find((x) => x.chunkId === "p")!;
+    expect(p.body).toContain("continental drift");
+    expect(p.body).toContain("are called tectonics");
+  });
+  it("only the most relevant passage is filled (Boar: prefill cost)", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large tectonic plates. The model builds on continental drift. Plates meet at boundaries where earthquakes occur.");
+    const quake = c("q", "Earthquake", "An earthquake is the shaking of the surface of the Earth. Most occur at plate boundaries. Seismometers record them all over the world.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates, quake]).chunks;
+    const filled = out.filter((x) => /continental drift|Seismometers/.test(x.body));
+    expect(filled).toHaveLength(1);
+  });
+
+  it("a tight budget still keeps only the matching sentences", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large plates. The model builds on continental drift and many other long ideas from the twentieth century. Plates meet at boundaries where earthquakes occur.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates], { tokenBudget: 30 }).chunks;
+    expect(out[0].body).not.toContain("continental drift");
+  });
+});
