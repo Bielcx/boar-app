@@ -37,3 +37,13 @@ describe("composerPlaceholderKey (Prism LD-1)", () => {
     expect(composerPlaceholderKey("error")).toBe("chat.composer.placeholder");
   });
 });
+
+describe("indexing (Prism IX-1)", () => {
+  it("is its own state while the library is indexed, with its own placeholder and hint, and sending held", () => {
+    expect(modelStatus(false, null, true)).toBe("indexing");
+    expect(modelStatus(true, null, true)).toBe("ready");
+    expect(modelStatus(false, "boom", true)).toBe("error");
+    expect(composerPlaceholderKey("indexing")).toBe("chat.composer.placeholderIndexing");
+    expect(composerNotice("indexing")).toEqual({ line: null, hint: "chat.composer.indexing" });
+  });
+});

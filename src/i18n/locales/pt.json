@@ -714,7 +714,9 @@
       "stopping": "Parando",
       "notReady": "Carregando o modelo… você já pode digitar",
       "modelError": "O modelo não carregou. Resolva acima para enviar.",
-      "placeholderLoading": "Digite enquanto o modelo carrega"
+      "placeholderLoading": "Digite enquanto o modelo carrega",
+      "placeholderIndexing": "Digite enquanto o acervo é indexado",
+      "indexing": "O envio libera quando o acervo offline terminar de indexar"
     },
     "stage": {
       "searching": "Buscando nas fontes…",

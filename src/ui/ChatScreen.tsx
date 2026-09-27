@@ -113,6 +113,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     draftInput = input;
   }, [input]);
   const [ready, setReady] = useState(false);
+  // The model is loaded and the offline library is being indexed (first run): sending waits (IX-1).
+  const [indexing, setIndexing] = useState(false);
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
@@ -230,7 +232,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           progress: p.total > 0 ? p.done / p.total : undefined,
         })
       );
-      await seedKnowledgeBaseIfEmpty().finally(stopProgress);
+      setIndexing(true);
+      await seedKnowledgeBaseIfEmpty().finally(() => {
+        stopProgress();
+        setIndexing(false);
+      });
       setReady(true);
     } catch (e: any) {
       setLoadError(e?.message ?? String(e));
@@ -817,7 +823,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           onChange={setInput}
           onSend={() => ask(input)}
           onStop={stopActive}
-          status={modelStatus(ready, loadError)}
+          status={modelStatus(ready, loadError, indexing)}
           generating={generating}
           stopping={stopping}
           voiceEnabled={voiceInputEnabled}
