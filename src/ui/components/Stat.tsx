@@ -1,5 +1,5 @@
 import React from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { useTokens } from "../theme";
 import { Text } from "./Text";
 import type { TextColor } from "./Text";
@@ -15,6 +15,13 @@ export interface StatProps {
   size?: "xl" | "lg" | "md" | "sm";
   align?: "left" | "right";
   color?: TextColor;
+}
+
+/** Trim of the hero's extra leading, per platform (measured on device against the mockup). */
+function xlTrim(size: number) {
+  return Platform.OS === "android"
+    ? { marginTop: -size * 0.125, marginBottom: -size * 0.13 }
+    : { marginTop: size * 0.09, marginBottom: -size * 0.325 };
 }
 
 const VALUE_VARIANT = { xl: "hero", lg: "display", md: "title1", sm: "headline" } as const;
@@ -39,8 +46,12 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
           color={color}
           numeric
           header={false}
-          // xl: trim the extra leading of `hero` (kept so iOS doesn't clip the ascenders) from the layout.
-          style={size === "xl" ? { marginVertical: -((t.type.hero.lineHeight ?? 0) - (t.type.hero.fontSize ?? 0)) / 2 } : undefined}
+          // xl: `hero` keeps a 1.2 line box so iOS doesn't clip Baloo's ascenders; the digits sit high in
+          // it, so the trim is asymmetric (measured on device vs the mockup, Prism 2e7a026): +0.09 of the
+          // size above (overline → digits 21.5 pt) and -0.325 below (digits → bar 21 pt).
+          // Android centres the digits in the line box, so there the trim is symmetric (Prism A3-1, 34efdf8:
+          // overline→digits 33.5 and digits→bar 10 with the iOS values).
+          style={size === "xl" ? xlTrim(t.type.hero.fontSize ?? 0) : undefined}
         >
           {shown}
         </Text>

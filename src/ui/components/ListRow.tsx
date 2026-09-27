@@ -71,7 +71,7 @@ export function ListRow({
             {title}
           </Text>
           {value && !trailing && (
-            <Text variant="callout" color="tertiary" style={styles.value} numberOfLines={2}>
+            <Text variant="callout" color="secondary" style={styles.value} numberOfLines={2}>
               {value}
             </Text>
           )}
@@ -144,7 +144,9 @@ export function ListRow({
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   body: { flex: 1, gap: 2 },
-  titleLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: 8, justifyContent: "space-between" },
-  title: { flexShrink: 1 },
-  value: { flexShrink: 1, textAlign: "right", marginLeft: "auto" },
+  // Title and value share one line (value right, at most half the width, wrapping in place) instead of
+  // the value dropping to a second line on its own (Prism LT-2, 'Keep the last 10').
+  titleLine: { flexDirection: "row", alignItems: "baseline", columnGap: 8 },
+  title: { flex: 1, flexShrink: 1 },
+  value: { flexShrink: 1, maxWidth: "50%", textAlign: "right" },
 });
