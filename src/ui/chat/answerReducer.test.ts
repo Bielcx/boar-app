@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerEvent, AnswerReceipt as Receipt } from "./answerEvents";
+import { answerSourceSplit, sourcesCardMode } from "./sourceLabel";
+import { answerShowsEmergencyNote } from "./safetyNote";
 import {
   answerPhase,
   answerReducer,
@@ -266,5 +268,23 @@ describe("NB-1 health excerpt (instant-tier tokens)", () => {
     expect(s.safety).toBe(true);
     expect(answerReducer(s, { type: "token", answerId: "a", tier: "instant", text: "x" } as never).extract).toBe(text);
     expect(answerPhase(s)).toBe("done");
+  });
+});
+
+describe("NB-1 PT (Prism, 7a79150): the health excerpt cites [4] of 5 sources", () => {
+  it("with the engine's done.cited, only source 4 is cited and the note shows", () => {
+    const receipt = { modelId: "extractive", modelLabel: "Source excerpt", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 400, reasonCodes: [] };
+    const chunk = (id: string, relevance: number) => ({ chunkId: id, docId: id.split("#")[0], title: id, body: "b", score: 1, matchType: "hybrid" as const, relevance });
+    let s = { answerIds: ["a"], sources: [] } as AnswerState;
+    const sources = [chunk("Nosebleed#0", 1), chunk("Nosebleed#1", 1), chunk("Emergency bleeding control#0", 1), chunk("External Bleeding#0", 0.52), chunk("Bleeding#0", 0.52)];
+    s = answerReducer(s, { type: "sources", answerId: "a", tier: "instant", sources } as never);
+    s = answerReducer(s, { type: "token", answerId: "a", tier: "instant", text: "Da fonte offline (em inglês): … [4]\n\nEm uma emergência, ligue 192." } as never);
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "instant", outcome: "success", receipt, cited: [4], safety: true } as never);
+    expect(answerSourceSplit(s)).toEqual({ cited: [3], related: [0, 1, 2, 4] });
+    expect(sourcesCardMode(false, answerSourceSplit(s))).toBe("cited");
+    expect(answerShowsEmergencyNote(s, "Meu nariz esta sangrando, o que eu faco?", false)).toBe(true);
+    // Without cited (a build before c884d7a, as 7a79150): every source, by design.
+    const legacy = answerReducer({ ...s, cited: undefined, instantDone: undefined }, { type: "done", answerId: "a", tier: "instant", outcome: "success", receipt } as never);
+    expect(sourcesCardMode(false, answerSourceSplit(legacy))).toBe("all");
   });
 });
