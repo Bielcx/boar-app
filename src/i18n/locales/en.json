@@ -109,7 +109,7 @@
   "personalities": {
     "succinct": {
       "label": "Succinct & Direct",
-      "description": "Fastest — 2–3 brief paragraphs or bullets, no preamble. Default for mobile."
+      "description": "Fastest: 2–3 short paragraphs or bullets. Default."
     },
     "detailed": {
       "label": "Thorough & Detailed",
@@ -121,7 +121,7 @@
     },
     "custom": {
       "label": "Custom",
-      "description": "Write your own system prompt."
+      "description": "Write your own instructions."
     }
   },
   "evaluation": {
@@ -171,7 +171,7 @@
     "deleteChatA11y": "Delete conversation: {{title}}",
     "deleteChatTitle": "Delete this conversation?",
     "deleteChatBody": "\"{{title}}\" will be removed from this device. This can't be undone.",
-    "deleteChatConfirm": "Delete conversation",
+    "deleteChatConfirm": "Delete",
     "chatDeleted": "Conversation deleted",
     "activeSession": "current",
     "setup": "Setup"
@@ -245,8 +245,8 @@
       "models": "Models",
       "knowledge": "Knowledge",
       "history": "Conversation history",
-      "keepLast_one": "Keep the last {{count}}",
-      "keepLast_other": "Keep the last {{count}}",
+      "keepLast_one": "Last {{count}}",
+      "keepLast_other": "Last {{count}}",
       "keepAll": "Keep all",
       "appearance": "Appearance",
       "theme": "Theme",
@@ -255,7 +255,7 @@
       "themeDark": "Dark",
       "textSize": "Text size",
       "textCompact": "Smaller",
-      "textStandard": "Standard",
+      "textStandard": "Normal",
       "textLarge": "Larger",
       "language": "Language",
       "haptics": "Vibration on touch",
@@ -277,7 +277,7 @@
       "eraseConfirm": "Erase everything",
       "saveFailed": "Couldn't save that change. Try again.",
       "resetFailed": "Couldn't erase the data: {{error}}",
-      "quickFirstHint": "Shows a passage from your sources in under a second.",
+      "quickFirstHint": "Shows a source passage in under a second.",
       "alwaysCompleteHint": "Researches each part of the question. Slower.",
       "palette": "Colors",
       "paletteFogueira": "Campfire",
@@ -293,7 +293,8 @@
       "hint256": "A short paragraph",
       "hint512": "A few paragraphs",
       "hint1024": "A page",
-      "hint2048": "A long answer, slower"
+      "hint2048": "A long answer, slower",
+      "words": "Up to ~{{words}} words"
     },
     "history": {
       "autoTitles": "Name conversations automatically",
@@ -305,7 +306,7 @@
       "turns_other": "{{count}} messages",
       "keep": "Conversations to keep",
       "keepFooter": "Older conversations are deleted when you go over the limit.",
-      "clear": "Delete all conversations",
+      "clear": "Delete all chats",
       "clearTitle": "Delete all conversations?",
       "clearBody": "Every conversation on this phone will be deleted. This can't be undone.",
       "cleared": "Conversations deleted"
@@ -316,14 +317,14 @@
     "row": {
       "copying": "Copying",
       "downloading": "Downloading",
-      "verifying": "Checking the file",
+      "verifying": "Checking",
       "loading": "Loading",
       "failed": "Failed",
       "failedAnnounce": "{{name}} failed. Retry is available.",
-      "verified": "File checked",
+      "verified": "Checked",
       "importChecking": "Checking {{name}}",
       "importOther": "{{name}} is a different item, not this one. Choose this item's file.",
-      "unverified": "Installed, not verified",
+      "unverified": "Not checked",
       "active": "Active",
       "usedFor": "Used for: {{roles}}",
       "role": {
@@ -384,7 +385,7 @@
       "mayClose": "May close the app",
       "mayCloseWhy": "too big for this phone's memory",
       "didNotOpen": "Didn't open here",
-      "wontFitHere": "Too big for this phone",
+      "wontFitHere": "Too big",
       "wontFitWhy": "needs more memory than this phone has",
       "wontFitNumbers": "needs ~{{need}} of memory · this phone has {{total}}",
       "didNotOpenBefore": "BOAR closed the last time it loaded ",
@@ -498,7 +499,7 @@
       "lastAnswer": "Last answer",
       "ttft": "Started answering in",
       "speed": "Writing speed",
-      "rate": "{{rate}} tokens/s",
+      "rate": "~{{words}} words/s",
       "total": "Total time",
       "load": "load",
       "usedSources": "used your sources",
@@ -541,7 +542,9 @@
         "switched": "model switched",
         "resident": "model ready",
         "unknown": ""
-      }
+      },
+      "startLabel": "Start",
+      "memoryLabel": "Memory"
     },
     "about": {
       "tagline": "Offline research on your phone",

@@ -3,6 +3,8 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { MAX_TOKENS_OPTIONS } from "../constants/personalities";
 import { voiceInBuild } from "../config/variant";
 import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
@@ -38,6 +40,13 @@ interface Values {
   maxSavedSessions: number;
   haptics: boolean;
   voice: boolean;
+}
+
+/** The length as plain words ("A page"); a nonstandard stored value falls back to its token count. */
+function lengthLabel(t: TFunction, maxTokens: number): string {
+  return (MAX_TOKENS_OPTIONS as readonly number[]).includes(maxTokens)
+    ? t(`flows.length.hint${maxTokens}`)
+    : t("flows.settings.tokens", { count: maxTokens });
 }
 
 /** Which of the four answer modes the two toggles select (see flows-spec §3.1). */
@@ -110,7 +119,7 @@ export function SettingsScreen() {
         <ListRow
           icon="align-left"
           title={t("flows.settings.length")}
-          value={t("flows.settings.tokens", { count: values.maxTokens })}
+          value={lengthLabel(t, values.maxTokens)}
           onPress={() => navigation.navigate("SettingsLength")}
         />
         <ListRow
