@@ -584,9 +584,6 @@
       "step3Sub": "This is the only time BOAR uses the internet.",
       "indexTitle": "Indexing",
       "indexSub": "Building the search index on the phone. No internet needed.",
-      "device": "This phone: {{ram}} of memory · {{free}} free",
-      "deviceUnknown": "Couldn't read this phone's memory and storage.",
-      "unknown": "unknown",
       "package": {
         "essential": {
           "name": "Essential",
@@ -603,7 +600,6 @@
       "install": "Download {{size}}",
       "continue": "Continue",
       "back": "Back",
-      "laterNote": "You can add or remove models and collections later in Settings.",
       "backTitle": "Go back to the packages?",
       "backBody": "Downloads already running keep going while BOAR is open.",
       "stay": "Stay here",
@@ -617,6 +613,10 @@
       "percentAnnounce": "{{pct}}% downloaded",
       "percentImportedAnnounce": "{{pct}}% imported",
       "queued": "Waiting",
+      "llmLabel": "Answer model",
+      "workingMemory": "needs ~{{size}} of memory",
+      "useStandard": "Use Standard instead",
+      "useCompact": "Use Compact instead",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
       "groupModels": "Models",
       "groupKnowledge": "Knowledge",
@@ -665,8 +665,6 @@
       "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
       "toImport": "Not imported yet",
       "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file).",
-      "answerModelTitle": "Answer model",
-      "answerModelFooter": "The standard model answers hard questions better; the compact one is faster and needs less memory. You can switch later in Models.",
       "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
       "answerTier": {
         "default": "Standard",
