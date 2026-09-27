@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../theme";
 import { AMBIENT_LIGHT_STRENGTH, emberGradient, MOON_ALPHA } from "../theme/ambient";
 
+const MOON_SIZE = 110;
+
 /**
  * The identity's "pattern of light", drawn behind a screen's content:
  * Fogueira = ember glow rising from the bottom; Luar = a faint full moon at
@@ -30,10 +32,12 @@ export function Ambient() {
         <View
           style={{
             position: "absolute",
-            right: -80,
+            // 110 pt (the mockup's moon behind the hero), tucked into the right edge under the header: a
+            // 220 pt disc reached into the chat's hero and read as a blob (Piston, Android Luar 35ffb87).
+            right: -(t.space.xxxl),
             top: moonTop,
-            width: 220,
-            height: 220,
+            width: MOON_SIZE,
+            height: MOON_SIZE,
             borderRadius: 999,
             backgroundColor: t.color.moon,
             opacity: MOON_ALPHA,

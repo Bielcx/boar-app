@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { Platform } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer, NavigationState, Theme, useNavigation } from "@react-navigation/native";
 import { saveNavState, savedNavState } from "./navState";
 import { createNativeStackNavigator, NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -81,6 +82,10 @@ function EvaluationRoute() {
 }
 
 /** Native header for the flow screens (Loom): large title on the canvas, back and gesture from the stack. */
+function navFont(alias: string | undefined, postScript: string): string | undefined {
+  return Platform.OS === "ios" ? postScript : alias;
+}
+
 function flowHeader(t: Tokens, title: string, large = true) {
   return {
     headerShown: true,
@@ -90,8 +95,10 @@ function flowHeader(t: Tokens, title: string, large = true) {
     headerTintColor: t.color.accent.text,
     // Brand type in the native header (the system font was the only non-brand title left):
     // large title = the setup's step title (title1, Baloo 800 26), compact = headline.
-    headerTitleStyle: { color: t.color.text.primary, fontFamily: t.type.headline.fontFamily, fontSize: t.type.headline.fontSize },
-    headerLargeTitleStyle: { color: t.color.text.primary, fontFamily: t.type.title1.fontFamily, fontSize: t.type.title1.fontSize },
+    // iOS's UINavigationBar looks fonts up by PostScript name, not by expo-font's alias: with the alias the
+    // large title drew nothing (an empty 80 pt band; Prism LT-1). Android's header is RN text (alias works).
+    headerTitleStyle: { color: t.color.text.primary, fontFamily: navFont(t.type.headline.fontFamily, "Baloo2-Bold"), fontSize: t.type.headline.fontSize },
+    headerLargeTitleStyle: { color: t.color.text.primary, fontFamily: navFont(t.type.title1.fontFamily, "Baloo2-ExtraBold"), fontSize: t.type.title1.fontSize },
     headerStyle: { backgroundColor: t.color.bg.canvas },
     headerBackButtonDisplayMode: "minimal" as const,
   };
