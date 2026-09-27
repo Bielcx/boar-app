@@ -616,6 +616,7 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     // Without the names, no English title is named by the PT words: the guard keeps nothing.
     f = makeFake();
     f.retrieved = [WALIPINI, { ...WALIPINI, chunkId: "se", title: "Season" }];
+    f.deps.englishNames = () => [];
     const { events } = await collect("Por que existem as estacoes do ano?");
     expect(events.find((e) => e.type === "instant")).toBeUndefined();
   });
