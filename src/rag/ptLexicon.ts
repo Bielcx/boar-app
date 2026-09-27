@@ -95,8 +95,10 @@ export function englishNamesIn(query: string, lexicon: Lexicon, max = 4, maxLen 
   const accented = original.length === words.length ? original.map((w) => w.normalize("NFC").toLowerCase()) : null;
   // A one-word name must be specific: a long word ("queimadura", "hipotermia") or a proper noun capitalized mid-question
   // ("Tbilisi", "Fahrenheit"). Short common nouns ("hora", "braço", "quarto") map to generic articles that bring noise.
+  // In a short question ("O que é uma monção?") the one or two content words are the subject, whatever their length.
+  const contentWords = words.filter((w) => !STOP.has(w) && !PT_MARKERS.test(w)).length;
   const specific = (i: number) =>
-    words[i].length >= 7 || (original.length === words.length && i > 0 && /^\p{Lu}/u.test(original[i]));
+    words[i].length >= 7 || contentWords <= 2 || (original.length === words.length && i > 0 && /^\p{Lu}/u.test(original[i]));
   const used = new Array(words.length).fill(false);
   const names: string[] = [];
   for (let len = Math.min(maxLen, words.length); len >= 1; len--) {
