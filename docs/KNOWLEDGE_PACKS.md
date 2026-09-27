@@ -399,10 +399,19 @@ in the pack ("ERC-20" among hundreds of ERCs).
 `docs/packs/boar-crypto.relevance.json` (people, companies, wartime codebreaking
 history, films). Cost: US$0.022. The curated git sources are not filtered.
 
-**Result** (2026-09-26): 3,141 documents; pack **35,962,880 bytes**, SHA-256
-`fe75514ed407ea5f9c0310d3261407c9e779719b7787c2d8c4e7f584dae12c5e`, lead
+**Result** (2026-09-26): 3,141 documents; pack **36,093,952 bytes**, SHA-256
+`ae9fbd2c7a46a46a815d46d0283e7b192adb4c342b38a2adc4881e8f9d8831fb`, lead
 embeddings for all 3,141 documents (bge-small, Metal, on the Mac mini). Hosted at
-`topics/boar-crypto.sqlite` in the dataset r4topunk/boar-packs, commit `b309ba9`.
+`topics/boar-crypto.sqlite` in the dataset r4topunk/boar-packs, commit `a55c1ec`
+(the first build, without the Wikipedia redirect dump, stays at `b309ba9`).
+
+**All Wikipedia redirects.** The build takes `--redirects enwiki-latest-redirect.sql.gz
+--index …multistream-index.txt.bz2` like the Wikipedia packs: of 12,417,761
+redirects, the 4,619 that point at an article in the pack are kept (+131 KB).
+Common names resolve by title: of 24 spellings tried (SHA-256, SHA256, ECDSA,
+zk-SNARK, EdDSA, Ed25519, Diffie-Hellman, NFT, DeFi, PoS, …) 18 now reach
+their article, against 4 before. The 20 eval questions don't use those
+spellings, and their scores are unchanged (same weights).
 Every document is listed in `docs/packs/boar-crypto.manifest.json`.
 
 **Retrieval** (`eval/retrieval/questions.crypto.v1.jsonl`, 20 questions written
