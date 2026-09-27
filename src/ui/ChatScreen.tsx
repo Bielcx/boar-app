@@ -745,6 +745,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       sourcePassage: t("chat.share.sourcePassage"),
       myDocuments: t("chat.share.myDocuments"),
       noOfflineSource: t("chat.receipt.noOfflineSource"),
+      calculator: t("chat.receipt.calculator"),
     }),
     [t]
   );

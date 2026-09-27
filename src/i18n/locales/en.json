@@ -829,6 +829,7 @@
       "sourcePassage": "Source passage",
       "localModel": "Local model",
       "noOfflineSource": "No offline source",
+      "calculator": "Calculator",
       "started": "started in {{time}}",
       "offline": "offline",
       "details": "Performance details",

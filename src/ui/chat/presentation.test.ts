@@ -89,6 +89,12 @@ describe("receiptLine", () => {
     );
   });
 
+  it("names the exact conversion in the app's language (Tusk 7e9687a)", () => {
+    expect(receiptLine({ ...receipt, modelId: "calculator", modelLabel: "Calculator", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 10 }, "pt-BR", t)).toBe(
+      'chat.receipt.answeredIn{"time":"0 s"} · chat.receipt.calculator · chat.receipt.offline'
+    );
+  });
+
   it("omits speed when nothing was generated", () => {
     expect(receiptLine({ ...receipt, tokens: 0, tokPerSec: 0, ttftMs: 0 }, "en-US", t)).toBe(
       'chat.receipt.answeredIn{"time":"6.2 s"} · Qwen3 4B · chat.receipt.offline'
@@ -246,6 +252,7 @@ describe("offersAskModel (Prism CT-4)", () => {
   it("after a source passage, yes; after the engine's fixed current-events answer, no", () => {
     expect(offersAskModel(r("extractive"))).toBe(true);
     expect(offersAskModel(r("grounding-guard"))).toBe(false);
+    expect(offersAskModel(r("calculator"))).toBe(false);
   });
   it("never once the model answered, for places, or before the instant pass ends", () => {
     expect(offersAskModel({ ...r("extractive"), fast: {} })).toBe(false);

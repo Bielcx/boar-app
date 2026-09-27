@@ -204,7 +204,7 @@ export function isAnswerActive(state: AnswerState): boolean {
 }
 
 /** Receipts of answers no model wrote: a source passage, a fixed engine answer, a places list. */
-const MODEL_FREE_IDS = new Set(["extractive", "grounding-guard", "places"]);
+const MODEL_FREE_IDS = new Set(["extractive", "grounding-guard", "places", "calculator", "none"]);
 
 /**
  * Why a model's answer rests on no source of this phone (Prism CT-5, Tusk a428bb6): the engine flags

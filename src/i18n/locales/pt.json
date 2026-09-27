@@ -829,6 +829,7 @@
       "sourcePassage": "Trecho da fonte",
       "localModel": "Modelo local",
       "noOfflineSource": "Sem fonte offline",
+      "calculator": "Calculadora",
       "started": "começou em {{time}}",
       "offline": "offline",
       "details": "Detalhes de desempenho",

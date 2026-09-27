@@ -13,5 +13,14 @@ export function splitInlineBullets(text: string): string {
     .split("\n")
     .map((line) => ((line.match(inline) ?? []).length >= 2 ? line.replace(inline, "$1\n- ") : line))
     .map((line) => ((line.match(numbered) ?? []).length >= 2 ? line.replace(numbered, "$1\n$2. ") : line))
+    .join("\n")
+    .split("\n")
+    // "- 1. Drop… - 2. Cover…" (a numbered list with dashes, Ready.gov): an ordered list, not bullets holding numbers.
+    .reduce<string[]>((out, line, i, all) => {
+      const numberedBullet = /^- (\d{1,2})\. /;
+      const run = numberedBullet.test(line) && (numberedBullet.test(all[i - 1] ?? "") || numberedBullet.test(all[i + 1] ?? ""));
+      out.push(run ? line.replace(numberedBullet, "$1. ") : line);
+      return out;
+    }, [])
     .join("\n");
 }

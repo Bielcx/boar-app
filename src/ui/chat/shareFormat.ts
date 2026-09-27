@@ -1,6 +1,6 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerReceipt as Receipt } from "./answerEvents";
-import { EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID } from "./answerEvents";
+import { CALCULATOR_MODEL_ID, EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID } from "./answerEvents";
 
 /** Labels come from i18n so the text reads in the app's language. */
 export interface ShareLabels {
@@ -13,6 +13,8 @@ export interface ShareLabels {
   myDocuments: string;
   /** e.g. "No offline source": the engine's fixed answer when nothing on the phone covers it. */
   noOfflineSource?: string;
+  /** e.g. "Calculator": an exact conversion, no model. */
+  calculator?: string;
 }
 
 function sourceLine(chunk: RetrievedChunk, n: number, labels: ShareLabels): string {
@@ -59,7 +61,9 @@ export function formatForShare(
         ? labels.sourcePassage
         : receipt.modelId === GROUNDING_GUARD_MODEL_ID
           ? labels.noOfflineSource ?? receipt.modelLabel
-          : receipt.modelLabel;
+          : receipt.modelId === CALCULATOR_MODEL_ID
+            ? labels.calculator ?? receipt.modelLabel
+            : receipt.modelLabel;
     parts.push(`${labels.answeredOffline} · ${who} · ${formatSeconds(receipt.totalMs, locale)}`);
   }
   return parts.join("\n\n");

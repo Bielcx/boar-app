@@ -36,3 +36,15 @@ describe("splitInlineBullets on flattened numbered steps (FMT-1, Ready.gov)", ()
     expect(splitInlineBullets("See step 1. 2. Then go.")).toBe("See step 1. 2. Then go.");
   });
 });
+
+describe("splitInlineBullets on a dashed numbered list (Ready.gov, Tusk 7e9687a)", () => {
+  it("becomes an ordered list, not bullets holding numbers", () => {
+    const t = "Protect Yourself During Earthquakes: - 1. Drop (or Lock): Drop where you are. - 2. Cover: Cover your head. - 3. Hold On: Hold until the shaking stops. [1]";
+    expect(splitInlineBullets(t)).toBe(
+      "Protect Yourself During Earthquakes:\n1. Drop (or Lock): Drop where you are.\n2. Cover: Cover your head.\n3. Hold On: Hold until the shaking stops. [1]"
+    );
+  });
+  it("a lone '- 1.' line stays a bullet", () => {
+    expect(splitInlineBullets("Intro.\n- 1. only one")).toBe("Intro.\n- 1. only one");
+  });
+});
