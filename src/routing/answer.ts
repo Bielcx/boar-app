@@ -215,6 +215,20 @@ export function createAnswerer(deps: AnswerDeps) {
         return finishPlaces("no_pack", noPackAnswer(intent), { kind: intent.near.kind === "device" ? "near" : "city" });
       }
 
+      // A city written in lower case or after "de" counts only when the gazetteer knows it.
+      if (intent.near.kind === "device" && intent.placeCandidates?.length) {
+        for (const c of intent.placeCandidates) {
+          const hit = await geo.resolvePlace(c).catch(() => null);
+          // An alternate-name match on a small town is too weak ("center" -> Ózd): a city, or the same name.
+          const fold = (x: string) => x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          if (hit && (hit.kind === "city" || fold(hit.name) === fold(c))) {
+            intent = { ...intent, near: { kind: "place", name: c } };
+            reasonCodes.push("places:gazetteer-name");
+            break;
+          }
+        }
+      }
+
       let center: { lat: number; lon: number };
       let area: Extract<AnswerEvent, { type: "places" }>["area"];
       if (intent.near.kind === "place") {
