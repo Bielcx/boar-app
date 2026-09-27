@@ -898,7 +898,12 @@
       "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
       "offlineSeal": "Offline",
       "offlineAnswersSeal": "Answers offline",
-      "offlineSealSpoken": "Offline: no network used"
+      "offlineSealSpoken": "Offline: no network used",
+      "downgraded": {
+        "low-ram": "Answering with {{model}}. {{from}} needs your confirmation on this phone",
+        "load-crashed": "Answering with {{model}}. {{from}} closed the app on this phone",
+        "hint": "Opens Models"
+      }
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {

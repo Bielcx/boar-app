@@ -898,7 +898,12 @@
       "voiceCaveat": "A entrada por voz usa o reconhecedor do sistema, que pode não ser offline.",
       "offlineSeal": "Offline",
       "offlineAnswersSeal": "Respostas offline",
-      "offlineSealSpoken": "Offline: sem uso de rede"
+      "offlineSealSpoken": "Offline: sem uso de rede",
+      "downgraded": {
+        "low-ram": "Respondendo com {{model}}. O {{from}} precisa da sua confirmação neste celular",
+        "load-crashed": "Respondendo com {{model}}. O {{from}} fechou o app neste celular",
+        "hint": "Abre Modelos"
+      }
     },
     "jumpToLatest": "Ir para a resposta mais recente",
     "share": {

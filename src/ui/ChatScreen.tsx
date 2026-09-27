@@ -50,7 +50,7 @@ import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { ChatHeader } from "./ChatHeader";
 import { Banner, Button, IconButton, Progress, Screen, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
-import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./chat/answerApi";
+import { answer as runAnswer, deepen as runDeepen, effectiveAnswerModel, type AnswerContext } from "./chat/answerApi";
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
 import { answerPhase, answerReducer, asInterrupted, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
@@ -493,6 +493,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadError]);
 
+  // The model that will really answer (CR-1): the engine's own choice, so header and answer() agree.
+  const [effective, setEffective] = useState<Awaited<ReturnType<typeof effectiveAnswerModel>>>(null);
+  useEffect(() => {
+    effectiveAnswerModel()
+      .then(setEffective)
+      .catch(() => undefined);
+  }, [ready, activeModel?.id]);
+
   // Installed knowledge, so the empty chat only suggests questions with an on-topic source here (RT-1).
   // Re-read when the model state changes (setup and the Knowledge screen run before the chat is ready).
   const [knowledge, setKnowledge] = useState<string[]>([]);
@@ -612,6 +620,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         getVoiceInputEnabled().then(setVoiceInputEnabledState);
         getHidePromptIdeas().then((hide) => setShowSuggestions(!hide));
         installedKnowledgeIds().then(setKnowledge).catch(() => undefined);
+        effectiveAnswerModel().then(setEffective).catch(() => undefined);
         // Settings loads a newly chosen LLM itself; only re-run the full init if what's loaded doesn't match.
         const llm = await resolveActiveModel("llm");
         if (ready && llamaEngine.getModelInfo()?.filename === llm.filename) setActiveModel(llm);
@@ -759,7 +768,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   return (
     <Screen scroll={false} padded={false} ambient edges={["top", "bottom", "left", "right"]}>
       <ChatHeader
-        activeModelLabel={activeModel?.label}
+        activeModelLabel={effective?.label ?? activeModel?.label}
+        downgradedFrom={effective?.downgradedFrom}
+        onOpenModels={() => navigation.navigate("Models")}
         voiceEnabled={voiceInputEnabled}
         onOpenDrawer={() => {
           refreshSessions();
