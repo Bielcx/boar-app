@@ -86,8 +86,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
       if (p) {
         if (PACKAGES.some((x) => x.id === p.packageId)) setPackageId(p.packageId as PackageId);
         if (p.answerTier) setAnswerTier(p.answerTier);
-        setPackageChosen(true);
-        setAnswerChosen(true);
+        // Only a real pick is kept; an automatic recommendation is recomputed (Prism S2-3).
+        setPackageChosen(!!p.packageChosen);
+        setAnswerChosen(!!p.answerChosen);
         const region = p.travelRegionId ? poiRegions().find((r) => r.id === p.travelRegionId) : undefined;
         if (region) setTravel(region);
         setStep(p.step);
@@ -96,8 +97,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
     });
   }, []);
   useEffect(() => {
-    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id, answerTier });
-  }, [restored, step, packageId, travel, answerTier]);
+    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id, answerTier, packageChosen, answerChosen });
+  }, [restored, step, packageId, travel, answerTier, packageChosen, answerChosen]);
   const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
@@ -567,11 +568,12 @@ function PackageStep({
               return (
                 <OptionCard
                   key={tierId}
-                  title={t(`flows.onboarding.answerTier.${tierId}`, { name: m.label })}
+                  title={t(`flows.onboarding.answerTier.${tierId}`)}
                   selected={answerTier === tierId}
                   onPress={() => onUserAnswer(tierId)}
                   badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggestedHere")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
+                  meta={[m.label]}
                 />
               );
             })}
@@ -782,7 +784,7 @@ function shortStatus(state: RowState, model: CatalogModel, t: ReturnType<typeof 
     case "not-installed":
       return t(canDownload(model) ? "flows.onboarding.queued" : "flows.onboarding.toImport");
     case "downloading":
-      return `${Math.round(state.progress * 100)}%`;
+      return state.progress > 0 ? `${Math.round(state.progress * 100)}%` : t("flows.onboarding.queued");
     case "verifying":
       return t("flows.onboarding.checking");
     case "failed":
@@ -959,10 +961,11 @@ function InstallStep({
     : states.map(({ asset, state }) => ({
         key: asset.id,
         icon: <PhaseIcon state={state} />,
-        title: `${t(`flows.row.kind.${asset.kind}`)} · ${asset.label}`,
+        // Models say what they are; knowledge items are named by their title alone (Prism S3-3).
+        title: asset.kind === "corpus" ? asset.label : `${t(`flows.row.kind.${asset.kind}`)} · ${asset.label}`,
         status: shortStatus(state, asset, t),
         spoken: statusLine(state, asset, t, lang) as string | undefined,
-        tone: (state.kind === "failed" ? "danger" : state.kind === "downloading" || state.kind === "verifying" ? "accent" : "secondary") as TextColor,
+        tone: (state.kind === "failed" ? "danger" : moving(state) ? "accent" : "secondary") as TextColor,
       }));
   return (
     <Screen
@@ -970,8 +973,8 @@ function InstallStep({
       footer={
         ready ? (
           <Button label={t("flows.onboarding.open")} fullWidth onPress={onReady} />
-        ) : (
-          <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} disabled={indexPhase === "building"} />
+        ) : indexPhase === "building" ? undefined : ( // no disabled Back while the index is built (Prism R-IDX-3)
+          <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} />
         )
       }
     >
@@ -1131,10 +1134,15 @@ function InstallStep({
   );
 }
 
+/** Bytes are arriving or being checked. A download that has not started yet reads as waiting: one accent per screen (Prism S3-2). */
+function moving(state: RowState): boolean {
+  return (state.kind === "downloading" && state.progress > 0) || state.kind === "verifying";
+}
+
 function PhaseIcon({ state }: { state: RowState }) {
   const tokens = useTokens();
   if (state.kind === "installed" || state.kind === "in-use") return <Icon name="check-circle" color={tokens.color.status.success.solid} />;
   if (state.kind === "failed") return <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />;
-  if (state.kind === "downloading" || state.kind === "verifying") return <Icon name="download" color={tokens.color.accent.text} />;
+  if (moving(state)) return <Icon name="download" color={tokens.color.accent.text} />;
   return <Icon name="circle" color={tokens.color.text.secondary} />;
 }

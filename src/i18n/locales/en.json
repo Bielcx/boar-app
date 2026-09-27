@@ -546,7 +546,7 @@
       "phoneMemory": "Memory",
       "phoneFree": "Free space",
       "meta": {
-        "onDisk": "{{size}} on disk",
+        "onDisk": "{{size}} in total after install",
         "time": "~{{minutes}} min at {{speed}}/s"
       },
       "point1": "Works offline once it is set up.",
@@ -627,8 +627,8 @@
       "answerModelFooter": "The standard model answers hard questions better; the compact one is faster and needs less memory. You can switch later in Models.",
       "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
       "answerTier": {
-        "default": "Standard: {{name}}",
-        "compact": "Compact: {{name}}"
+        "default": "Standard",
+        "compact": "Compact"
       },
       "suggestedHere": "suggested for this phone",
       "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."

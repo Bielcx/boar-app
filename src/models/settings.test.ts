@@ -50,4 +50,9 @@ describe("setup progress", () => {
     await setSetupProgress(null);
     expect(await getSetupProgress()).toBeNull();
   });
+
+  it("keeps whether the package and answer model were picked by the user", async () => {
+    await setSetupProgress({ step: 2, packageId: "essential", answerTier: "compact", packageChosen: false, answerChosen: true });
+    expect(await getSetupProgress()).toMatchObject({ packageChosen: false, answerChosen: true });
+  });
 });

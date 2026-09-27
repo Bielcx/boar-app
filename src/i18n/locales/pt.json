@@ -546,7 +546,7 @@
       "phoneMemory": "Memória",
       "phoneFree": "Espaço livre",
       "meta": {
-        "onDisk": "{{size}} no disco",
+        "onDisk": "{{size}} no total depois de instalar",
         "time": "~{{minutes}} min a {{speed}}/s"
       },
       "point1": "Funciona offline depois de configurado.",
@@ -627,8 +627,8 @@
       "answerModelFooter": "O padrão responde melhor perguntas difíceis; o compacto é mais rápido e usa menos memória. Dá para trocar depois em Modelos.",
       "compactWhy": "A estimativa de memória indica que o padrão pode não rodar bem neste celular, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
       "answerTier": {
-        "default": "Padrão: {{name}}",
-        "compact": "Compacto: {{name}}"
+        "default": "Padrão",
+        "compact": "Compacto"
       },
       "suggestedHere": "sugerido para este celular",
       "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão."
