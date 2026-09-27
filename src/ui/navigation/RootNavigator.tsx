@@ -102,6 +102,10 @@ function flowHeader(t: Tokens, title: string, large = true) {
     // colour only, to see whether the style is the cause (Harbor 777979f: the font resolves fine).
     headerLargeTitleStyle: { color: t.color.text.primary },
     headerStyle: { backgroundColor: t.color.bg.canvas },
+    // LT-1 test 4: with an opaque headerStyle, the large-title (scroll-edge) appearance needs its own
+    // background, or iOS may not draw the large title over it (Prism).
+    headerLargeStyle: { backgroundColor: t.color.bg.canvas },
+    headerLargeTitleShadowVisible: false,
     headerBackButtonDisplayMode: "minimal" as const,
   };
 }
