@@ -344,6 +344,7 @@
       },
       "error": {
         "network": "Sem conexão. Conecte-se e tente de novo.",
+        "stalled": "O download parou de avançar.",
         "storage": "Falta espaço livre no celular.",
         "hash-mismatch": "O arquivo veio diferente do esperado. Pegue uma cópia nova do arquivo e tente de novo.",
         "size-mismatch": "O arquivo veio incompleto. Pegue uma cópia nova do arquivo e tente de novo.",
@@ -353,6 +354,10 @@
         "unknown-file": "Este arquivo não é um que o BOAR conhece. Escolha o arquivo indicado para este item.",
         "too-large": "Este arquivo é maior do que o BOAR aceita para este tipo de item.",
         "no-source": "Este item ainda não está publicado para download. Importe o arquivo."
+      },
+      "errorDetail": {
+        "interrupted": "Parou em {{done}} de {{total}}. Tente de novo para continuar de onde parou.",
+        "paused": "Sem progresso por {{seconds}} s. Toque em Tentar de novo para continuar."
       },
       "download": "Baixar {{size}}",
       "retry": "Tentar de novo",

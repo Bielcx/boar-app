@@ -6,7 +6,7 @@ import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, 
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
-import { formatBytes, formatRam, readableErrorDetail } from "./format";
+import { failureLines, formatBytes, formatRam } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
@@ -141,16 +141,20 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         />
       )}
 
-      {state.kind === "failed" && (
-        <View style={{ gap: tokens.space.xxs }}>
-          <Text variant="footnote" color="danger">
-            {t(`flows.row.error.${state.errorKind}`)}
-          </Text>
-          <Text variant="caption" color="secondary" selectable>
-            {readableErrorDetail(state.message, i18n.language)}
-          </Text>
-        </View>
-      )}
+      {state.kind === "failed" &&
+        (() => {
+          const lines = failureLines(state, t, i18n.language);
+          return (
+            <View style={{ gap: tokens.space.xxs }}>
+              <Text variant="footnote" color="danger">
+                {lines.cause}
+              </Text>
+              <Text variant="caption" color="secondary" selectable>
+                {lines.detail}
+              </Text>
+            </View>
+          );
+        })()}
 
       {fileImport && (
         <View style={{ gap: tokens.space.xs }} accessibilityLiveRegion="polite">

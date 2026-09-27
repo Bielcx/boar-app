@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatBytesParts, formatRam, formatSeconds, minutesAbout, minutesLeft, readableErrorDetail } from "./format";
+import { formatBytes, formatBytesParts, formatRam, formatSeconds, failureLines, minutesAbout, minutesLeft, readableErrorDetail } from "./format";
 
 describe("formatBytes", () => {
   it("uses the locale's decimal separator", () => {
@@ -73,5 +73,30 @@ describe("readableErrorDetail (Prism MD-1)", () => {
 
   it("leaves a message without sizes as it is", () => {
     expect(readableErrorDetail("The file is not in the catalog.", "en")).toBe("The file is not in the catalog.");
+  });
+});
+
+describe("failureLines (download errors translated from Ledger's codes, MD-4)", () => {
+  const t = (key: string, o?: Record<string, unknown>) => `${key}${o ? " " + JSON.stringify(o) : ""}`;
+
+  it("interrupted: the cause, then where it stopped, sizes formatted", () => {
+    const r = failureLines(
+      { errorKind: "network", message: "Download of X was interrupted …", detail: { code: "interrupted", bytesDone: 782_790_059, bytesTotal: 2_497_281_120 } },
+      t,
+      "pt"
+    );
+    expect(r.cause).toBe("flows.row.error.network");
+    expect(r.detail).toBe('flows.row.errorDetail.interrupted {"done":"783 MB","total":"2,5 GB","seconds":0}');
+  });
+
+  it("paused is a stall, not a lost connection", () => {
+    const r = failureLines({ errorKind: "network", message: "", detail: { code: "paused", bytesDone: 1, bytesTotal: 2, stallS: 60 } }, t, "en");
+    expect(r.cause).toBe("flows.row.error.stalled");
+    expect(r.detail).toContain('"seconds":60');
+  });
+
+  it("without a code, the readable English detail", () => {
+    const r = failureLines({ errorKind: "storage", message: "needs 3000000000 bytes (ENOSPC)" }, t, "en");
+    expect(r).toEqual({ cause: "flows.row.error.storage", detail: "needs 3 GB" });
   });
 });

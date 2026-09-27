@@ -45,6 +45,31 @@ export function readableErrorDetail(message: string, locale: string): string {
     .trim();
 }
 
+/**
+ * The failure lines of a row: the cause, then the detail. A download that
+ * stopped part-way has a code and numbers (Ledger's DownloadErrorDetail),
+ * translated here; anything else falls back to the readable English detail.
+ */
+export function failureLines(
+  f: { errorKind: string; message: string; detail?: { code: "interrupted" | "paused"; bytesDone: number; bytesTotal: number; stallS?: number } },
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  locale: string
+): { cause: string; detail: string } {
+  const d = f.detail;
+  if (d) {
+    return {
+      // A stall is not a lost connection: say what happened (MD-4).
+      cause: t(d.code === "paused" ? "flows.row.error.stalled" : `flows.row.error.${f.errorKind}`),
+      detail: t(`flows.row.errorDetail.${d.code}`, {
+        done: formatBytes(d.bytesDone, locale),
+        total: formatBytes(d.bytesTotal, locale),
+        seconds: d.stallS ?? 0,
+      }),
+    };
+  }
+  return { cause: t(`flows.row.error.${f.errorKind}`), detail: readableErrorDetail(f.message, locale) };
+}
+
 /** Minutes, rounded up, for time-left estimates; at least 1. */
 export function minutesLeft(seconds: number): number {
   return Math.max(1, Math.ceil(seconds / 60));

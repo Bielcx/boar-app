@@ -9,7 +9,7 @@
  * until those land, and a row without them falls back to today's fields.
  */
 
-import type { IntegrityErrorKind } from "../../models/integrity";
+import type { DownloadErrorDetail, IntegrityErrorKind } from "../../models/integrity";
 
 export type DownloadPhase = "downloading" | "copying" | "verifying" | "verified" | "error";
 /** The trust layer's error kinds (src/models/integrity.ts). */
@@ -27,6 +27,8 @@ export interface RowDownload {
   verifyTotal?: number;
   errorKind?: DownloadErrorKind;
   permanent?: boolean;
+  /** Why a download stopped part-way, with its numbers (Ledger, MD-4); the UI translates it. */
+  errorDetail?: DownloadErrorDetail;
 }
 
 export interface RowInput {
@@ -47,7 +49,7 @@ export type RowState =
   | { kind: "not-installed" }
   | { kind: "downloading"; phase: "downloading" | "copying"; progress: number }
   | { kind: "verifying"; progress: number | null }
-  | { kind: "failed"; errorKind: DownloadErrorKind | "load"; message: string; permanent: boolean }
+  | { kind: "failed"; errorKind: DownloadErrorKind | "load"; message: string; permanent: boolean; detail?: DownloadErrorDetail }
   | { kind: "loading" }
   | { kind: "in-use"; roles: ModelRole[]; verified: boolean }
   | { kind: "installed"; verified: boolean };
@@ -79,6 +81,7 @@ function stateOf(input: RowInput): RowState {
       errorKind: dl.errorKind ?? "unknown",
       message: dl.error,
       permanent: dl.permanent ?? false,
+      detail: dl.errorDetail,
     };
   }
   if (dl?.downloading) {
