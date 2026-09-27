@@ -938,6 +938,23 @@ describe("answer(): today in history (Boar/Piston R3)", () => {
   });
 });
 
+describe("answer(): PT questions against English sources (Sextant sugval3 q9)", () => {
+  it("'O que é tectônica de placas?' keeps 'Plate tectonics' (with and without accent)", async () => {
+    const PLATES = chunk("pt", "Plate tectonics", "Plate tectonics is the scientific theory that Earth's lithosphere comprises a number of large tectonic plates, which have been slowly moving since 3–4 billion years ago.");
+    for (const q of ["O que é tectônica de placas?", "O que é tectonica de placas?"]) {
+      f = makeFake();
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+      f.retrieved = [PLATES];
+      f.deps.engine.generate = async () => "A tectônica de placas é a teoria de que a litosfera da Terra é formada por grandes placas tectônicas.";
+      const { events, result } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any)?.sources ?? [];
+      expect(sources.map((c: RetrievedChunk) => c.title), q).toEqual(["Plate tectonics"]);
+      expect(result.receipt.reasonCodes.some((c) => c.startsWith("grounding:off-topic-dropped")), q).toBe(false);
+    }
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
