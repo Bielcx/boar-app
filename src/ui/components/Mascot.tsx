@@ -6,17 +6,17 @@ import { discImage } from "./mascotFrame";
 
 export interface MascotProps {
   /**
-   * hero 128: the whole boar (empty/loading/error states).
-   * brand 56 · avatar 32 · avatarSm 24: the face in an accent disc (brand line, header, message row).
+   * Whole boar: hero 170 (chat empty state), md 120 (model loading/error, download hero).
+   * Face in an accent disc: brand 48 (setup brand line), avatar 42 (chat header), avatarSm 26 (message row).
    */
-  size?: "hero" | "brand" | "avatar" | "avatarSm";
-  /** Hero only: the ember glow under the boar (empty state). */
+  size?: "hero" | "md" | "brand" | "avatar" | "avatarSm";
+  /** Whole boar only: the ember glow under it (empty state, download hero). */
   glow?: boolean;
   /** Dimmed while waiting (model loading, failed load). */
   dim?: boolean;
 }
 
-const SIZE_TOKEN = { hero: "mascot", brand: "mascotSm", avatar: "avatar", avatarSm: "avatarSm" } as const;
+const SIZE_TOKEN = { hero: "mascot", md: "mascotMd", brand: "mascotSm", avatar: "avatar", avatarSm: "avatarSm" } as const;
 const SOURCE = require("../../../assets/mascot.png");
 
 /**
@@ -29,7 +29,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
   const side = t.size[SIZE_TOKEN[size]];
   const hidden = { accessible: false, importantForAccessibility: "no-hide-descendants" as const, accessibilityElementsHidden: true };
 
-  if (size !== "hero") {
+  if (size !== "hero" && size !== "md") {
     const img = discImage(side);
     return (
       <View

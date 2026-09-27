@@ -25,7 +25,10 @@ export function Badge({ label, tone = "neutral", icon, emphasis = "soft", dot, c
   const tc = toneColors(t.color, tone);
   const fg = emphasis === "solid" ? t.color.text.onAccent : tone === "neutral" && emphasis === "outline" ? t.color.text.secondary : tc.fg;
   const bg = emphasis === "solid" ? tc.solid : emphasis === "outline" ? "transparent" : tc.bg;
-  const border = emphasis === "outline" ? (tone === "neutral" ? t.color.line.strong : tc.fg) : "transparent";
+  // Neutral outline (DEFAULT, NOT ON DISK) uses the designer's border; the text carries the meaning.
+  const border = emphasis === "outline" ? (tone === "neutral" ? t.color.line.hairline : tc.fg) : "transparent";
+  // Mockup: soft chips 4/10 (ACTION REQUIRED); solid and outline seals 2/7 (RECOMMENDED, DEFAULT).
+  const soft = emphasis === "soft";
   return (
     <View
       style={{
@@ -33,8 +36,8 @@ export function Badge({ label, tone = "neutral", icon, emphasis = "soft", dot, c
         alignItems: "center",
         alignSelf: "flex-start",
         gap: t.space.xs + 2,
-        paddingHorizontal: t.space.sm + 2,
-        paddingVertical: 3,
+        paddingHorizontal: soft ? t.space.sm + t.space.xxs : t.space.sm,
+        paddingVertical: soft ? t.space.xs : t.space.xxs,
         borderRadius: t.radius.full,
         backgroundColor: bg,
         borderWidth: emphasis === "outline" ? t.size.border : 0,
@@ -43,7 +46,7 @@ export function Badge({ label, tone = "neutral", icon, emphasis = "soft", dot, c
     >
       {dot && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: fg }} />}
       {icon && <Icon name={icon} size={13} color={fg} />}
-      <Text variant={caps ? "label" : "footnote"} weight={caps ? undefined : "semibold"} style={{ color: fg }} maxFontSizeMultiplier={1.5}>
+      <Text variant={caps ? "badge" : "footnote"} weight={caps ? undefined : "semibold"} style={{ color: fg }} maxFontSizeMultiplier={1.5}>
         {label}
       </Text>
     </View>

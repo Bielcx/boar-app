@@ -51,6 +51,8 @@ function buildColors(p: ResolvedPalette, scheme: ColorScheme) {
     line: {
       /** Designer `bd`. Decorative separator: never the only affordance of a control. */
       hairline: p.hairline,
+      /** Separator between rows inside a card (mockup: s2 on s1). Light mode keeps the hairline. */
+      row: scheme === "dark" ? p.raised : p.hairline,
       /** Control borders that are the affordance (inputs, switch off, outline button): >= 3:1. */
       strong: p.lineStrong,
       focus: p.accent,
@@ -108,8 +110,14 @@ export const APP_FONT_SCALE: Record<FontScale, number> = {
   large: 1.12,
 };
 
-/** Informative text never renders below this, whatever the app scale. The mockup's 9-11px labels are raised to it. */
+/** Informative text never renders below this, whatever the app scale. */
 export const MIN_FONT_SIZE = 12;
+/**
+ * Uppercase letterspaced labels (overlines, seals, stepper, caps metadata) may go down to 11 pt
+ * (iOS Caption 2): caps with tracking read larger than their size. The mockup's 9-10.5 px caps
+ * render at 11 (Boar, fidelity sprint 27/09; reversible).
+ */
+export const MIN_CAPS_FONT_SIZE = 11;
 
 type TypeSpec = {
   face: FontFace;
@@ -128,20 +136,34 @@ type TypeSpec = {
 const TYPE_SCALE = {
   /** The one figure a screen is about (download %, mockup 56). Capped: it is already large. */
   hero: { face: "display", weight: 800, size: 56, leading: 1, tracking: -1.2, maxScale: 1.2 },
+  /** The chat's empty-state wordmark (mockup 40). */
+  wordmark: { face: "display", weight: 800, size: 40, leading: 1, tracking: -0.8, maxScale: 1.3 },
   display: { face: "display", weight: 800, size: 34, leading: 1.1, tracking: -0.7, maxScale: 1.5 },
   title1: { face: "display", weight: 800, size: 26, leading: 1.15, tracking: -0.5 },
   title2: { face: "display", weight: 800, size: 22, leading: 1.2, tracking: -0.4 },
   title3: { face: "display", weight: 700, size: 18, leading: 1.25, tracking: -0.2 },
   headline: { face: "display", weight: 700, size: 17, leading: 1.3, tracking: -0.2 },
-  /** Button labels and the OFFLINE seal. */
-  button: { face: "display", weight: 800, size: 16, leading: 1.25, tracking: -0.2 },
+  /** Title of a choice card (mockup OptionCard 16). */
+  cardTitle: { face: "display", weight: 800, size: 16, leading: 1.1 },
+  /** Bottom call to action (mockup 17). */
+  buttonLg: { face: "display", weight: 800, size: 17, leading: 1.2 },
+  /** The OFFLINE seal's label (mockup 13 / 800 / .04em, caps). */
+  seal: { face: "display", weight: 800, size: 13, leading: 1.3, tracking: 0.5, uppercase: true },
+  /** Button labels (mockup 15). */
+  button: { face: "display", weight: 800, size: 15, leading: 1.25 },
   body: { face: "text", weight: 400, size: 16, leading: 1.5 },
   callout: { face: "text", weight: 400, size: 15, leading: 1.45 },
   subhead: { face: "text", weight: 500, size: 14, leading: 1.43 },
   footnote: { face: "text", weight: 400, size: 13, leading: 1.4 },
   caption: { face: "text", weight: 400, size: 12, leading: 1.35 },
-  /** Uppercase letterspaced overline: section labels, status badges ("ACTIVE", "LOCAL INDEX"). */
-  label: { face: "text", weight: 600, size: 12, leading: 1.35, tracking: 1.1, uppercase: true },
+  /** Uppercase letterspaced overline: section labels ("LANGUAGE", "LOCAL INDEX"). Mockup 10.5 / 500 / .12em. */
+  label: { face: "text", weight: 500, size: 11, leading: 1.45, tracking: 1.3, uppercase: true },
+  /** Status seals and chips ("RECOMMENDED", "ACTION REQUIRED", "STREAMING"). Mockup 9-10.5 / 600 / .1em. */
+  badge: { face: "text", weight: 600, size: 11, leading: 1.3, tracking: 1, uppercase: true },
+  /** Stepper labels. Mockup 9 / 400 / .06em. */
+  step: { face: "text", weight: 400, size: 11, leading: 1.45, tracking: 0.6, uppercase: true },
+  /** Caps metadata without tracking (model id in the chat header). Mockup 9.5; untracked caps keep the 12 pt floor. */
+  capsMeta: { face: "text", weight: 400, size: 12, leading: 1.4, uppercase: true },
   /** Data readouts: sizes, speeds, model file names. Lexend with tabular figures (designer `--fm`). */
   mono: { face: "text", weight: 400, size: 13, leading: 1.45, tabular: true },
   /** Code blocks and raw hashes: system monospace. */
@@ -160,7 +182,8 @@ function buildType(fontScale: FontScale): Record<TextVariant, TypeStyle> {
   const k = APP_FONT_SCALE[fontScale];
   const out = {} as Record<TextVariant, TypeStyle>;
   for (const [name, spec] of Object.entries(TYPE_SCALE) as [TextVariant, TypeSpec][]) {
-    const fontSize = Math.max(MIN_FONT_SIZE, Math.round(spec.size * k * 2) / 2);
+    const floor = "uppercase" in spec && spec.uppercase ? MIN_CAPS_FONT_SIZE : MIN_FONT_SIZE;
+    const fontSize = Math.max(floor, Math.round(spec.size * k * 2) / 2);
     out[name] = {
       fontFamily: fontFamilyFor(spec.face, spec.weight),
       fontSize,
@@ -195,6 +218,10 @@ export const space = {
   giant: 64,
   /** Screen side margin (mockup: 20). Use this, not `base`, for screen-level horizontal padding. */
   gutter: 20,
+  /** Side margin of the conversation (chat header, list, composer): the mockup uses 16 there. */
+  gutterChat: 16,
+  /** Gap between suggestion cards in the chat (mockup 14). */
+  cardGap: 14,
 } as const;
 
 /** From the mockup: pills for actions and inputs, soft cards. */
@@ -204,8 +231,12 @@ export const radius = {
   sm: 8,
   /** Rows inside cards (source items), toasts, segments. */
   md: 14,
+  /** Compact cards: suggestions, choices, the steps card (mockup 18). */
+  card: 18,
   /** Cards. */
   lg: 20,
+  /** Hero cards: download, model error (mockup 22). */
+  hero: 22,
   /** Sheets (top corners). */
   xl: 28,
   /** Buttons, inputs, badges, the OFFLINE seal. */
@@ -222,13 +253,23 @@ export const size = {
   iconLg: 24,
   controlSm: 36,
   control: 48,
+  /** Round controls in the chat header (menu, avatar): visual 42, touch via hitSlop. */
+  headerDisc: 42,
   /** Assistant avatar in the chat header / a message row. */
-  avatar: 32,
-  avatarSm: 24,
+  avatar: 42,
+  avatarSm: 26,
   /** Mascot in a horizontal brand line (setup). */
-  mascotSm: 56,
-  /** Mascot as the hero of an empty or loading screen. */
-  mascot: 128,
+  mascotSm: 48,
+  /** Mascot above a status (model loading/error) and in the download hero. */
+  mascotMd: 120,
+  /** Mascot as the hero of the chat's empty state. */
+  mascot: 170,
+  /** Chat composer pill and send button. */
+  composer: 52,
+  /** Regular button (mockup 46; raised to the touch minimum where that is larger). */
+  button: 46,
+  /** Bottom call-to-action button. */
+  buttonLg: 54,
   hairline: StyleSheet.hairlineWidth,
   border: 1,
   focusRing: 2,

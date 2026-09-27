@@ -14,8 +14,8 @@ export interface StepperProps {
 }
 
 /**
- * Segmented progress for a linear flow. Labels are sentence case at caption size:
- * the mockup's 10.5pt caps overline does not fit four columns at our 12pt floor.
+ * Segmented progress for a linear flow (mockup: 4 pt bars 6 pt apart, caps labels 6 pt below).
+ * Labels are caps at 11 pt; a long translation shrinks to fit its column rather than wrapping.
  */
 export function Stepper({ steps, current, accessibilityLabel }: StepperProps) {
   const t = useTokens();
@@ -25,22 +25,22 @@ export function Stepper({ steps, current, accessibilityLabel }: StepperProps) {
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
       accessibilityValue={stepperValue(steps.length, current)}
-      style={{ flexDirection: "row", gap: t.space.sm }}
+      style={{ flexDirection: "row", gap: t.space.xs + t.space.xxs }}
     >
       {steps.map((step, i) => (
-        <View key={step} style={{ flex: 1, gap: t.space.sm }} importantForAccessibility="no-hide-descendants">
+        <View key={step} style={{ flex: 1, gap: t.space.xs + t.space.xxs }} importantForAccessibility="no-hide-descendants">
           <View
             style={{
-              height: 3,
+              height: t.space.xs,
               borderRadius: t.radius.full,
               backgroundColor: i <= current ? t.color.accent.solid : t.color.bg.raised,
             }}
           />
           <Text
-            variant="caption"
-            weight={i === current ? "semibold" : "regular"}
+            variant="step"
             color={i === current ? "primary" : "secondary"}
-            numberOfLines={2}
+            numberOfLines={1}
+            adjustsFontSizeToFit
             maxFontSizeMultiplier={1.3}
           >
             {step}
