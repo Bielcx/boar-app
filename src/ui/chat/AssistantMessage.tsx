@@ -665,7 +665,13 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.assistantName")}
           </Text>
           {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
-          {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? <Elapsed locale={locale} step={steps?.find((x) => x.status === "active")?.short} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? (
+            <Elapsed
+              locale={locale}
+              // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
+              step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
+            />
+          ) : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
         {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>

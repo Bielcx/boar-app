@@ -1130,7 +1130,8 @@
       "search": "Buscando…",
       "read": "Lendo…",
       "load": "Carregando…",
-      "write": "Escrevendo…"
+      "write": "Escrevendo…",
+      "prepare": "Preparando…"
     },
     "library": {
       "incomplete": "O acervo offline não terminou de indexar. Algumas respostas podem ficar sem fonte."

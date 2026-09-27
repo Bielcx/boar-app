@@ -1130,7 +1130,8 @@
       "search": "Searching…",
       "read": "Reading…",
       "load": "Loading…",
-      "write": "Writing…"
+      "write": "Writing…",
+      "prepare": "Preparing…"
     },
     "library": {
       "incomplete": "The offline library didn’t finish indexing. Some answers may be missing their source."
