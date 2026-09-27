@@ -753,6 +753,37 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect((events2.find((e) => e.type === "warning") as any).declined).toBeUndefined();
   });
 
+  it("Boar (A): the compact model whose every citation CT-1 removes declines; answerAnyway and the 4B keep the answer", async () => {
+    const run = async (setup: () => void, req: any = {}) => {
+      f = makeFake();
+      setup();
+      f.retrieved = [CANBERRA];
+      f.deps.engine.generate = async () => "Mold grows in damp bathrooms [1].";
+      const events: AnswerEvent[] = [];
+      const result = await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", ...req }, (e) => events.push(e), ctx).done;
+      return { events, result };
+    };
+    const compact = await run(() => {});
+    expect(compact.events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect((compact.events.find((e) => e.type === "done") as any).finalText).toBe("");
+    expect(compact.result.receipt.reasonCodes).toContain("grounding:all-citations-removed-declined-compact");
+    const anyway = await run(() => {}, { answerAnyway: true });
+    expect(anyway.result.text).toBe("Mold grows in damp bathrooms.");
+    const big = await run(() => {
+      f.installed = [lfm];
+      f.activeId = "lfm8";
+    });
+    expect(big.result.text).toBe("Mold grows in damp bathrooms.");
+    expect(big.result.receipt.reasonCodes).not.toContain("grounding:all-citations-removed-declined-compact");
+  });
+
+  it("Boar (A): a compact answer that keeps one supported citation is not declined", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "Canberra is the capital city of Australia [1]. Mold grows in damp bathrooms [1].";
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("Canberra is the capital city of Australia [1]. Mold grows in damp bathrooms.");
+  });
+
   it("CT-1: a citation the source doesn't support is removed, and done carries the corrected text", async () => {
     f.retrieved = [CANBERRA];
     f.deps.engine.generate = async (o) => {
