@@ -380,9 +380,12 @@
         "insufficient": "Não cabe"
       },
       "mayClose": "Pode fechar o app",
-      "mayCloseWhy": "grande demais para a memória deste celular; o Compacto é o recomendado aqui",
-      "mayCloseTitle": "Usar {{name}}?",
-      "mayCloseBody": "O BOAR pode fechar ao carregar este modelo. O Compacto é o recomendado aqui.",
+      "mayCloseWhy": "grande demais para a memória deste celular",
+      "mayCloseTitle": "Usar este modelo?",
+      "mayCloseBefore": "O BOAR pode fechar ao carregar o ",
+      "mayCloseAfter": ". O Compacto é o recomendado aqui.",
+      "showAll": "Mostrar tudo",
+      "showLess": "Mostrar menos",
       "keepCompact": "Manter Compacto",
       "useAnyway": "Usar mesmo assim",
       "fitWhy": {
