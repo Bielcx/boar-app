@@ -7,12 +7,12 @@ import { useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
-import { answerPhase, canDeepen, type AnswerState, type TierState } from "./answerReducer";
+import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { previewText, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
 import { groupSources, sourceParts } from "./sourceLabel";
 import { needsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
-import { PlacesCard } from "./PlacesCard";
+import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 
 export interface AssistantMessageProps {
@@ -469,7 +469,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
   const receipt = useReceipt(topReceipt, locale);
-  const waitingForCity = answer.places?.coverage === "needs_place";
+  const locating = isLocating(answer);
+  const waitingForCity = answer.places?.coverage === "needs_place" || locating;
   return (
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
       <View style={{ gap: t.space.sm }}>
@@ -485,6 +486,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       </View>
 
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
+
+      {locating && <LocatingPrompt onCity={props.onCity} />}
 
       {answer.places && (
         <PlacesCard

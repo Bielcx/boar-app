@@ -175,6 +175,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     const key = `${activeItem.id}:${activePhase}`;
     if (lastAnnounced.current === key) return;
     lastAnnounced.current = key;
+    // Stopped only to search a typed city: say nothing, the city search is announced next.
+    if (activePhase === "stopped" && pendingCity.current?.id === activeItem.id) return;
     const a = phaseAnnouncement(activePhase, activeItem.answer, t);
     if (a) announce(a.message, { assertive: a.assertive });
   }, [activePhase, activeItem, announce, t]);
@@ -459,6 +461,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [ready, runInto, finish, activeSessionId]
   );
 
+  // A city typed during "Finding your location…" runs as soon as the stopped answer has finished.
+  const pendingCity = useRef<{ id: string; city: string } | null>(null);
+  useEffect(() => {
+    if (active || !pendingCity.current) return;
+    const { id, city } = pendingCity.current;
+    pendingCity.current = null;
+    followUp(id, { place: city });
+  }, [active, followUp]);
+
   // "Use my location": explain in context first (only while the permission is undetermined).
   const [locationExplain, setLocationExplain] = useState<((ok: boolean) => void) | null>(null);
   const locateAndAsk = useCallback(
@@ -609,7 +620,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           : formatForShare(item.question, answerForCopy(a), a.sources, receipt, shareLabels, locale),
       });
     },
-    city: (id, city) => followUp(id, { place: city }),
+    city: (id, city) => {
+      // Typed while the answer still waits for the GPS: stop it, then search the city once it has ended.
+      if (activeRef.current?.messageId === id) {
+        pendingCity.current = { id, city };
+        void stopActive();
+        return;
+      }
+      followUp(id, { place: city });
+    },
     useLocation: (id) => locateAndAsk(id),
     getMap: openSettings,
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),

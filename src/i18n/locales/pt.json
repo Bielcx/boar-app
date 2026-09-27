@@ -735,7 +735,8 @@
       "stoppedListening": "Parou de ouvir",
       "placesFound_one": "{{count}} lugar encontrado",
       "placesFound_other": "{{count}} lugares encontrados",
-      "placesFound_zero": "Nenhum lugar encontrado"
+      "placesFound_zero": "Nenhum lugar encontrado",
+      "locating": "Procurando sua localização. Você também pode digitar a cidade."
     },
     "snippet": {
       "fromSource": "Da fonte",
@@ -989,7 +990,9 @@
         "h_other": "{{count}} h",
         "d_one": "{{count}} dia",
         "d_other": "{{count}} dias"
-      }
+      },
+      "locating": "Procurando sua localização…",
+      "locatingBody": "Ou digite a cidade:"
     },
     "assistantName": "boar",
     "suggestionTopics": {

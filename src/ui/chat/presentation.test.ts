@@ -125,3 +125,9 @@ describe("previewText", () => {
     expect(previewText("a\n\nb")).toBe("a b");
   });
 });
+
+describe("locating announcement", () => {
+  it("says once that the app is finding the position and the city can be typed", () => {
+    expect(phaseAnnouncement("locating", { answerIds: [], sources: [] } as AnswerState, t)).toEqual({ message: "chat.announce.locating" });
+  });
+});

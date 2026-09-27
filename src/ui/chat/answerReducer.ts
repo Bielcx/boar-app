@@ -121,6 +121,8 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
 /** What the answer is doing right now, for the stage indicator and announcements. */
 export type AnswerPhase =
   | "searching"
+  /** Waiting for the device's position for a "near me" question (up to ~10 s); a city can be typed meanwhile. */
+  | "locating"
   | "loading_model"
   | "reading"
   | "generating"
@@ -147,7 +149,16 @@ function tierPhase(t: TierState): AnswerPhase {
 }
 
 /** The deep pass wins while it exists; otherwise the fast one; an extractive-only answer is done. */
+/**
+ * The engine is waiting for a GPS fix (location status "locating", Boar GPS-1) and
+ * has not listed anything yet. Read as a string until the engine's status union has it.
+ */
+export function isLocating(state: AnswerState): boolean {
+  return (state.location?.status as string | undefined) === "locating" && !state.places;
+}
+
 export function answerPhase(state: AnswerState): AnswerPhase {
+  if (isLocating(state)) return "locating";
   if (state.deep) return tierPhase(state.deep);
   if (state.fast) return tierPhase(state.fast);
   if (state.instantDone) return state.instantDone.outcome === "success" ? "done" : state.instantDone.outcome;
