@@ -62,4 +62,11 @@ describe("decideInitialRoute", () => {
     expect(r.route).toBe("Main");
     expect(r.setActiveLlmId).toBeUndefined();
   });
+
+  it("a setup left mid-way resumes, even with the models on disk (Harbor 2bdd0d2)", () => {
+    expect(decideInitialRoute({ ...base, requiredPresent: true, installedLlms: [DEFAULT], activeLlmId: DEFAULT.id, setupInProgress: true })).toEqual({
+      route: "Setup",
+    });
+    expect(decideInitialRoute({ ...base, requiredPresent: true, installedLlms: [DEFAULT], activeLlmId: DEFAULT.id, setupInProgress: false }).route).toBe("Main");
+  });
 });

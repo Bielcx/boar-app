@@ -6,7 +6,7 @@
 import type { AssetStatus, ModelManager } from "../../models/ModelManager";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { listDiscoveredModels } from "../../models/discoveredModels";
-import { getActiveModelId, setActiveModelId } from "../../models/settings";
+import { getActiveModelId, getSetupProgress, setActiveModelId } from "../../models/settings";
 import { measuredSpeeds } from "../../routing/depth";
 import { listRecentExecutions } from "../../services/executionTelemetry";
 import { getDeviceTotalRamBytes } from "ram-monitor";
@@ -18,12 +18,13 @@ const complete = (s: AssetStatus) => s.present && (!s.asset.sizeBytes || s.sizeO
 
 export async function initialRoute(modelManager: ModelManager): Promise<"Main" | "Setup"> {
   const llms = [...MODEL_CATALOG, ...(await listDiscoveredModels())].filter((m) => m.kind === "llm");
-  const [requiredPresent, statuses, activeLlmId, speeds] = await Promise.all([
+  const [requiredPresent, statuses, activeLlmId, speeds, progress] = await Promise.all([
     modelManager.requiredModelsPresent(),
     Promise.all(llms.map((m) => modelManager.statusOf(m))),
     getActiveModelId("llm"),
     // Speeds only help the ranking; a missing history never blocks the boot.
     listRecentExecutions(200).then(measuredSpeeds).catch(() => new Map<string, number>()),
+    getSetupProgress().catch(() => null),
   ]);
   let totalRamBytes = 0;
   try {
@@ -43,6 +44,7 @@ export async function initialRoute(modelManager: ModelManager): Promise<"Main" |
     })),
     totalRamBytes,
     activeLlmId,
+    setupInProgress: progress !== null,
   });
   if (decision.setActiveLlmId) await setActiveModelId("llm", decision.setActiveLlmId);
   return decision.route;
