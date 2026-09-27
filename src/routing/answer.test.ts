@@ -1250,6 +1250,24 @@ describe("answer(): trv-009 PT, exact question and gate sources (bc7db6d)", () =
   });
 });
 
+describe("answer(): cry-018-pt keeps the ML-KEM page (gate bc7db6d)", () => {
+  it("with lexicon names ['Algorithm'], the acronym the question writes still selects its page", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [
+      chunk("j", "Jump flooding algorithm", "The jump flooding algorithm is an algorithm used in the construction of Voronoi diagrams and distance transforms."),
+      chunk("p", "Longest path problem", "The longest path problem is the problem of finding a simple path of maximum length; an algorithm for it runs in exponential time."),
+      chunk("m1", "ML-KEM", "ML-KEM (Module-Lattice-Based Key-Encapsulation Mechanism), also known by its original name Kyber, is a key encapsulation mechanism designed to be resistant to cryptanalytic attack with a future powerful quantum computer."),
+      chunk("m2", "ML-KEM", "Properties: The system is based on the module learning with errors (M-LWE) problem, in conjunction with cyclotomic rings."),
+    ];
+    f.deps.englishNames = () => ["Algorithm"];
+    const { events } = await collect("ML-KEM é um algoritmo de assinatura? Para que ele serve?");
+    const titles = (((events.find((e) => e.type === "sources") as any)?.sources ?? []) as RetrievedChunk[]).map((c) => c.title);
+    expect(titles).toContain("ML-KEM");
+    expect(titles).not.toContain("Jump flooding algorithm");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
