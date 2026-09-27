@@ -8,7 +8,7 @@ import {
   canDeepen,
   initialAnswer,
   isAnswerActive,
-  type AnswerState, isLocating } from "./answerReducer";
+  type AnswerState, isLocating, asInterrupted } from "./answerReducer";
 
 const chunk = (id: string): RetrievedChunk => ({
   chunkId: id,
@@ -189,5 +189,22 @@ describe("locating (Boar GPS-1)", () => {
     const waiting = answerReducer(base, { type: "location", answerId: "a", status: "locating" as never });
     expect(isLocating(answerReducer(waiting, { type: "location", answerId: "a", status: "granted" }))).toBe(false);
     expect(isLocating({ ...waiting, places: { coverage: "ok", places: [], area: { kind: "near" } } as never })).toBe(false);
+  });
+});
+
+describe("asInterrupted (FS-1)", () => {
+  it("saves a stop caused by the screen going away as interrupted, and leaves finished tiers alone", () => {
+    const st = {
+      answerIds: ["a"],
+      sources: [],
+      fast: { text: "Half an ans", stage: null, outcome: "stopped" },
+      deep: { text: "", stage: "generating", outcome: undefined },
+    } as unknown as AnswerState;
+    const out = asInterrupted(st);
+    expect(out.fast?.outcome).toBe("interrupted");
+    expect(out.fast?.text).toBe("Half an ans");
+    expect(out.deep?.outcome).toBe("interrupted");
+    const done = { answerIds: ["a"], sources: [], fast: { text: "Done.", stage: null, outcome: "success" } } as unknown as AnswerState;
+    expect(asInterrupted(done).fast?.outcome).toBe("success");
   });
 });

@@ -174,3 +174,13 @@ export function isAnswerActive(state: AnswerState): boolean {
 export function canDeepen(state: AnswerState): boolean {
   return !!state.deepAvailable && state.fast?.outcome === "success" && !state.deep;
 }
+
+/**
+ * The answer as saved when the chat screen went away mid-answer (FS-1: the navigation remounts on a
+ * system font change): the stop we caused reads as "interrupted", which offers Try again, not as a
+ * user's Stop.
+ */
+export function asInterrupted(state: AnswerState): AnswerState {
+  const fix = (t?: TierState) => (t && (t.outcome === "stopped" || !t.outcome) ? { ...t, stage: null, outcome: "interrupted" as const } : t);
+  return { ...state, fast: fix(state.fast), deep: fix(state.deep) };
+}

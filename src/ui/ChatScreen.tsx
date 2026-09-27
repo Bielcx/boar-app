@@ -52,7 +52,7 @@ import { Banner, Button, IconButton, Progress, Screen, Sheet, Text, useAnnounce,
 import { useTokens } from "./theme";
 import { answer as runAnswer, deepen as runDeepen, type AnswerContext } from "./chat/answerApi";
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
-import { answerPhase, answerReducer, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
+import { answerPhase, answerReducer, asInterrupted, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
 import { answerTextForHistory, toStoredAnswer } from "./chat/answerRecord";
 import { historyTurns, itemsFromRecords, sessionToResume, updateAnswer, type ChatItem } from "./chat/chatItems";
 import { phaseAnnouncement } from "./chat/presentation";
@@ -89,6 +89,11 @@ interface ActiveAnswer {
   handle: AnswerHandle | null;
 }
 
+// Module scope, so it survives a remount of this screen (FS-1: the navigation remounts when the system
+// font changes). A new chat screen waits for the answer the old one was saving before it reopens the session.
+let pendingWrite: Promise<void> = Promise.resolve();
+let draftInput = "";
+
 export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void }) {
   const tk = useTokens();
   const { t, i18n } = useTranslation();
@@ -102,7 +107,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // Answers asked in this run (not restored from history): only these may take focus (the city prompt).
   const askedIds = useRef<Set<string>>(new Set());
   itemsRef.current = items;
-  const [input, setInput] = useState("");
+  // The unsent question survives a remount too (FS-1).
+  const [input, setInput] = useState<string>(draftInput);
+  useEffect(() => {
+    draftInput = input;
+  }, [input]);
   const [ready, setReady] = useState(false);
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -187,6 +196,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   useEffect(() => {
     (async () => {
+      await pendingWrite;
       setShowSuggestions(!(await getHidePromptIdeas()));
       memorySettingsRef.current = await getMemorySettings();
       setVoiceInputEnabledState(await getVoiceInputEnabled());
@@ -338,6 +348,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const assistantId = `${Date.now()}-a`;
       activeRef.current = { messageId: assistantId, handle: null };
       askedIds.current.add(assistantId);
+      let written!: () => void;
+      pendingWrite = new Promise<void>((r) => (written = r));
       setActive(activeRef.current);
       setInput("");
       // Close the keyboard through keyboard-controller so it tracks the close: when the keyboard
@@ -372,7 +384,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         const { result, final } = await runInto(assistantId, (onEvent, ctx) => runAnswer(request, onEvent, ctx));
 
         await persistMessage(sessionId, "assistant", answerTextForHistory(final), assistantId);
-        await setMessageMeta(assistantId, toStoredAnswer(final));
+        await setMessageMeta(assistantId, stored(final));
         impact(result.outcome === "success" ? ImpactFeedbackStyle.Light : ImpactFeedbackStyle.Medium);
 
         const settings = memorySettingsRef.current;
@@ -416,6 +428,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           }))
         );
       } finally {
+        written();
         finish();
       }
     },
@@ -434,6 +447,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const sessionId = activeSessionId;
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
+      let written!: () => void;
+      pendingWrite = new Promise<void>((r) => (written = r));
       if (typeof kind === "object") {
         const fresh = (items: ChatItem[]) =>
           updateAnswer(items, messageId, () => ({ answerIds: [], sources: [] })).map((m) =>
@@ -452,10 +467,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         );
         // A redo replaces the answer: keep the saved text in step (Deepen only adds to it).
         if (typeof kind === "object" && sessionId) await upsertMessage(sessionId, "assistant", answerTextForHistory(final), messageId);
-        await setMessageMeta(messageId, toStoredAnswer(final));
+        await setMessageMeta(messageId, stored(final));
       } catch (e: any) {
         console.warn("[ChatScreen] follow-up failed:", e?.message ?? e);
       } finally {
+        written();
         finish();
       }
     },
@@ -501,6 +517,18 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     });
     return () => sub.remove();
   }, []);
+
+  // The screen going away mid-answer (remount on a font change, FS-1): stop the answer, and save it as
+  // interrupted so the reopened conversation offers Try again instead of a question with no answer.
+  const unmounted = useRef(false);
+  useEffect(
+    () => () => {
+      unmounted.current = true;
+      activeRef.current?.handle?.stop();
+    },
+    []
+  );
+  const stored = (a: AnswerState) => toStoredAnswer(unmounted.current ? asInterrupted(a) : a);
 
   /** Stops whatever runs and waits for it, before swapping the conversation out. */
   const stopAndWait = useCallback(async () => {
