@@ -23,6 +23,8 @@ export interface AssistantMessageProps {
   fresh?: boolean;
   /** The question this answers (health questions get the emergency note). */
   question?: string;
+  /** Waiting for the offline library to be ready before searching (first boot); the current status line. */
+  waitingLibrary?: string;
   stopping: boolean;
   /** Stopped because the app went to the background. */
   interrupted?: boolean;
@@ -682,8 +684,22 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
       {answer.instant && !answer.weakSources && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
 
+      {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
+      {props.waitingLibrary ? (
+        <Card padding="compact" radius="card" style={{ gap: t.space.xs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+            <StepSpinner />
+            <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
+              {tr("chat.stage.waitingLibrary")}
+            </Text>
+          </View>
+          <Text variant="caption" color="secondary">
+            {props.waitingLibrary}
+          </Text>
+        </Card>
+      ) : null}
       {/* The mockup's order: the steps above the streaming text, the sources below it. */}
-      {!answer.deep && steps && <StepsCard steps={steps} />}
+      {!answer.deep && steps && !props.waitingLibrary && <StepsCard steps={steps} />}
       {answer.fast && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}

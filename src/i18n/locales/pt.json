@@ -771,7 +771,8 @@
       "stopping": "Parando…",
       "reading_one": "Lendo {{count}} fonte…",
       "reading_other": "Lendo {{count}} fontes…",
-      "writing": "Escrevendo a resposta…"
+      "writing": "Escrevendo a resposta…",
+      "waitingLibrary": "Preparando o acervo deste celular; sua resposta começa quando ele estiver pronto"
     },
     "announce": {
       "searching": "Buscando nas fontes",
