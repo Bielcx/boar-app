@@ -5,11 +5,11 @@
  * while the boot reads the disk. Rendered by App.tsx only while the initial
  * route is unknown; App.tsx hides the native splash on its first layout.
  */
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Progress, Text } from "../components";
-import { useTokens } from "../theme";
+import { buildTokens } from "../theme";
 
 // The native splash's image (app.json: expo-splash-screen, imageWidth 360, contain), centred in the window.
 const SPLASH_W = 360;
@@ -21,9 +21,11 @@ const BAR_W = 140;
 const BAR_FROM_BOTTOM = 90;
 const STATUS_FROM_BOTTOM = 76;
 
-export function BootSplash({ onFirstLayout }: { onFirstLayout?: () => void }) {
+export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?: () => void; textReady?: boolean }) {
   const { t } = useTranslation();
-  const tokens = useTokens();
+  // Always the native splash's colours (dark Fogueira, #17110D), whatever theme the user picked:
+  // the opaque image is composed on that canvas, so any other background would show a seam.
+  const tokens = useMemo(() => buildTokens("dark", "standard", "fogueira"), []);
   const { width, height } = useWindowDimensions();
   return (
     <View
@@ -38,25 +40,28 @@ export function BootSplash({ onFirstLayout }: { onFirstLayout?: () => void }) {
         accessible={false}
         style={{ position: "absolute", width: SPLASH_W, height: SPLASH_H, left: (width - SPLASH_W) / 2, top: (height - SPLASH_H) / 2 }}
       />
-      <Text
-        variant="subhead"
-        color="field"
-        align="center"
-        style={{ position: "absolute", left: 0, right: 0, top: height / 2 + TAGLINE_FROM_CENTRE }}
-      >
-        {t("flows.onboarding.brandSub")}
-      </Text>
+      {/* Text waits for the brand fonts, so it never swaps face on screen. */}
+      {textReady && (
+        <Text
+          variant="subhead"
+          align="center"
+          style={{ position: "absolute", left: 0, right: 0, top: height / 2 + TAGLINE_FROM_CENTRE, color: tokens.color.field.text }}
+        >
+          {t("flows.onboarding.brandSub")}
+        </Text>
+      )}
       <View style={{ position: "absolute", width: BAR_W, left: (width - BAR_W) / 2, top: height - BAR_FROM_BOTTOM }}>
         <Progress label={t("flows.onboarding.bootChecking")} height={tokens.space.xs} />
       </View>
-      <Text
-        variant="footnote"
-        color="secondary"
-        align="center"
-        style={{ position: "absolute", left: 0, right: 0, top: height - STATUS_FROM_BOTTOM }}
-      >
-        {t("flows.onboarding.bootChecking")}
-      </Text>
+      {textReady && (
+        <Text
+          variant="footnote"
+          align="center"
+          style={{ position: "absolute", left: 0, right: 0, top: height - STATUS_FROM_BOTTOM, color: tokens.color.text.secondary }}
+        >
+          {t("flows.onboarding.bootChecking")}
+        </Text>
+      )}
     </View>
   );
 }
