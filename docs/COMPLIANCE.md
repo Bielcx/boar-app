@@ -128,9 +128,27 @@ which may send audio to its servers even with `EXTRA_PREFER_OFFLINE`) is used
 only if the user explicitly accepts that warning, and never in the offline
 build (`src/voice/voicePolicy.ts`). Typing always works.
 
-Why PARTIAL: the offline APK's audit has to be run on a built APK
-(`make apk-offline`), and a network capture during use on a real phone hasn't
-been recorded yet.
+Evidence, offline APK (integration `b5903d0`, arm64, 131,441,642 bytes, sha256
+`d8be732965e250ca0b8fc6bf53992e3e0e6715087db3149e09fd0fdec5dab5a6`, built by
+the device lab on 2026-09-26), `scripts/audit-offline-apk.sh`:
+
+```
+== declared permissions (offline audit) ==
+android.permission.ACCESS_COARSE_LOCATION
+android.permission.ACCESS_FINE_LOCATION
+android.permission.VIBRATE
+android.permission.WAKE_LOCK
+team.sopa.aoair.offline.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+note: okhttp3 present (React Native core); inert without INTERNET
+RESULT: PASS (offline)
+```
+
+Its manifest (`aapt2 dump xmltree`) has `allowBackup=false`,
+`fullBackupContent=false`, `usesCleartextTraffic=false` and
+`dataExtractionRules=@xml/data_extraction_rules`.
+
+Why PARTIAL: a network capture of the offline build during use hasn't been
+recorded yet.
 
 ### 6. No Google Play Services — PASS
 - The release build's runtime dependencies contain no Play Services or Firebase
