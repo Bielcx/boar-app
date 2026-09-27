@@ -107,11 +107,8 @@ export function OptionCard({
         {meta ? <MetaLine items={meta} /> : null}
         {children}
       </View>
-      {indicator === "check" && (
-        <View style={{ width: t.size.icon, opacity: selected ? 1 : 0 }}>
-          <Icon name="check" color={t.color.accent.text} />
-        </View>
-      )}
+      {/* Mockup: only the selected card shows the check, so an unselected title keeps the full width. */}
+      {indicator === "check" && selected && <Icon name="check" color={t.color.accent.text} />}
     </Pressable>
   );
 }
