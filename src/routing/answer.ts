@@ -665,9 +665,10 @@ export function createAnswerer(deps: AnswerDeps) {
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
-      // A PT question without English words (dictionary or lexicon names) can't be matched word for
-      // word against English sources: no guard.
-      const guarded = gen?.mode !== "multipass" && (!pt || !!english || names.length > 0);
+      // Always on (Quill, 014c054: the chat reads "passages found, none cited" from a non-empty sources
+      // event, so no off-topic passage may reach it). A PT question without English words is matched
+      // by its own words: English sources rarely name them, so its noise ("Estrela, Lisbon") is dropped.
+      const guarded = gen?.mode !== "multipass";
       // Health has its own, stricter topic filter below (the condition, lay sources allowed).
       if (guarded && !health && sources.length) {
         const kept = sources.filter((c) => onSubject(c));
@@ -944,7 +945,7 @@ export function createAnswerer(deps: AnswerDeps) {
       // Also with no source at all (the instruction asks for the line; a model may skip it).
       const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
       if (knowledge && text.trim() && !/\[\d+\]/.test(text) && !saysNotFromLibrary) {
-        // Sources that passed the topic guard are on topic; an unguarded PT question's (no English words) aren't.
+        // Sources that passed the topic guard are on topic.
         const onTopicSources = guarded ? sources.length : 0;
         if (onTopicSources > 0) reasonCodes.push("grounding:uncited-on-topic");
         else if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
