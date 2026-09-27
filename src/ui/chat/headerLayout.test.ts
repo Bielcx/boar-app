@@ -31,10 +31,19 @@ describe("headerFit", () => {
     for (const width of [320, 360, 375, 393, 402, 430]) {
       for (const fontScale of [1, 1.3, 2]) {
         const fit = ios(width, fontScale);
-        const seal = fit.seal === "text" ? OFFLINE * 10 + 40 : 44;
+        const seal = fit.seal === "text" ? OFFLINE * 8 + 42 : 44;
         const left = width - base.chrome - base.buttons * 44 - seal - (fit.avatar ? base.avatar : 0);
         if (fit.avatar) expect(left).toBeGreaterThanOrEqual(TITLE_MIN * fontScale);
       }
     }
+  });
+});
+
+describe("the downloader seal 'ON DEVICE' / 'NO APARELHO' (Boar)", () => {
+  it("fits with the avatar at 393 pt in both languages (chat header: 1 disc of 42, gutter 16, gaps 10)", () => {
+    const chat = { buttons: 1, chrome: 16 * 2 + 10 * 2, avatar: 42 + 10, touch: 42, fontScale: 1, width: 393 };
+    expect(headerFit({ ...chat, sealChars: "ON DEVICE".length })).toEqual({ seal: "text", avatar: true });
+    expect(headerFit({ ...chat, sealChars: "NO APARELHO".length })).toEqual({ seal: "text", avatar: true });
+    expect(headerFit({ ...chat, sealChars: "OFFLINE".length })).toEqual({ seal: "text", avatar: true });
   });
 });

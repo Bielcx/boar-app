@@ -28,9 +28,9 @@ export interface HeaderFit {
 
 /** Name ("boar") plus about nine characters of the model ("Qwen3 4B…"), at font scale 1. */
 export const TITLE_MIN = 108;
-/** Uppercase letterspaced 12pt label: ~10pt per character, plus icon and padding. */
+/** Baloo 13 caps with .04em tracking: ~8 pt per character, plus icon, gap and padding (mockup: "OFFLINE" pill = 95 pt). */
 export function sealTextWidth(chars: number): number {
-  return chars * 10 + 40;
+  return chars * 8 + 42;
 }
 
 export function headerFit(o: HeaderFitInput): HeaderFit {
