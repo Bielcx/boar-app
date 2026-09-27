@@ -1,5 +1,6 @@
 import { ModelManager, DownloadProgress } from "../models/ModelManager";
 import { CatalogModel } from "../models/manifest";
+import { requirementsOf } from "../models/assetRegistry";
 import { downloadErrorDetailOf, DownloadErrorDetail, errorKindOf, IntegrityErrorKind } from "../models/integrity";
 import type { HashProgress } from "../models/fileHash";
 import { holdWakeLockForDownload } from "./downloadWakeLock";
@@ -153,6 +154,26 @@ export async function restartDownload(asset: CatalogModel): Promise<void> {
   await startDownload(asset);
 }
 
+/**
+ * The assets `asset` requires (catalog `requires`, e.g. the gazetteer for a
+ * places pack) that aren't on the phone yet. For file imports in the offline
+ * build, where nothing can be downloaded: the UI asks for these files too.
+ */
+export async function missingRequirements(asset: CatalogModel): Promise<CatalogModel[]> {
+  const missing: CatalogModel[] = [];
+  for (const req of requirementsOf(asset).assets) {
+    const status = await modelManager.statusOf(req).catch(() => null);
+    if (!status?.present) missing.push(req);
+  }
+  return missing;
+}
+
+async function startRequirements(asset: CatalogModel): Promise<void> {
+  const missing = await missingRequirements(asset).catch(() => [] as CatalogModel[]);
+  // startDownload no-ops for one already running; its failure shows on that asset's own row.
+  for (const req of missing) startDownload(req).catch(() => {});
+}
+
 /** Starts a download if one isn't already running for this asset; otherwise no-ops. */
 export function startDownload(asset: CatalogModel): Promise<void> {
   const existing = inFlight.get(asset.id);
@@ -260,6 +281,9 @@ export function startDownload(asset: CatalogModel): Promise<void> {
 
   inFlight.set(asset.id, promise);
   inFlightAssets.set(asset.id, asset);
+  // A places pack without the gazetteer can't answer "restaurants in <city>" (PL-1): whatever
+  // screen starts a download, what the asset requires comes with it.
+  void startRequirements(asset);
   return promise;
 }
 

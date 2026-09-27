@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { allAssets, findAsset, registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
+import { allAssets, findAsset, registerAssetProvider, requirementsOf, unregisterAssetProvider } from "./assetRegistry";
 import { MODEL_CATALOG, type CatalogModel } from "./manifest";
 
 const entry = (id: string, filename = `poi/${id}.sqlite`): CatalogModel => ({
@@ -43,3 +43,21 @@ describe("assetRegistry", () => {
     expect(() => allAssets()).toThrow(/both install to poi\/poi-a\.sqlite/);
   });
 });
+
+describe("requirementsOf", () => {
+  afterEach(() => unregisterAssetProvider("req-test"));
+
+  it("resolves required ids in the registry and reports the ones it doesn't know", () => {
+    registerAssetProvider("req-test", () => [entry("world-places-test"), { ...entry("berlin-test"), requires: ["world-places-test", "nope"] }]);
+    const r = requirementsOf(findAsset("berlin-test")!);
+    expect(r.assets.map((a) => a.id)).toEqual(["world-places-test"]);
+    expect(r.unknown).toEqual(["nope"]);
+    expect(requirementsOf(findAsset("world-places-test")!)).toEqual({ assets: [], unknown: [] });
+    expect(requirementsOf({ id: "world-places-test", requires: ["world-places-test"] })).toEqual({ assets: [], unknown: [] });
+  });
+
+  it("every registered asset's requirements exist in the registry", () => {
+    for (const a of allAssets()) expect(requirementsOf(a).unknown, a.id).toEqual([]);
+  });
+});
+

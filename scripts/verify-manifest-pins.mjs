@@ -33,7 +33,7 @@ for (const file of targets) {
     const after = /filename:\s*"([^"]+)"/.exec(src.slice(m.index, m.index + 400));
     const inObject = before && !src.slice(before.index, m.index).includes("},");
     const fileBefore = [...src.slice(Math.max(0, m.index - 400), m.index).matchAll(/filename:\s*"([^"]+)"/g)].pop();
-    entries.push({ id: inObject ? before[1] ?? `${file.split("/").pop()} part ${before[2]}` : after?.[1] ?? fileBefore?.[1] ?? `${file}@${m.index}`, size: Number(m[1]), sha256: m[2], url: m[3] });
+    entries.push({ id: inObject ? before[1] ?? `${file.split("/").pop()} part ${before[2]}` : after?.[1] ?? fileBefore?.[1] ?? `${file}@${m.index}`, filename: after?.[1] ?? fileBefore?.[1], size: Number(m[1]), sha256: m[2], url: m[3] });
   }
 }
 
@@ -86,7 +86,30 @@ async function hashDownload(e) {
   return digest === e.sha256 ? null : `sha256 ${digest} != manifest ${e.sha256}`;
 }
 
-let failed = 0;
+// Places packs are useless without the world gazetteer (PL-1): the catalog must
+// have it (hosted, with --strict) and every places-pack entry must require it.
+const GAZETTEER_FILE = "poi/world-places.sqlite";
+const GAZETTEER_ID = "poi-world-places";
+const placeProblems = [];
+const placesPacks = entries.filter((e) => e.filename?.startsWith("poi/") && e.filename !== GAZETTEER_FILE);
+const gazetteer = entries.find((e) => e.filename === GAZETTEER_FILE);
+if (placesPacks.length && !gazetteer) placeProblems.push(`${placesPacks.length} places pack(s) but no ${GAZETTEER_FILE} in the catalog`);
+if (placesPacks.length && gazetteer && !gazetteer.url && strict) placeProblems.push(`${GAZETTEER_FILE} is not hosted`);
+for (const file of targets) {
+  const src = readFileSync(new URL(file, root), "utf8");
+  for (const m of src.matchAll(/format:\s*"poi-pack"/g)) {
+    // The object literal around this entry: from the nearest "{" before it to the next closing "}" at its level.
+    const start = src.lastIndexOf("{", m.index);
+    const end = src.indexOf("\n  }", m.index);
+    const obj = src.slice(start, end < 0 ? m.index + 600 : end);
+    if (!obj.includes(GAZETTEER_ID) && !/filename:\s*"poi\/world-places\.sqlite"/.test(obj)) {
+      placeProblems.push(`${file.split("/").pop()}: a places-pack entry doesn't require ${GAZETTEER_ID}`);
+    }
+  }
+}
+for (const p of placeProblems) console.log(`FAIL places — ${p}`);
+
+let failed = placeProblems.length;
 let unhosted = 0;
 let ok = 0;
 for (const e of entries) {

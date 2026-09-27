@@ -47,3 +47,21 @@ export function allAssets(): CatalogModel[] {
 export function findAsset(id: string): CatalogModel | undefined {
   return allAssets().find((a) => a.id === id);
 }
+
+/**
+ * What `asset` must be installed with (its `requires`), resolved in the
+ * registry. Ids the registry doesn't know come back in `unknown`: a catalog
+ * bug, which the registry tests and manifest:verify --strict catch.
+ */
+export function requirementsOf(asset: Pick<CatalogModel, "id" | "requires">): { assets: CatalogModel[]; unknown: string[] } {
+  const assets: CatalogModel[] = [];
+  const unknown: string[] = [];
+  for (const id of asset.requires ?? []) {
+    if (id === asset.id) continue; // an entry built by a shared helper may list itself
+    const found = findAsset(id);
+    if (found) assets.push(found);
+    else unknown.push(id);
+  }
+  return { assets, unknown };
+}
+
