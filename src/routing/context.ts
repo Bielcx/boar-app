@@ -584,10 +584,31 @@ export function uncitedPreface(pt: boolean): string {
 }
 
 export const NO_SOURCE_INSTRUCTION =
-  "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
+  // The app's own line is the one notice (gate cd1478a: asked to say it, the 4B translated it under "Responda em
+  // português" and the notice came out twice). The model isn't asked to say it, only told why.
+  "No source in the offline library covers this question; the app already tells the reader. Do not mention sources or the library. " +
   // s32 (ee1f2b7): "Only state what you are sure of" made the 4B drop list items (the Danube without
   // Moldova). The compact model no longer answers from memory unasked (6e5e9b7), so ask for a full answer.
-  "Then answer completely; if you are unsure of a specific detail, say which one.";
+  "Answer completely; if you are unsure of a specific detail, say which one.";
+
+// A model's own "not from an offline source" opening, EN and PT, as the gates saw it: "This answer is not from an
+// offline source.", "Esta resposta não está em um banco de dados offline.", "Essa resposta não está em uma fonte
+// offline.", "Esta resposta não vem de uma fonte offline.", "I don't have a source for this."
+const MODEL_DISCLAIMER =
+  /^\s*(?:(?:this|the) (?:answer|response|information) (?:is|was) not (?:from|in|based on|drawn from)(?: an?| any| the)? (?:offline )?(?:source|database|library|data)\b|(?:esta|essa) (?:resposta|informa[çc][ãa]o) n[ãa]o (?:vem|est[áa]|[ée]|foi tirada|se baseia)(?: baseada)?(?: em| de| d[aeo]| n[ao])?(?: uma?| nenhuma| um)? ?(?:fonte|banco de dados|base de dados|acervo|biblioteca)(?: offline)?|i (?:don'?t|do not) have (?:a|an|any) (?:offline |reliable )?source\b|n[ãa]o tenho (?:uma? |nenhuma )?fonte\b)[^.!?\n]*[.!?]?\s*/i;
+
+/** The answer without the model's own "not from an offline source" opening (and a copy of the app's line). */
+export function stripModelDisclaimer(text: string, pt: boolean): string {
+  let out = text.trimStart();
+  const app = uncitedPreface(pt);
+  for (let i = 0; i < 3; i++) {
+    const before = out;
+    if (out.startsWith(app)) out = out.slice(app.length).trimStart();
+    out = out.replace(MODEL_DISCLAIMER, "").trimStart();
+    if (out === before) break;
+  }
+  return out;
+}
 
 /** When the offline library was built (Wikipedia and the packs' dumps). Update with the packs. */
 export const LIBRARY_SNAPSHOT = { en: "September 2026", pt: "setembro de 2026" };
@@ -753,6 +774,14 @@ export function isPortugueseQuestion(query: string): boolean {
   return strong >= 2 || (strong >= 1 && accent);
 }
 
+/** Next to a PT question: answer in Portuguese even with English sources (the sources' language pulls the model). */
+// And the citation, with an example (gate 1724fd5: with the language line alone the models stopped writing [n]).
+export const PT_ANSWER_LANGUAGE =
+  "Responda em português do Brasil, mesmo que as fontes estejam em inglês, e cite cada afirmação com o número da fonte, como [1].";
+// Without sources, the language only (gate 19bb043: "cite [n]" with nothing to cite made the 4B write its own
+// "not from an offline source" line after the app's, and a weaker answer).
+export const PT_ANSWER_LANGUAGE_NO_SOURCES = "Responda em português do Brasil.";
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */
@@ -855,7 +884,7 @@ export function emergencyLine(pt: boolean): string {
 // butter or aloe: the core procedure is cooling with running water; the rest stays in the source.
 const BURN_REMEDY = /\b(ointments?|creams?|lotions?|oils?|butter|aloe( vera)?|petroleum jelly|egg white|toothpaste)\b|pomada|\bcreme\b|[óo]leo|manteiga|babosa|pasta de dente/i;
 /** A child or boiling water: the excerpt keeps the source's "seek medical care" line if it has one. */
-const SEEK_CARE = /\b(seek|get) (medical|emergency) (care|attention|help|treatment)|\bsee a (doctor|healthcare)|\bcall (911|112|999|your doctor|a doctor)|\bemergency (room|department)|procure (atendimento|um m[ée]dico)/i;
+const SEEK_CARE = /\b(seek|get) (medical|emergency) (care|attention|help|treatment)|\b(require|requires|need|needs) (immediate |urgent )?medical (attention|care)|\bsee a (doctor|healthcare)|\bcall (911|112|999|your doctor|a doctor)|\bemergency (room|department)|procure (atendimento|um m[ée]dico)/i;
 const HIGH_RISK_BURN = /\b(child|children|kid|baby|infant|toddler|son|daughter|boiling)\b|crian[çc]a|beb[êe]|filh[oa]|fervend|fervent/i;
 
 export interface ExcerptRules {
@@ -905,6 +934,25 @@ export function situationNote(query: string, source: RetrievedChunk, pt: boolean
     }
   }
   return null;
+}
+
+/**
+ * The "seek care" sentence a high-risk case needs (a child, boiling water) when the quoted source lacks it: from
+ * another on-topic source, with its own [n], before the emergency line (Sextant dng-003: the Ready.gov "How to Treat
+ * Minor Burns" excerpt never says when to get help; the article's opening chunk does: "…require immediate medical
+ * attention"). Nothing found: unchanged (the emergency line stays).
+ */
+export function withSeekCare(text: string, sources: RetrievedChunk[], primary: number, rules: ExcerptRules): string {
+  if (!rules.mustInclude || rules.mustInclude.test(text)) return text;
+  for (let k = 0; k < sources.length; k++) {
+    if (k === primary) continue;
+    const sentence = splitSentences(sources[k].body).find((x) => rules.mustInclude!.test(x) && !rules.cutAt?.test(x));
+    if (!sentence) continue;
+    const cut = text.indexOf("\n\n");
+    const [head, tail] = cut >= 0 ? [text.slice(0, cut), text.slice(cut)] : [text, ""];
+    return `${head}\n\n${sentence.replace(/^[-•]\s*/, "")} [${k + 1}]${tail}`;
+  }
+  return text;
 }
 
 const AFTER_ASK = /\bafter (it|the \w+) (stops|ends|is over|passes)\b|\b(and|what about|what to do) after\b|\bafterwards\b|depois que (parar|passar|acabar|terminar)|\be depois\b|o que fazer depois|\bap[óo]s (parar|passar|o tremor|a enchente)/i;

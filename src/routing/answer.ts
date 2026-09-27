@@ -22,6 +22,10 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  stripModelDisclaimer,
+  withSeekCare,
+  PT_ANSWER_LANGUAGE,
+  PT_ANSWER_LANGUAGE_NO_SOURCES,
   situationNote,
   isPortugueseQuestion,
   healthSourceOrder,
@@ -841,13 +845,13 @@ export function createAnswerer(deps: AnswerDeps) {
             continue;
           }
           // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
-          const withAfter = withAfterPart(req.query, first, fullSources, k, pt, rules);
+          const withAfter = withSeekCare(withAfterPart(req.query, first, fullSources, k, pt, rules), fullSources, k, rules);
           text = safeHealthExcerpt(withAfter) ? withAfter : first;
           // A general passage for a specific situation says so (dng-005: a flood, and Wikivoyage's "Water › Buy").
           const note = situationNote(req.query, fullSources[k], pt);
           if (note) {
-            const nl = text.indexOf("\n");
-            text = nl >= 0 ? `${text.slice(0, nl)}\n${note}\n${text.slice(nl + 1)}` : `${note}\n${text}`;
+            // Before the source's label: the reader learns it's general advice before reading it (Boar).
+            text = `${note}\n\n${text}`;
             reasonCodes.push("grounding:health-general-source");
           }
           break;
@@ -887,6 +891,9 @@ export function createAnswerer(deps: AnswerDeps) {
           health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined,
           // "today"/"hoje": the model gets the device's date instead of guessing one (Prism TD-1).
           mentionsNow(req.query) ? todayLine(deps.today?.() ?? new Date(), pt) : undefined,
+          // A PT question, in Portuguese, next to it: with English sources the 4B answered 8 of 29 PT questions in
+          // English (gate bc7db6d) despite "Reply in the question's language" after </sources>.
+          pt ? (sources.length ? PT_ANSWER_LANGUAGE : PT_ANSWER_LANGUAGE_NO_SOURCES) : undefined,
         ]
           .filter(Boolean)
           .join("\n") || undefined;
@@ -1087,10 +1094,27 @@ export function createAnswerer(deps: AnswerDeps) {
       // front; the compact model declines unless asked to answer anyway. With an on-topic source it
       // answers as written (s32: the line cost the 4B 4 right answers per wrong one caught, and the
       // compact model declined 21 of 28 knowledge questions); the chat still gets weak_sources (finish).
+      // Boar, gate 1724fd5: with the PT language line the models stopped writing [n]; without [n], CT-1 removed
+      // nothing, (A) never fired and the compact model's PT confident errors went 5 -> 9. A compact answer with
+      // sources in its prompt and no [n] at all (after attribution) is treated like "every citation removed":
+      // the decline, unless asked to answer anyway. The 4B is unchanged.
+      if (!health && gen.mode !== "multipass" && sources.length && text.trim() && !/\[\d+\]/.test(text) && isCompactModel(genLlm) && !req.answerAnyway) {
+        reasonCodes.push("grounding:uncited-with-sources-declined-compact");
+        const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        finalText = message;
+        return finish(genTier, "success", message, [], baseReceipt);
+      }
       const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
-      // Also with no source at all (the instruction asks for the line; a model may skip it).
-      const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
-      if (knowledge && text.trim() && !/\[\d+\]/.test(text) && !saysNotFromLibrary) {
+      // Also with no source at all. The app's line is the one notice: the model's own is stripped first (gate
+      // cd1478a: the 4B's translated "Esta resposta não está em um banco de dados offline." came after the app's).
+      if (knowledge && text.trim() && !/\[\d+\]/.test(text)) {
+        const stripped = stripModelDisclaimer(text, pt);
+        if (stripped.trim() && stripped !== text.trimStart()) {
+          reasonCodes.push("grounding:model-disclaimer-stripped");
+          text = stripped;
+          finalText = text;
+        }
         // Sources that passed the topic guard are on topic.
         const onTopicSources = guarded ? sources.length : 0;
         if (onTopicSources > 0) reasonCodes.push("grounding:uncited-on-topic");
