@@ -1,6 +1,6 @@
 import { llamaEngine } from "../inference/LlamaEngine";
 import { retrieve, RetrievedChunk, ConversationHistory } from "../rag/retrieve";
-import { compressContext, mergeSources, onTopic, PT_QUESTION } from "../routing/context";
+import { compressContext, mergeSources, onTopic } from "../routing/context";
 import { taskRequest } from "../inference/format";
 
 /**
@@ -172,9 +172,9 @@ export async function runDeepResearch(
     const compressed = compressContext(subQuestions[i], retrieved, { tokenBudget: SUB_QUESTION_CONTEXT_TOKENS }).chunks;
     // CT-2 / RT-1 here too: a source off the topic of this sub-question (or of the whole
     // question, which the decomposition rephrases) is not read, numbered or shown.
-    // Portuguese can't be matched word for word against English sources: no guard.
-    const pt = PT_QUESTION.test(subQuestions[i]) || PT_QUESTION.test(query);
-    const chunks = pt ? compressed : compressed.filter((c) => onTopic(subQuestions[i], c) || onTopic(query, c));
+    // Portuguese too (Quill, 014c054: every source the chat is shown is on topic); the decomposition
+    // usually rephrases a PT question's sub-questions in English, which match the English sources.
+    const chunks = compressed.filter((c) => onTopic(subQuestions[i], c) || onTopic(query, c));
     perQuestion.push(chunks);
     // Number against every source seen so far, so the same chunk keeps one number across sub-questions.
     const merged = mergeSources(perQuestion);

@@ -16,6 +16,7 @@ const chunk = (chunkId: string, title: string, body: string): RetrievedChunk => 
   score: 1,
   matchType: "hybrid",
 });
+const WALIPINI_KB = chunk("wk", "Walipini", "A Walipini is an earth-sheltered cold frame. A greenhouse can be built by digging a hole in the ground. It uses the heat stored in the earth during the cold season.");
 const CANBERRA = chunk(
   "c1",
   "Canberra",
@@ -631,40 +632,45 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(result.receipt.reasonCodes).toContain("grounding:uncited-on-topic");
   });
 
-  it("gate ea5978c: an unguarded PT answer that cites none of its sources opens with the not-from-the-library line (4B)", async () => {
+  it("gate ea5978c: a PT question whose only passage is off topic: no sources shown, the 4B's answer gets the line", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
-    f.retrieved = [CANBERRA];
+    f.retrieved = [WALIPINI_KB];
     f.deps.englishNames = () => [];
-    f.deps.engine.generate = async (o) => {
-      o.onToken?.("It was a compromise between Sydney and Melbourne.");
-      return "It was a compromise between Sydney and Melbourne.";
-    };
-    const { events, result } = await collect("Por que Canberra foi escolhida como capital da Austrália?");
-    const done = events.find((e) => e.type === "done") as any;
-    expect(done.cited).toEqual([]);
-    expect(done.finalText).toBe("Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nIt was a compromise between Sydney and Melbourne.");
-    expect(result.receipt.reasonCodes).toContain("grounding:uncited-preface");
-    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+    f.deps.engine.generate = async () => "As estações existem por causa da inclinação do eixo.";
+    const { events } = await collect("Por que existem as estacoes do ano?");
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
+    expect((events.find((e) => e.type === "done") as any).finalText).toBe("Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nAs estações existem por causa da inclinação do eixo.");
   });
 
-  it("gate ea5978c: the compact model's uncited answer with no on-topic source becomes the decline; answerAnyway keeps it with the line", async () => {
-    const q = "Por que Canberra foi escolhida como capital da Austrália?"; // PT, no English words: unguarded
-    f.retrieved = [CANBERRA];
+  it("gate ea5978c: the compact model with no on-topic source declines; answerAnyway keeps the answer with the line", async () => {
+    const q = "Por que existem as estacoes do ano?";
+    f.retrieved = [WALIPINI_KB];
     f.deps.englishNames = () => [];
-    f.deps.engine.generate = async () => "Foi um meio-termo.";
-    const { events, result } = await collect(q);
+    const { events } = await collect(q);
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
-    expect((events.find((e) => e.type === "done") as any).finalText).toBe("");
-    expect(result.receipt.reasonCodes).toContain("grounding:uncited-declined-compact");
 
     f = makeFake();
-    f.retrieved = [CANBERRA];
+    f.retrieved = [WALIPINI_KB];
     f.deps.englishNames = () => [];
-    f.deps.engine.generate = async () => "Um meio-termo.";
+    f.deps.engine.generate = async () => "Por causa da inclinação.";
     const events2: AnswerEvent[] = [];
     await createAnswerer(f.deps).answer({ query: q, answerAnyway: true }, (e) => events2.push(e), ctx).done;
     expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^Esta resposta não vem de uma fonte offline/);
+  });
+
+  it("Quill 014c054: an off-topic passage never reaches the sources event, EN or PT, single pass or multipass", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [WALIPINI_KB, CANBERRA];
+    f.deps.englishNames = () => [];
+    for (const q of ["Por que Canberra foi escolhida como capital da Austrália?", "Why was Canberra chosen as the capital of Australia?"]) {
+      const { events } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any)?.sources ?? [];
+      expect(sources.map((c: RetrievedChunk) => c.title), q).toEqual(["Canberra"]);
+    }
   });
 
   it("Boar (B): the compact model with an on-topic source answers uncited, and the chat gets weak_sources", async () => {
