@@ -123,6 +123,11 @@ the log shows no network, URL, space or sha error. The simulator is not affected
 simulator's Metal).
 
 Next run (needs the phone):
+0. Before anything: record free space (`xcrun devicectl device info details
+   --device <id>`, storage / free capacity). The user suspects a full disk; the
+   Metal compiler writes its shader cache to disk, so a full disk could explain
+   XPC_ERROR_CONNECTION_INTERRUPTED. If space is short, free it and retry
+   before changing code.
 1. Check whether it reproduces without `devicectl --console` (the compiler XPC
    may behave differently under the debugger launch).
 2. Engine-side fallback (Tusk): on a context init failure, retry with the GPU
@@ -133,5 +138,5 @@ Next run (needs the phone):
    ~2.1 GB limit without increased-memory-limit, which needs a paid team with
    the capability on the App ID.
 
-UNKNOWN: whether the XPC compile failure is memory pressure on the 4 GB phone,
+UNKNOWN: whether the XPC compile failure is a full disk, memory pressure on the 4 GB phone,
 an iOS 26.6 issue, or caused by the debugger launch.
