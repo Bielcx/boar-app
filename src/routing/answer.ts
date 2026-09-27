@@ -22,6 +22,7 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  situationNote,
   isPortugueseQuestion,
   healthSourceOrder,
   safeHealthExcerpt,
@@ -676,7 +677,10 @@ export function createAnswerer(deps: AnswerDeps) {
       // Identifiers the question names ("EIP-7251") stay in what sources are matched against (Sextant dddd8a8:
       // with names ["Ethereum"] only, the EIP page lost to the Ethereum articles).
       const ids = identifiersIn(req.query);
-      const matchQuery = english ?? (names.length ? [...names, ...ids].join(" ") : req.query);
+      // And the acronyms it writes as they are ("ML-KEM", "SLH-DSA", "MEV"): with names ["Algorithm"] alone the
+      // ML-KEM page lost to "Jump flooding algorithm" in compression (Sextant cry-018-pt, gate bc7db6d).
+      const acronyms = [...new Set(req.query.match(/\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b|\b[A-Z]{2,}[0-9]*\b/g) ?? [])];
+      const matchQuery = english ?? (names.length ? [...names, ...ids, ...acronyms].join(" ") : req.query);
       // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
       const onSubject = (c: RetrievedChunk) =>
         history
@@ -839,6 +843,13 @@ export function createAnswerer(deps: AnswerDeps) {
           // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
           const withAfter = withAfterPart(req.query, first, fullSources, k, pt, rules);
           text = safeHealthExcerpt(withAfter) ? withAfter : first;
+          // A general passage for a specific situation says so (dng-005: a flood, and Wikivoyage's "Water › Buy").
+          const note = situationNote(req.query, fullSources[k], pt);
+          if (note) {
+            const nl = text.indexOf("\n");
+            text = nl >= 0 ? `${text.slice(0, nl)}\n${note}\n${text.slice(nl + 1)}` : `${note}\n${text}`;
+            reasonCodes.push("grounding:health-general-source");
+          }
           break;
         }
         if (!text) {

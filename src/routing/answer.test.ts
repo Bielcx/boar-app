@@ -289,7 +289,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f = makeFake();
     f.retrieved = [quality, contamination] as any;
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
-    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
+    expect(result.text).toMatch(/^From the offline source:\n(?:The offline library has no guidance specific to a flood; the passage below is general advice on the subject\.\n)?Water contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
   });
 
   it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
@@ -1231,6 +1231,54 @@ describe("answer(): a snakebite first-aid question gets the WHO card (SAFETY, af
       expect(events.find((e) => e.type === "done"), q).toMatchObject({ safety: true });
     }
     expect(f.generations).toHaveLength(0);
+  });
+});
+
+describe("answer(): trv-009 PT, exact question and gate sources (bc7db6d)", () => {
+  it("'Triage systems by country > Portugal' is not a source on topic: the compact model declines", async () => {
+    f.retrieved = [
+      chunk("t", "Triage", "Specific triage systems and methods > Triage systems by country > Portugal: In Portugal, the Manchester Triage System is used."),
+      chunk("l", "List of British restaurants", "This is a list of notable restaurants in the United Kingdom."),
+    ];
+    f.deps.englishNames = () => ["Portugal"];
+    f.deps.engine.generate = async () => "Em Portugal, não é comum dar gorjeta em restaurantes.";
+    const { events, result } = await collect("É esperado dar gorjeta em restaurantes em Portugal?");
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect(result.text).toBe("Não encontrei isso no acervo deste celular.");
+  });
+});
+
+describe("answer(): cry-018-pt keeps the ML-KEM page (gate bc7db6d)", () => {
+  it("with lexicon names ['Algorithm'], the acronym the question writes still selects its page", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [
+      chunk("j", "Jump flooding algorithm", "The jump flooding algorithm is an algorithm used in the construction of Voronoi diagrams and distance transforms."),
+      chunk("p", "Longest path problem", "The longest path problem is the problem of finding a simple path of maximum length; an algorithm for it runs in exponential time."),
+      chunk("m1", "ML-KEM", "ML-KEM (Module-Lattice-Based Key-Encapsulation Mechanism), also known by its original name Kyber, is a key encapsulation mechanism designed to be resistant to cryptanalytic attack with a future powerful quantum computer."),
+      chunk("m2", "ML-KEM", "Properties: The system is based on the module learning with errors (M-LWE) problem, in conjunction with cyclotomic rings."),
+    ];
+    f.deps.englishNames = () => ["Algorithm"];
+    const { events } = await collect("ML-KEM é um algoritmo de assinatura? Para que ele serve?");
+    const titles = (((events.find((e) => e.type === "sources") as any)?.sources ?? []) as RetrievedChunk[]).map((c) => c.title);
+    expect(titles).toContain("ML-KEM");
+    expect(titles).not.toContain("Jump flooding algorithm");
+  });
+});
+
+describe("answer(): dng-005, a flood question with only general water advice (gate bc7db6d)", () => {
+  it("says the library has nothing flood-specific, then quotes the general steps", async () => {
+    f.retrieved = [chunk("w", "Wikivoyage: Water", "Buy: - Boil the water before drinking (several minutes) - Use iodine tablets (will kill bacteria) - Use a survival straw (probably best for remote areas) Consider drinking tea or bottled juices instead of unsafe water.")];
+    const { result } = await collect("Depois de uma enchente, a água da torneira pode estar contaminada. Como deixo a água segura para beber?");
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nO acervo offline não tem orientação específica para enchente; o trecho abaixo é uma orientação geral sobre o assunto\.\nBuy: - Boil the water/);
+    expect(result.receipt.reasonCodes).toContain("grounding:health-general-source");
+  });
+  it("a flood source gets no note", async () => {
+    f.retrieved = [chunk("f", "US government: Floods (Ready.gov)", "After a Flood: Listen to authorities to find out if your water is safe to drink. Boil water for one minute before drinking it if it may be contaminated.")];
+    const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
+    expect(result.text).not.toMatch(/no guidance specific/);
   });
 });
 
