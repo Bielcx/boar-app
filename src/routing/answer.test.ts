@@ -1411,6 +1411,18 @@ describe("answer(): a phrase question with no source is declined by both models 
   });
 });
 
+describe("answer(): lng-009, a translation request that names an allergy (gate 537bb24)", () => {
+  it("goes to the model as a language question, not to the health guard", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "In French: « Je suis allergique aux arachides. »";
+    const { result } = await collect("How do I say 'I am allergic to peanuts' in French?");
+    expect(result.receipt.reasonCodes.some((c) => /health/.test(c))).toBe(false);
+    expect(result.text).toMatch(/Je suis allergique aux arachides/);
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

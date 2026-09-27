@@ -802,3 +802,13 @@ describe("wrongScriptSentences (Sextant trv-007-pt)", () => {
     expect(wrongScriptSentences("What is the capital of France?", "Paris (Париж in Russian).")).toEqual([]);
   });
 });
+
+describe("isHealthQuestion: a translation request is not health (Sextant lng-009)", () => {
+  it("translating a phrase that names a condition is a language question; asking what to do is health", () => {
+    expect(isHealthQuestion("How do I say 'I am allergic to peanuts' in French?")).toBe(false);
+    expect(isHealthQuestion("Como se diz 'sou alérgico a amendoim' em francês?")).toBe(false);
+    expect(isHealthQuestion("What do I do if I'm allergic to peanuts?")).toBe(true);
+    expect(isHealthQuestion("I'm allergic to peanuts and my throat is swelling, what should I do?")).toBe(true);
+    expect(isHealthQuestion("How do I stop a nosebleed?")).toBe(true);
+  });
+});
