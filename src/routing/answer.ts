@@ -23,7 +23,6 @@ import {
   currentEventAnswer,
   mentionsNow,
   sentenceNamesSubject,
-  passageLanguage,
   falseQuantumClaims,
   isSubstantive,
   identifiersIn,
@@ -817,14 +816,11 @@ export function createAnswerer(deps: AnswerDeps) {
         // Product decision (Iris/Boar): the compact model doesn't answer from memory unless asked to.
         reasonCodes.push("grounding:declined-compact");
         markVisible();
-        emit({
-          type: "warning",
-          answerId,
-          code: "weak_sources",
-          declined: true,
-          message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
-        });
-        return finish(genTier, "success", "", [], receipt({ retrievalMs }));
+        const message = pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        // The decline is the answer's text too: a screen never shows an empty answer (Boar, gate 20e8c65).
+        finalText = message;
+        return finish(genTier, "success", message, [], receipt({ retrievalMs }));
       }
       if (fromMemory) {
         reasonCodes.push("grounding:no-source-memory");
@@ -985,19 +981,16 @@ export function createAnswerer(deps: AnswerDeps) {
           // Boar (A), s32 672bc41: the compact model cited, and no cited source supported it: 4 of 5 such
           // answers were confident errors ("Great Famine" from "Great Recession in Africa"). It declines,
           // as with no source, unless asked to answer anyway. The 4B keeps its (corrected) answer.
-          // Not when the answer and its sources are in different languages: CT-1 can't verify a PT sentence
-          // against an English source (it removes every such [n]), so that is no evidence against the answer
-          // (Sextant q7 PT: the 1.5B's answer became an empty decline with the Greenhouse effect source on topic).
-          const answerLang = passageLanguage(text);
-          const sourceLang = passageLanguage(sources.map((c) => c.body).join(" "));
-          const crossLanguage = !!answerLang && !!sourceLang && answerLang !== sourceLang;
-          if (crossLanguage) reasonCodes.push("grounding:all-citations-removed-kept-cross-language");
-          if (!crossLanguage && !/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
+          // Also across languages (a PT answer, English sources): the cross-language exception (5fa5d96) let
+          // 7 new confident crypto errors of the 1.5B through in PT (gate 20e8c65: "32 ETH" for EIP-7251), so
+          // it was reverted; the decline is right there.
+          if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
             reasonCodes.push("grounding:all-citations-removed-declined-compact");
             // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
-            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer." });
-            finalText = "";
-            return finish(genTier, "success", "", [], baseReceipt);
+            const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
+            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+            finalText = message;
+            return finish(genTier, "success", message, [], baseReceipt);
           }
         }
       }
@@ -1007,17 +1000,12 @@ export function createAnswerer(deps: AnswerDeps) {
       if (falseClaims.length) {
         if (isCompactModel(genLlm) && !req.answerAnyway) {
           reasonCodes.push("grounding:false-claim-declined-compact");
-          emit({
-            type: "warning",
-            answerId,
-            code: "weak_sources",
-            declined: true,
-            message: sources.length
-              ? pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer."
-              : pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
-          });
-          finalText = "";
-          return finish(genTier, "success", "", [], baseReceipt);
+          const message = sources.length
+            ? pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer."
+            : pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+          finalText = message;
+          return finish(genTier, "success", message, [], baseReceipt);
         }
         reasonCodes.push(`grounding:false-claim-removed-${falseClaims.length}`);
         for (const claim of falseClaims) text = text.replace(claim, "");
@@ -1051,9 +1039,10 @@ export function createAnswerer(deps: AnswerDeps) {
         if (onTopicSources > 0) reasonCodes.push("grounding:uncited-on-topic");
         else if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
           reasonCodes.push("grounding:uncited-declined-compact");
-          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
-          finalText = "";
-          return finish(genTier, "success", "", [], baseReceipt);
+          const message = pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+          finalText = message;
+          return finish(genTier, "success", message, [], baseReceipt);
         } else {
           reasonCodes.push("grounding:uncited-preface");
           // No source: the weak_sources warning already went out before generation.
