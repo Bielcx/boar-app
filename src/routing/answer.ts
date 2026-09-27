@@ -667,8 +667,11 @@ export function createAnswerer(deps: AnswerDeps) {
         emit({ type: "sources", answerId, tier: plan.instant !== "off" ? "instant" : genTier, sources });
       }
 
-      // 2. Instant snippet (no LLM): only a sentence that covers the question.
-      if (plan.instant !== "off" && raw.length) {
+      // 2. Instant snippet (no LLM): only a sentence that covers the question. Not for an extractive
+      // health answer: its snippet is the excerpt below (EQ-2: the preview quoted "Do not run during
+      // the quake!" by word overlap, before the Drop, Cover and Hold On excerpt).
+      const healthExtractive = health && sources.length > 0 && req.tier !== "deep";
+      if (plan.instant !== "off" && raw.length && !healthExtractive) {
         // Lexicon names: the sentence comes from a source titled by one (a one-word name is in many titles).
         const pool = names.length ? raw.filter(onSubject) : raw;
         const snip = pool.length ? selectInstant(matchQuery, pool) : null;
@@ -711,7 +714,7 @@ export function createAnswerer(deps: AnswerDeps) {
       // Health with a good source: the answer IS the source's text, not the model's
       // retelling (Sextant: the models misplaced the pinch point, iced snake bites,
       // put cream on burns). "Deeper answer" (tier deep) lets the model summarize it, strictly.
-      if (health && sources.length && req.tier !== "deep") {
+      if (healthExtractive) {
         reasonCodes.push("grounding:health-extractive");
         // Score on each source's full text: compression keeps the sentences matching the question
         // words, which can leave out a first-aid text's instructions.
@@ -720,6 +723,9 @@ export function createAnswerer(deps: AnswerDeps) {
         const i = healthSourceIndex(fullSources, rules.procedure ?? null);
         const text = healthExtract(fullSources[i], i + 1, pt, rules);
         markVisible();
+        // The snippet is the quoted excerpt itself, from the source the answer cites.
+        const quoted = text.split("\n")[1]?.replace(/\s*\[\d+\]$/, "") ?? text;
+        if (plan.instant !== "off") emit({ type: "instant", answerId, snippet: { text: quoted, sourceIndex: i }, confidence: 1 });
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
       }
