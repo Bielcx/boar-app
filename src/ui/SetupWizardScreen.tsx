@@ -513,7 +513,7 @@ function PackageStep({
         </>
       }
     >
-      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t("flows.onboarding.step2Sub")} />
+      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
       <Text variant="mono" color="secondary" numeric>
         {deviceRamBytes > 0 || freeBytes > 0
           ? t("flows.onboarding.device", {
@@ -543,7 +543,8 @@ function PackageStep({
               meta={[
                 p.plan.downloadBytes === 0 && t("flows.onboarding.alreadyDownloaded"),
                 // Only when it differs from the figure on the right (import, part already downloaded).
-                p.plan.installedBytes !== p.plan.downloadBytes && t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
+                formatBytes(p.plan.installedBytes, lang) !== formatBytes(p.plan.downloadBytes, lang) &&
+                  t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
                 !offline &&
                   p.seconds != null &&
                   p.plan.downloadBytes > 0 &&

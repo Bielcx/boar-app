@@ -547,6 +547,7 @@
       "backToApp": "Voltar ao app",
       "step2Title": "Escolha o que instalar",
       "step2Sub": "Tudo é baixado uma vez e depois funciona offline.",
+      "step2SubOffline": "Esta versão não acessa a internet: você importa os arquivos uma vez, e depois tudo funciona offline.",
       "step3Title": "Instalando",
       "step3Sub": "Esta é a única vez que o BOAR usa a internet.",
       "indexTitle": "Criando o índice",
