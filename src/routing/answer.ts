@@ -956,6 +956,15 @@ export function createAnswerer(deps: AnswerDeps) {
           reasonCodes.push(`citations:removed-${checked.removed.join("-")}`);
           text = checked.text;
           finalText = text;
+          // Boar (A), s32 672bc41: the compact model cited, and no cited source supported it: 4 of 5 such
+          // answers were confident errors ("Great Famine" from "Great Recession in Africa"). It declines,
+          // as with no source, unless asked to answer anyway. The 4B keeps its (corrected) answer.
+          if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
+            reasonCodes.push("grounding:all-citations-removed-declined-compact");
+            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
+            finalText = "";
+            return finish(genTier, "success", "", [], baseReceipt);
+          }
         }
       }
       // Its inverse (Boar, gate 9ef80f9): a sentence without [n] that an on-topic source supports, by
