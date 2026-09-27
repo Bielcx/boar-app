@@ -767,7 +767,8 @@
       "part": "Pesquisando parte {{index}} de {{count}}…",
       "stopping": "Parando…",
       "reading_one": "Lendo {{count}} fonte…",
-      "reading_other": "Lendo {{count}} fontes…"
+      "reading_other": "Lendo {{count}} fontes…",
+      "writing": "Escrevendo a resposta…"
     },
     "announce": {
       "searching": "Buscando nas fontes",
@@ -1116,6 +1117,12 @@
       "declinedTitle": "Não encontrei isso no acervo deste celular",
       "declinedBody": "Sem uma fonte, o modelo compacto costuma errar perguntas assim, então ele não chutou.",
       "answerAnyway": "Responder mesmo assim (pode errar)"
+    },
+    "stepShort": {
+      "search": "Buscando…",
+      "read": "Lendo…",
+      "load": "Carregando…",
+      "write": "Escrevendo…"
     }
   },
   "location": {

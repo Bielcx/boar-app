@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -163,5 +163,29 @@ describe("weak sources announcement", () => {
   it("state A announces the card as the answer", () => {
     const st = { answerIds: [], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
     expect(phaseAnnouncement("done", st, t)).toEqual({ message: "chat.weak.declinedTitle. chat.weak.declinedBody" });
+  });
+});
+
+describe("generatingSteps (mockup: all steps from the start)", () => {
+  const base = { answerIds: ["a"], sources: [] } as AnswerState;
+  const tier = (stage: string) => ({ text: "", stage, outcome: undefined }) as never;
+  it("starts with search active and the rest pending", () => {
+    const st = generatingSteps(base, t)!;
+    expect(st.map((s) => s.status)).toEqual(["active", "pending", "pending"]);
+    expect(st[1].label).toBe("chat.stage.thinking");
+  });
+
+  it("reads N sources, then writes", () => {
+    const withSources = { ...base, sources: [{ chunkId: "c" }] } as unknown as AnswerState;
+    const reading = generatingSteps({ ...withSources, fast: tier("prefill") }, t)!;
+    expect(reading.map((s) => s.status)).toEqual(["done", "active", "pending"]);
+    expect(reading[1].label).toBe('chat.stage.reading{"count":1}');
+    const writing = generatingSteps({ ...withSources, fast: tier("generating") }, t)!;
+    expect(writing.map((s) => s.status)).toEqual(["done", "done", "active"]);
+    expect(writing[2].label).toBe("chat.stage.writing");
+  });
+
+  it("is null once the answer is done", () => {
+    expect(generatingSteps({ ...base, fast: { text: "x", stage: null, outcome: "success" } } as AnswerState, t)).toBeNull();
   });
 });

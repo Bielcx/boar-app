@@ -258,8 +258,25 @@ export function ChatModelError({
         radius="hero"
         style={{ gap: t.space.md, borderWidth: t.size.border, borderColor: t.color.status.danger.solid }}
       >
-        <View style={{ alignSelf: "flex-start" }}>
+        {/* "Details" rides on the chip's line (Iris): the card keeps the mockup's 278 pt height. */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Badge label={tr("chat.modelError.overline")} tone="danger" icon="alert-triangle" />
+          {raw.length > 0 && (
+            // As tall as the chip, so the line doesn't grow; the touch area reaches the minimum through hitSlop.
+            <Pressable
+              onPress={() => setDetails((d) => !d)}
+              accessibilityRole="button"
+              accessibilityLabel={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
+              accessibilityState={{ expanded: details }}
+              hitSlop={{ top: t.space.md, bottom: t.space.md, left: t.space.sm, right: t.space.sm }}
+              style={{ flexDirection: "row", alignItems: "center", gap: t.space.xxs }}
+            >
+              <Text variant="caption" weight="semibold" color="secondary">
+                {tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
+              </Text>
+              <Icon name={details ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+            </Pressable>
+          )}
         </View>
         <View style={{ gap: t.space.xs }}>
           <Text variant="title2" header>
@@ -274,29 +291,17 @@ export function ChatModelError({
         </View>
         {/* The engine's own words stay available (selectable, to report them) behind "Details", closed by default,
             so the card keeps the mockup's height (Iris). */}
-        {raw.length > 0 && (
+        {/* Expanded: the engine's own words under the well, selectable so they can be reported. */}
+        {raw.length > 0 && details && (
           <View style={{ gap: t.space.xs }}>
-            <Button
-              label={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
-              variant="ghost"
-              size="sm"
-              icon={details ? "chevron-up" : "chevron-down"}
-              accessibilityState={{ expanded: details }}
-              style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
-              onPress={() => setDetails((d) => !d)}
-            />
-            {details && (
-              <View style={{ gap: t.space.xs }}>
-                {kind === "engine" && (
-                  <Text variant="footnote" color="secondary">
-                    {tr("chat.modelError.engine.details")}
-                  </Text>
-                )}
-                <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error: raw })}>
-                  {raw}
-                </Text>
-              </View>
+            {kind === "engine" && (
+              <Text variant="footnote" color="secondary">
+                {tr("chat.modelError.engine.details")}
+              </Text>
             )}
+            <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error: raw })}>
+              {raw}
+            </Text>
           </View>
         )}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>

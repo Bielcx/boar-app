@@ -161,3 +161,44 @@ export function stageIcon(phase: AnswerPhase): "search" | "cpu" | "book-open" | 
       return "circle";
   }
 }
+
+export type StepStatus = "done" | "active" | "pending";
+export interface GeneratingStep {
+  key: "search" | "read" | "write";
+  label: string;
+  /** Short form for the pill next to the name ("Reading…"). */
+  short: string;
+  icon: "search" | "cpu" | "book-open" | "zap" | "check-circle" | "layers";
+  status: StepStatus;
+}
+
+/**
+ * The generating card as the mockup: every step from the start, done / active / pending. The steps are
+ * the answer's real phases: searching this phone's library, reading the sources (or loading the model),
+ * writing the answer (or checking it / researching part n of m). Null outside a running answer.
+ */
+export function generatingSteps(state: AnswerState, t: T): GeneratingStep[] | null {
+  const phase = answerPhase(state);
+  const order: Record<string, number> = { searching: 0, loading_model: 1, reading: 1, generating: 2, verifying: 2, synthesizing: 2 };
+  const at = order[phase];
+  if (at == null) return null;
+  const status = (i: number): StepStatus => (i < at ? "done" : i === at ? "active" : "pending");
+  const n = state.sources.length;
+  const read =
+    phase === "loading_model"
+      ? { label: t("chat.stage.loadingModel"), icon: "cpu" as const }
+      : n > 0
+        ? { label: t("chat.stage.reading", { count: n }), icon: "book-open" as const }
+        : { label: t("chat.stage.thinking"), icon: "book-open" as const };
+  const write =
+    phase === "verifying"
+      ? { label: t("chat.stage.verifying"), icon: "check-circle" as const }
+      : phase === "synthesizing"
+        ? { label: stageLine(state, t) ?? t("chat.stage.synthesizing"), icon: "layers" as const }
+        : { label: t("chat.stage.writing"), icon: "zap" as const };
+  return [
+    { key: "search", label: t("chat.stage.searching"), short: t("chat.stepShort.search"), icon: "search", status: status(0) },
+    { key: "read", label: read.label, short: t(phase === "loading_model" ? "chat.stepShort.load" : "chat.stepShort.read"), icon: read.icon, status: status(1) },
+    { key: "write", label: write.label, short: t("chat.stepShort.write"), icon: write.icon, status: status(2) },
+  ];
+}

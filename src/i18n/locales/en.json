@@ -767,7 +767,8 @@
       "part": "Researching part {{index}} of {{count}}…",
       "stopping": "Stopping…",
       "reading_one": "Reading {{count}} source…",
-      "reading_other": "Reading {{count}} sources…"
+      "reading_other": "Reading {{count}} sources…",
+      "writing": "Writing the answer…"
     },
     "announce": {
       "searching": "Searching sources",
@@ -1116,6 +1117,12 @@
       "declinedTitle": "I couldn't find this in this phone's library",
       "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
       "answerAnyway": "Answer anyway (may be wrong)"
+    },
+    "stepShort": {
+      "search": "Searching…",
+      "read": "Reading…",
+      "load": "Loading…",
+      "write": "Writing…"
     }
   },
   "location": {
