@@ -13,7 +13,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { KeyboardController } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, Sheet, Text, TextAction, TextField, useToast } from "../components";
+import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, IconText, Sheet, Text, TextAction, TextField, useToast } from "../components";
 import { installedPoiCities } from "../flows/adapters";
 import { useTokens } from "../theme";
 import type { Place } from "./answerEvents";
@@ -555,10 +555,10 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             accessibilityRole="button"
             accessibilityState={{ expanded: showLicense }}
             accessibilityLabel={tr("chat.places.attributionLabel")}
-            style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, minHeight: t.size.touch }}
+            style={{ minHeight: t.size.touch, justifyContent: "center" }}
           >
-            <Icon name="map" size="sm" color={t.color.text.field} />
-            <Text variant="caption" color="field" style={{ flex: 1 }}>
+            {/* Icon-align: the map icon on the credit's first line (it wraps in PT). */}
+            <IconText icon="map" variant="caption" color="field" iconColor={t.color.text.field}>
               {r.attribution
                 .map((a) => {
                   const date = formatDataDate(a.date, locale);
@@ -567,7 +567,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
                     .join(" · ");
                 })
                 .join(" · ")}
-            </Text>
+            </IconText>
           </Pressable>
           {showLicense && (
             <Text variant="caption" color="secondary">

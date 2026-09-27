@@ -1,9 +1,10 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, TextAction, type IconName } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, IconSlot, IconText, Mascot, MetaLine, Text, TextAction, useOpticalLine, type IconName } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
-import { useTheme, useTokens } from "../theme";
+import { icon, useTheme, useTokens } from "../theme";
+import { META_SEPARATOR, metaItems } from "../components/metaItems";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
@@ -95,21 +96,25 @@ function StepSpinner() {
  */
 function StepsCard({ steps }: { steps: GeneratingStep[] }) {
   const t = useTokens();
+  // Icon-align round: leading icon and trailing status on the optical centre of the label's first line.
+  const line = useOpticalLine("footnote");
   return (
     <Card padding="compact" radius="card" style={{ gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       {steps.map((s) => (
-        <View key={s.key} style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name={s.icon} size="sm" color={s.status === "active" ? t.color.accent.solid : t.color.text.secondary} />
+        <View key={s.key} style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+          <IconSlot name={s.icon} line={line} color={s.status === "active" ? t.color.accent.solid : t.color.text.secondary} />
           <Text variant="footnote" weight={s.status === "active" ? "semibold" : "regular"} color={s.status === "pending" ? "secondary" : "primary"} style={{ flex: 1 }}>
             {s.label}
           </Text>
-          {s.status === "active" ? (
-            <StepSpinner />
-          ) : s.status === "done" ? (
-            <Icon name="check" size="sm" color={t.color.status.success.solid} />
-          ) : (
-            <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
-          )}
+          <View style={{ height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
+            {s.status === "active" ? (
+              <StepSpinner />
+            ) : s.status === "done" ? (
+              <Icon name="check" size={line.iconSize} color={t.color.status.success.solid} edge="end" />
+            ) : (
+              <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
+            )}
+          </View>
         </View>
       ))}
     </Card>
@@ -126,17 +131,17 @@ function Elapsed({ locale, step }: { locale: string; step?: string }) {
       accessibilityElementsHidden
       style={{
         marginLeft: "auto",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: t.space.xs,
+        justifyContent: "center",
         paddingHorizontal: t.space.sm,
         paddingVertical: t.space.xs,
         borderRadius: t.radius.full,
         backgroundColor: t.color.bg.surface,
       }}
     >
-      <Icon name="loader" size="sm" color={t.color.text.secondary} />
-      <MetaLine items={[step, formatSeconds(seconds * 1000, locale)]} variant="caption" />
+      {/* A pill (Iris icon-align): seal-sized icon, tight gap, the pair on the pill's optical middle. */}
+      <IconText icon="loader" variant="caption" color="secondary" iconColor={t.color.text.secondary} iconRole="seal" gap="tight" centerOnBox numeric>
+        {metaItems([step, formatSeconds(seconds * 1000, locale)]).join(META_SEPARATOR)}
+      </IconText>
     </View>
   );
 }
@@ -358,15 +363,19 @@ function SourceList({
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
   const groups = groupSources(answer.sources, only);
+  const labelLine = useOpticalLine("label");
   // Measured relevance only (Boar), as a band (Tusk: the raw value's scale depends on the query); none without it.
   const bands = relevanceBands(answer.sources);
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingHorizontal: t.space.xs }}>
-        <Icon name="book-open" size="sm" color={t.color.text.field} />
-        <Text variant="label" header style={{ flex: 1 }}>
-          {tr("chat.sources.heading")}
-        </Text>
+        {/* Icon on the label's optical line; the count badge centres on the row. */}
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+          <IconSlot name="book-open" line={labelLine} color={t.color.text.field} />
+          <Text variant="label" header style={{ flex: 1 }}>
+            {tr("chat.sources.heading")}
+          </Text>
+        </View>
         <Badge label={String(only?.length ?? answer.sources.length)} tone="field" emphasis="solid" />
       </View>
       {groups.map((g) => {
@@ -431,7 +440,7 @@ function SourceList({
                 {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
               </View>
               <RelevanceBar band={groupBand} />
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} edge="end" />
             </Pressable>
             {open && (
               <View style={{ gap: t.space.sm, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
@@ -446,7 +455,7 @@ function SourceList({
                     </Text>
                   )}
                   {/* Says the passage below opens the full source (Iris). */}
-                  <Icon name="maximize-2" size="sm" color={t.color.text.secondary} />
+                  <Icon name="maximize-2" size="sm" color={t.color.text.secondary} edge="end" />
                 </View>
                 {/* The passage itself opens the full source (no extra "Full passage" line, as in the mockup). */}
                 {g.indexes.map((i) => (
@@ -526,12 +535,9 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       {/* The marker is read, never decorative (Iris/Prism): "No strong source on this phone". */}
       <View accessible accessibilityRole="text" accessibilityLabel={saidInText ? title : `${title}. ${body}`} style={{ gap: t.space.sm }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name="book" size="sm" color={t.color.text.secondary} />
-          <Text variant="label" color="secondary" style={{ flex: 1 }}>
-            {title}
-          </Text>
-        </View>
+        <IconText icon="book" variant="label" color="secondary" iconColor={t.color.text.secondary}>
+          {title}
+        </IconText>
         {!saidInText && (
           <Text variant="footnote" color="secondary">
             {body}
@@ -589,12 +595,9 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       <View accessible accessibilityLabel={`${tr(title)}. ${tr(body)}`} style={{ gap: t.space.sm }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name="search" size="sm" color={t.color.text.secondary} />
-          <Text variant="cardTitle" style={{ flex: 1 }}>
-            {tr(title)}
-          </Text>
-        </View>
+        <IconText icon="search" variant="cardTitle" iconColor={t.color.text.secondary}>
+          {tr(title)}
+        </IconText>
         <Text variant="footnote" color="secondary">
           {tr(body)}
         </Text>
@@ -655,12 +658,11 @@ function EmergencyNote() {
     <View
       accessible
       accessibilityLabel={tr("chat.safety.emergencyNote")}
-      style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm, paddingHorizontal: t.space.xs }}
+      style={{ paddingHorizontal: t.space.xs }}
     >
-      <Icon name="alert-circle" size="sm" color={t.color.text.secondary} />
-      <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+      <IconText icon="alert-circle" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
         {tr("chat.safety.emergencyNote")}
-      </Text>
+      </IconText>
     </View>
   );
 }
@@ -876,11 +878,10 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
         // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
         cardMode === "found" ? (
-          <Card radius="card" padding="compact" style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-            <Icon name="book-open" size="sm" color={t.color.text.secondary} />
-            <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+          <Card radius="card" padding="compact">
+            <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
               {tr("chat.sources.found", { count: answer.sources.length })}
-            </Text>
+            </IconText>
           </Card>
         ) : cardMode === "related" && split ? (
           <Card radius="card" padding="compact">
@@ -923,18 +924,16 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
             style={({ pressed }) => ({
               height: t.size.controlSm,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: t.space.xs,
+              justifyContent: "center",
               paddingHorizontal: t.space.md,
               borderRadius: t.radius.full,
               backgroundColor: pressed ? t.color.bg.raised : t.color.bg.surface,
             })}
           >
-            <Icon name="copy" size="sm" color={t.color.text.secondary} />
-            <Text variant="caption" color="secondary">
+            {/* In a pill: icon + text move together onto the pill's middle (iOS draws the label high). */}
+            <IconText icon="copy" variant="caption" color="secondary" iconColor={t.color.text.secondary} centerOnBox>
               {tr("chat.actions.copyAnswer")}
-            </Text>
+            </IconText>
           </Pressable>
         </View>
       )}
@@ -948,14 +947,13 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           onPress={props.onDeepen}
           accessibilityRole="button"
           hitSlop={{ top: t.space.md, bottom: t.space.md }}
-          style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xs }}
+          style={{ alignSelf: "flex-start" }}
         >
-          <Icon name="layers" size="sm" color={t.color.text.secondary} />
-          <Text variant="caption" color="secondary">
+          <IconText icon="layers" variant="caption" color="secondary" iconColor={t.color.text.secondary}>
             {answer.deepAvailable?.estSeconds
               ? tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
               : tr("chat.actions.deepen")}
-          </Text>
+          </IconText>
         </Pressable>
       )}
     </View>

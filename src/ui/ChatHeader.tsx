@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Icon, IconButton, Mascot, OfflineSeal, Sheet, Text } from "./components";
+import { Icon, IconButton, IconText, Mascot, OfflineSeal, Sheet, Text } from "./components";
 import { useTokens } from "./theme";
 import { headerFit } from "./chat/headerLayout";
 
@@ -84,12 +84,11 @@ export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voi
               accessibilityLabel={tr(`chat.header.downgraded.${downgradedFrom.reason}`, { model: activeModelLabel, from: downgradedFrom.label })}
               accessibilityHint={tr("chat.header.downgraded.hint")}
               hitSlop={{ top: t.space.sm, bottom: t.space.sm }}
-              style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs }}
             >
-              <Text variant="capsMeta" color="secondary" numberOfLines={1} style={{ flexShrink: 1 }}>
+              {/* Icon-align (Iris): gap 8, seal-sized info icon on the caps line. */}
+              <IconText icon="info" iconPosition="end" variant="capsMeta" color="secondary" iconColor={t.color.text.secondary} iconRole="seal" numberOfLines={1}>
                 {activeModelLabel}
-              </Text>
-              <Icon name="info" size="sm" color={t.color.text.secondary} />
+              </IconText>
             </Pressable>
           )}
         </View>
