@@ -211,6 +211,8 @@ export function termCoverage(query: string, text: string): number {
 
 /** Below this, a snippet is not shown as "from the source", and the sources count as weak. */
 export const MIN_TERM_COVERAGE = 0.75;
+/** A source whose title names a question word must still cover this much of the question. */
+const TITLE_MIN_COVERAGE = 0.5;
 
 /** Best coverage of the question by any single source (title + body). 0 without sources. */
 export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number {
@@ -415,10 +417,53 @@ function sectionHeading(chunk: RetrievedChunk): string {
   return colon > 0 && colon <= 120 ? chunk.body.slice(0, colon) : "";
 }
 
+/**
+ * A source for a PT question matched by the lexicon's English article names (PT-1): its title, or
+ * its section heading, is one of the names. A multi-word name counts inside a longer title
+ * ("Greenhouse effect" in "Runaway greenhouse effect"); a one-word name must be the whole title
+ * ("Season", never "Hurricane Season Preparedness Digital Toolkit"). Text alone never counts.
+ */
+export function namedByLexicon(names: string[], chunk: RetrievedChunk): boolean {
+  const clean = (s: string) => s.replace(/^(Wikibooks|Wikivoyage|US government|Appropedia):\s*/, "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+  const heads = [clean(chunk.title), ...sectionHeading(chunk).split(">").map(clean)];
+  return names.some((n) => {
+    const name = clean(n);
+    if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);
+    const re = new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "iu");
+    return heads.some((h) => re.test(h));
+  });
+}
+
+/** Years a question names ("the 1906 earthquake", "the 1970 World Cup"). */
+function yearsIn(text: string): string[] {
+  return text.match(/(?<![\d.,])(1[0-9]{3}|20[0-9]{2})(?![\d.,]?\d)/g) ?? [];
+}
+
+/** Proper nouns a question names: capitalized words after the first ("Who is Vitalik Buterin?"), as terms. */
+function properNounTerms(query: string): string[] {
+  const words = query.match(/[\p{L}][\p{L}\p{N}'’-]*/gu) ?? [];
+  return words
+    .slice(1)
+    .filter((w) => /^\p{Lu}/u.test(w) && w !== "I")
+    .flatMap((w) => tokenizeTerms(w));
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
-  // The article title or the section heading names a question word.
-  if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) return true;
+  const text = `${chunk.title} ${chunk.body}`;
+  // A year or a proper noun in the question must be in the source (Sextant, gate a9f156c:
+  // "1513 Marash earthquake" for the 1906 one, a cricketer for the 1970 World Cup).
+  if (!yearsIn(query).every((y) => yearsIn(text).includes(y))) return false;
+  const proper = properNounTerms(query);
+  if (proper.length) {
+    const words = new Set(tokenizeTerms(text));
+    if (!proper.some((p) => words.has(p))) return false;
+  }
+  // The article title or the section heading names a question word, and the source covers
+  // the question ("Scary Stories: Dark Web" names "dark", not the latest theory of dark matter).
+  if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
+    return termCoverage(query, text) >= (q.size < MIN_TERMS_FOR_COVERAGE ? 1 : TITLE_MIN_COVERAGE);
+  }
   // With one or two content words, any page that mentions them somewhere "covers" the
   // question (Walipini, an earth-sheltered greenhouse, for "Why do we have seasons on
   // Earth?"). Then the passage must open with them: "Canberra is the capital city of
@@ -442,6 +487,13 @@ export const MIN_TERMS_FOR_COVERAGE = 3;
  * "Rainbow" and "McEliece" as signature standards; the compact model now
  * declines instead, see answer.ts).
  */
+/** Opens a knowledge answer that cites none of its sources (Boar, gate ea5978c): the reader must not take it as the library's. */
+export function uncitedPreface(pt: boolean): string {
+  return pt
+    ? "Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela."
+    : "This answer is not from an offline source on this phone; check it before relying on it.";
+}
+
 export const NO_SOURCE_INSTRUCTION =
   "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
   // s32 (ee1f2b7): "Only state what you are sure of" made the 4B drop list items (the Danube without
@@ -501,7 +553,8 @@ const CORE_PROCEDURE: Array<[RegExp, RegExp]> = [
   [/^bleed|^sangr|^hemorrag/, /\b(direct|firm|steady)\b[^.]{0,20}\bpressure\b|\b(apply|put|press)\w*\b[^.]{0,30}\b(pressure|firmly)\b|press[ãa]o (direta|firme)/i],
   [/^hypotherm|^hipoterm/, /\bshelter\b|\bwarm\w*|\bremove\b[^.]{0,30}\bwet\b|\bcold environment\b|abrigo|aquec/i],
   [/^snakebite|^snake/, /\b(keep|stay)\b[^.]{0,20}\b(still|calm)\b|\bimmobili\w*|\bantivenom\b|\bhospital\b|\bemergency\b/i],
-  [/^contaminat|^purif|^boil|^water/, /\bboil\w*|\bdisinfect\w*|\bbleach\b|ferv/i],
+  // Near "water": "Clean and disinfect everything that got wet" is about surfaces (safety-005, Appropedia Floods).
+  [/^contaminat|^purif|^boil|^water/, /\b(boil|disinfect|purif|treat)\w*\b[^.]{0,40}\bwater\b|\bwater\b[^.]{0,40}\b(boil|disinfect|purif)\w*|\bbleach\b[^.]{0,40}\bwater\b|\bwater\b[^.]{0,40}\bbleach\b|ferv/i],
   [/^chok|^engasg/, /\bback blows?\b|\babdominal thrusts?\b|\bheimlich\b/i],
   [/^flood|^enchent/, /\bhigher ground\b|\bavoid\b[^.]{0,20}\bflood ?water|\bdo not (walk|drive)\b[^.]{0,30}\bwater\b/i],
   [/^fire|^incendi/, /\bget out\b|\bstay low\b|\bcrawl\b|\bstop,? drop,? and roll\b/i],
@@ -524,8 +577,13 @@ export function healthSourceIndex(sources: RetrievedChunk[], procedure: RegExp |
     if (anyAction && flag(c) !== true && !LAY_SOURCE.test(c.title)) return;
     // Laypeople's first-aid text beats a clinical Treatment section ("Active external rewarming involves...").
     // Lay first-aid text that gives steps beats a clinical Treatment section.
-    const lay = LAY_SOURCE.test(c.title) ? (healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE ? 6 : 2) : 0;
-    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay + (procedure?.test(c.body) ? 8 : 0) - i * 0.05;
+    // Appropedia's how-to action sections are lay text too (EQ-2, pack v3: without it Wikivoyage's
+    // "If you are outdoors" beat "Drop, cover, and hold on!"); scoring only, not the topic rule.
+    const steps = healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE;
+    const lay = LAY_SOURCE.test(c.title) ? (steps ? 6 : 2) : /^Appropedia:/.test(c.title) && flag(c) === true && steps ? 6 : 0;
+    // The official source (Ready.gov) wins a tie between texts that give the core procedure.
+    const official = /^US government:/.test(c.title) && procedure?.test(c.body) ? 1 : 0;
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay + official + (procedure?.test(c.body) ? 8 : 0) - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;
