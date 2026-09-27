@@ -53,7 +53,10 @@ ios_plugin_change() { git -C "$SRC" diff "$1" "$HASH" -- plugins | grep -qE '^[+
 if [[ ! -d "$APP" || "${IOS_FIDELITY_REBUILD:-0}" == "1" ]]; then
   [[ -d "$SRC" ]] || git -C "$REPO" worktree add --detach -q "$SRC" "$HASH"
   git -C "$SRC" fetch -q origin
-  git -C "$SRC" checkout -q --detach "$HASH"
+  # $SRC is a build-only worktree: drop the build scripts copied into it last
+  # time (tracked or not) before switching refs, then copy the newest ones again.
+  git -C "$SRC" clean -q -f -- scripts
+  git -C "$SRC" checkout -q -f --detach "$HASH"
   cp "$REPO"/scripts/ios-*.sh "$SRC/scripts/"   # the newest build scripts, whatever the ref
   # Marker of the last full prebuild ("<hash> <variant>"; the variant renames the
   # Xcode project, so a switch needs a prebuild). Local builds keep it next to
@@ -309,17 +312,22 @@ k = max(jumps)[1] if jumps else len(run) - 1
 ims[run[max(0, k - 1)]].save(os.path.join(out, "splash-native.png"))
 ims[run[k]].save(os.path.join(out, "splash-bootsplash.png"))
 ims[run[k]].save(sys.argv[3])
+# a second BootSplash frame: the last one before setup (the bar further along)
+k2 = len(run) - 1
+if k2 > k: ims[run[k2]].save(os.path.join(out, "splash-bootsplash-2.png"))
 print(f"splash handover at frame {run[k]} (native {run[max(0, k - 1)]})", file=sys.stderr)
 EOF
 log "shot splash (from launch video)"
 maestri portal launch "$PORTAL" "$BUNDLE" >/dev/null
 wait_for "Get started" 60 && shot setup1-language
+if [[ "${IOS_FIDELITY_ONLY:-}" != "splash" ]]; then
 tap_orange 700 852
 wait_for "Choose what to install" 30 && sleep 0.5 && shot setup2-model
 tap_orange 700 852
 sleep 2; shot setup3-download
 xcrun simctl terminate "$DEV" "$BUNDLE"
 xcrun simctl uninstall "$DEV" "$BUNDLE"   # drop the partial download
+fi  # IOS_FIDELITY_ONLY=splash stops after setup 1
 
 # ---------- 5. compose ----------
 python3 "$REPO/scripts/ios-fidelity-compose.py" "$SCREENS" "$RAW" "$OUT" "$HASH"
