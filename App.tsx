@@ -38,6 +38,9 @@ const modelManager = new ModelManager();
 // Keep the native splash (same canvas, mascot and wordmark) up until the first real screen can
 // draw, instead of flashing a bare spinner between the two (iOS cd50fdc splash sequence).
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// Cut, don't fade: the native splash faded over the first screen and its big boar crossed the loading
+// chat's smaller one for ~4 frames (Prism, Android 8dc234e). On iOS the art under it is the same image.
+SplashScreen.setOptions({ fade: false });
 // Boot timing (splash decision): how long the native splash covers the JS start. Read in logcat / Xcode.
 const BOOT_T0 = Date.now();
 console.info(`[boot] js-start t=${BOOT_T0}`);
