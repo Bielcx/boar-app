@@ -856,7 +856,7 @@
       "unknown": "Algo deu errado."
     },
     "model": {
-      "loading": "Carregando {{label}}…",
+      "loading": "Carregando o modelo {{label}}…",
       "indexing": "Indexando conhecimento {{done}} / {{total}}",
       "noModelTitle": "Nenhum modelo instalado",
       "noModelBody": "Baixe ou importe um modelo para começar a perguntar.",
@@ -897,8 +897,8 @@
       "offlineAnswersSeal": "No aparelho",
       "offlineSealSpoken": "Offline: sem uso de rede",
       "downgraded": {
-        "low-ram": "Respondendo com {{model}}. O {{from}} precisa da sua confirmação neste celular",
-        "load-crashed": "Respondendo com {{model}}. O {{from}} fechou o app neste celular",
+        "low-ram": "Respondendo com o modelo {{model}}. O {{from}} precisa da sua confirmação neste celular",
+        "load-crashed": "Respondendo com o modelo {{model}}. O {{from}} fechou o app neste celular",
         "hint": "Abre Modelos"
       },
       "onDeviceSealSpoken": "No aparelho: as respostas são calculadas neste celular"
@@ -1078,7 +1078,7 @@
         "hint": "Tente de novo. Se continuar, escolha um modelo menor em Ajustes.",
         "details": "Tentou na GPU e depois na CPU. Também pode ser falta de memória. O motor disse:"
       },
-      "status": "{{model}} não carregado",
+      "status": "Modelo {{model}} não carregado",
       "details": "Detalhes",
       "hideDetails": "Ocultar detalhes",
       "retry": "Recarregar"
@@ -1087,10 +1087,10 @@
       "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."
     },
     "loadCrash": {
-      "message": "Sem memória para o {{model}}. Voltamos ao {{fallback}}.",
+      "message": "Sem memória para o modelo {{model}}. Voltamos ao {{fallback}}.",
       "seeModels": "Ver modelos",
       "dismiss": "Dispensar",
-      "messageNoFallback": "Sem memória para o {{model}}. Escolha um modelo menor."
+      "messageNoFallback": "Sem memória para o modelo {{model}}. Escolha um menor."
     },
     "weak": {
       "title": "Sem fonte forte neste celular",
