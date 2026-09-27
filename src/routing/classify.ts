@@ -10,6 +10,9 @@ import { TaskType } from "./types";
  */
 const PATTERNS: Array<{ type: TaskType; test: RegExp }> = [
   { type: "compare", test: /\b(compare|versus|vs\.?|difference between|which is better)\b/i },
+  // Portuguese (gate ea5978c: "Por que existem as estações do ano?" was "chat", so a from-memory
+  // answer got no "not from the library" line). \b doesn't see accented letters: unaccented stems.
+  { type: "compare", test: /\bdiferen[çc]a entre\b|\bcompar(e|ar|a[çc][ãa]o)\b|\bqual [ée] melhor\b/i },
   { type: "summarize", test: /\b(summarize|summarise|summary of|tl;?dr)\b/i },
   { type: "translate", test: /\btranslate\b/i },
   { type: "code", test: /```|\b(write (a |some )?code|debug this|refactor|fix this function|regex for)\b/i },
@@ -21,6 +24,7 @@ const PATTERNS: Array<{ type: TaskType; test: RegExp }> = [
     type: "research",
     test: /^(why|how)\b|\b(explain|caused?|causes|effects? of|impacts?|relate[sd]?|relationship|contrast|implications?)\b/i,
   },
+  { type: "research", test: /^(por ?qu[eê]|como)\s|\b(explique|explica|explicar|causou|causas?|efeitos? d[eao]s?|impactos?)\b/i },
 ];
 
 // Matches ONE greeting phrase, trailing punctuation only — not the whole
@@ -59,7 +63,7 @@ export function classifyTask(query: string): TaskType {
   }
 
   const wordCount = trimmed.split(/\s+/).length;
-  if (/^(who|what|when|where|which)\b/i.test(trimmed) && wordCount <= 12) {
+  if (/^(who|what|when|where|which|quem|o que|qual|quais|quando|onde|quantos?|quantas?)\s/i.test(`${trimmed} `) && wordCount <= 12) {
     return "lookup";
   }
   if (wordCount > 25 || /\b(research|analyze|analyse|investigate|explore|explain in depth)\b/i.test(trimmed)) {
