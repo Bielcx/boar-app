@@ -170,6 +170,12 @@ export type AnswerEvent =
        */
       finalText?: string;
       /**
+       * Source numbers ([n], 1-based into the sources event) the final answer text cites, after
+       * unsupported citations were dropped (CT-1). Empty: the answer rests on no source, so the
+       * chat shows no "Sources" card (at most a collapsed "Related in your library"; Prism CT-2).
+       */
+      cited?: number[];
+      /**
        * A health, first-aid or disaster question (the engine's classifier): the chat
        * shows the "Not a substitute for emergency services" line.
        */
@@ -253,6 +259,8 @@ export interface AnswerResult {
   text: string;
   sources: RetrievedChunk[];
   receipt: AnswerReceipt;
+  /** See the done event's cited. */
+  cited?: number[];
 }
 
 export interface AnswerHandle {

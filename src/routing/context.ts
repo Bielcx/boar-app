@@ -445,6 +445,27 @@ export const NO_SOURCE_INSTRUCTION =
   // Moldova). The compact model no longer answers from memory unasked (6e5e9b7), so ask for a full answer.
   "Then answer completely; if you are unsure of a specific detail, say which one.";
 
+/** When the offline library was built (Wikipedia and the packs' dumps). Update with the packs. */
+export const LIBRARY_SNAPSHOT = { en: "September 2026", pt: "setembro de 2026" };
+
+// A current-time word AND an event/news intent: "Who won the football match yesterday?", "latest
+// news", "placar do jogo de hoje". Either alone is not enough: "What happened in the 1906
+// earthquake?" has no current-time word; "Why is the sky blue today?" asks for no event.
+const CURRENT_TIME =
+  /\b(yesterday|today|tonight|this (morning|afternoon|evening|week|weekend|month|year)|last (night|week|weekend)|right now|at the moment|currently|latest|breaking|live|so far this)\b|(^|[^\p{L}])(ontem|hoje|hoje [àa] noite|agora|neste momento|nesta semana|esta semana|essa semana|semana passada|[úu]ltim[oa]s?|ao vivo|atualmente)(?![\p{L}])/iu;
+const EVENT_INTENT =
+  /\b(who won|who (is )?winning|won|win|beat|score|scores|result|results|match|game|election|news|headlines?|what happened|happening|price|stock|weather|forecast|standings?|goals?)\b|(^|[^\p{L}])(quem ganhou|quem venceu|ganhou|venceu|placar|resultado|jogo|partida|elei[çc][ãa]o|not[íi]cias?|manchetes?|aconteceu|cota[çc][ãa]o|pre[çc]o|previs[ãa]o do tempo|gols?)(?![\p{L}])/iu;
+
+export function isCurrentEventQuery(query: string): boolean {
+  return CURRENT_TIME.test(query) && EVENT_INTENT.test(query);
+}
+
+export function currentEventAnswer(pt: boolean): string {
+  return pt
+    ? `Estou offline, e o meu acervo é uma cópia de ${LIBRARY_SNAPSHOT.pt}: não tenho notícias, resultados nem preços recentes.`
+    : `I'm offline, and my library is a snapshot from ${LIBRARY_SNAPSHOT.en}: I don't have news, results or prices since then.`;
+}
+
 /** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
