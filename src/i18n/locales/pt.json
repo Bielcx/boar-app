@@ -962,7 +962,7 @@
       "memory": {
         "title": "Memória insuficiente",
         "body": "Este celular não tinha memória livre suficiente para abrir o modelo.",
-        "hint": "Feche outros apps e tente de novo, ou escolha um modelo menor na configuração."
+        "hint": "Feche outros apps e tente de novo, ou escolha um modelo menor em Ajustes."
       },
       "corrupt": {
         "title": "O arquivo do modelo está danificado",
@@ -977,7 +977,13 @@
       "general": {
         "title": "O modelo não iniciou",
         "body": "O motor não conseguiu abrir o modelo.",
-        "hint": "Tente de novo. Se continuar falhando, confira o modelo em Ajustes ou refaça a configuração."
+        "hint": "Tente de novo. Se continuar falhando, confira o modelo em Ajustes. O motor disse:"
+      },
+      "rawLabel": "Erro do motor: {{error}}",
+      "engine": {
+        "title": "O modelo não carregou neste celular",
+        "body": "O arquivo do modelo está neste celular, mas o motor não conseguiu iniciá-lo aqui (primeiro na GPU, depois na CPU).",
+        "hint": "Tente de novo. Se continuar, tente um modelo menor em Ajustes (também pode ser falta de memória). O motor disse:"
       }
     }
   },

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Mascot, Progress, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
-import { modelErrorKind, modelErrorPrimary } from "./modelError";
+import { modelErrorKind, modelErrorPrimary, showsRawError } from "./modelError";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
@@ -167,8 +167,9 @@ export function ChatModelLoading({ label, progress }: { label: string; progress?
 
 /**
  * The model didn't load: the dimmed mascot over a danger-bordered card with
- * an overline, what happened in plain words, a well with what to do, and the
- * actions (the one that fixes this cause leads).
+ * an overline, what happened in plain words, a well with what to do (and the
+ * engine's own error when the file is fine), and two actions: Settings, then
+ * Set up the model only when the file is missing or damaged, Try again otherwise.
  */
 export function ChatModelError({
   error,
@@ -210,8 +211,14 @@ export function ChatModelError({
             {tr(`chat.modelError.${kind}.body`)}
           </Text>
         </View>
-        <View style={{ padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.raised }}>
+        <View style={{ gap: t.space.sm, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.raised }}>
           <Text variant="footnote">{tr(`chat.modelError.${kind}.hint`)}</Text>
+          {/* The engine's own words, whole and selectable, so a user can report them. */}
+          {showsRawError(kind) && error.trim().length > 0 && (
+            <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error })}>
+              {error.trim()}
+            </Text>
+          )}
         </View>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
           <View style={{ flexGrow: 1, flexBasis: "40%" }}>
@@ -225,10 +232,6 @@ export function ChatModelError({
             )}
           </View>
         </View>
-        {/* Freeing memory can make a retry work; for the other causes two actions are enough. */}
-        {setupLeads && kind === "memory" && (
-          <Button label={tr("chat.actions.retry")} variant="ghost" size="sm" icon="rotate-cw" onPress={onRetry} style={{ alignSelf: "center" }} />
-        )}
       </Card>
     </View>
   );

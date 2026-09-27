@@ -962,7 +962,7 @@
       "memory": {
         "title": "Not enough memory",
         "body": "This phone didn’t have enough free memory to open the model.",
-        "hint": "Close other apps and try again, or pick a smaller model in setup."
+        "hint": "Close other apps and try again, or choose a smaller model in Settings."
       },
       "corrupt": {
         "title": "The model file is damaged",
@@ -977,7 +977,13 @@
       "general": {
         "title": "The model didn’t start",
         "body": "The engine couldn’t open the model.",
-        "hint": "Try again. If it keeps failing, check the model in Settings or run setup again."
+        "hint": "Try again. If it keeps failing, check the model in Settings. The engine said:"
+      },
+      "rawLabel": "Engine error: {{error}}",
+      "engine": {
+        "title": "The model didn’t load on this phone",
+        "body": "The model file is on this phone, but the engine couldn’t start it here (first on the GPU, then on the CPU).",
+        "hint": "Try again. If it keeps failing, try a smaller model in Settings (this can also be a memory limit). The engine said:"
       }
     }
   },
