@@ -205,3 +205,11 @@ describe("bootEntranceTiming (splash → chat, Iris/Prism)", () => {
     expect(bootEntranceTiming(false, true, d)).toBeNull();
   });
 });
+
+describe("declined with an incomplete library (Prism HX-1 residual)", () => {
+  it("never says a plain 'couldn't find' when indexing stopped part-way", () => {
+    const st = { answerIds: [], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
+    expect(phaseAnnouncement("done", st, t, true)).toEqual({ message: "chat.weak.declinedTitleIncomplete. chat.weak.declinedBodyIncomplete" });
+    expect(phaseAnnouncement("done", st, t)).toEqual({ message: "chat.weak.declinedTitle. chat.weak.declinedBody" });
+  });
+});

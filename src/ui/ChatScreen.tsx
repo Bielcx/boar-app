@@ -136,6 +136,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // phone's library" for what is about to be there (Prism HX-1, Harbor 5f7d9ca).
   const libraryReady = useRef(makeGate(true));
   const [waitingLibrary, setWaitingLibrary] = useState<string | null>(null);
+  // The seed failed part-way: answers may miss what wasn't indexed, and must say so (Prism HX-1 residual).
+  const [libraryIncomplete, setLibraryIncomplete] = useState(false);
   // The engine's own cause for a failed load (Tusk 9ec677e: ModelLoadError.kind), when it gives one.
   const [loadErrorKind, setLoadErrorKind] = useState<ModelErrorKind | undefined>(undefined);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
@@ -210,7 +212,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     lastAnnounced.current = key;
     // Stopped only to search a typed city: say nothing, the city search is announced next.
     if (activePhase === "stopped" && pendingCity.current?.id === activeItem.id) return;
-    const a = phaseAnnouncement(activePhase, activeItem.answer, t);
+    const a = phaseAnnouncement(activePhase, activeItem.answer, t, libraryIncomplete);
     if (a) announce(a.message, { assertive: a.assertive });
   }, [activePhase, activeItem, announce, t]);
 
@@ -279,11 +281,18 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         })
       );
       setIndexing(true);
-      await seedKnowledgeBaseIfEmpty().finally(() => {
+      // A failed seed is not a model failure: the model is loaded, the library is incomplete (own try).
+      try {
+        await seedKnowledgeBaseIfEmpty();
+        setLibraryIncomplete(false);
+      } catch (e: any) {
+        console.warn("[ChatScreen] seeding the offline library failed:", e?.message ?? e);
+        setLibraryIncomplete(true);
+      } finally {
         stopProgress();
         setIndexing(false);
         gate.open();
-      });
+      }
       setReady(true);
     } catch (e: any) {
       gate.open();
@@ -541,6 +550,26 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     },
     [canAsk, runInto, finish, activeSessionId]
   );
+
+  // Retry only the library indexing after a failed seed.
+  const reseed = useCallback(async () => {
+    const stopProgress = onSeedProgress((p) =>
+      setLoadStatus({
+        label: t("chat.model.indexing", { done: p.done.toLocaleString(locale), total: p.total.toLocaleString(locale) }),
+        progress: p.total > 0 ? p.done / p.total : undefined,
+      })
+    );
+    setIndexing(true);
+    try {
+      await seedKnowledgeBaseIfEmpty();
+      setLibraryIncomplete(false);
+    } catch (e: any) {
+      console.warn("[ChatScreen] seeding the offline library failed again:", e?.message ?? e);
+    } finally {
+      stopProgress();
+      setIndexing(false);
+    }
+  }, [t, locale]);
 
   // A model error below a conversation is its last item: bring it into view.
   useEffect(() => {
@@ -809,13 +838,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           item={item}
           active={activeId === item.id}
           waitingLibrary={waitingLibrary === item.id ? loadStatus.label : undefined}
+          libraryIncomplete={libraryIncomplete}
           fresh={askedIds.current.has(item.id)}
           stopping={activeId === item.id && stopping}
           locale={locale}
           actions={actions}
         />
       ),
-    [actions, activeId, stopping, locale, waitingLibrary, loadStatus.label]
+    [actions, activeId, stopping, locale, waitingLibrary, loadStatus.label, libraryIncomplete]
   );
 
   if (deviceEvalRequest) {
@@ -858,6 +888,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           </View>
         )}
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
+        {libraryIncomplete && !indexing && (
+          <View style={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm }}>
+            <Banner tone="warning" icon="book-open" message={t("chat.library.incomplete")} actionLabel={t("chat.actions.retry")} onAction={reseed} />
+          </View>
+        )}
         {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state. */}
         {!loadError && !ready && (items.length > 0 || modelsRequested) ? (
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
@@ -989,6 +1024,7 @@ const AssistantRow = memo(function AssistantRow({
   item,
   active,
   waitingLibrary,
+  libraryIncomplete,
   fresh,
   stopping,
   locale,
@@ -998,6 +1034,7 @@ const AssistantRow = memo(function AssistantRow({
   active: boolean;
   /** The question waits for the offline library to be ready; the current status ("Indexing knowledge 15 / 300"). */
   waitingLibrary?: string;
+  libraryIncomplete: boolean;
   fresh: boolean;
   stopping: boolean;
   locale: string;
@@ -1028,6 +1065,7 @@ const AssistantRow = memo(function AssistantRow({
       answer={item.answer}
       question={item.question}
       waitingLibrary={waitingLibrary}
+      libraryIncomplete={libraryIncomplete}
       active={active}
       fresh={fresh}
       stopping={stopping}

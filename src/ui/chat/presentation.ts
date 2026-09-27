@@ -38,7 +38,9 @@ export function stageLine(state: AnswerState, t: T): string | null {
 export function phaseAnnouncement(
   phase: AnswerPhase,
   state: AnswerState,
-  t: T
+  t: T,
+  /** The library's indexing failed part-way: "not found" says so. */
+  libraryIncomplete = false
 ): { message: string; assertive?: boolean } | null {
   switch (phase) {
     case "searching":
@@ -55,7 +57,10 @@ export function phaseAnnouncement(
         const empty = placesEmptyTitle(state.places, t);
         return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
-      if (state.weakDeclined) return { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
+      if (state.weakDeclined)
+        return libraryIncomplete
+          ? { message: `${t("chat.weak.declinedTitleIncomplete")}. ${t("chat.weak.declinedBodyIncomplete")}` }
+          : { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
       if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
       return { message: t("chat.announce.ready", { count: state.sources.length }) };
     case "stopped":

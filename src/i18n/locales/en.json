@@ -1121,13 +1121,20 @@
       "receipt": "general knowledge",
       "declinedTitle": "I couldn't find this in this phone's library",
       "declinedBody": "The compact model often gets questions like this wrong without a source, so it didn't guess.",
-      "answerAnyway": "Answer anyway (may be wrong)"
+      "answerAnyway": "Answer anyway (may be wrong)",
+      "declinedTitleIncomplete": "This phone’s library isn’t complete",
+      "declinedBodyIncomplete": "Indexing stopped before the end, so the answer may be in the part that’s missing.",
+      "bodyIncomplete": "Answered from the model’s general knowledge, which can be wrong. This phone’s library didn’t finish indexing, so a source may be missing."
     },
     "stepShort": {
       "search": "Searching…",
       "read": "Reading…",
       "load": "Loading…",
-      "write": "Writing…"
+      "write": "Writing…",
+      "prepare": "Preparing…"
+    },
+    "library": {
+      "incomplete": "The offline library didn’t finish indexing. Some answers may be missing their source."
     }
   },
   "location": {

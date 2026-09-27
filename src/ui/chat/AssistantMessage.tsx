@@ -25,6 +25,8 @@ export interface AssistantMessageProps {
   question?: string;
   /** Waiting for the offline library to be ready before searching (first boot); the current status line. */
   waitingLibrary?: string;
+  /** The library's indexing failed part-way: "not found" must say the library is incomplete (Prism). */
+  libraryIncomplete?: boolean;
   stopping: boolean;
   /** Stopped because the app went to the background. */
   interrupted?: boolean;
@@ -436,14 +438,14 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
  * neutral note (no amber: amber means provenance, and there is none), one focus for readers.
  * "Show closest passages" only when the engine still returned some, marked as weak, unnumbered.
  */
-function WeakSourceNote({ answer }: { answer: AnswerState }) {
+function WeakSourceNote({ answer, incomplete }: { answer: AnswerState; incomplete?: boolean }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const groups = groupSources(answer.sources);
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
-      <View accessible accessibilityLabel={`${tr("chat.weak.title")}. ${tr("chat.weak.body")}`} style={{ gap: t.space.sm }}>
+      <View accessible accessibilityLabel={`${tr("chat.weak.title")}. ${tr(incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body")}`} style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Icon name="book" size="sm" color={t.color.text.secondary} />
           <Text variant="label" color="secondary" style={{ flex: 1 }}>
@@ -451,7 +453,7 @@ function WeakSourceNote({ answer }: { answer: AnswerState }) {
           </Text>
         </View>
         <Text variant="footnote" color="secondary">
-          {tr("chat.weak.body")}
+          {tr(incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body")}
         </Text>
       </View>
       {groups.length > 0 && (
@@ -488,22 +490,24 @@ function WeakSourceNote({ answer }: { answer: AnswerState }) {
  * library and didn't guess. The card is the answer; "Answer anyway (may be wrong)" generates for the
  * same question (state B). No receipt, no primary ember, no amber.
  */
-function DeclinedNoSource({ answer, onAnswerAnyway }: { answer: AnswerState; onAnswerAnyway?: () => void }) {
+function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: AnswerState; onAnswerAnyway?: () => void; incomplete?: boolean }) {
+  const title = incomplete ? "chat.weak.declinedTitleIncomplete" : "chat.weak.declinedTitle";
+  const body = incomplete ? "chat.weak.declinedBodyIncomplete" : "chat.weak.declinedBody";
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const groups = groupSources(answer.sources);
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
-      <View accessible accessibilityLabel={`${tr("chat.weak.declinedTitle")}. ${tr("chat.weak.declinedBody")}`} style={{ gap: t.space.sm }}>
+      <View accessible accessibilityLabel={`${tr(title)}. ${tr(body)}`} style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Icon name="search" size="sm" color={t.color.text.secondary} />
           <Text variant="cardTitle" style={{ flex: 1 }}>
-            {tr("chat.weak.declinedTitle")}
+            {tr(title)}
           </Text>
         </View>
         <Text variant="footnote" color="secondary">
-          {tr("chat.weak.declinedBody")}
+          {tr(body)}
         </Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
@@ -661,7 +665,13 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.assistantName")}
           </Text>
           {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
-          {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? <Elapsed locale={locale} step={steps?.find((x) => x.status === "active")?.short} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? (
+            <Elapsed
+              locale={locale}
+              // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
+              step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
+            />
+          ) : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
         {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
@@ -734,8 +744,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
 
       {answer.sources.length > 0 && !placesOnly && !answer.weakSources && <SourceList answer={answer} onOpenSource={onOpenSource} />}
-      {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} />}
-      {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} />}
+      {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
+      {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} />}
       {showsEmergencyNote({
         question: props.question ?? "",
         sources: answer.sources,
