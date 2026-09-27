@@ -39,8 +39,10 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
           color={color}
           numeric
           header={false}
-          // xl: trim the extra leading of `hero` (kept so iOS doesn't clip the ascenders) from the layout.
-          style={size === "xl" ? { marginVertical: -((t.type.hero.lineHeight ?? 0) - (t.type.hero.fontSize ?? 0)) / 2 } : undefined}
+          // xl: `hero` keeps a 1.2 line box so iOS doesn't clip Baloo's ascenders; the digits sit high in
+          // it, so the trim is asymmetric (measured on device vs the mockup, Prism 2e7a026): +0.09 of the
+          // size above (overline → digits 21.5 pt) and -0.325 below (digits → bar 21 pt).
+          style={size === "xl" ? { marginTop: (t.type.hero.fontSize ?? 0) * 0.09, marginBottom: -(t.type.hero.fontSize ?? 0) * 0.325 } : undefined}
         >
           {shown}
         </Text>
