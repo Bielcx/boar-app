@@ -726,7 +726,8 @@
       "stop": "Parar resposta",
       "stopping": "Parando",
       "notReady": "Carregando o modelo… você já pode digitar",
-      "modelError": "O modelo não carregou. Resolva acima para enviar."
+      "modelError": "O modelo não carregou. Resolva acima para enviar.",
+      "placeholderLoading": "Digite enquanto o modelo carrega"
     },
     "stage": {
       "searching": "Buscando nas fontes…",

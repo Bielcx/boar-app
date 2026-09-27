@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { IconButton, Text, TextField } from "../components";
 import { useTokens } from "../theme";
 import { VoiceInputButton } from "../VoiceInputButton";
-import { composerNotice, type ModelStatus } from "./composerState";
+import { composerNotice, composerPlaceholderKey, type ModelStatus } from "./composerState";
 
 interface Props {
   value: string;
@@ -57,7 +57,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             value={value}
             onChangeText={onChange}
             accessibilityLabel={tr("chat.composer.label")}
-            placeholder={tr("chat.composer.placeholder")}
+            placeholder={tr(composerPlaceholderKey(status))}
             autoGrow
             maxRows={5}
             multiline
