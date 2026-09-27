@@ -6,23 +6,33 @@ vi.mock("./ptLexiconAsset", () => ({ ptLexicon: () => ({}) }));
 
 vi.mock("expo-file-system/legacy", () => ({ documentDirectory: "file:///docs/" }));
 vi.mock("expo-sqlite", () => ({}));
-const { hit } = vi.hoisted(() => ({
-  hit: (chunkId: number, title: string, source: string, score: number) => ({
-    articleId: chunkId, chunkId, title, section: "", text: `${title} text.`, start: 0, end: 10, score, via: "bm25" as const, source, views: 0, lead: false, action: false,
+const { hit, state } = vi.hoisted(() => ({
+  hit: (chunkId: number, title: string, source: string, score: number, action = false) => ({
+    articleId: chunkId, chunkId, title, section: "", text: `${title} text.`, start: 0, end: 10, score, via: "bm25" as const, source, views: 0, lead: false, action,
   }),
+  state: { junk: false },
 }));
 vi.mock("./packs", async (importOriginal) => {
   const actual: any = await importOriginal();
   return {
     packHitToChunk: actual.packHitToChunk,
-    searchPacks: async () => ({ lexical: [], semantic: [] }),
+    // Keyword noise from other sources (bundled corpus, format-1 packs) with high scores.
+    searchPacks: async () => ({
+      lexical: state.junk
+        ? [1, 2, 3, 4, 5, 6].map((i) => ({ chunkId: `junk${i}`, docId: `junk${i}`, title: `Junk ${i}`, body: "x", source: "Wikipedia", score: 100, matchType: "lexical" as const }))
+        : [],
+      semantic: [],
+    }),
     // Six clinical keyword hits, then the two lay sources the pack search adds past its limit.
-    searchWikiPacks: async () => [
+    searchWikiPacks: async (query: string) => [
       {
         packId: "prep",
         stems: [],
         hits: [
           ...[1, 2, 3, 4, 5, 6].map((i) => hit(i, `Clinical ${i}`, "enwiki", 10 - i)),
+          ...(/earthquake/i.test(query)
+            ? [hit(9, "Earthquake safety", "enwikivoyage", 0.2, true), hit(10, "Earthquakes (Ready.gov)", "usgov", 0.1, true)]
+            : []),
           hit(7, "US Army Survival Manual", "usgov", 1),
           hit(8, "Outdoor Survival/First Aid", "enwikibooks", 0.5),
         ],
@@ -43,5 +53,16 @@ describe("retrieve and lay sources", () => {
 
   it("cuts at the limit as before for other questions", async () => {
     expect(await retrieve("history of snakes in art", 6)).toHaveLength(6);
+  });
+
+  it("safety-008: puts pack sections that say what to do ahead of keyword noise, in English and Portuguese", async () => {
+    state.junk = true;
+    const en = (await retrieve("What should I do during an earthquake?", 6)).map((c) => c.title);
+    const pt = (await retrieve("O que eu faço durante um terremoto?", 6, { lexicon: { terremoto: "Earthquake" } })).map((c) => c.title);
+    state.junk = false;
+    for (const titles of [en, pt]) {
+      expect(titles.slice(0, 2).join(" | ")).toMatch(/Earthquake safety.*Earthquakes \(Ready\.gov\)/);
+      expect(titles.slice(0, 6).some((t) => /Junk/.test(t))).toBe(true);
+    }
   });
 });

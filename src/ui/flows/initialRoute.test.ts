@@ -56,4 +56,10 @@ describe("decideInitialRoute", () => {
     });
   });
 
+
+  it("low RAM with only the default 4B installed: opens the chat but saves no active model (CR-1)", () => {
+    const r = decideInitialRoute({ ...base, totalRamBytes: 3.8 * GB, requiredPresent: true, installedLlms: [DEFAULT] });
+    expect(r.route).toBe("Main");
+    expect(r.setActiveLlmId).toBeUndefined();
+  });
 });

@@ -434,6 +434,7 @@
       "deepAutoSub": "O maior modelo instalado que cabe e roda a {{min}} tokens/s ou mais aqui.",
       "deepNone": "Nenhum: sempre o modelo de respostas",
       "notMeasured": "Ainda não medido neste celular",
+      "lowRamNotAuto": "Não entra no automático neste celular: grande demais para a memória dele.",
       "rate": "{{rate}} tok/s",
       "samples_one": "{{count}} resposta medida aqui · {{date}}",
       "samples_other": "Mediana de {{count}} respostas medidas aqui · {{date}}",
@@ -562,19 +563,18 @@
       "packFooter": "Cada trecho nas respostas indica a fonte e a licença."
     },
     "onboarding": {
-      "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",
       "brandSub": "Assistente de pesquisa offline",
       "introLabel": "Como funciona",
       "phoneLabel": "Este celular",
       "phoneMemory": "Memória",
       "phoneFree": "Espaço livre",
+      "phoneEngine": "Roda em",
+      "phoneEngineValue": "llama.cpp, neste celular",
+      "introBody": "Pesquisa com IA que roda inteira no seu celular. Depois de configurada, funciona sem internet, suas perguntas não saem do celular e cada resposta mostra as fontes que usou.",
       "meta": {
         "onDisk": "{{size}} no disco depois de instalar",
         "time": "~{{minutes}} min a {{speed}}/s"
       },
-      "point1": "Funciona offline depois de configurado.",
-      "point2": "Suas perguntas não saem do celular.",
-      "point3": "Mostra as fontes de cada resposta.",
       "start": "Começar",
       "backToApp": "Voltar ao app",
       "step2Title": "Escolha o que instalar",

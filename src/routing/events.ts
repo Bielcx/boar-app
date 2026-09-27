@@ -126,6 +126,14 @@ export interface PlacesArea {
   lastKnown?: { city: string; country?: string; ageS: number };
 }
 
+/**
+ * A source as shown. relevance (0..1): how well its best sentence answers the question,
+ * on one scale for all sources of an answer; absent when there is no comparable measure
+ * (a Deep Research answer, whose sub-questions each have their own). The UI normalizes
+ * by the answer's maximum for the relevance bar and shows no bar without it.
+ */
+export type SourceChunk = RetrievedChunk & { relevance?: number };
+
 export type AnswerEvent =
   | (Base & {
       type: "stage";
@@ -140,7 +148,7 @@ export type AnswerEvent =
       type: "sources";
       tier: AnswerTier;
       /** Global, deduplicated, stable numbering: "[n]" in the answer text refers to sources[n - 1]. */
-      sources: RetrievedChunk[];
+      sources: SourceChunk[];
     })
   | (Base & {
       type: "instant";

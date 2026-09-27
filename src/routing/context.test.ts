@@ -341,3 +341,16 @@ describe("health topic with compound conditions (Bramble 55bb09f)", () => {
     expect(onHealthTopic(topic, c("Dog bite", "A dog bite is an injury from a dog."))).toBe(false);
   });
 });
+
+describe("compressContext relevance (the sources' relevance bar)", () => {
+  it("each kept source gets its best sentence's score, one 0..1 scale for all", () => {
+    const c = compressContext("What is the capital of Australia?", [
+      chunk("a", "Canberra", "Canberra is the capital city of Australia. It was founded in 1913."),
+      chunk("b", "Australia", "Australia is a country. Its capital is not Sydney."),
+    ]);
+    const rel = c.chunks.map((x: any) => x.relevance);
+    expect(rel.every((r: number) => r >= 0 && r <= 1)).toBe(true);
+    expect(c.chunks[0].title).toBe("Canberra");
+    expect(rel[0]).toBeGreaterThanOrEqual(rel[rel.length - 1]);
+  });
+});
