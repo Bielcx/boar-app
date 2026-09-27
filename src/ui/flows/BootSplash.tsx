@@ -90,8 +90,10 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
         {/* Same image, same size and place as the iOS native splash, so the hand-over does not move there.
             The native splash hides only once an image is decoded: hiding on the first layout showed a frame with
             the text and bar but no boar (Prism/Harbor, 37a935e). An error still hands over. */}
+        {/* splash-bootsplash.png: the native art on the original #17110D base. The native file's base is tuned for
+            the iOS image path and would sit 1-3 levels off this canvas through React Native (Iris 09dec4c, Prism). */}
         <Image
-          source={require("../../../assets/splash-icon.png")}
+          source={require("../../../assets/splash-bootsplash.png")}
           resizeMode="contain"
           accessible={false}
           fadeDuration={0}
