@@ -8,7 +8,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
-import { generatingSteps, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { generatingSteps, offersAskModel, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -903,7 +903,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         </View>
       )}
 
-      {!active && extractiveOnly && (
+      {!active && offersAskModel(answer) && (
         <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
       )}
       {!active && phase === "done" && canDeepen(answer) && (

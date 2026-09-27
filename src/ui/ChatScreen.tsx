@@ -662,6 +662,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     setItems([]);
     setActiveSessionId(null);
     sessionSummaryRef.current = null;
+    // CR-5: the crash banner belongs to the conversation it opened in; once, not in every new chat.
+    setLoadCrash(null);
     impact(ImpactFeedbackStyle.Medium);
   }, [stopAndWait]);
 
@@ -672,6 +674,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       followBottom.current = true;
       setItems(itemsFromRecords(records));
       setActiveSessionId(id);
+      setLoadCrash(null);
       sessionSummaryRef.current = sessions.find((s) => s.id === id)?.summary ?? null;
     },
     [stopAndWait, sessions]
