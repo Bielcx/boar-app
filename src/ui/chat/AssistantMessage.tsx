@@ -8,7 +8,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -685,6 +685,8 @@ function InstantSnippet({
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const snippet = answer.instant!;
+  // The engine's "(em inglês)" lead moves to the header; the body is the passage itself.
+  const { lang, body } = sourceLanguageLead(snippet.text);
   // 0-based, as the engine sends it ("[n]" = sourceIndex + 1).
   const source = answer.sources[snippet.sourceIndex];
   // Collapses to a short preview once the model's answer is done, unless the user chose otherwise.
@@ -693,11 +695,11 @@ function InstantSnippet({
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <Text variant="caption" color="field" weight="semibold" numberOfLines={1}>
-        {source ? `${tr("chat.snippet.fromSource")} · ${source.title}` : tr("chat.snippet.fromSource")}
+        {[lang ? `${tr("chat.snippet.fromSource")} (${lang})` : tr("chat.snippet.fromSource"), source?.title].filter(Boolean).join(" · ")}
       </Text>
       <Text variant={isFinal ? "body" : "callout"} selectable>
         {/* FMT-1: a pack's list flattened to " - " reads as a list again. */}
-        {expanded ? splitInlineBullets(snippet.text) : previewText(snippet.text)}
+        {expanded ? splitInlineBullets(body) : previewText(body)}
       </Text>
       <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
         {!isFinal && (

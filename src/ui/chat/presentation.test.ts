@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -311,5 +311,16 @@ describe("showsInstantSnippet (Prism DUP-1)", () => {
   it("no card without a passage, nor when nothing was on the topic", () => {
     expect(showsInstantSnippet({ answerIds: ["a"], sources: src } as AnswerState)).toBe(false);
     expect(showsInstantSnippet({ answerIds: ["a"], sources: [], instant, weakSources: true } as AnswerState)).toBe(false);
+  });
+});
+
+describe("sourceLanguageLead (Tusk 29d7e52, Sextant q8 PT)", () => {
+  it("takes the engine's language lead off the passage, PT and EN", () => {
+    expect(sourceLanguageLead("Da fonte offline (em inglês):\nA monsoon is a seasonal change…")).toEqual({ lang: "em inglês", body: "A monsoon is a seasonal change…" });
+    expect(sourceLanguageLead("From the offline source (in Portuguese):\nA monção é…")).toEqual({ lang: "in Portuguese", body: "A monção é…" });
+  });
+  it("leaves any other text alone", () => {
+    expect(sourceLanguageLead("A monsoon is a seasonal change…")).toEqual({ lang: null, body: "A monsoon is a seasonal change…" });
+    expect(sourceLanguageLead("From the offline source:\nSteps…")).toEqual({ lang: null, body: "From the offline source:\nSteps…" });
   });
 });
