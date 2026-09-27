@@ -1101,14 +1101,22 @@ function InstallStep({
         // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
         <Card style={{ gap: tokens.space.md, overflow: "hidden" }}>
           {/* The boar sits in the corner like the mockup; the content sets the card's height (Iris, Prism N-6). */}
-          <View style={{ position: "absolute", top: 0, right: 0 }}>
-            {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
-          </View>
+          {/* The whole boar may reach the corner (its glow is clipped); the brand disc at large text is a
+              framed avatar, so it keeps the card's padding and never crosses the rounded edge (Prism H-1). */}
+          {fontScale > LARGE_TEXT ? (
+            <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
+              <Mascot size="brand" />
+            </View>
+          ) : (
+            <View style={{ position: "absolute", top: 0, right: 0 }}>
+              <Mascot size="hero" glow />
+            </View>
+          )}
           {/* As tall as the boar, so the bar and the metadata start below its feet (Iris). */}
           <View
             style={{
-              paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base,
-              minHeight: fontScale > LARGE_TEXT ? tokens.size.mascotSm - tokens.space.base : tokens.size.mascot - tokens.space.base,
+              paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascot - tokens.space.base,
+              minHeight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base,
             }}
           >
             {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
