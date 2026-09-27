@@ -459,7 +459,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [locationExplain, setLocationExplain] = useState<((ok: boolean) => void) | null>(null);
   const locateAndAsk = useCallback(
     async (messageId: string) => {
-      if (!locate) return;
       const result = await locate(() => new Promise<boolean>((resolve) => setLocationExplain(() => resolve)));
       setLocationExplain(null);
       if (result.status === "ok") followUp(messageId, {});
@@ -607,7 +606,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       });
     },
     city: (id, city) => followUp(id, { place: city }),
-    useLocation: locate ? (id) => locateAndAsk(id) : undefined,
+    useLocation: (id) => locateAndAsk(id),
     getMap: openSettings,
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
@@ -634,7 +633,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       copy: (item) => rowActions.current.copy(item),
       share: (item) => rowActions.current.share(item),
       city: (id, c) => rowActions.current.city(id, c),
-      useLocation: locate ? (id) => rowActions.current.useLocation?.(id) : undefined,
+      useLocation: (id) => rowActions.current.useLocation?.(id),
       getMap: () => rowActions.current.getMap(),
       copyReceipt: (text) => rowActions.current.copyReceipt(text),
       copyQuestion: (text) => rowActions.current.copyQuestion(text),

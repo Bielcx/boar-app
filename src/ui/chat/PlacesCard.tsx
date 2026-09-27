@@ -23,6 +23,7 @@ import {
   geoUri,
   filterName,
   deviceClockApplies,
+  showUseLocation,
   openStateAt,
   openStateLabel,
   placesEmptyTitle,
@@ -277,7 +278,7 @@ function CityPrompt({
           accessibilityHint={city.trim() ? undefined : tr("chat.places.searchHint")}
           onPress={submit}
         />
-        {onUseLocation && locationStatus !== "denied" && (
+        {onUseLocation && showUseLocation(true, locationStatus) && (
           <Button label={tr("chat.places.useLocation")} variant="secondary" icon="navigation" onPress={onUseLocation} />
         )}
       </View>
