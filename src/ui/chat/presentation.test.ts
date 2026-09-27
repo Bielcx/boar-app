@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -238,5 +238,18 @@ describe("modelDisplayName / withDisplayNames (Prism CR-3)", () => {
     expect(modelDisplayName("models/hf/SmolLM3-3B-Q4_K_M.gguf", models)).toBe("SmolLM3-3B-Q4_K_M");
     expect(modelDisplayName("", models)).toBe("");
     expect(withDisplayNames(null, models)).toBeNull();
+  });
+});
+
+describe("offersAskModel (Prism CT-4)", () => {
+  const r = (modelId: string) => ({ instantDone: { receipt: { ...receipt, modelId } } });
+  it("after a source passage, yes; after the engine's fixed current-events answer, no", () => {
+    expect(offersAskModel(r("extractive"))).toBe(true);
+    expect(offersAskModel(r("grounding-guard"))).toBe(false);
+  });
+  it("never once the model answered, for places, or before the instant pass ends", () => {
+    expect(offersAskModel({ ...r("extractive"), fast: {} })).toBe(false);
+    expect(offersAskModel({ ...r("places"), places: {} })).toBe(false);
+    expect(offersAskModel({})).toBe(false);
   });
 });

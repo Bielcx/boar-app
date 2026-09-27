@@ -253,3 +253,13 @@ export function bootEntranceTiming(
   if (!firstAfterBoot) return null;
   return { delay: duration.slow, fade: reduceMotion ? 0 : duration.base };
 }
+
+/**
+ * Whether an instant answer offers "Answer with the model": after a source passage, yes; not after
+ * the engine's fixed answer (grounding-guard: a current-events question, Prism CT-4), where a model
+ * would only guess what an offline snapshot can't know.
+ */
+export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fast?: unknown; places?: unknown }): boolean {
+  if (!a.instantDone || a.fast || a.places) return false;
+  return a.instantDone.receipt.modelId !== GROUNDING_GUARD_MODEL_ID;
+}

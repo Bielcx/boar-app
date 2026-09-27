@@ -8,6 +8,7 @@ import {
   answerReducer,
   attachAnswer,
   canDeepen,
+  isGeneralKnowledge,
   initialAnswer,
   isAnswerActive,
   type AnswerState, isLocating, asInterrupted } from "./answerReducer";
@@ -307,5 +308,34 @@ describe("no-source answers (Tusk 4375d76 / a740a0b)", () => {
     expect(s.weakDeclined).toBe(true);
     expect(canDeepen(s)).toBe(false);
     expect(answerPhase(s)).toBe("done");
+  });
+});
+
+describe("isGeneralKnowledge (Prism CT-5, Tusk: a model answer with done.cited = [])", () => {
+  const model = { modelId: "qwen3-4b", modelLabel: "Q", tokens: 30, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+  const src = [{ chunkId: "c", docId: "d", title: "RMS Titanic", body: "b", score: 1, matchType: "hybrid" as const }];
+  const answered = (over: Partial<AnswerState>) =>
+    ({ answerIds: ["a"], sources: src, fast: { text: "Today in history…", stage: null, outcome: "success", receipt: model }, ...over }) as AnswerState;
+  it("marks the model's finished answer that cites nothing, even without weak_sources", () => {
+    expect(isGeneralKnowledge(answered({ cited: [] }))).toBe(true);
+  });
+  it("not when it cites a source, not while cited is unknown, not for answers no model wrote", () => {
+    expect(isGeneralKnowledge(answered({ cited: [1] }))).toBe(false);
+    expect(isGeneralKnowledge(answered({}))).toBe(false);
+    expect(isGeneralKnowledge(answered({ cited: [], fast: { text: "x", stage: "generating" } }))).toBe(false);
+    expect(isGeneralKnowledge(answered({ cited: [], fast: { text: "fixed", stage: null, outcome: "success", receipt: { ...model, modelId: "grounding-guard" } } }))).toBe(false);
+  });
+  it("the engine's weak_sources still counts; a deep pass that cites makes it sourced", () => {
+    expect(isGeneralKnowledge(answered({ weakSources: true, cited: [1] }))).toBe(true);
+    expect(isGeneralKnowledge(answered({ cited: [2], deep: { text: "Deeper [2]", stage: null, outcome: "success", receipt: model } }))).toBe(false);
+  });
+});
+
+describe("canDeepen on the engine's fixed answer (Tusk CT-4)", () => {
+  it("never offers Deeper on grounding-guard", () => {
+    const r = { modelId: "grounding-guard", modelLabel: "No offline source", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 1, reasonCodes: [] };
+    const s = { answerIds: ["a"], sources: [], deepAvailable: {}, fast: { text: "fixed", stage: null, outcome: "success", receipt: r } } as AnswerState;
+    expect(canDeepen(s)).toBe(false);
+    expect(canDeepen({ ...s, fast: { ...s.fast!, receipt: { ...r, modelId: "qwen" } } })).toBe(true);
   });
 });

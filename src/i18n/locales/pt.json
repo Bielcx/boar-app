@@ -1127,6 +1127,8 @@
     },
     "weak": {
       "title": "Sem fonte forte neste celular",
+      "titleUncited": "Nenhuma fonte citada",
+      "bodyUncited": "Respondido com o conhecimento geral do modelo, que pode errar. Ele não cita nenhum dos trechos encontrados neste celular.",
       "body": "Respondido com o conhecimento geral do modelo, que pode errar. Nada no acervo deste celular bateu de perto.",
       "showClosest": "Ver trechos mais próximos",
       "hideClosest": "Ocultar trechos mais próximos",

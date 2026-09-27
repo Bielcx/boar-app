@@ -203,10 +203,39 @@ export function isAnswerActive(state: AnswerState): boolean {
   return !["done", "stopped", "timeout", "interrupted", "error"].includes(phase);
 }
 
+/** Receipts of answers no model wrote: a source passage, a fixed engine answer, a places list. */
+const MODEL_FREE_IDS = new Set(["extractive", "grounding-guard", "places"]);
+
+/**
+ * The model's answer rests on no source of this phone (Prism CT-5, Tusk): the engine flagged it
+ * (weak_sources), or the model's finished text cites nothing (done.cited = []). The 4B on an
+ * on-topic but uncited answer carries no preface in its text, so this marker is the reader's only
+ * warning. Never inferred while streaming (cited arrives with done).
+ */
+export function isGeneralKnowledge(state: AnswerState): boolean {
+  if (state.weakSources) return true;
+  return uncitedModelAnswer(state);
+}
+
+/** A finished model answer whose text cites none of the sources (engine's done.cited = []). */
+export function uncitedModelAnswer(state: AnswerState): boolean {
+  if (!state.cited || state.cited.length > 0) return false;
+  const tier = state.deep ?? state.fast;
+  return !!tier && tier.outcome === "success" && !!tier.text.trim() && !!tier.receipt && !MODEL_FREE_IDS.has(tier.receipt.modelId);
+}
+
 /** The Deepen button shows only after a successful fast pass, when the engine offered it. */
 export function canDeepen(state: AnswerState): boolean {
   // Not on a declined answer (Tusk a740a0b: the compact model declines after streaming, finalText ""), nor an empty one.
-  return !!state.deepAvailable && state.fast?.outcome === "success" && !!state.fast.text && !state.weakDeclined && !state.deep;
+  // Nor on the engine's fixed answer (grounding-guard, Tusk CT-4): the deep pass returns the same text.
+  return (
+    !!state.deepAvailable &&
+    state.fast?.outcome === "success" &&
+    !!state.fast.text &&
+    state.fast.receipt?.modelId !== "grounding-guard" &&
+    !state.weakDeclined &&
+    !state.deep
+  );
 }
 
 /**

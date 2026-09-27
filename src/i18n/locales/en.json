@@ -1127,6 +1127,8 @@
     },
     "weak": {
       "title": "No strong source on this phone",
+      "titleUncited": "No source cited",
+      "bodyUncited": "Answered from the model's general knowledge, which can be wrong. It cites none of the passages found on this phone.",
       "body": "Answered from the model's general knowledge, which can be wrong. Nothing in this phone's library matched closely.",
       "showClosest": "Show closest passages",
       "hideClosest": "Hide closest passages",
