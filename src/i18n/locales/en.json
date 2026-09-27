@@ -613,6 +613,7 @@
       "percentAnnounce": "{{pct}}% downloaded",
       "percentImportedAnnounce": "{{pct}}% imported",
       "queued": "Waiting",
+      "bootChecking": "Checking the files on this phone…",
       "category": {
         "answer": "Answer model",
         "search": "Search model",

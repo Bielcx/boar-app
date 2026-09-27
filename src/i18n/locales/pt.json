@@ -613,6 +613,7 @@
       "percentAnnounce": "{{pct}}% baixado",
       "percentImportedAnnounce": "{{pct}}% importado",
       "queued": "Na fila",
+      "bootChecking": "Conferindo os arquivos neste celular…",
       "category": {
         "answer": "Modelo de resposta",
         "search": "Modelo de busca",
