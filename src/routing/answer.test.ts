@@ -1282,6 +1282,19 @@ describe("answer(): dng-005, a flood question with only general water advice (ga
   });
 });
 
+describe("answer(): the answer language next to a PT question (gate bc7db6d: 8/29 PT answers in English)", () => {
+  it("a PT question gets the Portuguese line next to it, with English sources; an EN question doesn't", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    await collect("Por que Canberra foi escolhida como capital da Austrália?");
+    expect(f.generations[0].messages!.at(-1)!.content).toContain("Responda em português do Brasil, mesmo que as fontes estejam em inglês.");
+    f.generations.length = 0;
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.generations[0].messages!.at(-1)!.content).not.toContain("Responda em português");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
