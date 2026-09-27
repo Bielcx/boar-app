@@ -94,21 +94,21 @@ beforeEach(() => {
 });
 
 describe("LlamaEngine Metal fallback (iPhone 13)", () => {
-  it("loads on CPU after 'failed to initialize MTL0 backend' and reports it", async () => {
+  it("loads on CPU after the Metal init failure ('Failed to load model' in JS) and reports it", async () => {
     platform.OS = "ios";
-    initFailures.push("failed to initialize MTL0 backend");
+    initFailures.push("Failed to load model"); // all llama.rn's JSI passes up; "MTL0" is only in the native log
     const engine = new LlamaEngine();
     const r = await engine.load("models/a.gguf");
     expect(initParams).toHaveLength(2);
     expect(initParams[0]).toMatchObject({ n_gpu_layers: 0, flash_attn_type: "off" });
     expect(initParams[1]).toMatchObject({ n_gpu_layers: 0, devices: ["CPU"], flash_attn_type: "off" });
-    expect(r.backend).toEqual({ kind: "cpu-fallback", reason: "failed to initialize MTL0 backend" });
+    expect(r.backend).toEqual({ kind: "cpu-fallback", reason: "Failed to load model" });
     expect(engine.getModelInfo()?.backend?.kind).toBe("cpu-fallback");
   });
 
   it("still fails with the load message when the CPU retry fails too", async () => {
-    initFailures.push("failed to initialize MTL0 backend", "Failed to initialize context");
-    await expect(new LlamaEngine().load("models/a.gguf")).rejects.toThrow(/Failed to load "models\/a.gguf": Failed to initialize context/);
+    initFailures.push("Failed to load model", "Failed to load model");
+    await expect(new LlamaEngine().load("models/a.gguf")).rejects.toThrow(/Failed to load "models\/a.gguf": Failed to load model/);
   });
 });
 
