@@ -1091,7 +1091,13 @@ function InstallStep({
           <View style={{ position: "absolute", top: 0, right: 0 }}>
             {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
           </View>
-          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base }}>
+          {/* As tall as the boar, so the bar and the metadata start below its feet (Iris). */}
+          <View
+            style={{
+              paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base,
+              minHeight: fontScale > LARGE_TEXT ? tokens.size.mascotSm - tokens.space.base : tokens.size.mascot - tokens.space.base,
+            }}
+          >
             {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
