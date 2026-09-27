@@ -13,7 +13,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { KeyboardController } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, Sheet, Text, TextField, useToast } from "../components";
+import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, Sheet, Text, TextAction, TextField, useToast } from "../components";
 import { installedPoiCities } from "../flows/adapters";
 import { useTokens } from "../theme";
 import type { Place } from "./answerEvents";
@@ -389,17 +389,7 @@ function CityPrompt({
         <View style={{ gap: t.space.xs }}>
           <Banner tone="info" icon="map-pin" message={tr("chat.places.locationDenied")} />
           {/* One accent per screen (Iris): the field's focus is the ember here, so this link is secondary. */}
-          <Pressable
-            onPress={() => Linking.openSettings()}
-            accessibilityRole="link"
-            hitSlop={{ top: t.space.md, bottom: t.space.md }}
-            style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xxs }}
-          >
-            <Text variant="caption" weight="semibold" color="secondary">
-              {tr("chat.places.openSettings")}
-            </Text>
-            <Icon name="chevron-right" size="sm" color={t.color.text.secondary} />
-          </Pressable>
+          <TextAction label={tr("chat.places.openSettings")} icon="chevron-right" onPress={() => Linking.openSettings()} />
         </View>
       )}
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}

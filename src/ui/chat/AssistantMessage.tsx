@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, type IconName } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, TextAction, type IconName } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { useTheme, useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
@@ -483,19 +483,15 @@ function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: num
   const groups = groupSources(answer.sources, indexes);
   return (
     <View style={{ gap: t.space.sm }}>
-      {/* Neutral text action, no ember inside the amber card (Iris); becomes TextAction once 62a6944 is integrated. */}
-      <Pressable
-        onPress={() => setOpen((o) => !o)}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        hitSlop={{ top: t.space.md, bottom: t.space.md }}
-        style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xxs, paddingHorizontal: t.space.sm }}
-      >
-        <Text variant="footnote" color="secondary">
-          {tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
-        </Text>
-        <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
-      </Pressable>
+      {/* Neutral text action, no ember inside the amber card (Iris). */}
+      <View style={{ paddingHorizontal: t.space.sm }}>
+        <TextAction
+          label={tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
+          icon={open ? "chevron-up" : "chevron-down"}
+          expanded={open}
+          onPress={() => setOpen((o) => !o)}
+        />
+      </View>
       {open &&
         groups.map((g) => (
           <View key={g.key} style={{ gap: t.space.xxs, paddingHorizontal: t.space.sm }}>
@@ -831,6 +827,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
 
 
+      {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
+      {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
+
       {answer.sources.length > 0 && !placesOnly && !answer.weakSources && (
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
         // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
@@ -851,7 +850,6 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
       {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
       {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} />}
-      {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
