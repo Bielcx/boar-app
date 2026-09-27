@@ -40,14 +40,13 @@ export function composerPlaceholderKey(status: ModelStatus): string {
 }
 
 /**
- * What tapping send does (Harbor, cold boot: the question waited ~49 s in the field and was not sent when
- * the model got ready). While the model loads or indexes, a written question is queued and goes out as
- * soon as it is ready.
+ * What tapping send does. Asking works as soon as the model loads have started (Tusk, boot P1: answer()
+ * waits for a load in progress; on a cold first boot the field used to stay locked ~49 s). With an empty
+ * field, send puts the focus there; off only on a model error or before the loads start.
  */
-export type SendMode = "send" | "focus" | "queue" | "disabled";
+export type SendMode = "send" | "focus" | "disabled";
 
-export function sendMode(status: ModelStatus, empty: boolean, queued: boolean): SendMode {
-  if (status === "error" || queued) return "disabled";
-  if (status === "ready") return empty ? "focus" : "send";
-  return empty ? "disabled" : "queue";
+export function sendMode(canSend: boolean, empty: boolean): SendMode {
+  if (!canSend) return "disabled";
+  return empty ? "focus" : "send";
 }

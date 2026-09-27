@@ -48,20 +48,14 @@ describe("indexing (Prism IX-1)", () => {
   });
 });
 
-describe("sendMode (Harbor, cold boot)", () => {
-  it("sends when ready, focuses an empty field", () => {
-    expect(sendMode("ready", false, false)).toBe("send");
-    expect(sendMode("ready", true, false)).toBe("focus");
+describe("sendMode (Tusk boot P1, Harbor cold boot)", () => {
+  it("sends as soon as asking works (loads started), focuses an empty field", () => {
+    expect(sendMode(true, false)).toBe("send");
+    expect(sendMode(true, true)).toBe("focus");
   });
 
-  it("queues a written question while the model loads or indexes", () => {
-    expect(sendMode("loading", false, false)).toBe("queue");
-    expect(sendMode("indexing", false, false)).toBe("queue");
-    expect(sendMode("loading", true, false)).toBe("disabled");
-  });
-
-  it("is off once queued, and on a model error", () => {
-    expect(sendMode("loading", false, true)).toBe("disabled");
-    expect(sendMode("error", false, false)).toBe("disabled");
+  it("is off before the loads start and on a model error", () => {
+    expect(sendMode(false, false)).toBe("disabled");
+    expect(sendMode(false, true)).toBe("disabled");
   });
 });

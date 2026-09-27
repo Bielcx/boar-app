@@ -18,9 +18,8 @@ interface Props {
   generating: boolean;
   stopping: boolean;
   voiceEnabled: boolean;
-  /** A question is waiting for the model to be ready (sent by the chat as soon as it is). */
-  queued?: boolean;
-  onQueue?: () => void;
+  /** Asking works: the model loads have started (answer() waits for them) and there is no load error. */
+  canSend?: boolean;
 }
 
 /**
@@ -28,7 +27,7 @@ interface Props {
  * the next question can be written; only sending waits.
  */
 export const Composer = forwardRef<TextInput, Props>(function Composer(
-  { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled, queued = false, onQueue },
+  { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled, canSend = status === "ready" },
   ref
 ) {
   const t = useTokens();
@@ -37,7 +36,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   const field = useRef<TextInput>(null);
   useImperativeHandle(ref, () => field.current as TextInput);
   const empty = value.trim().length === 0;
-  const mode = sendMode(status, empty, queued);
+  const mode = sendMode(canSend, empty);
   const insets = useSafeAreaInsets();
   // The mockup ends the composer 30 pt above the screen's bottom (into the home-indicator inset by 4);
   // the screen leaves the bottom edge to the composer. Small insets (Android gestures) keep at least sm.
@@ -64,9 +63,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
         gap: t.space.xs,
       }}
     >
-      {(queued || line) && (
-        <Text variant="caption" color="secondary" accessibilityLiveRegion="polite">
-          {queued ? tr("chat.composer.queued") : line}
+      {line && (
+        <Text variant="caption" color="secondary">
+          {line}
         </Text>
       )}
       {/* In the model-error state the whole composer is dimmed, as the mockup: the card above is where to act (E-5). */}
@@ -92,7 +91,8 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             value={value}
             onChangeText={onChange}
             accessibilityLabel={tr("chat.composer.label")}
-            placeholder={tr(composerPlaceholderKey(status))}
+            // Asking already works while loading (answer() waits), so the usual placeholder then.
+            placeholder={tr(canSend ? "chat.composer.placeholder" : composerPlaceholderKey(status))}
             placeholderTextColor={t.color.text.secondary}
             editable={!blocked}
             accessibilityState={{ disabled: blocked }}
@@ -141,11 +141,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             variant="filled"
             size="lg"
             label={tr("chat.composer.send")}
-            accessibilityHint={
-              mode === "queue" ? tr("chat.composer.queueHint") : mode === "focus" ? tr("chat.composer.focusHint") : mode === "disabled" ? hint : undefined
-            }
+            accessibilityHint={mode === "focus" ? tr("chat.composer.focusHint") : mode === "disabled" ? hint : undefined}
             disabled={mode === "disabled"}
-            onPress={() => (mode === "send" ? onSend() : mode === "queue" ? onQueue?.() : field.current?.focus())}
+            onPress={() => (mode === "send" ? onSend() : field.current?.focus())}
           />
         )}
       </View>

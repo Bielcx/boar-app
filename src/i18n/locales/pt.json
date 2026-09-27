@@ -756,9 +756,7 @@
       "placeholderLoading": "Digite enquanto o modelo carrega",
       "placeholderIndexing": "Digite enquanto o acervo é indexado",
       "indexing": "O envio libera quando o acervo offline terminar de indexar",
-      "focusHint": "Digite uma pergunta primeiro",
-      "queued": "Vai assim que o modelo estiver pronto",
-      "queueHint": "Envia assim que o modelo estiver pronto"
+      "focusHint": "Digite uma pergunta primeiro"
     },
     "stage": {
       "searching": "Buscando nas fontes…",

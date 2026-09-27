@@ -756,9 +756,7 @@
       "placeholderLoading": "Type while the model loads",
       "placeholderIndexing": "Type while the library is indexed",
       "indexing": "Sending starts once the offline library is indexed",
-      "focusHint": "Type a question first",
-      "queued": "Sends as soon as the model is ready",
-      "queueHint": "Sends as soon as the model is ready"
+      "focusHint": "Type a question first"
     },
     "stage": {
       "searching": "Searching sources…",
