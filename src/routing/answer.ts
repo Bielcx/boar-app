@@ -662,9 +662,11 @@ export function createAnswerer(deps: AnswerDeps) {
       // put cream on burns). "Deeper answer" (tier deep) lets the model summarize it, strictly.
       if (health && sources.length && req.tier !== "deep") {
         reasonCodes.push("grounding:health-extractive");
-        const i = healthSourceIndex(sources);
-        const full = raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i];
-        const text = healthExtract(full, i + 1, pt);
+        // Score on each source's full text: compression keeps the sentences matching the question
+        // words, which can leave out a first-aid text's instructions.
+        const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
+        const i = healthSourceIndex(fullSources);
+        const text = healthExtract(fullSources[i], i + 1, pt);
         markVisible();
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
@@ -793,8 +795,9 @@ export function createAnswerer(deps: AnswerDeps) {
             const risky = riskyHealthInstruction(text);
             if (risky && sources.length) {
               reasonCodes.push(`grounding:health-unsafe-${risky}`);
-              const i = healthSourceIndex(sources);
-              text = healthExtract(raw.find((c) => c.chunkId === sources[i].chunkId) ?? sources[i], i + 1, pt);
+              const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
+              const i = healthSourceIndex(fullSources);
+              text = healthExtract(fullSources[i], i + 1, pt);
             }
             markVisible();
             emit({ type: "token", answerId, tier: genTier, text });
