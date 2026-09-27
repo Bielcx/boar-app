@@ -540,7 +540,12 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
       </View>
       {groups.length > 0 && (
         <TextAction
-          label={tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
+          // CT-5 (Iris): these are the passages found, not the closest of a weak search.
+          label={
+            uncited
+              ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length })
+              : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")
+          }
           icon={open ? "chevron-up" : "chevron-down"}
           expanded={open}
           onPress={() => setOpen((o) => !o)}
@@ -549,14 +554,17 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
       {open && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>
-            {tr("chat.weak.closestTitle")}
+            {tr(uncited ? "chat.weak.foundTitle" : "chat.weak.closestTitle")}
           </Text>
           {groups.map((g) => (
             <View key={g.key} style={{ gap: t.space.xxs }}>
               <Text variant="footnote" numberOfLines={2}>
                 {g.title}
               </Text>
-              <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
+              <MetaLine
+                items={uncited ? [sourceParts(answer.sources[g.indexes[0]].source).name] : [sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]}
+                variant="caption"
+              />
             </View>
           ))}
         </View>

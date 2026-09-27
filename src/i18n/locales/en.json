@@ -1128,9 +1128,12 @@
     "weak": {
       "title": "No strong source on this phone",
       "titleUncited": "No source cited",
-      "bodyUncited": "Answered from the model's general knowledge, which can be wrong. It cites none of the passages found on this phone.",
+      "bodyUncited": "None of the passages found on this phone is cited, so this answer can't be checked against them. It can be wrong.",
       "body": "Answered from the model's general knowledge, which can be wrong. Nothing in this phone's library matched closely.",
       "showClosest": "Show closest passages",
+      "showFound": "Show passages found · {{count}}",
+      "hideFound": "Hide passages found",
+      "foundTitle": "Passages found",
       "hideClosest": "Hide closest passages",
       "closestTitle": "Closest passages (weak match)",
       "weakMatch": "weak match",
