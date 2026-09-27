@@ -448,6 +448,14 @@ function properNounTerms(query: string): string[] {
     .flatMap((w) => tokenizeTerms(w));
 }
 
+/** Every word of one title segment is a question term ("Monsoon"; "Ethereum EIPs/ERCs: EIP-4844: …" by its "EIP-4844" part). */
+function titleSegmentNamed(title: string, q: Set<string>): boolean {
+  return title.split(/:\s+/).some((seg) => {
+    const st = tokenizeTerms(seg.replace(/\s*\([^)]*\)\s*$/, ""));
+    return st.length > 0 && st.every((t) => q.has(t));
+  });
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
   const text = `${chunk.title} ${chunk.body}`;
@@ -459,6 +467,10 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
     const words = new Set(tokenizeTerms(text));
     if (!proper.some((p) => words.has(p))) return false;
   }
+  // The article the question names ("Monsoon" for "What causes the monsoon?": every word of a title
+  // segment is in the question) is on topic even when this passage doesn't repeat the question's
+  // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
+  if (titleSegmentNamed(chunk.title, q)) return true;
   // The article title or the section heading names a question word, and the source covers
   // the question ("Scary Stories: Dark Web" names "dark", not the latest theory of dark matter).
   if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
@@ -513,6 +525,61 @@ const EVENT_INTENT =
 
 // "What happened today in history?" asks about the past (Prism): the library answers it.
 const HISTORY_FRAME = /\b(in history|on this day|this day in|historically)\b|(^|[^\p{L}])(na hist[óo]ria|neste dia|nesse dia|num dia como hoje)(?![\p{L}])/iu;
+
+/** Whether a question is about the present ("today", "hoje", "right now"): the model needs the date (Prism TD-1). */
+export function mentionsNow(query: string): boolean {
+  return CURRENT_TIME.test(query);
+}
+
+/** The device's date for the prompt, in the question's language: "Today is Sunday, 27 September 2026." */
+export function todayLine(date: Date, pt: boolean): string {
+  const text = date.toLocaleDateString(pt ? "pt-BR" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return pt ? `Hoje é ${text} (data deste aparelho).` : `Today is ${text} (this device's date).`;
+}
+
+const TODAY_IN_HISTORY =
+  /\b(today|this day)\b[^?.!]{0,30}\bin history\b|\bon this day\b|\bthis day in history\b|(^|[^\p{L}])(hoje na hist[óo]ria|neste dia na hist[óo]ria|num dia como hoje|hoje[^?.!]{0,30}na hist[óo]ria)(?![\p{L}])/iu;
+
+/** "What happened today in history?": a question about the device's calendar date (Boar/Piston R3). */
+export function isTodayInHistory(query: string): boolean {
+  return TODAY_IN_HISTORY.test(query);
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * The date as the sources write it: search words ("September 27") and the on-topic test. Only the date's
+ * own article ("September 27": events, births, deaths) is on topic: a text that merely mentions the date
+ * ("Recorded September 27, 2011", a Ready.gov webinar) was quoted as what happened today (E2E, corpus + pack v3).
+ */
+export function historyDate(date: Date): { search: string; isDateArticle: (title: string) => boolean } {
+  const month = MONTHS[date.getMonth()];
+  const day = date.getDate();
+  const title = new RegExp(`^(\\w[\\w .]*:\\s*)?(${month} ${day}|${day} ${month})$`, "i");
+  return { search: `${month} ${day}`, isDateArticle: (t) => title.test(t.trim()) };
+}
+
+const TEMPERATURE =
+  /(-?\d+(?:[.,]\d+)?)\s*(?:°|º|degrees?|graus?)?\s*(c|celsius|centigrade|f|fahrenheit)\b[^?]*?\b(?:in|to|into|em|para)\s+(?:degrees?\s+|graus?\s+)?(celsius|centigrade|fahrenheit|c|f)\b/i;
+
+/**
+ * "What is 30 °C in Fahrenheit?" (a suggested question, Prism RF-1): arithmetic, not knowledge. Answered
+ * exactly, with the formula, instead of by a model (the compact one miscounts) or not at all.
+ */
+export function temperatureConversion(query: string, pt: boolean): string | null {
+  const m = TEMPERATURE.exec(query);
+  if (!m) return null;
+  const value = Number(m[1].replace(",", "."));
+  const from = m[2][0].toLowerCase() === "f" ? "F" : "C";
+  const to = m[3][0].toLowerCase() === "f" ? "F" : "C";
+  if (from === to || !Number.isFinite(value)) return null;
+  const result = from === "C" ? (value * 9) / 5 + 32 : ((value - 32) * 5) / 9;
+  const fmt = (n: number) => (Math.round(n * 10) / 10).toLocaleString(pt ? "pt-BR" : "en-US");
+  const formula = from === "C" ? "°F = °C × 9/5 + 32" : "°C = (°F − 32) × 5/9";
+  return pt
+    ? `${fmt(value)} °${from} = ${fmt(result)} °${to} (${formula}).`
+    : `${fmt(value)} °${from} = ${fmt(result)} °${to} (${formula}).`;
+}
 
 export function isCurrentEventQuery(query: string): boolean {
   return CURRENT_TIME.test(query) && EVENT_INTENT.test(query) && !HISTORY_FRAME.test(query);
@@ -655,7 +722,10 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
   const action = sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
   const firstAction = action >= 0 ? action : 0;
   const reach = (from: number, to: number) => sentences.slice(from, to + 1).join(" ").length + heading.length + 2;
-  const start = core >= 0 && (core < firstAction || reach(firstAction, core) > HEALTH_EXTRACT_MAX_CHARS) ? core : firstAction;
+  const picked = core >= 0 && (core < firstAction || reach(firstAction, core) > HEALTH_EXTRACT_MAX_CHARS) ? core : firstAction;
+  // A numbered list's marker splits off as its own "sentence" ("- 1.", then "Drop (or Lock): ..."): keep it,
+  // or the list starts at 2 (Ready.gov, pack v3; the chat renders "1. … 2. … 3." as a list).
+  const start = picked > 0 && /^[-•*]?\s*\d+[.)]$/.test(sentences[picked - 1].trim()) ? picked - 1 : picked;
   let text = heading ? `${heading}:` : "";
   for (const s of sentences.slice(start)) {
     if (rules.cutAt?.test(s)) break;
@@ -744,6 +814,9 @@ export interface CompressedContext {
  * dropped — unless nothing scores at all, in which case the first sentences
  * of the top chunks are kept so the model still sees its best sources.
  */
+/** The shown relevance of an article the question names: the UI's 'high' band (Quill: >= 0.75). */
+const NAMED_ARTICLE_RELEVANCE = 0.75;
+
 export function compressContext(query: string, chunks: RetrievedChunk[], opts: CompressOptions = {}): CompressedContext {
   const budget = opts.tokenBudget ?? 1200;
   const perChunk = opts.maxSentencesPerChunk ?? 4;
@@ -796,14 +869,29 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
   }
 
   const keptIndices = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b);
+  const qTerms = [...new Set(tokenizeTerms(query))];
+  const shownRelevance = (ci: number) => {
+    const best = scored.filter((x) => x.chunkIndex === ci).sort((a, b) => b.score - a.score)[0];
+    const have = new Set([...tokenizeTerms(chunks[ci].title), ...tokenizeTerms(best?.text ?? "")]);
+    const share = qTerms.length ? qTerms.filter((t) => have.has(t)).length / qTerms.length : 0;
+    // The article the question names ("Monsoon" for "What causes the monsoon?") never reads as weak.
+    const named = chunks[ci].title.split(/:\s+/).some((seg) => {
+      const st = tokenizeTerms(seg.replace(/\s*\([^)]*\)\s*$/, ""));
+      return st.length > 0 && st.every((t) => qTerms.includes(t));
+    });
+    return named ? Math.max(share, NAMED_ARTICLE_RELEVANCE) : share;
+  };
   const out = keptIndices.map((ci) => {
     const positions = [...picked.get(ci)!].sort((a, b) => a - b);
     const body = positions
       .map((p) => scored.find((s) => s.chunkIndex === ci && s.position === p)!.text)
       .join(" ");
-    // relevance (0..1): its best sentence's score for this question, one scale for every source
-    // of the answer (pack title hits and fused ones alike). None when nothing matched at all.
-    return { ...chunks[ci], body, ...(anyMatch ? { relevance: chunkBest[ci] } : {}) };
+    // relevance (0..1), what the UI shows: the share of the question's words the title and the best
+    // sentence cover, unweighted. The ranking's IDF weights are relative to the candidates: the topic
+    // word itself ("monsoon"), in every sentence, weighed almost nothing, and the exact article read
+    // "Low" (Prism BAND-1; on Sextant's sets the gold sources' median went 0.58 -> 0.75). None when
+    // nothing matched at all.
+    return { ...chunks[ci], body, ...(anyMatch ? { relevance: shownRelevance(ci) } : {}) };
   });
   const tokensAfter = out.reduce((acc, c) => acc + count(`${c.title}\n${c.body}`), 0);
   return { chunks: out, keptIndices, tokensBefore, tokensAfter };

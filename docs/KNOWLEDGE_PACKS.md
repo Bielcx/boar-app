@@ -487,7 +487,7 @@ Portuguese question (`looksPortuguese`: two Portuguese function words, or one pl
 positives on 348 English eval questions, 90 of 91 Portuguese detected) and runs a second search with the English
 article names it mentions, those results first, and an article whose title is one of the names ahead of the rest.
 
-The names come from `assets/lexicon/pt-en.json` (126,122 Portuguese names, 4.6 MB), built by
+The names come from `assets/lexicon/pt-en.json` (173,122 keys, 6.6 MB: every name without accents, plus its accented spelling when it has one), built by
 `scripts/build-pt-lexicon.mjs` from Wikipedia itself: for each English title of the bundled corpora, wiki-vital5 and
 the topic packs (57,159), the title of the same article on pt.wikipedia and its Portuguese redirects. An exact title
 beats one with a "(…)" qualifier, which beats a redirect; a one-word name only comes from an exact title (a single
@@ -517,3 +517,7 @@ disambiguation lists ("may refer to") are never a source on this path; and in a 
 from a section that says what to do go ahead of the rest. Sections whose heading is neutral but whose text is
 mostly instructions (lay manuals: Wikibooks *First Aid/Cold-Related Illness & Injury § Hypothermia*) count as
 what-to-do sections. Gate config: recall@1 0.548, @3 0.595, @6 0.643.
+
+**Accents (lexicon v4):** keys without accents made "romã" (pomegranate) and "Roma" (Rome) one key. On the
+accent-free key a name written without accents now wins ("roma" → *Rome*), an accented name keeps its own key
+("romã" → *Pomegranate*), and the lookup tries the question's spelling first. Same recall on the gate config.
