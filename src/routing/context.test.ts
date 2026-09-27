@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  identifiersIn,
   passageLanguage,
   sourceLanguageLead,
   temperatureConversion,
@@ -635,5 +636,20 @@ describe("passageLanguage / sourceLanguageLead", () => {
     expect(sourceLanguageLead(true, "A monção é um vento sazonal.")).toBeNull();
     expect(sourceLanguageLead(false, "The Earth's axis is tilted.")).toBeNull();
     expect(sourceLanguageLead(false, "A monção é um vento sazonal que muda de direção.")).toBe("From the offline source (in Portuguese):");
+  });
+});
+
+describe("identifiersIn / compressContext pinned", () => {
+  it("normalizes identifiers", () => {
+    expect(identifiersIn("O que a EIP-7702 e o ERC 4337 fazem? BIP-32 também.")).toEqual(["EIP-7702", "ERC-4337", "BIP-32"]);
+  });
+  it("a pinned chunk is kept first even when the others out-score it", () => {
+    const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+    const eth = c("e", "Ethereum", "Ethereum is a blockchain. Ethereum has smart contracts. Ethereum uses ether.");
+    const eip = c("p", "EIP-7251: Increase the MAX_EFFECTIVE_BALANCE", "Increases the constant to 2048 ETH.");
+    const free = compressContext("Ethereum", [eth, eip]).chunks.map((x) => x.chunkId);
+    expect(free).toEqual(["e"]);
+    const pinned = compressContext("Ethereum", [eth, eip], { pinned: new Set(["p"]) }).chunks.map((x) => x.chunkId);
+    expect(pinned).toEqual(["p", "e"]);
   });
 });

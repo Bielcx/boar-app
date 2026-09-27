@@ -23,6 +23,8 @@ import {
   currentEventAnswer,
   temperatureConversion,
   mentionsNow,
+  identifiersIn,
+  titleHasIdentifier,
   sourceLanguageLead,
   isTodayInHistory,
   historyDate,
@@ -637,7 +639,10 @@ export function createAnswerer(deps: AnswerDeps) {
       const names = pt && !english ? (deps.englishNames ?? defaultEnglishNames)(req.query) : [];
       if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
-      const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
+      // Identifiers the question names ("EIP-7251") stay in what sources are matched against (Sextant dddd8a8:
+      // with names ["Ethereum"] only, the EIP page lost to the Ethereum articles).
+      const ids = identifiersIn(req.query);
+      const matchQuery = english ?? (names.length ? [...names, ...ids].join(" ") : req.query);
       // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
       const onSubject = (c: RetrievedChunk) =>
         history
@@ -682,7 +687,10 @@ export function createAnswerer(deps: AnswerDeps) {
             (gen?.thinking === false ? 0 : genTier === "deep" ? DEEP_THINKING_BUDGET : FAST_THINKING_BUDGET)
         )
       );
-      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget });
+      // A retrieved page of an identifier the question names always gets a place, first (Boar, dddd8a8).
+      const pinned = new Set(ids.length ? raw.filter((c) => titleHasIdentifier(c.title, ids)).map((c) => c.chunkId) : []);
+      if (pinned.size) reasonCodes.push(`context:pinned-${pinned.size}`);
+      const compressed = compressContext(matchQuery, raw, { tokenBudget: budget, pinned });
       let sources = compressed.chunks;
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
@@ -956,6 +964,16 @@ export function createAnswerer(deps: AnswerDeps) {
           reasonCodes.push(`citations:removed-${checked.removed.join("-")}`);
           text = checked.text;
           finalText = text;
+          // Boar (A), s32 672bc41: the compact model cited, and no cited source supported it: 4 of 5 such
+          // answers were confident errors ("Great Famine" from "Great Recession in Africa"). It declines,
+          // as with no source, unless asked to answer anyway. The 4B keeps its (corrected) answer.
+          if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
+            reasonCodes.push("grounding:all-citations-removed-declined-compact");
+            // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
+            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer." });
+            finalText = "";
+            return finish(genTier, "success", "", [], baseReceipt);
+          }
         }
       }
       // Its inverse (Boar, gate 9ef80f9): a sentence without [n] that an on-topic source supports, by
