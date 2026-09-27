@@ -12,7 +12,7 @@ export interface MascotProps {
   size?: "hero" | "md" | "brand" | "avatar" | "avatarSm";
   /** Whole boar only: the ember glow under it (empty state, download hero). */
   glow?: boolean;
-  /** Dimmed while waiting (model loading, failed load). */
+  /** Dimmed while waiting (model loading, failed load): mockup opacity .7. */
   dim?: boolean;
 }
 
@@ -40,7 +40,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
           borderRadius: side / 2,
           overflow: "hidden",
           backgroundColor: t.color.accent.solid,
-          opacity: dim ? 0.55 : 1,
+          opacity: dim ? 0.7 : 1,
         }}
       >
         <Image
@@ -53,7 +53,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
   }
 
   return (
-    <View {...hidden} style={{ width: side, height: side, opacity: dim ? 0.55 : 1 }}>
+    <View {...hidden} style={{ width: side, height: side, opacity: dim ? 0.7 : 1 }}>
       {glow && !dim && (
         // An ellipse 10% wider than the boar whose peak (60% down the box) sits at its feet;
         // the box spans 0.5..1.3 of the boar's height so the glow fades out inside it.
