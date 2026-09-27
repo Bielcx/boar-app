@@ -1,4 +1,5 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
+import type { SourceChunk } from "./answerEvents";
 import {
   type AnswerErrorCode,
   type AnswerEvent,
@@ -27,7 +28,8 @@ export interface AnswerState {
   /** answer() calls whose events land here: the first answer, then a Deepen on the same message. */
   answerIds: string[];
   /** Global, deduplicated list: "[n]" in any tier's text is sources[n - 1]. */
-  sources: RetrievedChunk[];
+  /** As the engine sent them, with relevance (0..1) when measured. */
+  sources: SourceChunk[];
   instant?: { text: string; sourceIndex: number; confidence: number };
   fast?: TierState;
   deep?: TierState;
@@ -60,7 +62,7 @@ export function attachAnswer(state: AnswerState, answerId: string): AnswerState 
   return state.answerIds.includes(answerId) ? state : { ...state, answerIds: [...state.answerIds, answerId] };
 }
 
-function mergeSources(current: RetrievedChunk[], incoming: RetrievedChunk[]): RetrievedChunk[] {
+function mergeSources(current: SourceChunk[], incoming: SourceChunk[]): SourceChunk[] {
   const seen = new Set(current.map((c) => c.chunkId));
   const added = incoming.filter((c) => !seen.has(c.chunkId) && seen.add(c.chunkId));
   return added.length > 0 ? [...current, ...added] : current;

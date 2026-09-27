@@ -12,7 +12,7 @@ interface StoredTier {
 
 export interface StoredAnswer {
   v: 1;
-  sources: Pick<RetrievedChunk, "chunkId" | "docId" | "title" | "body" | "source" | "collectionId">[];
+  sources: (Pick<RetrievedChunk, "chunkId" | "docId" | "title" | "body" | "source" | "collectionId"> & { relevance?: number })[];
   instant?: { text: string; sourceIndex: number };
   /** Older records stored only the receipt of an extractive answer. */
   extractiveReceipt?: AnswerReceipt;
@@ -42,13 +42,15 @@ function restoreTier(t: StoredTier | undefined): TierState | undefined {
 export function toStoredAnswer(state: AnswerState): string {
   const stored: StoredAnswer = {
     v: 1,
-    sources: state.sources.map(({ chunkId, docId, title, body, source, collectionId }) => ({
+    // relevance kept so a reopened answer still shows its measured bars.
+    sources: state.sources.map(({ chunkId, docId, title, body, source, collectionId, relevance }) => ({
       chunkId,
       docId,
       title,
       body,
       source,
       collectionId,
+      ...(relevance != null ? { relevance } : {}),
     })),
     instant: state.instant ? { text: state.instant.text, sourceIndex: state.instant.sourceIndex } : undefined,
     instantDone: state.instantDone

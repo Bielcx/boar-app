@@ -54,3 +54,13 @@ describe("answer records", () => {
     expect(answerTextForHistory({ answerIds: ["x"], sources: [], instant: finished.instant })).toBe("Raft elects a leader.");
   });
 });
+
+describe("relevance in the stored answer (Tusk 303caa1)", () => {
+  it("keeps each source's measured relevance, so a reopened answer shows the same bars", () => {
+    const src = (id: string, relevance?: number) => ({ chunkId: id, docId: id, title: id, body: "b", score: 1, matchType: "hybrid" as const, ...(relevance != null ? { relevance } : {}) });
+    const state = { answerIds: ["a"], sources: [src("x", 0.8), src("y")], fast: { text: "t", stage: null, outcome: "success" } } as AnswerState;
+    const back = fromStoredAnswer("a", "t", toStoredAnswer(state));
+    expect(back.sources[0].relevance).toBe(0.8);
+    expect(back.sources[1].relevance).toBeUndefined();
+  });
+});
