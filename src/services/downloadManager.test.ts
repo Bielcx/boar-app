@@ -31,7 +31,7 @@ vi.mock("../models/ModelManager", () => ({
   },
 }));
 
-import { getDownloadState, resetDownloadState, restartDownload, startDownload } from "./downloadManager";
+import { getDownloadState, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
 import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
@@ -154,3 +154,31 @@ describe("download phases and error kinds", () => {
     expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "unknown", permanent: false });
   });
 });
+
+describe("remounting the UI (font scale change, FS-1)", () => {
+  it("a running download outlives the screen that started it: a new subscriber sees it, and Download again doesn't start a second one", async () => {
+    // The screen that starts the download, then unmounts (key change at the navigator).
+    const seenByOld: number[] = [];
+    const unsubscribeOld = subscribeDownloads(() => seenByOld.push(getDownloadState("a")?.bytesWritten ?? -1));
+    const first = startDownload(asset("a"));
+    downloadMock.mock.calls[0][1]!({ phase: "downloading", totalBytesWritten: 40, totalBytesExpectedToWrite: 100 });
+    unsubscribeOld();
+
+    // The remounted screen: fresh subscription, same module state.
+    const seenByNew: number[] = [];
+    const unsubscribeNew = subscribeDownloads(() => seenByNew.push(getDownloadState("a")?.bytesWritten ?? -1));
+    expect(getDownloadState("a")).toMatchObject({ downloading: true, bytesWritten: 40, bytesExpected: 100 });
+    const again = startDownload(asset("a"));
+    expect(again).toBe(first);
+    expect(downloadMock).toHaveBeenCalledTimes(1);
+
+    downloadMock.mock.calls[0][1]!({ phase: "downloading", totalBytesWritten: 90, totalBytesExpectedToWrite: 100 });
+    pending.get("a")!.resolve();
+    await first;
+    expect(seenByNew).toContain(90);
+    expect(seenByOld).not.toContain(90);
+    expect(getDownloadState("a")).toMatchObject({ phase: "verified", downloading: false });
+    unsubscribeNew();
+  });
+});
+
