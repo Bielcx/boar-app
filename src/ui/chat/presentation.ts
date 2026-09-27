@@ -58,10 +58,10 @@ export function phaseAnnouncement(
         const empty = placesEmptyTitle(state.places, t);
         return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
-      if (state.weakDeclined)
-        return libraryIncomplete
-          ? { message: `${t("chat.weak.declinedTitleIncomplete")}. ${t("chat.weak.declinedBodyIncomplete")}` }
-          : { message: `${t("chat.weak.declinedTitle")}. ${t("chat.weak.declinedBody")}` };
+      if (state.weakDeclined) {
+        const c = declineCopy(state, libraryIncomplete);
+        return { message: `${t(c.title)}. ${t(c.body)}` };
+      }
       if (state.weakSources) return { message: t("chat.announce.readyNoSource") };
       {
         // CT-2: count what the card shows, the cited sources; none cited reads as no source.
@@ -309,4 +309,18 @@ export function showsInstantSnippet(a: AnswerState): boolean {
 export function sourceLanguageLead(text: string): { lang: string | null; body: string } {
   const m = /^(?:Da fonte offline|From the offline source) \(([^)]+)\):[ \t]*\n/.exec(text);
   return m ? { lang: m[1], body: text.slice(m[0].length) } : { lang: null, body: text };
+}
+
+/**
+ * Why the compact model's answer was withheld (weak_sources declined), which the card and the
+ * announcement must say truthfully: "none" = nothing on the topic in this phone's library;
+ * "unsupported" = passages on the topic were found, but every citation the model made was removed
+ * as unsupported (Tusk 237764a, grounding:all-citations-removed-declined-compact). Off-topic
+ * passages never reach the chat (Tusk 404d688), so the sources tell the two apart.
+ */
+export function declineCopy(a: AnswerState, libraryIncomplete = false): { title: string; body: string } {
+  if (a.sources.length > 0) return { title: "chat.weak.unsupportedTitle", body: "chat.weak.unsupportedBody" };
+  return libraryIncomplete
+    ? { title: "chat.weak.declinedTitleIncomplete", body: "chat.weak.declinedBodyIncomplete" }
+    : { title: "chat.weak.declinedTitle", body: "chat.weak.declinedBody" };
 }
