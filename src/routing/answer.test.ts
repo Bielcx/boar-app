@@ -621,18 +621,29 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(events.find((e) => e.type === "instant")).toBeUndefined();
   });
 
-  it("gate ea5978c: an answer that cites none of its sources opens with the not-from-the-library line (4B)", async () => {
+  it("Boar, s32: a 4B answer with an on-topic source gets no line even uncited", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
     f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-on-topic");
+  });
+
+  it("gate ea5978c: an unguarded PT answer that cites none of its sources opens with the not-from-the-library line (4B)", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.englishNames = () => [];
     f.deps.engine.generate = async (o) => {
       o.onToken?.("It was a compromise between Sydney and Melbourne.");
       return "It was a compromise between Sydney and Melbourne.";
     };
-    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const { events, result } = await collect("Por que Canberra foi escolhida como capital da Austrália?");
     const done = events.find((e) => e.type === "done") as any;
     expect(done.cited).toEqual([]);
-    expect(done.finalText).toBe("This answer is not from an offline source on this phone; check it before relying on it.\n\nIt was a compromise between Sydney and Melbourne.");
+    expect(done.finalText).toBe("Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nIt was a compromise between Sydney and Melbourne.");
     expect(result.receipt.reasonCodes).toContain("grounding:uncited-preface");
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
   });
@@ -828,6 +839,46 @@ describe("answer(): current events (Prism CT-3)", () => {
       expect(result.text, q).not.toMatch(/Meath|\[\d\]/);
       expect((events.find((e) => e.type === "done") as any).cited, q).toEqual([]);
     }
+  });
+});
+
+describe("answer(): current events on every path (Prism CT-4)", () => {
+  it("'Answer with the model' (tier fast), Deeper answer (deep) and answer-anyway get the same fixed answer", async () => {
+    f.retrieved = [chunk("f", "2021 All-Ireland Senior Ladies' Football Championship final", "Meath won the 2021 All-Ireland Senior Ladies' Football Championship final against Dublin.")];
+    const q = "Who won the football match yesterday?";
+    const runs = [
+      await collect(q, "fast"),
+      await collect(q, "deep"),
+      await (async () => {
+        const events: AnswerEvent[] = [];
+        const result = await createAnswerer(f.deps).answer({ query: q, answerAnyway: true }, (e) => events.push(e), ctx).done;
+        return { events, result };
+      })(),
+      await (async () => {
+        const events: AnswerEvent[] = [];
+        const result = await createAnswerer(f.deps).deepen(q, f.retrieved, (e) => events.push(e), ctx).done;
+        return { events, result };
+      })(),
+    ];
+    expect(f.generations).toHaveLength(0);
+    for (const { result } of runs) {
+      expect(result.text).toMatch(/offline/);
+      expect(result.receipt.reasonCodes).toContain("grounding:current-event");
+    }
+  });
+});
+
+describe("answer(): today's date (Prism TD-1)", () => {
+  it("a question about today gets the device's date next to it; others don't", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.today = () => new Date(2026, 8, 27);
+    await collect("What happened today in history?");
+    expect(f.generations[0].messages!.at(-1)!.content).toContain("Today is Sunday, 27 September 2026 (this device's date).");
+    f.generations.length = 0;
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.generations[0].messages!.at(-1)!.content).not.toContain("Today is");
   });
 });
 

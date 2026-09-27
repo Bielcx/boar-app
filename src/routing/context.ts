@@ -514,6 +514,17 @@ const EVENT_INTENT =
 // "What happened today in history?" asks about the past (Prism): the library answers it.
 const HISTORY_FRAME = /\b(in history|on this day|this day in|historically)\b|(^|[^\p{L}])(na hist[óo]ria|neste dia|nesse dia|num dia como hoje)(?![\p{L}])/iu;
 
+/** Whether a question is about the present ("today", "hoje", "right now"): the model needs the date (Prism TD-1). */
+export function mentionsNow(query: string): boolean {
+  return CURRENT_TIME.test(query);
+}
+
+/** The device's date for the prompt, in the question's language: "Today is Sunday, 27 September 2026." */
+export function todayLine(date: Date, pt: boolean): string {
+  const text = date.toLocaleDateString(pt ? "pt-BR" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return pt ? `Hoje é ${text} (data deste aparelho).` : `Today is ${text} (this device's date).`;
+}
+
 export function isCurrentEventQuery(query: string): boolean {
   return CURRENT_TIME.test(query) && EVENT_INTENT.test(query) && !HISTORY_FRAME.test(query);
 }
