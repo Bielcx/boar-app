@@ -7,7 +7,7 @@ import { useTheme, useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
-import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
+import { answerPhase, canDeepen, isGeneralKnowledge, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { generatingSteps, offersAskModel, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
@@ -511,7 +511,7 @@ function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: num
  * neutral note (no amber: amber means provenance, and there is none), one focus for readers.
  * "Show closest passages" only when the engine still returned some, marked as weak, unnumbered.
  */
-function WeakSourceNote({ answer, incomplete }: { answer: AnswerState; incomplete?: boolean }) {
+function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; incomplete?: boolean; uncited?: boolean }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -519,15 +519,17 @@ function WeakSourceNote({ answer, incomplete }: { answer: AnswerState; incomplet
   // The engine's text already opens with "not from an offline source" (Tusk 4375d76): keep only the
   // marker where the sources would be, not the same sentence twice (Iris).
   const saidInText = !weakNoteShowsBody((answer.deep ?? answer.fast)?.text);
-  const body = tr(incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body");
+  // CT-5: passages on the topic were found but the model cited none: say that, not "nothing matched".
+  const title = tr(uncited ? "chat.weak.titleUncited" : "chat.weak.title");
+  const body = tr(uncited ? "chat.weak.bodyUncited" : incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body");
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       {/* The marker is read, never decorative (Iris/Prism): "No strong source on this phone". */}
-      <View accessible accessibilityRole="text" accessibilityLabel={saidInText ? tr("chat.weak.title") : `${tr("chat.weak.title")}. ${body}`} style={{ gap: t.space.sm }}>
+      <View accessible accessibilityRole="text" accessibilityLabel={saidInText ? title : `${title}. ${body}`} style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Icon name="book" size="sm" color={t.color.text.secondary} />
           <Text variant="label" color="secondary" style={{ flex: 1 }}>
-            {tr("chat.weak.title")}
+            {title}
           </Text>
         </View>
         {!saidInText && (
@@ -719,6 +721,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const { t: tr } = useTranslation();
   const phase = answerPhase(answer);
   // No strong source: no [n] citations, even if weak passages came back (weak-sources spec rule 4).
+  const generalKnowledge = isGeneralKnowledge(answer);
+  const uncited = !answer.weakSources && generalKnowledge;
   const sourceTitles = answer.weakSources ? [] : answer.sources.map((s) => s.title);
   const placesOnly = !!answer.places && !answer.fast;
   const split = answerSourceSplit(answer);
@@ -733,7 +737,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
-  const receipt = useReceipt(topReceipt, locale, !!answer.weakSources);
+  const receipt = useReceipt(topReceipt, locale, generalKnowledge);
   const locating = isLocating(answer);
   const waitingForCity = answer.places?.coverage === "needs_place" || locating;
   return (
@@ -836,7 +840,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
       {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
 
-      {answer.sources.length > 0 && !placesOnly && !answer.weakSources && (
+      {answer.sources.length > 0 && !placesOnly && !generalKnowledge && (
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
         // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
         cardMode === "found" ? (
@@ -855,7 +859,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         )
       )}
       {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
-      {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} />}
+      {generalKnowledge && !answer.weakDeclined && done && !placesOnly && (
+        <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={uncited} />
+      )}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
