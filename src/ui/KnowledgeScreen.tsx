@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { DocumentPickerAsset } from "expo-document-picker";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, TextField, useAnnounce, useToast } from "./components";
+import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Screen, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
 import { CatalogModel, CORPUS_CATALOG } from "../models/manifest";
 import {
@@ -144,9 +144,9 @@ export function KnowledgeScreen() {
     return (
       <Screen>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
-          <Skeleton height={20} width="50%" />
-          <Skeleton height={72} />
-          <Skeleton height={72} />
+          <Skeleton height={tokens.space.lg} width="50%" />
+          <Skeleton height={tokens.size.control * 2} />
+          <Skeleton height={tokens.size.control * 2} />
         </View>
       </Screen>
     );
@@ -156,21 +156,20 @@ export function KnowledgeScreen() {
 
   return (
     <Screen>
-      <Text variant="callout" color="secondary">
+      <Text variant="footnote" color="secondary">
         {t("flows.knowledge.intro")}
       </Text>
 
       {seed && (
-        <View style={{ gap: tokens.space.xs }}>
-          <Text variant="subhead">
-            {t("flows.knowledge.indexing", { done: formatCount(seed.done, i18n.language), total: formatCount(seed.total, i18n.language) })}
-          </Text>
+        <Card style={{ gap: tokens.space.md }}>
+          <Stat size="lg" label={t("flows.knowledge.indexingLabel")} value={String(Math.floor((seed.done / seed.total) * 100))} unit="%" />
           <Progress
             label={t("flows.knowledge.indexingLabel")}
             value={seed.done / seed.total}
-            valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, i18n.language), total: formatCount(seed.total, i18n.language) })}
+            valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
           />
-        </View>
+          <MetaLine items={[t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })]} />
+        </Card>
       )}
 
       {packs.length > 0 && (
@@ -180,10 +179,8 @@ export function KnowledgeScreen() {
               key={pack.entry.id}
               model={pack.entry}
               title={packName(pack, lang)}
-              details={[
-                t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) }),
-                t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") }),
-              ]}
+              meta={t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) })}
+              details={[t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") })]}
               view={catalog.view(pack.entry)}
               onDownload={() => catalog.install([pack.entry])}
               onRemove={() => catalog.remove(pack.entry)}
@@ -234,7 +231,7 @@ export function KnowledgeScreen() {
                 key={r.id}
                 model={entry}
                 title={name}
-                meta={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
+                meta={t("flows.places.count", { places: formatCount(r.poiCount, lang) })}
                 details={[
                   t("flows.places.vegan", { vegan: formatCount(r.veganCount, lang), vegetarian: formatCount(r.vegetarianCount, lang) }),
                   cities.more > 0
@@ -296,9 +293,20 @@ export function KnowledgeScreen() {
       </Section>
 
       {importing && (
-        <View style={{ gap: tokens.space.xs }}>
-          <Text variant="subhead">{t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })}</Text>
+        <Card style={{ gap: tokens.space.md }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
+            <View style={{ flex: 1, gap: tokens.space.xxs }}>
+              <Text variant="label" color="field">
+                {t("flows.knowledge.importingLabel")}
+              </Text>
+              <Text variant="headline" numberOfLines={2}>
+                {importingName}
+              </Text>
+            </View>
+            {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
+          </View>
           <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
+          <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
           <Button
             size="sm"
             variant="secondary"
@@ -306,7 +314,7 @@ export function KnowledgeScreen() {
             accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
             onPress={() => abortRef.current?.abort()}
           />
-        </View>
+        </Card>
       )}
 
       {importError && (

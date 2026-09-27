@@ -638,6 +638,7 @@
       "footer": "Restaurants and places from OpenStreetMap (ODbL) and travel tips from Wikivoyage (CC BY-SA). Searched on the phone, no internet.",
       "none": "Place packs are not available in this version yet.",
       "meta": "{{places}} places · {{size}}",
+      "count": "{{places}} places",
       "citiesMore_one": "{{cities}} and {{count}} more city",
       "citiesMore_other": "{{cities}} and {{count}} more cities",
       "travelTitle": "Travel",
