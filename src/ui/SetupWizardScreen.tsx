@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Text, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, useAnnounce } from "./components";
 import type { TextColor } from "./components/Text";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -381,11 +381,30 @@ function Welcome({
             const selected = languageId === l.id;
             return (
               <View key={l.id} style={fontScale > LARGE_TEXT ? undefined : { flex: 1 }}>
-                <LanguageCard
-                  name={l.name}
-                  code={l.id.toUpperCase()}
-                  monogram={monogram}
+                <OptionCard
+                  title={l.name}
+                  indicator="check"
                   selected={selected}
+                  leading={
+                    monogram ? (
+                      <View
+                        style={{
+                          width: tokens.size.controlSm,
+                          height: tokens.size.controlSm,
+                          borderRadius: tokens.radius.full,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: selected ? tokens.color.accent.solid : tokens.color.bg.raised,
+                        }}
+                        importantForAccessibility="no-hide-descendants"
+                        accessibilityElementsHidden
+                      >
+                        <Text variant="caption" weight="semibold" color={selected ? "onAccent" : "primary"}>
+                          {l.id.toUpperCase()}
+                        </Text>
+                      </View>
+                    ) : undefined
+                  }
                   onPress={async () => {
                     await setLanguage(l.id);
                     announce(i18n.getFixedT(l.id)("flows.onboarding.languageAnnounce"));
@@ -556,7 +575,7 @@ function PackageStep({
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
-            <Badge label={t(`flows.onboarding.answerTier.${answerTier}`)} emphasis="outline" />
+            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" />}
             <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
@@ -731,15 +750,29 @@ function TravelCard({
     <Section title={t("flows.places.travelTitle")} footer={t("flows.places.footer")}>
       {region && cities ? (
         <>
-          <ListRow
-            title={t("flows.places.include", { region: name })}
-            subtitle={[
-              t("flows.places.meta", { places: formatCount(region.poiCount, lang), size: formatBytes(region.sizeBytes, lang) }),
-              cities.more > 0 ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more }) : cities.names.join(", "),
-              t(`flows.places.reason.${suggestion!.reason}`),
-            ].join("\n")}
-            switch={{ value: selected?.id === region.id, onValueChange: (v) => onChange(v ? region : null) }}
-          />
+          {/* In the rhythm of the mockup's cards (Iris): title 16, one metadata line, the reason in a caption. */}
+          <View style={{ paddingVertical: tokens.space.md - tokens.space.xxs, paddingHorizontal: tokens.space.md, gap: tokens.space.xs }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
+              <Text variant="cardTitle" style={{ flex: 1 }}>
+                {t("flows.places.placesFor", { region: name })}
+              </Text>
+              <Switch
+                label={t("flows.places.include", { region: name })}
+                value={selected?.id === region.id}
+                onValueChange={(v) => onChange(v ? region : null)}
+              />
+            </View>
+            <MetaLine
+              variant="caption"
+              items={[
+                t("flows.places.meta", { places: formatCount(region.poiCount, lang), size: formatBytes(region.sizeBytes, lang) }),
+                t("flows.places.cityCount", { count: cities.names.length + cities.more, value: formatCount(cities.names.length + cities.more, lang) }),
+              ]}
+            />
+            <Text variant="caption" color="secondary">
+              {t(`flows.places.reason.${suggestion!.reason}`)}
+            </Text>
+          </View>
         </>
       ) : (
         <ListRow title={t("flows.places.noRegionHere")} />
@@ -1303,58 +1336,6 @@ function moving(state: RowState): boolean {
   return (state.kind === "downloading" && state.progress > 0) || state.kind === "verifying";
 }
 
-/**
- * The mockup's language card (Setup 1): one centred row, the EN/PT monogram, the name 15/600 and a
- * check only when selected, so "Português" never wraps in a 172 pt card (Harbor, iPhone 17).
- */
-function LanguageCard({ name, code, monogram, selected, onPress }: { name: string; code: string; monogram: boolean; selected: boolean; onPress: () => void }) {
-  const tokens = useTokens();
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected, checked: selected }}
-      accessibilityLabel={name}
-      onPress={() => {
-        if (!selected) impact(ImpactFeedbackStyle.Light);
-        onPress();
-      }}
-      style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: tokens.space.md - tokens.space.xxs,
-        minHeight: tokens.size.touch,
-        paddingVertical: tokens.space.md - tokens.space.xxs,
-        paddingHorizontal: tokens.space.md,
-        borderRadius: tokens.radius.card,
-        borderWidth: tokens.size.focusRing,
-        borderColor: selected ? tokens.color.accent.solid : "transparent",
-        backgroundColor: selected || pressed ? tokens.color.bg.raised : tokens.color.bg.surface,
-      })}
-    >
-      {monogram && (
-        <View
-          style={{
-            width: tokens.size.controlSm,
-            height: tokens.size.controlSm,
-            borderRadius: tokens.radius.full,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: selected ? tokens.color.accent.solid : tokens.color.bg.raised,
-          }}
-        >
-          <Text variant="caption" weight="semibold" color={selected ? "onAccent" : "primary"}>
-            {code}
-          </Text>
-        </View>
-      )}
-      <Text variant="callout" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
-        {name}
-      </Text>
-      {selected && <Icon name="check" size="sm" color={tokens.color.accent.text} />}
-    </Pressable>
-  );
-}
-
 /** The mockup's back link: 13.5 text in mu with an arrow, not an accent button; touch >= 44 (Prism). */
 function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const tokens = useTokens();
@@ -1364,7 +1345,8 @@ function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
       accessibilityRole="button"
       onPress={onPress}
       hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
-      style={{ alignSelf: "center", paddingVertical: tokens.space.xs, flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}
+      // 10 pt below the CTA like the mockup (the footer's gap is 8).
+      style={{ alignSelf: "center", marginTop: tokens.space.xxs, flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}
     >
       <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
       <Text variant="subhead" color="secondary">
