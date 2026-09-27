@@ -13,6 +13,7 @@ import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
 import { englishNamesIn, looksPortuguese, type Lexicon } from "./ptLexicon";
 import { ACTION_INTENT, LAY_SOURCES } from "./wikiPack";
 import { EXPLAIN_INTENT } from "./explain";
+import { identifiersIn, titleHasIdentifier } from "./identifiers";
 import { ptLexicon } from "./ptLexiconAsset";
 
 export type { RetrievedChunk } from "./retrieve.types";
@@ -114,7 +115,10 @@ export async function retrieve(
   // (Wikipedia's own interlanguage links, src/rag/ptLexicon.ts), and put those results first. The English
   // embedder and keyword index barely match Portuguese words, so the first search alone finds noise.
   if (!looksPortuguese(query)) return main;
-  const names = englishNamesIn(query, opts.lexicon ?? ptLexicon());
+  // A standard's number in the question (EIP-1559, ERC-20, BIP-32) names its page exactly: it goes before any
+  // lexicon name, which for these questions is often only the generic "Ethereum".
+  const ids = identifiersIn(query);
+  const names = [...ids, ...englishNamesIn(query, opts.lexicon ?? ptLexicon()).filter((n) => !ids.includes(n))];
   if (!names.length) return main;
   // The names alone ("Earthquake") don't say the question asks what to do; the question does.
   const found = await retrieveOne(names.join(" "), topK, {
@@ -137,7 +141,9 @@ export async function retrieve(
   const merged = [...first.slice(0, Math.ceil((topK * 2) / 3)), ...main, ...english].filter(
     (c) => !isDisambiguation(c) && !seen.has(c.chunkId) && (seen.add(c.chunkId), true)
   );
-  return merged.slice(0, topK);
+  // The page of a standard the question names by number first, from either search.
+  const byId = (c: RetrievedChunk) => ids.some((id) => titleHasIdentifier(c.title, id));
+  return [...merged.filter(byId), ...merged.filter((c) => !byId(c))].slice(0, topK);
 }
 
 /** A "may refer to" list or a "(disambiguation)" page: never a source. */
