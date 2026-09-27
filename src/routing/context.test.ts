@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  passageLanguage,
+  sourceLanguageLead,
   temperatureConversion,
   healthExtract,
   isTodayInHistory,
@@ -601,5 +603,37 @@ describe("onTopic: a title's acronym", () => {
     const c = { chunkId: "m", docId: "m", title: "ethereum.org: Maximal extractable value (MEV)", body: "Maximal extractable value refers to the maximum value that can be extracted from block production.", score: 1, matchType: "lexical" as const };
     expect(onTopic("O que é MEV e o que é a separação entre proponente e construtor?", c)).toBe(true);
     expect(onTopic("What is the minimum wage?", c)).toBe(false);
+  });
+});
+
+describe("onTopic: two consecutive question terms (Sextant cmp-009)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  const q = "How did government in the Roman Republic differ from the Roman Empire?";
+  it("keeps the Western Roman Empire and the Byzantine Empire", () => {
+    expect(onTopic(q, c("Fall of the Western Roman Empire", "The fall of the Western Roman Empire was the loss of central political control in the Western Roman Empire."))).toBe(true);
+    expect(onTopic(q, c("Byzantine Empire", "The Byzantine Empire, also known as the Eastern Roman Empire, was the continuation of the Roman Empire centred on Constantinople."))).toBe(true);
+    expect(onTopic(q, c("Politics of Djibouti", "Politics of Djibouti takes place in a framework of a semi-presidential republic."))).toBe(false);
+  });
+  it("a pair that is only a place is not the subject (the consulate in Chiang Mai)", () => {
+    const consulate = c("Consulate-General of China, Chiang Mai", "The Consulate-General of the People's Republic of China in Chiang Mai is the diplomatic mission of China to Chiang Mai and Northern Thailand.");
+    expect(onTopic("When is the best time to visit Chiang Mai, and when is the smoky season?", consulate)).toBe(false);
+  });
+  it("does not reopen Scary Stories, Marash, Northern Command or Sampford Common", () => {
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology about the dark web."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
+    expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
+    expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+  });
+});
+
+describe("passageLanguage / sourceLanguageLead", () => {
+  it("reads the passage's function words", () => {
+    expect(passageLanguage("A monsoon is traditionally a seasonal reversing wind.")).toBe("en");
+    expect(passageLanguage("A monção é um vento sazonal que muda de direção.")).toBe("pt");
+    expect(passageLanguage("EIP-1559")).toBeNull();
+    expect(sourceLanguageLead(true, "The Earth's axis is tilted.")).toBe("Da fonte offline (em inglês):");
+    expect(sourceLanguageLead(true, "A monção é um vento sazonal.")).toBeNull();
+    expect(sourceLanguageLead(false, "The Earth's axis is tilted.")).toBeNull();
+    expect(sourceLanguageLead(false, "A monção é um vento sazonal que muda de direção.")).toBe("From the offline source (in Portuguese):");
   });
 });

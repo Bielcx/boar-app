@@ -24,6 +24,15 @@ vi.mock("./packs", () => ({
         semantic: [],
       };
     }
+    if (/ethereum/i.test(query)) {
+      return {
+        lexical: [
+          chunk("pack:c:eth", "Ethereum", "Ethereum is a decentralized blockchain."),
+          chunk("pack:c:1559", "EIP-1559: Fee market change for ETH 1.0 chain", "A base fee per gas that is burned."),
+        ],
+        semantic: [],
+      };
+    }
     if (/^road$/i.test(query)) return { lexical: [chunk("pack:v5:road", "Road", "A road is a thoroughfare.", false)], semantic: [] };
     const lexical = /season/i.test(query)
       ? [{ chunkId: "pack:vital5:1", docId: "pack:vital5:Season", title: "Season", body: "A season is a division of the year.", source: "Wikipedia", score: 9, matchType: "lexical" as const }]
@@ -35,6 +44,7 @@ vi.mock("./packs", () => ({
 }));
 
 import { retrieve } from "./retrieve";
+import { identifiersIn, titleHasIdentifier } from "./identifiers";
 
 const lexicon = { "estacao do ano": "Season", terra: "Earth" };
 
@@ -62,5 +72,20 @@ describe("retrieve with Portuguese questions", () => {
   it("in a what-to-do question never puts a generic name's article first", async () => {
     const hits = await retrieve("Meu parceiro está na estrada com frio. O que eu faço? (cultivo)", 6, { lexicon: { estrada: "Road" } });
     expect(hits[0]?.title).toBe("Jardim Vertical");
+  });
+
+  it("puts the page of a standard named by number ahead of the lexicon's names", async () => {
+    calls.length = 0;
+    const hits = await retrieve("O que a EIP 1559 muda nas taxas do Ethereum?", 6, { lexicon: { ethereum: "Ethereum" } });
+    expect(calls).toContain("EIP-1559 Ethereum");
+    expect(hits[0]?.title).toMatch(/^EIP-1559:/);
+  });
+
+  it("reads standards' numbers in any spelling, and matches only the same number", () => {
+    expect(identifiersIn("a eip1559, a ERC-20 e o bip 32 e a EIP-1559")).toEqual(["EIP-1559", "ERC-20", "BIP-32"]);
+    expect(identifiersIn("Ethereum 2.0 e o ano 1559")).toEqual([]);
+    expect(titleHasIdentifier("EIP-1559: Fee market change", "EIP-1559")).toBe(true);
+    expect(titleHasIdentifier("EIP-155: Simple replay attack protection", "EIP-1559")).toBe(false);
+    expect(titleHasIdentifier("EIP-15590: other", "EIP-1559")).toBe(false);
   });
 });
