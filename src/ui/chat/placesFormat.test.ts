@@ -16,6 +16,8 @@ import {
   formatDataDate,
   placesEmptyTitle,
   citySuggestions,
+  lastKnownOf,
+  agoText,
 } from "./placesFormat";
 
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -199,5 +201,21 @@ describe("citySuggestions", () => {
   it("caps the list and gives nothing without packs", () => {
     expect(citySuggestions(cities, undefined, 2)).toEqual(["Berlin", "Hamburg"]);
     expect(citySuggestions([])).toEqual([]);
+  });
+});
+
+describe("lastKnownOf / agoText (stale location, Boar)", () => {
+  it("reads a well-formed lastKnown and rejects the rest", () => {
+    expect(lastKnownOf({ kind: "near", lastKnown: { city: " Berlin ", country: "DE", ageS: 1380 } })).toEqual({ city: "Berlin", country: "DE", ageS: 1380 });
+    expect(lastKnownOf({ kind: "near" })).toBeNull();
+    expect(lastKnownOf({ kind: "near", lastKnown: { city: "", ageS: 10 } })).toBeNull();
+    expect(lastKnownOf({ kind: "near", lastKnown: { city: "Berlin" } })).toBeNull();
+  });
+
+  it("says how long ago the way people say it", () => {
+    expect(agoText(1380, t)).toBe('chat.places.ago.min{"count":23}');
+    expect(agoText(20, t)).toBe('chat.places.ago.min{"count":1}');
+    expect(agoText(2 * 3600 + 100, t)).toBe('chat.places.ago.h{"count":2}');
+    expect(agoText(3 * 86400, t)).toBe('chat.places.ago.d{"count":3}');
   });
 });

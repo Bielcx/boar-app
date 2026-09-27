@@ -977,7 +977,19 @@
       "dataFrom": "dados de {{date}}",
       "openSettings": "Abrir ajustes",
       "coveredCities": "Cidades no seu mapa offline",
-      "searchCityHint": "Mostra lugares em {{city}}"
+      "searchCityHint": "Mostra lugares em {{city}}",
+      "staleTitle": "Sua última localização foi em {{city}}, há {{ago}}",
+      "staleBody": "Sem posição recente agora. Use essa cidade ou escolha onde você está.",
+      "useCity": "Usar {{city}}",
+      "chooseCity": "Escolher cidade",
+      "ago": {
+        "min_one": "{{count}} min",
+        "min_other": "{{count}} min",
+        "h_one": "{{count}} h",
+        "h_other": "{{count}} h",
+        "d_one": "{{count}} dia",
+        "d_other": "{{count}} dias"
+      }
     },
     "assistantName": "boar",
     "suggestionTopics": {

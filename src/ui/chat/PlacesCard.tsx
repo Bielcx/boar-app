@@ -31,6 +31,9 @@ import {
   openStateLabel,
   placesEmptyTitle,
   citySuggestions,
+  agoText,
+  lastKnownOf,
+  type LastKnownPlace,
   placeA11yLabel,
   sourceName,
 } from "./placesFormat";
@@ -270,6 +273,72 @@ function CityChips({ exclude, onPick }: { exclude?: string; onPick: (city: strin
   );
 }
 
+/**
+ * The phone's last position is too old to list "near me" (Boar): say where and
+ * when it was, and let the user use that city or choose another. Never lists
+ * the old city on its own.
+ */
+function StaleLocationPrompt({
+  last,
+  onCity,
+  onChoose,
+  focus,
+}: {
+  last: LastKnownPlace;
+  onCity: (city: string) => void;
+  onChoose: () => void;
+  focus?: boolean;
+}) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const titleRef = useRef<RNText>(null);
+  useEffect(() => {
+    if (!focus) return;
+    const id = setTimeout(() => {
+      const tag = findNodeHandle(titleRef.current);
+      if (tag) AccessibilityInfo.setAccessibilityFocus(tag);
+    }, 300);
+    return () => clearTimeout(id);
+    // Once, when the prompt appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Card style={{ gap: t.space.md }}>
+      <View style={{ gap: t.space.xs }}>
+        <Text ref={titleRef} variant="headline" header>
+          {tr("chat.places.staleTitle", { city: last.city, ago: agoText(last.ageS, tr) })}
+        </Text>
+        <Text variant="footnote" color="secondary">
+          {tr("chat.places.staleBody")}
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+        <Button label={tr("chat.places.useCity", { city: last.city })} icon="map-pin" onPress={() => onCity(last.city)} />
+        <Button label={tr("chat.places.chooseCity")} variant="secondary" icon="search" onPress={onChoose} />
+      </View>
+    </Card>
+  );
+}
+
+/** Stale position first; "Choose a city" turns it into the city prompt. */
+function NeedsPlace({
+  last,
+  locationStatus,
+  onCity,
+  onUseLocation,
+  focus,
+}: {
+  last: LastKnownPlace | null;
+  locationStatus?: string;
+  onCity: (city: string) => void;
+  onUseLocation?: () => void;
+  focus?: boolean;
+}) {
+  const [choosing, setChoosing] = useState(false);
+  if (last && !choosing) return <StaleLocationPrompt last={last} onCity={onCity} onChoose={() => setChoosing(true)} focus={focus} />;
+  return <CityPrompt locationStatus={locationStatus} onCity={onCity} onUseLocation={onUseLocation} focus={focus || choosing} />;
+}
+
 /** "Which city?" when there's no position and no city in the question. */
 function CityPrompt({
   locationStatus,
@@ -380,7 +449,15 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
   const now = deviceClockApplies(r.area) ? clock : null;
 
   if (r.coverage === "needs_place") {
-    return <CityPrompt locationStatus={answer.location?.status} onCity={onCity} onUseLocation={onUseLocation} focus={focusCity} />;
+    return (
+      <NeedsPlace
+        last={lastKnownOf(r.area)}
+        locationStatus={answer.location?.status}
+        onCity={onCity}
+        onUseLocation={onUseLocation}
+        focus={focusCity}
+      />
+    );
   }
   const emptyTitle = placesEmptyTitle(r, tr);
   if (r.coverage === "no_pack") {
