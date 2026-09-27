@@ -47,9 +47,11 @@ export function OptionCard({
 }: OptionCardProps) {
   const t = useTokens();
   const restBorder = t.scheme === "light" ? t.color.line.hairline : "transparent";
+  // Mockup: a title-only card (language) centres its row; with a description the radio sits at the top.
+  const titleOnly = !description && !meta && !children;
   const frame = (pressed: boolean): ViewStyle => ({
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: titleOnly ? "center" : "flex-start",
     // Mockup: 10/12 padding, radius 18, 2 pt border, 10 pt from the radio to the text.
     gap: t.space.sm + t.space.xxs,
     minHeight: t.size.touch,
@@ -81,7 +83,12 @@ export function OptionCard({
         {/* Title and badge wrap together; the deciding figure keeps its column on the right. */}
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm }}>
           <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: t.space.sm, rowGap: t.space.xs }}>
-            <Text variant="cardTitle" style={{ flexShrink: 1 }}>
+            <Text
+              variant="cardTitle"
+              style={{ flexShrink: 1 }}
+              // A title-only card is one line in the mockup; a long translation shrinks instead of wrapping.
+              {...(titleOnly ? { numberOfLines: 1, adjustsFontSizeToFit: true, minimumFontScale: 0.8 } : null)}
+            >
               {title}
             </Text>
             {badge}
