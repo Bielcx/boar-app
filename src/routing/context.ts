@@ -179,7 +179,13 @@ export function selectInstant(query: string, chunks: RetrievedChunk[]): InstantS
  * ML-DSA-44..."). A sentence opening with a pronoun ("It initially
  * focuses...") needs the text before it.
  */
-export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | "health" | null {
+const POINTER = /\b(can be found|is available (at|in|from)|see (the|also|below|above)|for more (information|details)|refer to|repository|see https?:|https?:\/\/)/i;
+
+export function instantFinalBlock(
+  query: string,
+  snippet: string,
+  matchQuery: string = query
+): "anaphora" | "list" | "compound" | "not-definition" | "health" | "pointer" | "title-only" | null {
   const q = query.trim().replace(/[?!.\s]+$/, "");
   // One sentence is never a complete first-aid answer.
   if (isHealthQuestion(q)) return "health";
@@ -193,6 +199,13 @@ export function instantFinalBlock(query: string, snippet: string): "anaphora" | 
     const defines = new RegExp(`(^|[^\\w-])${esc}(?![\\w-])[^.]{0,60}?\\b(is|are|was|were|refers to|stands for|means)\\b`, "i");
     if (!defines.test(snippet)) return "not-definition";
   }
+  // A sentence that points elsewhere answers nothing (Sextant cry-020: "Full specification of the beacon
+  // chain can be found in the ethereum/consensus-specs repository").
+  if (POINTER.test(snippet)) return "pointer";
+  // The sentence itself must cover the question past its identifiers: a named title ("EIP-3675") scores
+  // every sentence of its page, so the score alone let a content-free sentence be final.
+  const rest = matchQuery.replace(/\b(EIP|ERC|BIP|RFC)[-\s]?\d{1,5}\b/gi, " ");
+  if (tokenizeTerms(rest).length && termCoverage(rest, snippet) < 0.5) return "title-only";
   return null;
 }
 
@@ -674,6 +687,22 @@ export function sourceLanguageLead(questionPt: boolean, passage: string): string
   if (questionPt && lang === "en") return "Da fonte offline (em inglês):";
   if (!questionPt && lang === "pt") return "From the offline source (in Portuguese):";
   return null;
+}
+
+/**
+ * Whether a passage carries content: not an EIP's metadata header ("Status: Final Type: … Created: …"), a
+ * code/hex-only block, a copyright notice or a two-word stub ("Hard fork: Spurious Dragon"). Sextant cry-012:
+ * the three pinned EIP-155 passages were exactly those, and the model filled in "a nonce field".
+ */
+export function isSubstantive(chunk: RetrievedChunk): boolean {
+  const colon = chunk.body.indexOf(":");
+  const heading = colon > 0 && colon <= 120 ? chunk.body.slice(0, colon) : "";
+  const text = (heading ? chunk.body.slice(colon + 1) : chunk.body).trim();
+  if (/^(status|type|created|requires|author|category|discussions-to)\s*:/i.test(chunk.body.trim()) && /\bcreated\s*:/i.test(chunk.body)) return false;
+  if (/^copyright\b/i.test(heading) || /^copyright and related rights waived/i.test(text)) return false;
+  const prose = text.replace(/```[\s\S]*?```/g, " ").replace(/\b0x[0-9a-f]+\b/gi, " ");
+  const words = prose.match(/\p{L}{2,}/gu) ?? [];
+  return words.length >= 3;
 }
 
 const IDENTIFIER = /\b(EIP|ERC|BIP|RFC)[-\s]?(\d{1,5})\b/gi;
