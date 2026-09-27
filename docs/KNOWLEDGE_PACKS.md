@@ -348,6 +348,22 @@ an earthquake?" → Ready.gov *Earthquakes § During an Earthquake*; "How can I
 start a fire without matches?" → FM 21-76 ch. 7 *Firecraft*; "How to treat a
 snake bite?" → Wikibooks *First Aid/Wilderness First Aid § Snakes*.
 
+**v2** (2026-09-26, the published one): the first build had no Wikipedia
+*Burn* or *Earthquake* article (the category crawl doesn't reach them), which
+matched the wrong burn and earthquake answers in Sextant's safety check. v2
+adds 51 core first-aid and disaster articles by name (`WP_CORE` in
+`fetch-preparedness.mjs`; 33 were missing), cleans image captions that spanned
+several lines, keeps every English Wikipedia redirect to its articles, and adds
+**Portuguese aliases** from Wikipedia's interlanguage links
+(`scripts/add-langlink-aliases.mjs --lang pt`: 729 names for 266 articles, e.g.
+Queimadura → *Burn*, Terremoto/Sismo → *Earthquake*, Picada de cobra →
+*Snakebite*, Sangramento nasal → *Nosebleed*, Engasgo → *Choking*). 1,754
+documents; pack **16,490,496 bytes**, SHA-256
+`d68cec86e56e1d4c205152c0e37e0978a3d5e396a5f0fb063b918d45e04708fd`, dataset
+commit `9b1ea56` (v1 stays at `6a65cc2`). Portuguese questions now put the
+right article first: "O que fazer em caso de queimadura?" → *Burn*, "O que fazer
+num terremoto?" → *Earthquake*, "Como parar um sangramento nasal?" → *Nosebleed*.
+
 Attribution: CC BY-SA 4.0 requires crediting each page; the app shows every
 passage's source title, URL and license, and the pack's `meta.license` lists
 all licenses. Public-domain text needs no license, but the source is still
