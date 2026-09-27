@@ -816,7 +816,9 @@
       "groupLabel_other": "Fontes {{numbers}}: {{title}}, {{origin}}, {{count}} trechos",
       "relevance": "relevância {{pct}}%",
       "related": "Relacionados no seu acervo · {{count}}",
-      "hideRelated": "Ocultar relacionados"
+      "hideRelated": "Ocultar relacionados",
+      "found_one": "{{count}} trecho encontrado",
+      "found_other": "{{count}} trechos encontrados"
     },
     "receipt": {
       "sourcePassage": "Trecho da fonte",

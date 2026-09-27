@@ -816,7 +816,9 @@
       "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages",
       "relevance": "relevance {{pct}}%",
       "related": "Related in your library · {{count}}",
-      "hideRelated": "Hide related"
+      "hideRelated": "Hide related",
+      "found_one": "Found {{count}} passage",
+      "found_other": "Found {{count}} passages"
     },
     "receipt": {
       "sourcePassage": "Source passage",

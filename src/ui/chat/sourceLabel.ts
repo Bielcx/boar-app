@@ -97,3 +97,13 @@ export function answerSourceSplit(a: {
 }): { cited: number[]; related: number[] } | null {
   return citedSplit(a.sources.length, a.cited, a.instant && !a.weakSources ? a.instant.sourceIndex : undefined);
 }
+
+/**
+ * What the sources slot shows (Prism CT-2): while the answer is written and the engine hasn't said
+ * which [n] stayed, only the count; then the cited sources, or only "Related" when none is cited.
+ * "all" = an engine or a record without cited: every source, as before.
+ */
+export function sourcesCardMode(active: boolean, split: { cited: number[] } | null): "found" | "related" | "cited" | "all" {
+  if (!split) return active ? "found" : "all";
+  return split.cited.length === 0 ? "related" : "cited";
+}

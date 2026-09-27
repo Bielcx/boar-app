@@ -9,7 +9,7 @@ import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { generatingSteps, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
-import { answerSourceSplit, groupSources, relevancePercents, sourceParts } from "./sourceLabel";
+import { answerSourceSplit, groupSources, sourcesCardMode, relevancePercents, sourceParts } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
@@ -457,14 +457,19 @@ function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: num
   const groups = groupSources(answer.sources, indexes);
   return (
     <View style={{ gap: t.space.sm }}>
-      <Button
-        label={tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
-        variant="ghost"
-        size="sm"
-        accessibilityState={{ expanded: open }}
-        style={{ alignSelf: "flex-start" }}
+      {/* Neutral text action, no ember inside the amber card (Iris); becomes TextAction once 62a6944 is integrated. */}
+      <Pressable
         onPress={() => setOpen((o) => !o)}
-      />
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        hitSlop={{ top: t.space.md, bottom: t.space.md }}
+        style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: t.space.xxs, paddingHorizontal: t.space.sm }}
+      >
+        <Text variant="footnote" color="secondary">
+          {tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
+        </Text>
+        <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+      </Pressable>
       {open &&
         groups.map((g) => (
           <View key={g.key} style={{ gap: t.space.xxs, paddingHorizontal: t.space.sm }}>
@@ -689,6 +694,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const sourceTitles = answer.weakSources ? [] : answer.sources.map((s) => s.title);
   const placesOnly = !!answer.places && !answer.fast;
   const split = answerSourceSplit(answer);
+  const cardMode = sourcesCardMode(!!active, split);
   const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
   const instantOnly = !!answer.instantDone && !answer.fast;
   const lastTier = answer.deep ?? answer.fast;
@@ -801,7 +807,15 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
       {answer.sources.length > 0 && !placesOnly && !answer.weakSources && (
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
-        split?.cited.length === 0 ? (
+        // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
+        cardMode === "found" ? (
+          <Card radius="card" padding="compact" style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+            <Icon name="book-open" size="sm" color={t.color.text.secondary} />
+            <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+              {tr("chat.sources.found", { count: answer.sources.length })}
+            </Text>
+          </Card>
+        ) : cardMode === "related" && split ? (
           <Card radius="card" padding="compact">
             <RelatedSources answer={answer} indexes={split.related} />
           </Card>

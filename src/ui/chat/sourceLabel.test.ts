@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerSourceSplit, citedSplit, groupSources, relevancePercents, sourceParts } from "./sourceLabel";
+import { answerSourceSplit, citedSplit, sourcesCardMode, groupSources, relevancePercents, sourceParts } from "./sourceLabel";
 
 describe("sourceParts", () => {
   it("splits the corpus 'Name — URL (license)' string (Prism S-2)", () => {
@@ -87,5 +87,14 @@ describe("groupSources with only", () => {
   it("keeps the original indexes of the chosen sources", () => {
     const g = groupSources([{ docId: "a", title: "A" }, { docId: "b", title: "B" }, { docId: "a", title: "A" }], [1, 2]);
     expect(g).toEqual([{ key: "b", title: "B", indexes: [1] }, { key: "a", title: "A", indexes: [2] }]);
+  });
+});
+
+describe("sourcesCardMode (Prism: no shrinking card while streaming)", () => {
+  it("only the count while writing, then cited or related; all without the engine's cited", () => {
+    expect(sourcesCardMode(true, null)).toBe("found");
+    expect(sourcesCardMode(false, null)).toBe("all");
+    expect(sourcesCardMode(false, { cited: [] })).toBe("related");
+    expect(sourcesCardMode(true, { cited: [0] })).toBe("cited"); // Deepen running: the fast pass's card stays
   });
 });
