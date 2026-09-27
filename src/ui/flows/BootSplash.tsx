@@ -118,7 +118,8 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
           </Text>
         )}
         <View style={{ position: "absolute", width: BAR_W, left: (width - BAR_W) / 2, top: height - BAR_FROM_BOTTOM }}>
-          <Progress label={t("flows.onboarding.bootChecking")} height={tokens.space.xs} />
+          {/* The splash colours, not the user theme, so the track never turns light (Iris 2342441). */}
+          <Progress label={t("flows.onboarding.bootChecking")} height={tokens.space.xs} tokens={tokens} />
         </View>
         {textReady && (
           <Text
