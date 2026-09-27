@@ -653,6 +653,23 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
   });
 
+  it("no source at all: a 4B answer that skipped the instruction still gets the line; one that said it doesn't twice", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    const first = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((first.events.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source on this phone/);
+    expect(first.events.filter((e) => e.type === "warning")).toHaveLength(1);
+    f = makeFake();
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "This answer is not from an offline source. It was a compromise.";
+    const second = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((second.events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+  });
+
   it("an answer that cites its source gets no line", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
