@@ -211,6 +211,8 @@ export function termCoverage(query: string, text: string): number {
 
 /** Below this, a snippet is not shown as "from the source", and the sources count as weak. */
 export const MIN_TERM_COVERAGE = 0.75;
+/** A source whose title names a question word must still cover this much of the question. */
+const TITLE_MIN_COVERAGE = 0.5;
 
 /** Best coverage of the question by any single source (title + body). 0 without sources. */
 export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number {
@@ -432,10 +434,36 @@ export function namedByLexicon(names: string[], chunk: RetrievedChunk): boolean 
   });
 }
 
+/** Years a question names ("the 1906 earthquake", "the 1970 World Cup"). */
+function yearsIn(text: string): string[] {
+  return text.match(/(?<![\d.,])(1[0-9]{3}|20[0-9]{2})(?![\d.,]?\d)/g) ?? [];
+}
+
+/** Proper nouns a question names: capitalized words after the first ("Who is Vitalik Buterin?"), as terms. */
+function properNounTerms(query: string): string[] {
+  const words = query.match(/[\p{L}][\p{L}\p{N}'’-]*/gu) ?? [];
+  return words
+    .slice(1)
+    .filter((w) => /^\p{Lu}/u.test(w) && w !== "I")
+    .flatMap((w) => tokenizeTerms(w));
+}
+
 export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   const q = new Set(tokenizeTerms(query));
-  // The article title or the section heading names a question word.
-  if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) return true;
+  const text = `${chunk.title} ${chunk.body}`;
+  // A year or a proper noun in the question must be in the source (Sextant, gate a9f156c:
+  // "1513 Marash earthquake" for the 1906 one, a cricketer for the 1970 World Cup).
+  if (!yearsIn(query).every((y) => yearsIn(text).includes(y))) return false;
+  const proper = properNounTerms(query);
+  if (proper.length) {
+    const words = new Set(tokenizeTerms(text));
+    if (!proper.some((p) => words.has(p))) return false;
+  }
+  // The article title or the section heading names a question word, and the source covers
+  // the question ("Scary Stories: Dark Web" names "dark", not the latest theory of dark matter).
+  if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) {
+    return termCoverage(query, text) >= (q.size < MIN_TERMS_FOR_COVERAGE ? 1 : TITLE_MIN_COVERAGE);
+  }
   // With one or two content words, any page that mentions them somewhere "covers" the
   // question (Walipini, an earth-sheltered greenhouse, for "Why do we have seasons on
   // Earth?"). Then the passage must open with them: "Canberra is the capital city of
