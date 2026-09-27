@@ -2,7 +2,7 @@ import React from "react";
 import { Image, View } from "react-native";
 import { useTokens } from "../theme";
 import { mascotGlow } from "../theme/ambient";
-import { discImage } from "./mascotFrame";
+import { discImage, wholeImage } from "./mascotFrame";
 
 export interface MascotProps {
   /**
@@ -59,6 +59,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
     const img = t.size.mascotImage;
     const dx = (img - side) / 2;
     const dy = (img - t.size.mascotBoxHeight) / 2;
+    const w = wholeImage(img);
     return (
       <View {...hidden} style={{ width: side, height: t.size.mascotBoxHeight, opacity: dim ? 0.7 : 1 }}>
         {glow && !dim && (
@@ -76,7 +77,7 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
         )}
         <Image
           source={SOURCE}
-          style={{ position: "absolute", left: -dx, top: -dy, width: img, height: img }}
+          style={{ position: "absolute", left: w.left - dx, top: w.top - dy, width: w.size, height: w.size }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
@@ -84,6 +85,8 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
     );
   }
 
+  // md: the mockup draws the original image in a `side` box; place our crop inside it the same way.
+  const whole = wholeImage(side);
   return (
     <View {...hidden} style={{ width: side, height: side, opacity: dim ? 0.7 : 1 }}>
       {glow && !dim && (
@@ -100,7 +103,12 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
           }}
         />
       )}
-      <Image source={SOURCE} style={{ width: side, height: side }} resizeMode="contain" accessibilityIgnoresInvertColors />
+      <Image
+        source={SOURCE}
+        style={{ position: "absolute", left: whole.left, top: whole.top, width: whole.size, height: whole.size }}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+      />
     </View>
   );
 }

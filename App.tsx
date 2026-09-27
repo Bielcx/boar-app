@@ -37,6 +37,9 @@ const modelManager = new ModelManager();
 // Keep the native splash (same canvas, mascot and wordmark) up until the first real screen can
 // draw, instead of flashing a bare spinner between the two (iOS cd50fdc splash sequence).
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// Boot timing (splash decision): how long the native splash covers the JS start. Read in logcat / Xcode.
+const BOOT_T0 = Date.now();
+console.info(`[boot] js-start t=${BOOT_T0}`);
 
 function AppContent() {
   const t = useTokens();
@@ -56,7 +59,9 @@ function AppContent() {
 
   const ready = !!initialRoute && (fontsLoaded || !!fontError);
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
+    if (!ready) return;
+    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms`);
+    SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
   if (!ready) {

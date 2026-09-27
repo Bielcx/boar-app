@@ -29,3 +29,13 @@ export function discImage(d: number): { size: number; left: number; top: number 
     top: (CROP.y - y0) * scale,
   };
 }
+
+/**
+ * Where assets/mascot.png goes when the mockup draws the ORIGINAL 1024 px image in a box of
+ * `n` pt (object-fit: contain). Our asset is a crop of it, so drawing it at `n` would show the
+ * boar ~39% bigger than the mockup; this puts the crop where it sits inside the original.
+ */
+export function wholeImage(n: number): { size: number; left: number; top: number } {
+  const k = n / SOURCE_PX;
+  return { size: CROP.side * k, left: CROP.x * k, top: CROP.y * k };
+}

@@ -54,6 +54,8 @@ const DYNAMIC_KEYS = [
   ...expand("flows.onboarding.", ["doneAnswer", "doneKnowledge", "donePlaces", "doneIndex"]),
   ...expand("flows.onboarding.", ["doneTitle", "indexTitle", "importTitle", "step3Title", "doneBody", "indexSub", "importSub", "step3Sub"]),
   ...expand("flows.onboarding.stage.", ["start", "choose", "install", "index"]),
+  ...expand("flows.onboarding.category.", ["answer", "search", "knowledge", "places"]),
+  ...expand("flows.onboarding.categoryStatus.", ["failed", "moving", "ready", "queued", "import"]),
   "flows.onboarding.languageAnnounce",
   ...expand("flows.onboarding.answerTier.", ["default", "compact"]),
   ...expand("flows.places.reason.", ["timezone", "location", "manual"]),
