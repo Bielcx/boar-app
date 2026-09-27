@@ -11,6 +11,7 @@ import { exportEvalResults, listInstalledEvalModels, runEvaluation, EvalProgress
 import { runDeviceEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { Button, Icon, Progress, Screen, Section, Skeleton, Text, useToast } from "./components";
+import { ScreenTitle } from "./flows/ScreenTitle";
 import type { TextColor } from "./components";
 import { useTokens } from "./theme";
 
@@ -136,6 +137,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
 
   return (
     <Screen>
+      {!onClose && <ScreenTitle>{t("flows.performance.evaluationTitle")}</ScreenTitle>}
       <View style={{ gap: tokens.space.xs }}>
         {onClose && !running && (
           <Button size="sm" variant="ghost" label={t("common.done")} onPress={onClose} style={{ alignSelf: "flex-end" }} />

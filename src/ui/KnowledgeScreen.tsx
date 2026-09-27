@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Screen, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
+import { ScreenTitle } from "./flows/ScreenTitle";
 import { CatalogModel, CORPUS_CATALOG } from "../models/manifest";
 import {
   deleteCustomCollection,
@@ -145,6 +146,7 @@ export function KnowledgeScreen() {
   if (!catalog.loaded || collections === null) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
+        <ScreenTitle>{t("nav.knowledge")}</ScreenTitle>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={tokens.space.lg} width="50%" />
           <Skeleton height={tokens.size.control * 2} />
@@ -158,6 +160,7 @@ export function KnowledgeScreen() {
 
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("nav.knowledge")}</ScreenTitle>
       <Text variant="footnote" color="secondary">
         {t("flows.knowledge.intro")}
       </Text>

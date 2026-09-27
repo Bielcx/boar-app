@@ -7,6 +7,7 @@ import { voiceInBuild } from "../config/variant";
 import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
+import { ScreenTitle } from "./flows/ScreenTitle";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
   Appearance,
@@ -94,10 +95,11 @@ export function SettingsScreen() {
     }
   };
 
-  if (!values) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
+  if (!values) return <Screen contentStyle={screenRhythm(tokens)}><ScreenTitle>{t("nav.settings")}</ScreenTitle></Screen>;
 
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("nav.settings")}</ScreenTitle>
       <Section title={t("flows.settings.answers")} footer={t(answerModeKey(values.quickFirst, values.alwaysComplete))}>
         <ListRow
           icon="message-circle"

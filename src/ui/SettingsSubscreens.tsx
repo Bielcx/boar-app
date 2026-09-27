@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button, ListRow, Screen, Section, Sheet, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
+import { ScreenTitle } from "./flows/ScreenTitle";
 import { MAX_TOKENS_OPTIONS, PERSONALITIES, PersonalityId } from "../constants/personalities";
 import {
   getCustomSystemPrompt,
@@ -34,9 +35,10 @@ export function SettingsToneScreen() {
     })();
   }, []);
 
-  if (!selected) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
+  if (!selected) return <Screen contentStyle={screenRhythm(tokens)}><ScreenTitle>{t("flows.settings.tone")}</ScreenTitle></Screen>;
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("flows.settings.tone")}</ScreenTitle>
       <Section footer={t("flows.tone.footer")}>
         <View accessibilityRole="radiogroup">
           {PERSONALITIES.map((p) => (
@@ -79,9 +81,10 @@ export function SettingsLengthScreen() {
     getMaxTokens().then(setSelected);
   }, []);
 
-  if (selected == null) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
+  if (selected == null) return <Screen contentStyle={screenRhythm(tokens)}><ScreenTitle>{t("flows.settings.length")}</ScreenTitle></Screen>;
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("flows.settings.length")}</ScreenTitle>
       <Section footer={t("flows.length.footer")}>
         <View accessibilityRole="radiogroup">
           {MAX_TOKENS_OPTIONS.map((n) => (
@@ -121,9 +124,10 @@ export function SettingsHistoryScreen() {
     setMemorySettings(patch);
   };
 
-  if (!memory) return <Screen contentStyle={screenRhythm(tokens)}>{null}</Screen>;
+  if (!memory) return <Screen contentStyle={screenRhythm(tokens)}><ScreenTitle>{t("flows.settings.history")}</ScreenTitle></Screen>;
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
+      <ScreenTitle>{t("flows.settings.history")}</ScreenTitle>
       <Section>
         <ListRow
           title={t("flows.history.autoTitles")}
