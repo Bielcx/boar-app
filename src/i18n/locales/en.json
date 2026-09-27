@@ -856,7 +856,7 @@
       "unknown": "Something went wrong."
     },
     "model": {
-      "loading": "Loading {{label}}…",
+      "loading": "Loading the {{label}} model…",
       "indexing": "Indexing knowledge {{done}} / {{total}}",
       "noModelTitle": "No model installed",
       "noModelBody": "Download or import a model to start asking questions.",
@@ -897,8 +897,8 @@
       "offlineAnswersSeal": "On device",
       "offlineSealSpoken": "Offline: no network used",
       "downgraded": {
-        "low-ram": "Answering with {{model}}. {{from}} needs your confirmation on this phone",
-        "load-crashed": "Answering with {{model}}. {{from}} closed the app on this phone",
+        "low-ram": "Answering with the {{model}} model. {{from}} needs your confirmation on this phone",
+        "load-crashed": "Answering with the {{model}} model. {{from}} closed the app on this phone",
         "hint": "Opens Models"
       },
       "onDeviceSealSpoken": "On device: answers are computed on this phone"
@@ -1078,7 +1078,7 @@
         "hint": "Try again. If it keeps failing, choose a smaller model in Settings.",
         "details": "It tried the GPU, then the CPU. This can also be a memory limit. The engine said:"
       },
-      "status": "{{model}} not loaded",
+      "status": "{{model}} model not loaded",
       "details": "Details",
       "hideDetails": "Hide details",
       "retry": "Try again"
@@ -1087,10 +1087,10 @@
       "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."
     },
     "loadCrash": {
-      "message": "Not enough memory for {{model}}. Back to {{fallback}}.",
+      "message": "Not enough memory for the {{model}} model. Back to {{fallback}}.",
       "seeModels": "See models",
       "dismiss": "Dismiss",
-      "messageNoFallback": "Not enough memory for {{model}}. Pick a smaller model."
+      "messageNoFallback": "Not enough memory for the {{model}} model. Pick a smaller one."
     },
     "weak": {
       "title": "No strong source on this phone",
@@ -1108,8 +1108,8 @@
       "receiptUncited": "no source cited",
       "declinedTitle": "I couldn't find this in this phone's library",
       "unsupportedTitle": "The passages found don't back this answer",
-      "unsupportedBody": "The compact model cited passages that don't say this, so the answer was held back.",
-      "declinedBody": "Without a source, the compact model often gets this wrong, so it didn't guess.",
+      "unsupportedBody": "The Fast model cited passages that don't say this, so the answer was held back.",
+      "declinedBody": "Without a source, the Fast model often gets this wrong, so it didn't guess.",
       "answerAnyway": "Answer anyway",
       "declinedTitleIncomplete": "This phone’s library isn’t complete",
       "declinedBodyIncomplete": "Indexing stopped before the end, so the answer may be in the part that’s missing.",

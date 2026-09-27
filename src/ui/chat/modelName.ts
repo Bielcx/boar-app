@@ -1,11 +1,23 @@
-import { displayNameOf, MODEL_CATALOG } from "../../models/manifest";
+import type { TFunction } from "i18next";
+import { friendlyModelName, friendlyModelNameById } from "../flows/catalogLabel";
+import type { CatalogModel } from "../../models/manifest";
+
+/** The chat's pure helpers take a plain translate function; Loom's helpers take i18next's. */
+type T = (key: string, opts?: Record<string, unknown>) => string;
 
 /**
- * The name the chat shows for a model the engine names by id + technical label (receipt,
- * effective model, downgrade): the catalog's short name ("Qwen3 4B", Ledger 1f3fd65), else the
- * label as sent (a model picked from the Hugging Face browser isn't in the catalog).
+ * The name the chat shows for a model: its tier ("Fast" / "More accurate", r4to via Boar), from
+ * Loom's single helper (src/ui/flows/catalogLabel.ts). The technical name stays in Settings ›
+ * Assistant › Details. A model outside the catalog (Hugging Face) keeps the label it came with.
  */
-export function modelNameById(id: string | undefined, label: string): string {
-  const m = id ? MODEL_CATALOG.find((x) => x.id === id) : undefined;
-  return m ? displayNameOf(m) : label;
+/** Any catalog-like model: the fields Loom's helper reads (kind/answerTier absent = not an answer tier). */
+export type NameableModel = Pick<CatalogModel, "id" | "label" | "displayName"> & Partial<Pick<CatalogModel, "kind" | "answerTier">>;
+
+export function chatModelName(model: NameableModel, t: T): string {
+  return friendlyModelName(model, t as unknown as TFunction);
+}
+
+/** Same, for a model the engine names by id + technical label (receipt, effective model, downgrade). */
+export function chatModelNameById(id: string | undefined, label: string, t: T): string {
+  return friendlyModelNameById(id, label, t as unknown as TFunction);
 }
