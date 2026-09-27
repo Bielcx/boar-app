@@ -68,7 +68,7 @@ export function AboutScreen() {
           <ListRow title={t("flows.about.nothingInstalled")} />
         ) : (
           installed.map((m) => (
-            <ListRow key={m.id} title={catalogLabel(m, t)} value={formatBytes(m.sizeBytes, i18n.language)} subtitle={m.license} />
+            <ListRow key={m.id} title={catalogLabel(m, t, { technical: true })} value={formatBytes(m.sizeBytes, i18n.language)} subtitle={m.license} />
           ))
         )}
       </Section>

@@ -9,8 +9,13 @@ describe("catalogLabel", () => {
   it("translates the knowledge entries by id", () => {
     expect(catalogLabel({ id: "corpus-standard", label: "Standard knowledge base (+1,000 topics)" }, t)).toBe("T:flows.catalog.label.corpus-standard");
   });
-  it("keeps model names as the manifest writes them", () => {
-    expect(catalogLabel({ id: "qwen3-4b-instruct-2507-q4km", label: "Qwen3-4B-Instruct-2507 (Q4_K_M)" }, t)).toBe("Qwen3-4B-Instruct-2507 (Q4_K_M)");
+  it("names models by their short display name, the technical label only on request", () => {
+    const m = { id: "qwen3-4b-instruct-2507-q4km", label: "Qwen3-4B-Instruct-2507 (Q4_K_M)", displayName: "Qwen3 4B" };
+    expect(catalogLabel(m, t)).toBe("Qwen3 4B");
+    expect(catalogLabel(m, t, { technical: true })).toBe("Qwen3-4B-Instruct-2507 (Q4_K_M)");
+  });
+  it("falls back to the label when there is no display name", () => {
+    expect(catalogLabel({ id: "hf-x", label: "some-repo/model.gguf" }, t)).toBe("some-repo/model.gguf");
   });
   it("only lists ids that exist in the catalog", () => {
     const ids = new Set(MODEL_CATALOG.map((m) => m.id));

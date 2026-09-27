@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, EmptyState, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, useToast } from "./components";
 import type { Tone } from "./theme";
 import { useTokens } from "./theme";
+import { catalogLabel } from "./flows/catalogLabel";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { MODEL_CATALOG, RAM_BUDGET_BYTES, STORAGE_BUDGET_BYTES } from "../models/manifest";
@@ -120,7 +121,7 @@ export function PerformanceScreen() {
   const last = records.find((r) => r.outcome === "success");
   const lastRate = last ? recordTokPerSec(last) : undefined;
   const typical = summarizeRecent(records);
-  const modelLabel = (id?: string) => MODEL_CATALOG.find((m) => m.id === id)?.label ?? catalog.discovered.find((m) => m.id === id)?.label ?? id;
+  const modelLabel = (id?: string) => { const m = MODEL_CATALOG.find((x) => x.id === id) ?? catalog.discovered.find((x) => x.id === id); return m ? catalogLabel(m, t) : id; };
 
   const peakRss = getAppPeakRssBytes();
   let models = 0;

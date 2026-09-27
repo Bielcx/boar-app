@@ -81,7 +81,7 @@ export function ModelsScreen() {
 
   const use = async (m: CatalogModel) => {
     const ok = await catalog.use(m);
-    if (ok) toast({ message: t("flows.models.nowAnswering", { name: m.label }), tone: "success" });
+    if (ok) toast({ message: t("flows.models.nowAnswering", { name: catalogLabel(m, t) }), tone: "success" });
   };
 
   const renderGroup = (list: CatalogModel[]) => (
@@ -140,7 +140,7 @@ export function ModelsScreen() {
                 return (
                   <OptionCard
                     key={m.id}
-                    title={m.label}
+                    title={catalogLabel(m, t)}
                     // Same risk as Use for answers on a low-RAM phone (CR-1).
                     badge={catalog.view(m).mayCloseApp ? <Badge label={t(catalog.view(m).didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
