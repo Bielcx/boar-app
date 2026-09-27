@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  withAfterPart,
+  imperativeSteps,
   sentenceNamesSubject,
   falseQuantumClaims,
   isSubstantive,
@@ -705,5 +707,39 @@ describe("sentenceNamesSubject (Sextant q7)", () => {
     const t = "Ethereum EIPs/ERCs: EIP-4844: Shard Blob Transactions";
     expect(sentenceNamesSubject("Ethereum EIP-4844", t, "Shard Blob Transactions scale data-availability of Ethereum in a simple, forwards-compatible manner.")).toBe(true);
     expect(sentenceNamesSubject("Ethereum EIP-4844", t, "Throughout this proposal we use cryptographic methods and classes defined in the corresponding consensus specs.")).toBe(false);
+  });
+});
+
+describe("healthExtract: the quoted text's own instructions count as steps (Sextant dng-005-pt)", () => {
+  it("a travel page's list of instructions is not introduced as 'no first-aid steps'", () => {
+    const c = { chunkId: "w", docId: "w", title: "Wikivoyage: Water", body: "Buy: - Boil the water before drinking (several minutes) - Use iodine tablets (will kill bacteria) - Use a survival straw. Consider drinking tea or bottled juices instead of unsafe water.", score: 1, matchType: "lexical" as const, action: true };
+    expect(imperativeSteps(c.body)).toBeGreaterThanOrEqual(2);
+    const topic = healthTopicTerms("Depois de uma enchente, a água da torneira pode estar contaminada. Como deixo a água segura para beber?", "safe drinking water flood");
+    const text = healthExtract(c, 1, true, coreProcedure(topic));
+    expect(text).toMatch(/^Da fonte offline \(em inglês\):\n/);
+    expect(text).not.toMatch(/não traz os passos/);
+  });
+});
+
+describe("withAfterPart (Sextant dng-004-pt)", () => {
+  const c = (id: string, body: string) => ({ chunkId: id, docId: id, title: "US government: Earthquakes (Ready.gov)", body, score: 1, matchType: "lexical" as const, action: true });
+  const q = "Começou um terremoto e eu estou no quarto do hotel. O que eu faço, e o que fazer depois que parar?";
+  const during = c("d", "During an Earthquake > Protect Yourself During Earthquakes: - 1. Drop (or Lock): Drop where you are onto hands and knees. - 2. Cover: Cover your head and neck. - 3. Hold On: Hold until the shaking stops.");
+  const after = c("a", "After an Earthquake: Check yourself for injuries. Expect aftershocks. If you are in a damaged building, go outside and quickly move away from the building.");
+  const topic = healthTopicTerms(q, "earthquake");
+  const rules = { procedure: coreProcedure(topic) };
+  it("quotes the 'After' section too, with its own [n], before the emergency line", () => {
+    const first = healthExtract(during, 1, true, rules);
+    const out = withAfterPart(q, first, [during, after], 0, true, rules);
+    expect(out).toMatch(/Hold until the shaking stops\. \[1\]\n\nAfter an Earthquake: Check yourself for injuries\..*\[2\]\n\nEm uma emergência/s);
+  });
+  it("without an 'After' section, says the source covers only 'during'", () => {
+    const out = withAfterPart(q, healthExtract(during, 1, true, rules), [during], 0, true, rules);
+    expect(out).toMatch(/A fonte citada cobre o que fazer durante; não encontrei no acervo offline o que fazer depois\.\n\nEm uma emergência/);
+  });
+  it("a question without an 'after' part is unchanged", () => {
+    const q1 = "O que fazer durante um terremoto?";
+    const first = healthExtract(during, 1, true, rules);
+    expect(withAfterPart(q1, first, [during, after], 0, true, rules)).toBe(first);
   });
 });

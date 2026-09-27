@@ -856,6 +856,51 @@ export function excerptRules(query: string, topic: Iterable<string>): ExcerptRul
   };
 }
 
+const AFTER_ASK = /\bafter (it|the \w+) (stops|ends|is over|passes)\b|\b(and|what about|what to do) after\b|\bafterwards\b|depois que (parar|passar|acabar|terminar)|\be depois\b|o que fazer depois|\bap[óo]s (parar|passar|o tremor|a enchente)/i;
+const AFTER_SECTION = /(^|>\s*)(after|recover\w*|depois|ap[óo]s)\b/i;
+
+/**
+ * "…o que eu faço, e o que fazer depois que parar?" (Sextant dng-004-pt): the excerpt covered only "during".
+ * When the question also asks about afterwards, an on-topic source's "After …" section is quoted too, with its
+ * own [n]; without one, the answer says the source covers only the first part. Other questions: unchanged.
+ */
+export function withAfterPart(
+  query: string,
+  text: string,
+  sources: RetrievedChunk[],
+  primary: number,
+  pt: boolean,
+  rules: ExcerptRules
+): string {
+  if (!AFTER_ASK.test(query)) return text;
+  const cut = text.indexOf("\n\n");
+  const [head, tail] = cut >= 0 ? [text.slice(0, cut), text.slice(cut)] : [text, ""];
+  const j = sources.findIndex((c, k) => k !== primary && AFTER_SECTION.test(sectionHeading(c)));
+  if (j >= 0) {
+    // The "After" section from its start ("Check yourself for injuries. Expect aftershocks. …"), by sentences.
+    let quote = "";
+    for (const sentence of splitSentences(sources[j].body)) {
+      if (quote && quote.length + sentence.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
+      quote = quote ? `${quote} ${sentence}` : sentence;
+    }
+    if (quote) return `${head}\n\n${quote} [${j + 1}]${tail}`;
+  }
+  const note = pt
+    ? "A fonte citada cobre o que fazer durante; não encontrei no acervo offline o que fazer depois."
+    : "The cited source covers what to do during it; I didn't find what to do afterwards in the offline library.";
+  return `${head}\n\n${note}${tail}`;
+}
+
+const IMPERATIVE = /^(boil|use|drink|avoid|keep|call|apply|remove|cover|hold|drop|get|stay|move|put|wash|clean|rinse|cool|press|pinch|lean|sit|lie|seek|go|find|filter|add|let|store|treat|do not|don't|never)\b/i;
+
+/** How many list items or sentences of a text start with an instruction ("Boil the water…", "Do not …"). */
+export function imperativeSteps(text: string): number {
+  return text
+    .split(/(?:^|\s)[-•]\s+|(?<=[.!?])\s+/)
+    .map((x) => x.replace(/^[^:]{0,80}:\s*/, "").trim())
+    .filter((x) => IMPERATIVE.test(x)).length;
+}
+
 export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean, rulesOrProcedure: ExcerptRules | RegExp | null = null): string {
   const rules: ExcerptRules = rulesOrProcedure instanceof RegExp || rulesOrProcedure === null ? { procedure: rulesOrProcedure } : rulesOrProcedure;
   const procedure = rules.procedure ?? null;
@@ -886,7 +931,11 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
   }
   // Steps = an instructions-like source AND at least one sentence that tells what to do
   // (a heading plus an image caption, "During an Earthquake: Image", is not an answer).
-  const steps = healthActionScore(source) >= HEALTH_ACTION_MIN_SCORE && splitSentences(text).some((s) => new RegExp(ACTION_WORD.source, "i").test(s));
+  // Or the quoted text itself gives two or more instructions ("- Boil the water before drinking - Use iodine
+  // tablets": Sextant dng-005-pt said "the source doesn't give the steps" over them, from a travel page).
+  const steps =
+    (healthActionScore(source) >= HEALTH_ACTION_MIN_SCORE || imperativeSteps(text) >= 2) &&
+    splitSentences(text).some((s) => new RegExp(ACTION_WORD.source, "i").test(s));
   const lead = steps
     ? pt
       ? "Da fonte offline (em inglês):"
