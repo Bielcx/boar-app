@@ -373,6 +373,11 @@
         "streaming": "Lê do armazenamento",
         "thrashing": "Pode ficar lento",
         "insufficient": "Não cabe"
+      },
+      "fitWhy": {
+        "streaming": "maior que a memória deste celular",
+        "thrashing": "usa quase toda a memória deste celular",
+        "insufficient": "falta memória livre neste celular"
       }
     },
     "models": {

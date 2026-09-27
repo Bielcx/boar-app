@@ -28,7 +28,7 @@ import {
   storageShortfall,
   transferSeconds,
 } from "./flows/packages";
-import { formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
+import { formatBytes, formatCount, formatRam, minutesAbout, minutesLeft, readableErrorDetail } from "./flows/format";
 import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
@@ -1216,7 +1216,7 @@ function InstallStep({
               </Text>
               {f.state.kind === "failed" && (
                 <Text variant="caption" color="secondary" selectable>
-                  {f.state.message}
+                  {readableErrorDetail(f.state.message, lang)}
                 </Text>
               )}
             </View>
