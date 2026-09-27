@@ -81,6 +81,11 @@ export interface PackSearchOptions {
   titles?: string[];
   k?: number;
   /**
+   * The question asks what to do (first aid, emergencies), when the query alone doesn't say so: a Portuguese
+   * question searched by its English names ("Earthquake"), or a canonical query. Default: read from the query.
+   */
+  action?: boolean;
+  /**
    * Called only when the keyword search finds fewer than `minHits` passages:
    * returns extra titles or keywords (e.g. from one short LLM turn), which are
    * searched once more. Keeps the LLM off the common path.
@@ -666,14 +671,15 @@ export class WikiPack {
       const id = await this.resolveTitle(t);
       if (id !== null && !ids.includes(id)) ids.push(id);
     }
-    const action = ACTION_INTENT.test(query);
+    const action = opts.action ?? ACTION_INTENT.test(query);
     let lay = 0;
     let hits = await this.titleHits(ids, stems, 5, action);
     const limit = Math.max(k, ids.length * 2);
+    const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
+    const seen = new Set(hits.map((h) => h.chunkId));
+    let keyword: Candidate[] | null = null;
     if (hits.length < limit) {
-      const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
-      const seen = new Set(hits.map((h) => h.chunkId));
-      let keyword = await this.bm25Candidates(stems);
+      keyword = await this.bm25Candidates(stems);
       const sem = queryVec ? await this.leadSimilarity(keyword.map((c) => c.articleId), queryVec) : null;
       const w = this.tuning.semanticWeight;
       if (sem && sem.size && w > 0 && keyword.length) {
@@ -714,10 +720,30 @@ export class WikiPack {
           seen.add(c.chunkId);
         }
       }
+    }
+    if (action) {
+      // The keyword candidates, also when the named articles filled the passages and the keyword search didn't run.
+      const pool = keyword ?? (await this.bm25Candidates(stems));
+      // A what-to-do question: official guidance (a government page's steps: Ready.gov "Protect Yourself During
+      // Earthquakes") ranks above other sources' sections on the same topic, so it's among the first passages even
+      // when other articles repeat the question's words more. Its best what-to-do sections go right after the first hit.
+      if (action && !hits.some((x) => x.source === "usgov")) {
+        for (const c of pool) {
+          if (seen.has(c.chunkId)) continue;
+          const h = await this.materialize(c);
+          if (h.source !== "usgov" || coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) < 0.5) continue;
+          const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId)).slice(0, 2);
+          if (!acts.length) continue;
+          hits.splice(Math.min(1, hits.length), 0, ...acts.map((p) => ({ ...p, via: "bm25" as const })));
+          for (const p of acts) seen.add(p.chunkId);
+          lay += acts.length;
+          break;
+        }
+      }
       // A what-to-do question answered only by clinical articles: add up to two lay sources from further down the
       // keyword list (a first-aid manual, a government page, a travel guide's "Stay safe"), past the usual limit.
       if (action && !hits.some((x) => LAY_SOURCES.has(x.source))) {
-        for (const c of keyword) {
+        for (const c of pool) {
           if (lay >= 2) break;
           if (seen.has(c.chunkId)) continue;
           const h = await this.materialize(c);
