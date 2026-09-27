@@ -17,6 +17,8 @@ export interface AssistantMessageProps {
   answer: AnswerState;
   /** This answer is the one running now. */
   active: boolean;
+  /** Asked in this run (not restored from history): it may take focus, e.g. the city prompt. */
+  fresh?: boolean;
   stopping: boolean;
   /** Stopped because the app went to the background. */
   interrupted?: boolean;
@@ -430,7 +432,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           <Text variant="headline" style={{ flexShrink: 1 }}>
             {tr("chat.assistantName")}
           </Text>
-          {active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          {active && !answer.deep && answer.places?.coverage !== "needs_place" ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
         {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
@@ -445,6 +447,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           onCity={props.onCity}
           onUseLocation={props.onUseLocation}
           onGetMap={props.onGetMap}
+          focusCity={!!props.fresh}
         />
       )}
 

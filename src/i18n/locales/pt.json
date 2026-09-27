@@ -709,7 +709,6 @@
       "coordinates": "Coordenadas",
       "viewPassage": "Ver o trecho do guia",
       "whichCity": "Qual cidade?",
-      "cityLabel": "Cidade",
       "search": "Buscar",
       "useLocation": "Usar minha localização",
       "typeCity": "Digitar a cidade",
@@ -727,7 +726,8 @@
       "noneNearFiltered": "Não tenho dados offline de lugares ({{filter}}) perto de você",
       "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
       "searchHint": "Digite uma cidade primeiro",
-      "dietToVerify": "Etiqueta de dieta do OSM a conferir"
+      "dietToVerify": "Etiqueta de dieta do OSM a conferir",
+      "cityPlaceholder": "ex.: Berlim"
     },
     "assistantName": "boar",
     "suggestionTopics": {

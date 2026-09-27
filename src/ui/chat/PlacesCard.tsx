@@ -1,5 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { Linking, Pressable, useWindowDimensions, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  AccessibilityInfo,
+  findNodeHandle,
+  Linking,
+  Pressable,
+  Text as RNText,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Badge, Banner, Button, Card, EmptyState, Icon, Sheet, Text, TextField, useToast } from "../components";
@@ -216,24 +225,44 @@ function CityPrompt({
   locationStatus,
   onCity,
   onUseLocation,
+  focus,
 }: {
   locationStatus?: string;
   onCity: (city: string) => void;
   onUseLocation?: () => void;
+  /** Just asked: move the keyboard to the city field (so the city isn't typed into the composer as a new question) and the reader to the title. */
+  focus?: boolean;
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [city, setCity] = useState("");
+  const inputRef = useRef<TextInput>(null);
+  const titleRef = useRef<RNText>(null);
+  useEffect(() => {
+    if (!focus) return;
+    inputRef.current?.focus();
+    // After the field takes focus, so the reader starts at the question, not the empty field.
+    const id = setTimeout(() => {
+      const tag = findNodeHandle(titleRef.current);
+      if (tag) AccessibilityInfo.setAccessibilityFocus(tag);
+    }, 300);
+    return () => clearTimeout(id);
+    // Once, when the prompt appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const submit = () => city.trim() && onCity(city.trim());
   return (
     <Card style={{ gap: t.space.md }}>
       {locationStatus === "denied" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationDenied")} />}
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}
-      <Text variant="headline" header>
+      <Text ref={titleRef} variant="headline" header>
         {tr("chat.places.whichCity")}
       </Text>
+      {/* The title names the field; no second visible "City" label. */}
       <TextField
-        label={tr("chat.places.cityLabel")}
+        ref={inputRef}
+        accessibilityLabel={tr("chat.places.whichCity")}
+        placeholder={tr("chat.places.cityPlaceholder")}
         value={city}
         onChangeText={setCity}
         onSubmitEditing={submit}
@@ -263,6 +292,8 @@ export interface PlacesCardProps {
   onCity: (city: string) => void;
   onUseLocation?: () => void;
   onGetMap?: () => void;
+  /** The answer was just asked: the city prompt takes focus. */
+  focusCity?: boolean;
 }
 
 /**
@@ -271,7 +302,7 @@ export interface PlacesCardProps {
  * with the ordering stated, attribution once at the bottom. No model writes
  * any of it, so no place can be invented.
  */
-export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation, onGetMap }: PlacesCardProps) {
+export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation, onGetMap, focusCity }: PlacesCardProps) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -283,7 +314,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
   const now = deviceClockApplies(r.area) ? clock : null;
 
   if (r.coverage === "needs_place") {
-    return <CityPrompt locationStatus={answer.location?.status} onCity={onCity} onUseLocation={onUseLocation} />;
+    return <CityPrompt locationStatus={answer.location?.status} onCity={onCity} onUseLocation={onUseLocation} focus={focusCity} />;
   }
   const emptyTitle = placesEmptyTitle(r, tr);
   if (r.coverage === "no_pack") {

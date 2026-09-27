@@ -709,7 +709,6 @@
       "coordinates": "Coordinates",
       "viewPassage": "View the guide passage",
       "whichCity": "Which city?",
-      "cityLabel": "City",
       "search": "Search",
       "useLocation": "Use my location",
       "typeCity": "Type the city",
@@ -727,7 +726,8 @@
       "noneNearFiltered": "No {{filter}} places in the offline map near you",
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
       "searchHint": "Type a city first",
-      "dietToVerify": "OSM diet tag to double-check"
+      "dietToVerify": "OSM diet tag to double-check",
+      "cityPlaceholder": "e.g. Berlin"
     },
     "assistantName": "boar",
     "suggestionTopics": {

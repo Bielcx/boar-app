@@ -98,6 +98,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   const [items, setItems] = useState<ChatItem[]>([]);
   const itemsRef = useRef<ChatItem[]>([]);
+  // Answers asked in this run (not restored from history): only these may take focus (the city prompt).
+  const askedIds = useRef<Set<string>>(new Set());
   itemsRef.current = items;
   const [input, setInput] = useState("");
   const [ready, setReady] = useState(false);
@@ -332,6 +334,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       // Claim the answer slot before the first await.
       const assistantId = `${Date.now()}-a`;
       activeRef.current = { messageId: assistantId, handle: null };
+      askedIds.current.add(assistantId);
       setActive(activeRef.current);
       setInput("");
       followBottom.current = true;
@@ -649,6 +652,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         <AssistantRow
           item={item}
           active={activeId === item.id}
+          fresh={askedIds.current.has(item.id)}
           stopping={activeId === item.id && stopping}
           locale={locale}
           actions={actions}
@@ -803,12 +807,14 @@ const UserRow = memo(function UserRow({ text, actions }: { text: string; actions
 const AssistantRow = memo(function AssistantRow({
   item,
   active,
+  fresh,
   stopping,
   locale,
   actions,
 }: {
   item: Extract<ChatItem, { kind: "assistant" }>;
   active: boolean;
+  fresh: boolean;
   stopping: boolean;
   locale: string;
   actions: RowActions;
@@ -836,6 +842,7 @@ const AssistantRow = memo(function AssistantRow({
     <AssistantMessage
       answer={item.answer}
       active={active}
+      fresh={fresh}
       stopping={stopping}
       interrupted={item.interrupted}
       feedback={item.feedback}
