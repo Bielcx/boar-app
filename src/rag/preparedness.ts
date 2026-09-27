@@ -1,8 +1,9 @@
 /**
  * The "Emergency and preparedness" knowledge pack (scripts/fetch-preparedness.mjs,
  * docs/KNOWLEDGE_PACKS.md): catalog entry and sources for the Knowledge card
- * and the About screen. Values are the measured build v2 of 2026-09-26 (core
- * first-aid articles by name, Portuguese aliases, Wikipedia redirects). No native
+ * and the About screen. Values are the measured build v3 of 2026-09-27 (core
+ * first-aid articles by name, Portuguese aliases, Wikipedia redirects, Ready.gov
+ * numbered steps kept in their section). No native
  * imports.
  */
 import type { CatalogModel } from "../models/manifest";
@@ -13,9 +14,9 @@ export const PREPAREDNESS_PACK = {
   name: { en: "Emergency and preparedness", pt: "Emergência e preparação" },
   filename: "corpus/boar-preparedness.sqlite",
   sizeBytes: 16490496,
-  sha256: "d68cec86e56e1d4c205152c0e37e0978a3d5e396a5f0fb063b918d45e04708fd",
+  sha256: "53d8bcefd8ac65648eb959da2f0761cfb9efcb668822c4030f188312b764865e",
   /** Pinned to the upload commit on the Hugging Face dataset r4topunk/boar-packs. */
-  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/9b1ea5657b8ccccb00218b4cccf9089cfe2f5af2/topics/boar-preparedness.sqlite",
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6e336fe8b7d77af4af081b70b6de15f47647ed36/topics/boar-preparedness.sqlite",
   docCount: 1754,
   builtAt: "2026-09-26",
 };
