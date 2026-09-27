@@ -21,6 +21,7 @@ import {
   isSafetyQuery,
   isCurrentEventQuery,
   currentEventAnswer,
+  temperatureConversion,
   mentionsNow,
   isTodayInHistory,
   historyDate,
@@ -252,7 +253,7 @@ export interface EffectiveAnswerModel {
 const defaultEnglishNames = (query: string) => englishNamesIn(query, ptLexicon());
 
 /** Receipts of answers no model wrote (fixed answers, source excerpts). */
-const NOT_A_MODEL = new Set(["grounding-guard", "extractive", "none", "places"]);
+const NOT_A_MODEL = new Set(["grounding-guard", "extractive", "none", "places", "calculator"]);
 
 export function createAnswerer(deps: AnswerDeps) {
   let current: AnswerHandle | null = null;
@@ -601,6 +602,15 @@ export function createAnswerer(deps: AnswerDeps) {
       // CT-3 (Prism/Piston, 34efdf8): "Who won the football match yesterday?" -> "Meath won... [1]"
       // with [1] a 2021 final. A current-events question is about what an offline snapshot can't
       // know: a fixed, honest answer, no model, no sources.
+      // A temperature conversion is arithmetic: the exact result, no model, no sources (Prism RF-1).
+      const converted = temperatureConversion(req.query, PT_QUESTION.test(req.query));
+      if (converted) {
+        reasonCodes.push("answer:temperature-conversion");
+        markVisible();
+        emit({ type: "token", answerId, tier: "instant", text: converted });
+        return finish("instant", "success", converted, [], receipt({ modelId: "calculator", modelLabel: "Calculator" }));
+      }
+
       if (isCurrentEventQuery(req.query)) {
         reasonCodes.push("grounding:current-event");
         const text = currentEventAnswer(PT_QUESTION.test(req.query));
