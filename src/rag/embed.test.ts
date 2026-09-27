@@ -1,9 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
 
 let busy = false;
+const state = vi.hoisted(() => ({ OS: "android", failGpu: false, inits: [] as any[] }));
+
+vi.mock("react-native", () => ({ Platform: { get OS() { return state.OS; } } }));
 
 vi.mock("llama.rn", () => ({
-  initLlama: async () => ({
+  getBackendDevicesInfo: async () => [
+    { backend: "Metal", type: "gpu", deviceName: "MTL0" },
+    { backend: "CPU", type: "cpu", deviceName: "CPU" },
+  ],
+  initLlama: async (params: any) => {
+    state.inits.push(params);
+    if (state.failGpu && params.n_gpu_layers !== 0) throw new Error("failed to initialize MTL0 backend");
+    return {
     // Like llama.rn: a second call while one is running is rejected.
     embedding: async (text: string) => {
       if (busy) throw new Error("Context is busy");
@@ -13,7 +23,8 @@ vi.mock("llama.rn", () => ({
       return { embedding: [text.length] };
     },
     release: async () => {},
-  }),
+    };
+  },
 }));
 
 vi.mock("expo-file-system/legacy", () => ({
@@ -37,5 +48,18 @@ describe("EmbeddingEngine", () => {
     const embedded = engine.embed("abcd");
     await load;
     expect((await embedded)[0]).toBe(4);
+  });
+
+  it("falls back to CPU once when the Metal backend fails to start on iOS", async () => {
+    Object.assign(state, { OS: "ios", failGpu: true, inits: [] });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const engine = new EmbeddingEngine();
+    await engine.load("models/embedding.gguf");
+    expect((await engine.embed("abc"))[0]).toBe(3);
+    expect(state.inits).toHaveLength(2);
+    expect(state.inits[0]).toMatchObject({ embedding: true, flash_attn_type: "off" });
+    expect(state.inits[1]).toMatchObject({ n_gpu_layers: 0, devices: ["CPU"], flash_attn_type: "off" });
+    warn.mockRestore();
+    Object.assign(state, { OS: "android", failGpu: false });
   });
 });
