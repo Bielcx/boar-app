@@ -58,3 +58,18 @@ export function groupSources(sources: Chunk[]): SourceGroup[] {
   });
   return groups;
 }
+
+/**
+ * The relevance bar of each source, 0-100 within this answer (the most relevant = 100), from the
+ * engine's comparable relevance (asked of Tusk: RetrievedChunk.relevance, 0..1). A source without
+ * it gets no bar (null), and so does every source when none has a positive value. Never a fixed
+ * number: the percentage is measured, as the r4to/Boar decision requires.
+ */
+export function relevancePercents(sources: object[]): (number | null)[] {
+  const vals = sources.map((s) => {
+    const v = (s as { relevance?: unknown }).relevance;
+    return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
+  });
+  const max = Math.max(0, ...vals.map((v) => v ?? 0));
+  return vals.map((v) => (v == null || max <= 0 ? null : Math.max(1, Math.round((v / max) * 100))));
+}
