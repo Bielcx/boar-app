@@ -767,7 +767,9 @@ const CORE_PROCEDURE: Array<[RegExp, RegExp]> = [
   // After nosebleed: a nosebleed's topic has no "bleed" (the compound's parts are dropped).
   [/^bleed|^sangr|^hemorrag/, /\b(direct|firm|steady)\b[^.]{0,20}\bpressure\b|\b(apply|put|press)\w*\b[^.]{0,30}\b(pressure|firmly)\b|press[ãa]o (direta|firme)/i],
   [/^hypotherm|^hipoterm/, /\bshelter\b|\bwarm\w*|\bremove\b[^.]{0,30}\bwet\b|\bcold environment\b|abrigo|aquec/i],
-  [/^snakebite|^snake/, /\b(keep|stay)\b[^.]{0,20}\b(still|calm)\b|\bimmobili\w*|\bantivenom\b|\bhospital\b|\bemergency\b/i],
+  // Not "immobilization" (pressure immobilization is contested for vipers, Sextant dng-001) nor "antivenom"
+  // (a hospital's): the practical steps: keep still and calm, call emergency, get to a hospital.
+  [/^snakebite|^snake/, /\b(keep|stay)\b[^.]{0,20}\b(still|calm)\b|\bhospital\b|\bemergency\b|\bcall\b[^.]{0,20}\b(help|911|112|ambulance)\b/i],
   // Near "water": "Clean and disinfect everything that got wet" is about surfaces (safety-005, Appropedia Floods).
   [/^contaminat|^purif|^boil|^water/, /\b(boil|disinfect|purif|treat)\w*\b[^.]{0,40}\bwater\b|\bwater\b[^.]{0,40}\b(boil|disinfect|purif)\w*|\bbleach\b[^.]{0,40}\bwater\b|\bwater\b[^.]{0,40}\bbleach\b|ferv/i],
   [/^chok|^engasg/, /\bback blows?\b|\babdominal thrusts?\b|\bheimlich\b/i],
@@ -782,8 +784,12 @@ export function coreProcedure(topic: Iterable<string>): RegExp | null {
 }
 
 export function healthSourceIndex(sources: RetrievedChunk[], procedure: RegExp | null = null): number {
-  let best = 0;
-  let bestScore = -Infinity;
+  return healthSourceOrder(sources, procedure)[0] ?? 0;
+}
+
+/** Candidate sources for a health excerpt, best first (the same scoring as healthSourceIndex). */
+export function healthSourceOrder(sources: RetrievedChunk[], procedure: RegExp | null = null): number[] {
+  const scored: Array<[number, number]> = [];
   // The packs mark action sections (RetrievedChunk.action, Bramble b4becc5): when any is marked,
   // only those are candidates ("Quality by country" never beats "Water contamination").
   const flag = (c: RetrievedChunk) => (c as { action?: boolean }).action;
@@ -799,9 +805,9 @@ export function healthSourceIndex(sources: RetrievedChunk[], procedure: RegExp |
     // The official source (Ready.gov) wins a tie between texts that give the core procedure.
     const official = /^US government:/.test(c.title) && procedure?.test(c.body) ? 1 : 0;
     const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay + official + (procedure?.test(c.body) ? 8 : 0) - i * 0.05;
-    if (score > bestScore) (best = i), (bestScore = score);
+    scored.push([i, score]);
   });
-  return best;
+  return scored.sort((a, b) => b[1] - a[1]).map(([i]) => i);
 }
 
 /** How much a source tells what to do: an instructions section, action words, minus description and hedging. */
@@ -952,9 +958,9 @@ const RISKY_HEALTH: Array<[string, RegExp]> = [
   ["blow-nose", /\bblow\w*\b[^.]{0,20}\bnose\b/i],
   ["head-back", /\b(tilt|lean|put|tip|throw)\w*\b[^.]{0,25}\bhead\b[^.]{0,10}\bback(wards?)?\b/i],
   ["lie-down-nosebleed", /\b(lie|lay)\b[^.]{0,10}\b(down|flat)\b[^.]{0,40}\bnose/i],
-  ["tourniquet", /\btourniquet|torniquete|garrote/i],
+  ["tourniquet", /\btourniquet|torniquete|garrote|constricting band|faixa de constri/i],
   ["suck-venom", /\bsuck\w*[^.]{0,30}venom|chup\w*[^.]{0,30}veneno/i],
-  ["cut-wound", /\b(cut|slice|incise)\w*\b[^.]{0,30}\b(bite|wound|fang)/i],
+  ["cut-wound", /\b(cut|slice|incise|incision)\w*\b[^.]{0,30}\b(bite|wound|fang)/i],
   ["ice", /\b(apply|use|put)\w*\b[^.]{0,20}\bice\b|\bice[- ](pack|cold)|\bgelo\b/i],
   ["butter-toothpaste", /\bbutter\b|toothpaste|manteiga|pasta de dente/i],
   ["burn-cream", /\b(cream|ointment|lotion)s?\b[^.]{0,30}\bburn|\bburn\w*\b[^.]{0,40}\b(cream|ointment|lotion)|pomada/i],
@@ -973,6 +979,22 @@ const CLAIM_NEGATED = /\b(not|no|none|never|isn't|aren't|vulnerable|broken|break
 /** Sentences of an answer that call classical public-key crypto (RSA, ECC, DSA, DH) quantum resistant. */
 export function falseQuantumClaims(answer: string): string[] {
   return splitSentences(answer).filter((s) => CLASSICAL_PK.test(s) && QUANTUM_SAFE.test(s) && !CLAIM_NEGATED.test(s));
+}
+
+// A passage that presents a procedure as disputed is not first-aid guidance to quote (Sextant dng-001:
+// "…by pressure immobilization is desirable … whether this trade-off is desirable remains a point of controversy").
+const CONTESTED = /\bcontrovers\w*|\bdebated\b|\bdisputed\b|\btrade-?off\b|\bconflicting (evidence|advice|recommendations)\b|\bno consensus\b|\bpoint of contention\b|recommendations vary/i;
+
+/** Whether a health excerpt may be shown: no disputed procedure, no known-dangerous instruction. */
+export function safeHealthExcerpt(text: string): boolean {
+  return !CONTESTED.test(text) && riskyHealthInstruction(text) === null;
+}
+
+/** No safe first-aid text in the library: the emergency number and "get care", no steps from memory. */
+export function noSafeStepsAnswer(pt: boolean): string {
+  return pt
+    ? "Não encontrei no acervo offline instruções de primeiros socorros seguras para isso. Ligue agora para o serviço de emergência (192 SAMU ou 193 Bombeiros no Brasil, 112 na Europa, 911 nos EUA) e procure atendimento médico o quanto antes."
+    : "I didn't find safe first-aid instructions for this in the offline library. Call your local emergency number now (911 in the US, 112 in Europe) and get medical care as soon as possible.";
 }
 
 const NEGATED = /\b(do not|don't|dont|never|avoid|not|no|instead of|rather than|without)\b|n[ãa]o\b|nunca|evite/i;
