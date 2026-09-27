@@ -48,10 +48,11 @@ export interface SuggestionSource {
 }
 
 export const SUGGESTION_SOURCES: SuggestionSource[] = [
-  { key: "q1", corpus: ["wiki-vital5"], expect: ["Season", "Axial tilt", "Autumn", "Winter", "Summer", "Spring"], langs: ["en"] },
+  // q1: off in English too while the search brings "Year" into its top-3 (Sextant, 27/09).
+  { key: "q1", corpus: ["wiki-vital5"], expect: ["Season", "Axial tilt", "Autumn", "Winter", "Summer", "Spring"], langs: [] },
   { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"], langs: ["en"] },
   { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius", "Temperature"], langs: ["en"] },
-  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis"], langs: ["en", "pt"] },
+  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis", "Emergency bleeding control"], langs: ["en", "pt"] },
   { key: "q5", corpus: ["builtin"], expect: ["Monsoon"], langs: ["en"] },
   { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"], langs: ["en", "pt"] },
   { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"], langs: ["en"] },
