@@ -17,6 +17,7 @@ import { decompress } from "fzstd";
 import { WikiPack, type PackHit, type PackSearchOptions, type Stem } from "./wikiPack";
 import { guard, type Guarded } from "./guardedDb";
 import { registerResetHook } from "../services/resetOrder";
+import { EXPLAIN_INTENT, explainingFirst } from "./explain";
 
 const PACK_CANDIDATES = 400;
 const EMBEDDING_SHA256 = MODEL_CATALOG.find((m) => m.kind === "embedding" && m.required)!.sha256;
@@ -216,7 +217,8 @@ type PackRow = { id: number; title: string; body: string; vec: Uint8Array; rank:
 export async function searchPacks(
   query: string,
   queryVec: Float32Array,
-  limit: number
+  limit: number,
+  opts: { explain?: boolean } = {}
 ): Promise<{ lexical: RetrievedChunk[]; semantic: RetrievedChunk[] }> {
   const lexicalQuery = buildLexicalQuery(query);
   const lexical: RetrievedChunk[] = [];
@@ -241,10 +243,17 @@ export async function searchPacks(
         score,
         matchType,
       });
-      lexical.push(...filterByTermCoverage(rows, lexicalQuery.terms).slice(0, limit).map((r) => toChunk(r, -r.rank, "lexical")));
+      let lex = filterByTermCoverage(rows, lexicalQuery.terms).slice(0, limit).map((r) => toChunk(r, -r.rank, "lexical"));
       const scored = rows.map((r) => toChunk(r, cosineSimilarityInt8(queryVec, r.vec), "semantic"));
       scored.sort((a, b) => b.score - a.score);
-      semantic.push(...filterByMinScore(scored, MIN_SEMANTIC_SIMILARITY).slice(0, limit));
+      let sem = filterByMinScore(scored, MIN_SEMANTIC_SIMILARITY).slice(0, limit);
+      // A why/what-causes question: within an article, the chunk with the question's other words first (RF-1).
+      if (opts.explain ?? EXPLAIN_INTENT.test(query)) {
+        lex = explainingFirst(lex, lexicalQuery.terms);
+        sem = explainingFirst(sem, lexicalQuery.terms);
+      }
+      lexical.push(...lex);
+      semantic.push(...sem);
     } catch (e: any) {
       console.warn(`[packs] search failed in ${pack.id}:`, e?.message ?? e);
     }

@@ -2,8 +2,10 @@ import React, { useCallback } from "react";
 import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
+import { REPO_URL } from "./flows/links";
 import { useTranslation } from "react-i18next";
 import { Button, ListRow, Mascot, Screen, Section, Text, useToast } from "./components";
+import { catalogLabel } from "./flows/catalogLabel";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
 import { useCatalog } from "./flows/useCatalog";
@@ -12,7 +14,6 @@ import { formatBytes } from "./flows/format";
 import { MODEL_CATALOG } from "../models/manifest";
 import appConfig from "../../app.json";
 
-const REPO_URL = "github.com/rferrari/boar-app";
 
 /** Fonts bundled in the app (src/ui/theme/fontFiles.ts); licenses from each package's LICENSE_FONT. */
 const BUNDLED_FONTS = [
@@ -67,7 +68,7 @@ export function AboutScreen() {
           <ListRow title={t("flows.about.nothingInstalled")} />
         ) : (
           installed.map((m) => (
-            <ListRow key={m.id} title={m.label} value={formatBytes(m.sizeBytes, i18n.language)} subtitle={m.license} />
+            <ListRow key={m.id} title={catalogLabel(m, t)} value={formatBytes(m.sizeBytes, i18n.language)} subtitle={m.license} />
           ))
         )}
       </Section>

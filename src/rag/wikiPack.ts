@@ -16,6 +16,7 @@
  */
 
 import { cosineSimilarityInt8 } from "./pure";
+import { EXPLAIN_INTENT } from "./explain";
 
 export interface PackSql {
   getAllAsync<T>(sql: string, params: any[]): Promise<T[]>;
@@ -80,6 +81,13 @@ export interface PackSearchOptions {
   /** Article titles to look up first, e.g. proposed by the model. The question's own n-grams are always tried. */
   titles?: string[];
   k?: number;
+  /**
+   * The question asks what to do (first aid, emergencies), when the query alone doesn't say so: a Portuguese
+   * question searched by its English names ("Earthquake"), or a canonical query. Default: read from the query.
+   */
+  action?: boolean;
+  /** The question asks why or what causes something (same reason as `action`). Default: read from the query. */
+  explain?: boolean;
   /**
    * Called only when the keyword search finds fewer than `minHits` passages:
    * returns extra titles or keywords (e.g. from one short LLM turn), which are
@@ -187,6 +195,9 @@ export const LONG_TAIL_VIEWS = 5000;
 const FOREIGN_FUNCTION_WORDS = new Set(
   "o os a as um uma uns umas de do da dos das em no na nos nas num numa por para com sem que como qual quais quando onde porque se ao aos el la los las un una del al en con por para que como cual cuando donde es son y e ou".split(" ")
 );
+
+/** Stems of words that only make a question a what-to-do one; they carry no subject. */
+const ACTION_WORDS = new Set(["stop", "treat", "help", "first", "aid", "handl", "respond", "surviv"]);
 
 const STOPWORDS = new Set(
   (
@@ -527,7 +538,7 @@ export class WikiPack {
   }
 
   /** The article's lead chunk plus its `nSections` chunks that best cover the question. */
-  async articlePassages(articleId: number, stems: Stem[], nSections = 2, action = false): Promise<PackHit[]> {
+  async articlePassages(articleId: number, stems: Stem[], nSections = 2, action = false, explain = false): Promise<PackHit[]> {
     const a = await this.article(articleId);
     const rows = await this.db.getAllAsync<{ id: number; start: number; end: number }>(
       "SELECT id, start, end FROM chunks WHERE article_id = ? ORDER BY id",
@@ -556,10 +567,23 @@ export class WikiPack {
       .filter((x, i, all) => all.findIndex((y) => sectionAt(a.text, y.r.start) === sectionAt(a.text, x.r.start)) === i);
     const ordered = action ? stepsFirst(scored, (x) => sectionAt(a.text, x.r.start)) : scored;
     const picked = ordered.slice(0, nSections).filter((x) => x.s > 0.15);
-    return Promise.all([
-      this.hit(articleId, lead.id, lead.start, lead.end, 1, "title", true),
-      ...picked.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
-    ]);
+    const leadHit = () => this.hit(articleId, lead.id, lead.start, lead.end, 1, "title", true);
+    if (explain) {
+      // A why/what-causes question (RF-1): the section with more of the question's words that aren't the title
+      // ("earthquake", "boundary" in Plate tectonics) goes before the lead, which usually just defines the subject.
+      const beyond = stems.filter((s) => countAtBoundary(prefixOf(s.stem), a.title.toLowerCase(), true) === 0);
+      const cover = (start: number, end: number) =>
+        beyond.filter((s) => countAtBoundary(prefixOf(s.stem), a.text.slice(start, end).toLowerCase(), true) > 0).length;
+      const best = [...picked].sort((x, y) => cover(y.r.start, y.r.end) - cover(x.r.start, x.r.end))[0];
+      if (best && cover(best.r.start, best.r.end) > cover(lead.start, lead.end)) {
+        return Promise.all([
+          this.hit(articleId, best.r.id, best.r.start, best.r.end, best.s, "title"),
+          leadHit(),
+          ...picked.filter((x) => x !== best).map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
+        ]);
+      }
+    }
+    return Promise.all([leadHit(), ...picked.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title"))]);
   }
 
   /** Whole-index BM25 (column weights and popularity prior from `tuning`); at most `perArticle` per article. */
@@ -605,7 +629,8 @@ export class WikiPack {
   async titlesInQuestion(query: string, stems: Stem[], max = 4): Promise<Array<{ id: number; share: number }>> {
     const rare = new Set(stems.filter((s) => s.idf >= Math.log(1 / 0.002)).map((s) => s.stem));
     // Portuguese/Spanish function words carry no subject; some packs index them (Appropedia's pages in those languages).
-    const content = stems.filter((s) => !FOREIGN_FUNCTION_WORDS.has(s.stem));
+    // Nor do the words that only say the question wants steps ("nosebleed stop", "burn treat").
+    const content = stems.filter((s) => !FOREIGN_FUNCTION_WORDS.has(s.stem) && !ACTION_WORDS.has(s.stem));
     const weight = new Map(content.map((s) => [s.stem, s.idf]));
     const total = content.reduce((n, s) => n + s.idf, 0) || 1;
     const sources: PackSource[] = [
@@ -666,14 +691,15 @@ export class WikiPack {
       const id = await this.resolveTitle(t);
       if (id !== null && !ids.includes(id)) ids.push(id);
     }
-    const action = ACTION_INTENT.test(query);
+    const action = opts.action ?? ACTION_INTENT.test(query);
     let lay = 0;
-    let hits = await this.titleHits(ids, stems, 5, action);
+    let hits = await this.titleHits(ids, stems, 5, action, opts.explain ?? EXPLAIN_INTENT.test(query));
     const limit = Math.max(k, ids.length * 2);
+    const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
+    const seen = new Set(hits.map((h) => h.chunkId));
+    let keyword: Candidate[] | null = null;
     if (hits.length < limit) {
-      const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
-      const seen = new Set(hits.map((h) => h.chunkId));
-      let keyword = await this.bm25Candidates(stems);
+      keyword = await this.bm25Candidates(stems);
       const sem = queryVec ? await this.leadSimilarity(keyword.map((c) => c.articleId), queryVec) : null;
       const w = this.tuning.semanticWeight;
       if (sem && sem.size && w > 0 && keyword.length) {
@@ -702,7 +728,9 @@ export class WikiPack {
           // steps ("Drop, Cover and Hold") sit in the next one or in a subsection.
           if (action) {
             const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId));
-            if (acts.length && (!h.action || !acts.some((p) => p.chunkId === h.chunkId))) {
+            // Swapped unless this passage already is the article's best what-to-do section: a subsection the keywords
+            // found ("Treatment > Nasal packing") brings its article's main one ("Treatment") first.
+            if (acts.length && acts[0].chunkId !== h.chunkId) {
               for (const act of acts.slice(0, 3 - perArticle)) {
                 hits.push({ ...act, via: "bm25", score: h.score });
                 seen.add(act.chunkId);
@@ -714,10 +742,30 @@ export class WikiPack {
           seen.add(c.chunkId);
         }
       }
+    }
+    if (action) {
+      // The keyword candidates, also when the named articles filled the passages and the keyword search didn't run.
+      const pool = keyword ?? (await this.bm25Candidates(stems));
+      // A what-to-do question: official guidance (a government page's steps: Ready.gov "Protect Yourself During
+      // Earthquakes") ranks above other sources' sections on the same topic, so it's among the first passages even
+      // when other articles repeat the question's words more. Its best what-to-do sections go right after the first hit.
+      if (action && !hits.some((x) => x.source === "usgov")) {
+        for (const c of pool) {
+          if (seen.has(c.chunkId)) continue;
+          const h = await this.materialize(c);
+          if (h.source !== "usgov" || coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) < 0.5) continue;
+          const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId)).slice(0, 2);
+          if (!acts.length) continue;
+          hits.splice(Math.min(1, hits.length), 0, ...acts.map((p) => ({ ...p, via: "bm25" as const })));
+          for (const p of acts) seen.add(p.chunkId);
+          lay += acts.length;
+          break;
+        }
+      }
       // A what-to-do question answered only by clinical articles: add up to two lay sources from further down the
       // keyword list (a first-aid manual, a government page, a travel guide's "Stay safe"), past the usual limit.
       if (action && !hits.some((x) => LAY_SOURCES.has(x.source))) {
-        for (const c of keyword) {
+        for (const c of pool) {
           if (lay >= 2) break;
           if (seen.has(c.chunkId)) continue;
           const h = await this.materialize(c);
@@ -740,9 +788,9 @@ export class WikiPack {
     return { hits: hits.slice(0, limit + lay), stems };
   }
 
-  private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false): Promise<PackHit[]> {
+  private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false, explain = false): Promise<PackHit[]> {
     const perTitle: PackHit[][] = [];
-    for (const id of ids) perTitle.push(await this.articlePassages(id, stems, 2, action));
+    for (const id of ids) perTitle.push(await this.articlePassages(id, stems, 2, action, !action && explain));
     const hits: PackHit[] = [];
     const seen = new Set<number>();
     const add = (h: PackHit) => {

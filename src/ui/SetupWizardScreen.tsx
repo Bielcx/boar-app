@@ -40,8 +40,11 @@ import { locateForUser } from "../services/location";
 import { networkAllowed } from "../config/variant";
 import { ImportList } from "./flows/ImportList";
 import { RadioRow } from "./flows/RadioRow";
+import * as Clipboard from "expo-clipboard";
+import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
+import { catalogLabel } from "./flows/catalogLabel";
 
 interface Props {
   onReady: () => void;
@@ -1042,7 +1045,7 @@ function InstallStep({
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
   // The item whose bytes are arriving now, "Item 2 of 5 — name" under the bar (the mockup's "Model 1 of 3 — …").
   const currentIdx = states.findIndex((x) => moving(x.state));
-  const current = currentIdx >= 0 ? { n: currentIdx + 1, label: states[currentIdx].asset.label } : undefined;
+  const current = currentIdx >= 0 ? { n: currentIdx + 1, label: catalogLabel(states[currentIdx].asset, t) } : undefined;
   const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
   // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
@@ -1093,7 +1096,7 @@ function InstallStep({
   // in the list card, never as a loose line under it (Prism A3-2).
   const extras = catalog.imports
     .filter((f) => f.status === "verified" && f.assetId && !assets.some((a) => a.id === f.assetId))
-    .map((f) => findAsset(f.assetId!)?.label ?? f.name);
+    .map((f) => { const a = findAsset(f.assetId!); return a ? catalogLabel(a, t) : f.name; });
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
@@ -1365,9 +1368,25 @@ function InstallStep({
           {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
           <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} hideVerified />
           {!activeImport && (
-            <Text variant="footnote" color="secondary" selectable>
-              {t("flows.onboarding.importHow")}
-            </Text>
+            // Where the files come from, with an address someone can type on a computer (Prism IM-5).
+            <View style={{ gap: tokens.space.xs }}>
+              <Text variant="footnote" color="secondary">
+                {t("flows.onboarding.importHow")}
+              </Text>
+              <Text variant="footnote" selectable>
+                {OFFLINE_INSTALL_URL}
+              </Text>
+              <View style={{ alignSelf: "flex-start" }}>
+                <TextAction
+                  label={t("flows.onboarding.copyLink")}
+                  leadingIcon="copy"
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(`https://${OFFLINE_INSTALL_URL}`);
+                    announce(t("flows.onboarding.linkCopied"));
+                  }}
+                />
+              </View>
+            </View>
           )}
         </View>
       )}

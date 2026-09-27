@@ -611,7 +611,9 @@
       "smallerPackage": "Choose a smaller package",
       "importTitle": "Import the files",
       "importSub": "This version has no internet access. Copy the files to the phone, then choose them here.",
-      "importHow": "The file list and download links are in docs/OFFLINE_INSTALL.md in the BOAR repository.",
+      "importHow": "The file list and where to get each file are in the offline install guide:",
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied",
       "toImport": "Not imported yet",
       "importPlacesNote": "Place packs aren't published for download yet: choose their files here (the region and the world places file).",
       "compactWhy": "The memory estimate says the standard model may not run well on this phone, so the compact one is selected. You can still choose the standard one.",
@@ -681,6 +683,13 @@
       "otherCity": "Search another city",
       "goingTo": "Travelling somewhere?",
       "tripChosen": "Include {{label}}"
+    },
+    "catalog": {
+      "label": {
+        "corpus-standard": "Standard knowledge base (+1,000 topics)",
+        "corpus-full": "Full knowledge base (+4,000 topics)",
+        "wiki-vital5": "Wikipedia Vital Articles (+50,000 articles)"
+      }
     }
   },
   "chat": {

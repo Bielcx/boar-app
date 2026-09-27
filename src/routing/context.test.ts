@@ -8,6 +8,14 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  isSubstantive,
+  identifiersIn,
+  passageLanguage,
+  sourceLanguageLead,
+  temperatureConversion,
+  healthExtract,
+  isTodayInHistory,
+  historyDate,
   onTopic,
   namedByLexicon,
   healthSourceIndex,
@@ -413,8 +421,16 @@ describe("namedByLexicon (PT-1: lexicon names are article titles)", () => {
     expect(namedByLexicon(["Season"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)"))).toBe(false);
     expect(namedByLexicon(["Season"], c("Hunting", "Seasons > Season: Hunting season is regulated."))).toBe(true);
     expect(namedByLexicon(["Nuclear fission"], c("Potassium iodide", "Volatile nuclear fission products are released."))).toBe(false);
-    expect(namedByLexicon(["Greenhouse effect"], c("Runaway greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Greenhouse effect"], c("Greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Chiang Mai"], c("Consulate-General of China, Chiang Mai"))).toBe(false);
+    expect(namedByLexicon(["Chiang Mai"], c("Wikivoyage: Chiang Mai"))).toBe(true);
     expect(namedByLexicon(["Georgia (country)"], c("Georgia (country)"))).toBe(true);
+  });
+  it("two or more names: a passage whose first sentence names them all (PT suggestion q1)", () => {
+    const hot = c("Wikivoyage: Hot weather", "Understand: The Earth's axis is tilted by 23 degrees, and this causes the seasons of winter, spring, summer, and autumn.");
+    expect(namedByLexicon(["Season", "Earth"], hot)).toBe(true);
+    expect(namedByLexicon(["Season"], hot)).toBe(false);
+    expect(namedByLexicon(["Season", "Earth"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)", "Prepare before hurricane season starts."))).toBe(false);
   });
 });
 
@@ -461,5 +477,197 @@ describe("healthSourceIndex: Appropedia how-tos and the official source (EQ-2, p
       c("Wikivoyage: Water", "Buy: If there is no trustworthy supply, boil the water before drinking."),
     ];
     expect(healthSourceIndex(sources, water)).toBe(1);
+  });
+});
+
+describe("shown relevance (Prism BAND-1)", () => {
+  const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+  // As on the AVD: the Monsoon passage doesn't say "cause"; other sources do, so the ranking's IDF
+  // made "monsoon" (in every sentence) nearly weightless and the exact article read "Low".
+  const chunks = [
+    c("m", "Monsoon", "A monsoon is a seasonal change in wind direction. The monsoon season brings heavy rain. Monsoon rains feed rivers."),
+    c("a", "Air mass", "Pressure differences cause winds. Temperature differences cause pressure differences. What causes weather is heat."),
+  ];
+  it("the article the question names reads high", () => {
+    const out = compressContext("What causes the monsoon?", chunks).chunks as any[];
+    expect(out.find((x) => x.chunkId === "m").relevance).toBeGreaterThanOrEqual(0.75);
+  });
+  it("another source: the share of the question's words its title and best sentence cover", () => {
+    const out = compressContext("What causes the monsoon?", chunks).chunks as any[];
+    const air = out.find((x) => x.chunkId === "a");
+    if (air) expect(air.relevance).toBe(0.5);
+  });
+});
+
+describe("isTodayInHistory / historyDate (Boar R3)", () => {
+  it("today/this day in history, EN and PT; not other questions", () => {
+    for (const q of ["What happened today in history?", "What happened on this day?", "O que aconteceu hoje na história?", "O que aconteceu hoje na historia?"]) expect(isTodayInHistory(q), q).toBe(true);
+    for (const q of ["Who won the football match yesterday?", "What is the history of Rome?", "What happened in the 1906 earthquake?"]) expect(isTodayInHistory(q), q).toBe(false);
+  });
+  it("the date as sources write it", () => {
+    const d = historyDate(new Date(2026, 8, 27));
+    expect(d.search).toBe("September 27");
+    expect(d.isDateArticle("September 27")).toBe(true);
+    expect(d.isDateArticle("Wikipedia: 27 September")).toBe(true);
+    expect(d.isDateArticle("US government: The Community Preparedness Webinar Series: Quake Prep (Ready.gov)")).toBe(false);
+    expect(d.isDateArticle("September 2")).toBe(false);
+  });
+});
+
+describe("healthExtract keeps a numbered list's first marker (Ready.gov, pack v3)", () => {
+  it("starts at '- 1. Drop', not at 'Drop' with the list beginning at 2", () => {
+    const body = "During an Earthquake > Protect Yourself During Earthquakes: - 1. Drop (or Lock): Drop where you are onto hands and knees. This position protects you from being knocked down. - 2. Cover: Cover your head and neck with one arm and hand. - 3. Hold On: Hold until the shaking stops.";
+    const c = { chunkId: "r", docId: "r", title: "US government: Earthquakes (Ready.gov)", body, score: 1, matchType: "lexical" as const, action: true };
+    const text = healthExtract(c, 1, false, coreProcedure(healthTopicTerms("What should I do during an earthquake?", null)));
+    expect(text).toContain("Protect Yourself During Earthquakes: - 1. Drop (or Lock): Drop where you are");
+    expect(text).toContain("- 2. Cover:");
+    expect(text).toContain("- 3. Hold On:");
+  });
+});
+
+describe("Prism RF-1: the suggested questions", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("the article the question names is on topic even if the passage doesn't say 'cause'", () => {
+    const monsoon = c("Monsoon", "A monsoon is traditionally a seasonal reversing wind accompanied by corresponding changes in precipitation.");
+    expect(onTopic("What causes the monsoon?", monsoon)).toBe(true);
+    // Still off: a title word without the question, another year.
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "A 2020 horror anthology about the dark web."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash."))).toBe(false);
+  });
+  it("temperature conversions are exact", () => {
+    expect(temperatureConversion("What is 30 °C in Fahrenheit?", false)).toBe("30 °C = 86 °F (°F = °C × 9/5 + 32).");
+    expect(temperatureConversion("Quanto é 100 °F em Celsius?", true)).toBe("100 °F = 37,8 °C (°C = (°F − 32) × 5/9).");
+    expect(temperatureConversion("Convert -40 degrees Celsius to Fahrenheit", false)).toBe("-40 °C = -40 °F (°F = °C × 9/5 + 32).");
+    expect(temperatureConversion("What is the capital of France?", false)).toBeNull();
+    expect(temperatureConversion("Why is 30 °C hot?", false)).toBeNull();
+  });
+});
+
+describe("onTopic: the article's own title (Sextant RF-1, plate boundaries)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("gate ea21e82 s32: a title that merely contains a question word is not on topic", () => {
+    expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
+    expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+    expect(onTopic("What is the smallest country in South America by area?", c("Autonomy South", "Autonomy South is a political party."))).toBe(false);
+  });
+
+  it("'Plate tectonics' for plate boundaries; a subtitle word still needs coverage", () => {
+    const plates = c("Plate tectonics", "Plate tectonics is the scientific theory that Earth's lithosphere comprises a number of large tectonic plates.");
+    expect(onTopic("Why do earthquakes happen near plate boundaries?", plates)).toBe(true);
+    expect(onTopic("earthquake plate tectonics plate boundary", plates)).toBe(true);
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
+    expect(onTopic("Who won the 1970 World Cup?", c("Andy Roberts (cricketer)", "He won the 1975 Cricket World Cup."))).toBe(false);
+  });
+});
+
+describe("nosebleed core procedure includes direct pressure (RF-1, pt4)", () => {
+  it("'Most anterior nosebleeds can be stopped by applying direct pressure' beats 'Nasal packing'", () => {
+    const c = (id: string, body: string) => ({ chunkId: id, docId: id, title: "Nosebleed", body, score: 1, matchType: "lexical" as const, action: true });
+    const sources = [
+      c("pack", "Treatment > Nasal packing: Traditionally, nasal packing was accomplished by packing gauze into the nose. It is done by a clinician."),
+      c("press", "Treatment: Most anterior nosebleeds can be stopped by applying direct pressure, which helps by promoting blood clots."),
+    ];
+    const topic = healthTopicTerms("Como estancar um sangramento nasal?", "nosebleed nose bleed");
+    expect(healthSourceIndex(sources, coreProcedure(topic))).toBe(1);
+    const epistaxis = { ...c("ep", "External wound management > Pressure points > Epistaxis: The appropriate point here is on the soft fleshy part of the nose, which should constrict the capillaries sufficiently to stop bleeding."), title: "Emergency bleeding control" };
+    expect(healthSourceIndex([sources[0], epistaxis], coreProcedure(topic))).toBe(1);
+  });
+});
+
+describe("compressContext keeps the rest of a chosen passage when the budget allows (RF-1, Plate tectonics)", () => {
+  const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+  it("all four sentences of the passage; the distractor still out", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory that Earth's lithosphere comprises large tectonic plates. The model builds on the concept of continental drift. Plates meet at boundaries where earthquakes occur. The processes that shape Earth's crust are called tectonics.");
+    const noise = c("n", "Lagrange point", "A Lagrange point is where the gravitational forces of two bodies balance. Earthquakes are not relevant here.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates, noise]).chunks;
+    const p = out.find((x) => x.chunkId === "p")!;
+    expect(p.body).toContain("continental drift");
+    expect(p.body).toContain("are called tectonics");
+  });
+  it("only the most relevant passage is filled (Boar: prefill cost)", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large tectonic plates. The model builds on continental drift. Plates meet at boundaries where earthquakes occur.");
+    const quake = c("q", "Earthquake", "An earthquake is the shaking of the surface of the Earth. Most occur at plate boundaries. Seismometers record them all over the world.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates, quake]).chunks;
+    const filled = out.filter((x) => /continental drift|Seismometers/.test(x.body));
+    expect(filled).toHaveLength(1);
+  });
+
+  it("a tight budget still keeps only the matching sentences", () => {
+    const plates = c("p", "Plate tectonics", "Plate tectonics is the theory of large plates. The model builds on continental drift and many other long ideas from the twentieth century. Plates meet at boundaries where earthquakes occur.");
+    const out = compressContext("Why do earthquakes happen near plate boundaries?", [plates], { tokenBudget: 30 }).chunks;
+    expect(out[0].body).not.toContain("continental drift");
+  });
+});
+
+describe("onTopic: a title's acronym", () => {
+  it("'Maximal extractable value (MEV)' for a question naming MEV", () => {
+    const c = { chunkId: "m", docId: "m", title: "ethereum.org: Maximal extractable value (MEV)", body: "Maximal extractable value refers to the maximum value that can be extracted from block production.", score: 1, matchType: "lexical" as const };
+    expect(onTopic("O que é MEV e o que é a separação entre proponente e construtor?", c)).toBe(true);
+    expect(onTopic("What is the minimum wage?", c)).toBe(false);
+  });
+});
+
+describe("onTopic: two consecutive question terms (Sextant cmp-009)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  const q = "How did government in the Roman Republic differ from the Roman Empire?";
+  it("keeps the Western Roman Empire and the Byzantine Empire", () => {
+    expect(onTopic(q, c("Fall of the Western Roman Empire", "The fall of the Western Roman Empire was the loss of central political control in the Western Roman Empire."))).toBe(true);
+    expect(onTopic(q, c("Byzantine Empire", "The Byzantine Empire, also known as the Eastern Roman Empire, was the continuation of the Roman Empire centred on Constantinople."))).toBe(true);
+    expect(onTopic(q, c("Politics of Djibouti", "Politics of Djibouti takes place in a framework of a semi-presidential republic."))).toBe(false);
+  });
+  it("a pair that is only a place is not the subject (the consulate in Chiang Mai)", () => {
+    const consulate = c("Consulate-General of China, Chiang Mai", "The Consulate-General of the People's Republic of China in Chiang Mai is the diplomatic mission of China to Chiang Mai and Northern Thailand.");
+    expect(onTopic("When is the best time to visit Chiang Mai, and when is the smoky season?", consulate)).toBe(false);
+  });
+  it("does not reopen Scary Stories, Marash, Northern Command or Sampford Common", () => {
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology about the dark web."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
+    expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
+    expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+  });
+});
+
+describe("passageLanguage / sourceLanguageLead", () => {
+  it("reads the passage's function words", () => {
+    expect(passageLanguage("A monsoon is traditionally a seasonal reversing wind.")).toBe("en");
+    expect(passageLanguage("A monção é um vento sazonal que muda de direção.")).toBe("pt");
+    expect(passageLanguage("EIP-1559")).toBeNull();
+    expect(sourceLanguageLead(true, "The Earth's axis is tilted.")).toBe("Da fonte offline (em inglês):");
+    expect(sourceLanguageLead(true, "A monção é um vento sazonal.")).toBeNull();
+    expect(sourceLanguageLead(false, "The Earth's axis is tilted.")).toBeNull();
+    expect(sourceLanguageLead(false, "A monção é um vento sazonal que muda de direção.")).toBe("From the offline source (in Portuguese):");
+  });
+});
+
+describe("identifiersIn / compressContext pinned", () => {
+  it("normalizes identifiers", () => {
+    expect(identifiersIn("O que a EIP-7702 e o ERC 4337 fazem? BIP-32 também.")).toEqual(["EIP-7702", "ERC-4337", "BIP-32"]);
+  });
+  it("a pinned chunk is kept first even when the others out-score it", () => {
+    const c = (id: string, title: string, body: string) => ({ chunkId: id, docId: id, title, body, score: 1, matchType: "lexical" as const });
+    const eth = c("e", "Ethereum", "Ethereum is a blockchain. Ethereum has smart contracts. Ethereum uses ether.");
+    const eip = c("p", "EIP-7251: Increase the MAX_EFFECTIVE_BALANCE", "Increases the constant to 2048 ETH.");
+    const free = compressContext("Ethereum", [eth, eip]).chunks.map((x) => x.chunkId);
+    expect(free).toEqual(["e"]);
+    const pinned = compressContext("Ethereum", [eth, eip], { pinned: new Set(["p"]) }).chunks.map((x) => x.chunkId);
+    expect(pinned).toEqual(["p", "e"]);
+  });
+});
+
+describe("Sextant cry-020 / cry-012: content, not pointers or metadata", () => {
+  const c = (title: string, body: string) => ({ chunkId: title + body.length, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("instantFinalBlock: a pointer, or a sentence that covers only the identifier, is not final", () => {
+    expect(instantFinalBlock("O que mudou no Ethereum com o Merge (EIP-3675)?", "Full specification of the beacon chain can be found in the `ethereum/consensus-specs` repository.", "Ethereum EIP-3675")).toBe("pointer");
+    expect(instantFinalBlock("What does EIP-3675 upgrade?", "The transition happens at the terminal total difficulty.", "Ethereum upgrade EIP-3675")).toBe("title-only");
+    expect(instantFinalBlock("What is the capital of Australia?", "Canberra is the capital city of Australia.")).toBeNull();
+  });
+  it("isSubstantive: metadata, hex examples, copyright and stubs are not content", () => {
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Status: Final Type: Standards Track (Core) Created: 2016-10-14"))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Example: ``` 0xf86c098504a817c800825208943535353535 ```"))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Hard fork: Spurious Dragon"))).toBe(false);
+    expect(isSubstantive(c("ERC-2400: Transaction Receipt URI", "Copyright: Copyright and related rights waived via CC0."))).toBe(false);
+    expect(isSubstantive(c("EIP-155: Simple replay attack protection", "Parameters: - FORK_BLKNUM: 2,675,000 - CHAIN_ID: 1 (main net)"))).toBe(true);
+    expect(isSubstantive(c("Canberra", "Canberra is the capital city of Australia."))).toBe(true);
   });
 });

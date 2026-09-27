@@ -19,6 +19,7 @@ import { decompress } from "fzstd";
 import { nodeSqliteDatabase } from "../../src/rag/testing/nodeSqlite";
 import { WikiPack, type PackHit } from "../../src/rag/wikiPack";
 import { englishNamesIn, looksPortuguese, type Lexicon } from "../../src/rag/ptLexicon";
+import { identifiersIn, titleHasIdentifier } from "../../src/rag/identifiers";
 
 const env = process.env;
 const list = (v?: string) => (v ?? "").split(",").filter(Boolean);
@@ -42,10 +43,13 @@ describe.skipIf(!env.BOAR_PT_PACKS)("Portuguese vs English retrieval", () => {
       if (mode === "en") return search(en.get(q.from!)!.query);
       const main = await search(q.query);
       if (mode === "pt") return main;
-      const names = looksPortuguese(q.query) ? englishNamesIn(q.query, lexicon) : [];
+      const ids = looksPortuguese(q.query) ? identifiersIn(q.query) : [];
+      const names = looksPortuguese(q.query) ? [...ids, ...englishNamesIn(q.query, lexicon).filter((n) => !ids.includes(n))] : [];
       if (!names.length) return main;
       const extra = await search(names.join(" "), names);
-      return [...extra.slice(0, 4), ...main, ...extra];
+      const merged = [...extra.slice(0, 4), ...main, ...extra];
+      const byId = (h: PackHit) => ids.some((id) => titleHasIdentifier(h.title, id));
+      return [...merged.filter(byId), ...merged.filter((h) => !byId(h))];
     };
     const out: Record<string, unknown> = { questions: pt.length, modes: {} as Record<string, unknown>, perQuestion: [] as unknown[] };
     const rows: Record<string, Array<{ id: string; rank: number }>> = { en: [], pt: [], "pt+lex": [] };

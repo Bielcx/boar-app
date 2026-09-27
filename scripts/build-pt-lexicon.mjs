@@ -5,7 +5,8 @@
 // Keys are normalized (lower case, no accents, no trailing "(…)"). When two names share a key, an exact Portuguese
 // title beats a title with a "(…)" qualifier, which beats a redirect ("São Paulo" is the city, not "São Paulo
 // (apóstolo)"). A one-word key comes from an exact title or a redirect of 8+ letters: "assinatura" isn't
-// "Assinatura (lógica)", "terremoto" is Earthquake.
+// "Assinatura (lógica)", "terremoto" is Earthquake. A name with accents also gets its accented key, and on the
+// accent-free key a name written without accents wins ("romã" -> Pomegranate, "roma" -> Rome).
 // Build time only.
 //
 //   node scripts/build-pt-lexicon.mjs --titles titles.txt --out assets/lexicon/pt-en.json [--redirects]
@@ -44,12 +45,19 @@ for (let i = 0; i < titles.length; i += 50) {
 log(`${ptOf.size} titles have a Portuguese article`);
 
 const lexicon = new Map(); // key -> { en, rank }: 3 exact title, 2 title with a "(…)" qualifier, 1 redirect
+// Lower case with accents kept, qualifier dropped: "romã" and "roma" are different words.
+const accentKey = (s) => s.normalize("NFC").toLowerCase().replace(/\s*\([^)]*\)\s*$/, "").replace(/\s+/g, " ").trim();
 const put = (name, en, rank) => {
   const k = normalizeKey(name);
   // One-word names: exact titles, or long redirects ("terremoto" -> Earthquake, whose title is "Sismo"); short
   // one-word redirects are too often another sense ("assinatura" -> Signature (logic)).
   if (k.length < 3 || (!k.includes(" ") && rank < 3 && k.length < 8)) return;
-  if ((lexicon.get(k)?.rank ?? 0) < rank) lexicon.set(k, { en, rank });
+  const accented = accentKey(name);
+  // On the accent-free key, a name written without accents beats one that only folds to it ("Roma" -> Rome, not
+  // "Romã" -> Pomegranate); the accented spelling keeps its own key.
+  const r = rank * 2 + (accented === k ? 1 : 0);
+  if ((lexicon.get(k)?.rank ?? 0) < r) lexicon.set(k, { en, rank: r });
+  if (accented !== k && (lexicon.get(accented)?.rank ?? 0) < r) lexicon.set(accented, { en, rank: r });
 };
 for (const [pt, en] of ptOf) put(pt, en, /\(/.test(pt) ? 2 : 3);
 if (o.redirects) {
