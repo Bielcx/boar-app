@@ -827,6 +827,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
 
 
+      {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
+      {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
+
       {answer.sources.length > 0 && !placesOnly && !answer.weakSources && (
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
         // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
@@ -847,7 +850,6 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
       {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
       {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} />}
-      {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
