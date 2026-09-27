@@ -6,7 +6,15 @@ appId: ${APP_ID || "team.sopa.aoair"}
     env:
       QUESTION: "How do I stop a nosebleed?"
 - assertVisible: "SOURCES ON THIS PHONE"
+# Expand the cited source; its URL shows in the card.
 - tapOn:
     text: "Sources? [0-9].*"
-- assertVisible: "Full passage.*"
+- assertVisible:
+    text: ".*wikipedia.org/wiki/Nosebleed.*"
 - takeScreenshot: shots/02-answer-source-expanded
+# The passage itself opens the source (no 'Full passage' link since the fidelity sprint).
+- tapOn:
+    text: "(\\[[0-9]+\\] )?Treatment:.*"
+- assertVisible:
+    text: "(Copy passage|Source [0-9]+)"
+- takeScreenshot: shots/02-source-sheet

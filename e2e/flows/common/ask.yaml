@@ -1,10 +1,11 @@
-# Opens a new chat, sends ${QUESTION}, waits until the answer stops streaming.
+# Opens a new chat (from the drawer: the header has no New chat button, by design),
+# sends ${QUESTION}, waits until the answer stops streaming.
 appId: ${APP_ID || "team.sopa.aoair"}
 ---
+- tapOn: "Open menu"
 - tapOn: "New chat"
 - tapOn: "Ask something"
 - inputText: ${QUESTION}
-- hideKeyboard
 - tapOn: "Send"
 - extendedWaitUntil:
     notVisible: "Stop answer"

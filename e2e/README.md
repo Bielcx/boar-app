@@ -35,15 +35,21 @@ Toolchain and emulator setup: `docs/DEVICE_LAB.md`.
 | `06-knowledge` | topic packs listed |
 | `99-reset` | erase all data → onboarding |
 
-Status (first `maestro test` run, integration 54202b7 downloader, AVD 3.8 GB, 2026-09-27):
+Status, `maestro test` against the offline build (APP_ID=team.sopa.aoair.offline), AVD 393×852 dp:
 
-| Flow | Result |
-|---|---|
-| `01-setup-downloader` | PASS (7 min, real download) |
-| `06-knowledge` | PASS |
-| `05-switch-model` | failed with one answer model installed → now logs `SKIP` instead |
-| `99-reset` | FAIL: after "Erase everything" the app closes itself instead of opening setup (RS-1, app bug) |
-| `02`, `03`, `04`, `01-setup-offline-import` | UNKNOWN: not run end to end yet (run interrupted to free the machine) |
+| Flow | 54202b7 (first run) | ce4fe83 (27/09 15:00) |
+|---|---|---|
+| `01-setup-downloader` | PASS (7 min, real download) | not run (offline build) |
+| `01-setup-offline-import` | not run | not run (needs clearState + ~10 min setup) |
+| `02-ask-with-sources` | not run | **UNKNOWN**: reached the answer and the open sources card once; since the flow update, `inputText` ends the Maestro process without an error on this AVD (harness issue, see gotchas) |
+| `03-airplane-mode` | not run | **PASS** |
+| `04-places-berlin` | not run | **PASS** (Berlin by name, near me with mock GPS, Qujing "Nothing here is guessed") |
+| `05-switch-model` | SKIP with one model | not run |
+| `06-knowledge` | PASS | not run |
+| `99-reset` | FAIL (RS-1, app bug, fixed in RS-1 v2) | not run |
+
+Flows updated to the current UI: new chat is opened from the drawer (the header has no New chat
+button since the fidelity sprint), and the passage itself opens the source (no "Full passage" link).
 
 The first run also hit a native crash in expo-sqlite (`closeDatabase` → `sqlite3_finalize`,
 Scudo "corrupted chunk header") when the app was stopped and relaunched between flows.
@@ -76,7 +82,8 @@ Scudo "corrupted chunk header") when the app was stopped and relaunched between 
 - The AOSP image has no TalkBack and no Gboard: screen-reader and Gboard checks need a
   real phone.
 - `adb emu kill` can leave qemu alive: check `pgrep -x qemu-system-aarch64`.
-- Maestro `inputText` with accents needs its own IME, which never became active on this
+- Maestro `inputText`: on this AVD it sometimes ends the Maestro process with no error right after
+  "Inputting text" (seen with the AOSP keyboard enabled). With accents it needs its own IME, which never became active on this
   AOSP image: PT questions were typed without accents (`adb shell input text`) and marked so.
 - Files pushed with `adb push` over 2 GB must be media-scanned
   (`am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/<f>`)
