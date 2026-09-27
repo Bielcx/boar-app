@@ -1,0 +1,459 @@
+{
+ "questions": 42,
+ "modes": {
+  "en": {
+   "recall@1": 0.095,
+   "recall@3": 0.214,
+   "recall@6": 0.429
+  },
+  "pt": {
+   "recall@1": 0.024,
+   "recall@3": 0.048,
+   "recall@6": 0.071
+  },
+  "pt+lex": {
+   "recall@1": 0.548,
+   "recall@3": 0.595,
+   "recall@6": 0.643
+  }
+ },
+ "perQuestion": [
+  {
+   "id": "food-001-pt",
+   "query": "Quais são os melhores restaurantes veganos em Berlim?",
+   "names": [
+    "Restaurant",
+    "Berlin"
+   ],
+   "en": 2,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-002-pt",
+   "query": "Quais são os melhores restaurantes veganos em Lisboa?",
+   "names": [
+    "Restaurant",
+    "Lisbon"
+   ],
+   "en": 4,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-003-pt",
+   "query": "Quais são os melhores restaurantes veganos em Buenos Aires?",
+   "names": [
+    "Buenos Aires",
+    "Restaurant"
+   ],
+   "en": 4,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-004-pt",
+   "query": "Quais são os melhores restaurantes veganos em Singapura?",
+   "names": [
+    "Restaurant",
+    "Singapore"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-005-pt",
+   "query": "Quais são os melhores restaurantes veganos em Chiang Mai?",
+   "names": [
+    "Chiang Mai",
+    "Restaurant"
+   ],
+   "en": 8,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-006-pt",
+   "query": "Quais são os melhores restaurantes veganos em Tóquio?",
+   "names": [
+    "Restaurant",
+    "Tokyo"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-007-pt",
+   "query": "Quais são os melhores restaurantes veganos em Bangkok?",
+   "names": [
+    "Restaurant",
+    "Bangkok"
+   ],
+   "en": 1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-008-pt",
+   "query": "Quais são os melhores restaurantes veganos em Istambul?",
+   "names": [
+    "Restaurant",
+    "Istanbul"
+   ],
+   "en": 7,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-009-pt",
+   "query": "Quais são os melhores restaurantes veganos na Cidade do México?",
+   "names": [
+    "Mexico City",
+    "Restaurant"
+   ],
+   "en": 3,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-010-pt",
+   "query": "Quais são os melhores restaurantes veganos em Taipé?",
+   "names": [
+    "Restaurant",
+    "Taipei"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-011-pt",
+   "query": "Quais são os melhores restaurantes veganos em Seul?",
+   "names": [
+    "Restaurant",
+    "Seoul"
+   ],
+   "en": 4,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-012-pt",
+   "query": "Quais são os melhores restaurantes veganos em Praga?",
+   "names": [
+    "Restaurant",
+    "Prague"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-013-pt",
+   "query": "Onde posso comer comida vegetariana em Tbilisi?",
+   "names": [
+    "Vegetarianism",
+    "Tbilisi"
+   ],
+   "en": 3,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-014-pt",
+   "query": "Quais são bons restaurantes vegetarianos em Quioto?",
+   "names": [
+    "Restaurant",
+    "Vegetarianism",
+    "Kyoto"
+   ],
+   "en": 4,
+   "pt": -1,
+   "pt+lex": 8
+  },
+  {
+   "id": "food-015-pt",
+   "query": "Me indica alguns restaurantes vegetarianos em Medellín?",
+   "names": [
+    "Restaurant",
+    "Vegetarianism",
+    "Medellín"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-016-pt",
+   "query": "Quais são os melhores restaurantes veganos na Cidade do Cabo?",
+   "names": [
+    "Cape Town",
+    "Restaurant"
+   ],
+   "en": 2,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-017-pt",
+   "query": "Quais são os melhores restaurantes veganos em São Paulo?",
+   "names": [
+    "São Paulo",
+    "Restaurant"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "food-018-pt",
+   "query": "Quais são os melhores restaurantes veganos na cidade onde eu estou agora?",
+   "names": [
+    "Restaurant"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-019-pt",
+   "query": "Quais são os melhores restaurantes veganos na cidade onde eu estou agora?",
+   "names": [
+    "Restaurant"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "food-020-pt",
+   "query": "Quais são os melhores restaurantes veganos perto de mim?",
+   "names": [
+    "Restaurant"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-001-pt",
+   "query": "Quais algoritmos de assinatura são resistentes a computadores quânticos?",
+   "names": [
+    "Algorithm",
+    "Computer"
+   ],
+   "en": 2,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-002-pt",
+   "query": "Qual a diferença entre ML-DSA e SLH-DSA?",
+   "names": [],
+   "en": 1,
+   "pt": 1,
+   "pt+lex": 1
+  },
+  {
+   "id": "cry-003-pt",
+   "query": "Por que computadores quânticos quebram o RSA, mas não o SHA-256?",
+   "names": [
+    "Computer"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-004-pt",
+   "query": "O que é a EIP-4844 e o que são blobs no Ethereum?",
+   "names": [
+    "Ethereum"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "cry-005-pt",
+   "query": "Como funciona a finalidade no proof of stake do Ethereum?",
+   "names": [
+    "Ethereum"
+   ],
+   "en": -1,
+   "pt": 0,
+   "pt+lex": 2
+  },
+  {
+   "id": "cry-006-pt",
+   "query": "Qual a diferença entre optimistic rollups e ZK rollups?",
+   "names": [],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-008-pt",
+   "query": "O que são assinaturas BLS e por que a camada de consenso do Ethereum usa elas?",
+   "names": [
+    "Ethereum"
+   ],
+   "en": 3,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-009-pt",
+   "query": "Qual a diferença entre um zk-SNARK e um zk-STARK?",
+   "names": [],
+   "en": 3,
+   "pt": 3,
+   "pt+lex": 3
+  },
+  {
+   "id": "cry-016-pt",
+   "query": "Qual a diferença entre tokens ERC-20 e ERC-721?",
+   "names": [],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-018-pt",
+   "query": "ML-KEM é um algoritmo de assinatura? Para que ele serve?",
+   "names": [
+    "Algorithm"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-019-pt",
+   "query": "O que são assinaturas baseadas em hash com estado, como XMSS e LMS, e por que o 'estado' importa?",
+   "names": [],
+   "en": 0,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "cry-020-pt",
+   "query": "O que mudou no Ethereum com o Merge (EIP-3675)?",
+   "names": [
+    "Ethereum"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "trv-001-pt",
+   "query": "Quais números de emergência eu preciso saber na Tailândia?",
+   "names": [
+    "Number",
+    "Emergence",
+    "Thailand"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": -1
+  },
+  {
+   "id": "trv-002-pt",
+   "query": "Qual é o tipo de tomada e a voltagem no Brasil?",
+   "names": [
+    "Voltage",
+    "Brazil"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 9
+  },
+  {
+   "id": "trv-003-pt",
+   "query": "A água da torneira é segura para beber na Cidade do México?",
+   "names": [
+    "Mexico City"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-004-pt",
+   "query": "Como eu vou do aeroporto de Lisboa até o centro?",
+   "names": [
+    "Airport",
+    "Lisbon"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-005-pt",
+   "query": "Qual é a moeda da Geórgia (o país), e dá para pagar com cartão em Tbilisi?",
+   "names": [
+    "Georgia (country)",
+    "Tbilisi"
+   ],
+   "en": 0,
+   "pt": -1,
+   "pt+lex": 4
+  },
+  {
+   "id": "trv-006-pt",
+   "query": "De que lado da rua se dirige na Tailândia, e turista pode dirigir lá?",
+   "names": [
+    "Thailand"
+   ],
+   "en": 0,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-007-pt",
+   "query": "Como se diz obrigado em tailandês, e muda se eu for homem ou mulher?",
+   "names": [
+    "Thai people"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-008-pt",
+   "query": "Qual é a melhor época para visitar Chiang Mai, e quando é a temporada de fumaça?",
+   "names": [
+    "Chiang Mai"
+   ],
+   "en": 3,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-009-pt",
+   "query": "É esperado dar gorjeta em restaurantes em Portugal?",
+   "names": [
+    "Restaurant",
+    "Portugal"
+   ],
+   "en": 0,
+   "pt": -1,
+   "pt+lex": 0
+  },
+  {
+   "id": "trv-010-pt",
+   "query": "O que eu preciso saber sobre usar apps de transporte em Bangkok?",
+   "names": [
+    "Transport",
+    "Bangkok"
+   ],
+   "en": -1,
+   "pt": -1,
+   "pt+lex": 0
+  }
+ ]
+}

@@ -97,8 +97,8 @@ describe("buildLexicalQuery", () => {
 });
 
 describe("term coverage gate", () => {
-  it("requires every term for short queries and at least half for longer ones", () => {
-    expect([1, 2, 3, 4, 5].map(requiredTermMatches)).toEqual([1, 2, 2, 2, 3]);
+  it("requires every term for short queries and a strict majority for longer ones", () => {
+    expect([1, 2, 3, 4, 5, 6].map(requiredTermMatches)).toEqual([1, 2, 2, 3, 3, 4]);
   });
 
   it("counts a term as matched when any of its forms appears", () => {
@@ -117,6 +117,11 @@ describe("lexical retrieval on the real corpus", () => {
     ["Why did the Roman Empire fall?", "Fall of the Western Roman Empire"],
   ])("finds the relevant article for %j", (query, expected) => {
     expect(titles(lexicalSearch(query)).slice(0, 3)).toContain(expected);
+  });
+
+  it("returns nothing when the corpus doesn't cover the topic, not a bio sharing two generic words", () => {
+    // Measured on the bundled corpus (no post-quantum article): "Dean Lee" (quantum Monte Carlo algorithms) used to pass.
+    expect(titles(lexicalSearch("Which signature algorithms are quantum resistant?"))).toEqual([]);
   });
 
   it("finds both sides of a comparison question", () => {

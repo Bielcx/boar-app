@@ -69,6 +69,8 @@ export interface PackHit {
   /** Monthly pageviews of the article (0 when unknown). */
   views: number;
   lead: boolean;
+  /** The passage's section tells what to do (Treatment, First aid, During an earthquake…): see ACTION_SECTION. */
+  action: boolean;
   /** The source page and its license, when the pack records them (otherwise derive from title and source). */
   url?: string;
   license?: string;
@@ -101,6 +103,78 @@ const SOURCES: PackSource[] = ["enwiki", "enwikivoyage", "enwikibooks", "apprope
 export const NAMED_MIN_SHARE = 0.5;
 
 /** Questions that read like travel planning: a same-named Wikivoyage guide goes before the encyclopedia article. */
+/** Questions asking what to do (first aid, emergencies), in English or Portuguese. */
+export const ACTION_INTENT =
+  /\b(what (do|should|can|must) (i|we|you) do|what to do|how (do|can|should) (i|we|you) (treat|stop|help|survive|make|purify|disinfect|respond|care)|how to (treat|stop|help|survive|make|purify|disinfect)|treat(ing|ment)?|first aid|stop (a|the)?\s*\w*\s*(bleed|nosebleed)|o que (eu )?(fa[cç]o|fazer|devo fazer)|como (tratar|parar|socorrer|fa[cç]o|agir|purificar|tornar)|primeiros socorros|socorr|\b(stop|treat|first aid)\s*[?.!]*$)/i;
+/** Section headings that tell what to do, for ACTION_INTENT questions. */
+export const ACTION_SECTION =
+  /\b(treatment|treating|first aid|management|what to do|during|after|immediate|emergency (care|treatment|response)|how to|steps|response|survival|purification|disinfection|rescue|resuscitation|tratamento|primeiros socorros|o que fazer)\b/i;
+/** Background sections that don't say what to do; ranked below everything else for ACTION_INTENT questions. */
+export const BACKGROUND_SECTION =
+  /\b(prevent(ion|ing)?|signs?|symptoms?|epidemiology|history|causes?|pathophysiology|diagnosis|society|culture|research|etymology|statistics|by country|quality by|in (fiction|popular culture)|terminology|classification|see also|preparation|preparedness|prepare|before|forecast\w*|predict\w*|regulation|testing)\b/i;
+
+/**
+ * What a section is for, from its heading path ("Management > Intravenous fluids"). The last heading decides first:
+ * "Management > Forecasting" is background. "action" when the last heading itself says what to do, "action-sub"
+ * when only a parent does.
+ */
+const IMPERATIVE =
+  /^(?:["“]?)(do not|don't|never|always|stay|get|keep|move|go|drop|cover|hold|take|call|apply|remove|cool|wash|press|pinch|lean|lie|sit|stand|put|place|use|avoid|check|turn|open|close|leave|seek|shelter|protect|stop|drink|boil|rinse|elevate|raise|loosen|wrap|clean|find|look|listen|help|give|try|watch|wait|walk|run|crawl|follow|make|bring|carry|tie|immobili[sz]e|monitor|reassure|if [^,]{1,60}, (?:do not|don't|stay|get|keep|move|go|drop|cover|hold|take|call|leave|use|stop))\b/i;
+
+/** Share of a passage's sentences that tell the reader what to do ("Stay indoors.", "Do not run!"). */
+export function instructionShare(text: string): number {
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((s) => s.replace(/^[-*•\d.)\s]+/, "").trim()).filter((s) => s.length > 3);
+  return sentences.length ? sentences.filter((s) => IMPERATIVE.test(s)).length / sentences.length : 0;
+}
+
+/**
+ * For a what-to-do question: the best what-to-do section with its own subsections first, the section before its
+ * subsections ("During an earthquake", then "During > If you are indoors"; "Treatment", then "Treatment > Nasal
+ * packing"), then the next section's. Sections are grouped by their top heading, groups ordered by their best score.
+ */
+export function stepsFirst<T extends { s: number }>(items: T[], sectionOf: (x: T) => string): T[] {
+  const top = (x: T) => sectionOf(x).split(" > ")[0];
+  const best = new Map<string, number>();
+  for (const x of items) best.set(top(x), Math.max(best.get(top(x)) ?? -Infinity, x.s));
+  const byScore = [...items].sort((a, b) => best.get(top(b))! - best.get(top(a))! || b.s - a.s);
+  // Within a group the order is by score, except that a section listed here comes before its own subsections.
+  const out: T[] = [];
+  for (const x of byScore) {
+    const path = sectionOf(x).split(" > ");
+    for (let d = 1; d < path.length; d++) {
+      const ancestor = byScore.find((y) => sectionOf(y) === path.slice(0, d).join(" > "));
+      if (ancestor && !out.includes(ancestor)) out.push(ancestor);
+    }
+    if (!out.includes(x)) out.push(x);
+  }
+  return out;
+}
+
+/** Sources written for lay readers (first-aid manuals, government guidance, travel guides), not clinical articles. */
+export const LAY_SOURCES = new Set<PackSource>(["enwikibooks", "usgov", "enwikivoyage"]);
+
+/** Share of imperative sentences above which a section with a neutral heading counts as steps (lay first-aid manuals). */
+const STEPS_SHARE = 0.35;
+
+/**
+ * Whether a passage tells what to do: its heading says so (Treatment, First aid, During…), or its heading is neutral
+ * ("Hypothermia", "Animal bites > Snakes" in a first-aid manual) and most of it is instructions.
+ */
+export function isActionPassage(section: string, text: string): boolean {
+  const kind = sectionKind(section);
+  return kind.startsWith("action") || (kind === "other" && instructionShare(text) >= STEPS_SHARE);
+}
+
+export function sectionKind(section: string): "action" | "action-sub" | "background" | "other" {
+  const path = section.split(" > ");
+  const leaf = path[path.length - 1];
+  if (BACKGROUND_SECTION.test(leaf)) return "background";
+  if (ACTION_SECTION.test(leaf)) return "action";
+  const parents = path.slice(0, -1).join(" > ");
+  if (ACTION_SECTION.test(parents)) return "action-sub";
+  return BACKGROUND_SECTION.test(parents) ? "background" : "other";
+}
+
 const TRAVEL_INTENT = /\b(visit|visiting|things to (see|do)|what (can|should) (i|we) (see|do)|see and do|travel|trip|get (to|there|around)|getting (to|around)|stay|hotel|hostel|eat|restaurants?|sights?|tourists?|itinerary|by (train|bus|car|ferry)|airport)\b/i;
 
 /** Cosine (bge-small) of a lead that's about the question even without its words. */
@@ -108,6 +182,11 @@ export const SEMANTIC_KEEP = 0.7;
 
 /** Monthly views below which a topic is "long tail": answer from the sources, not the model's memory. */
 export const LONG_TAIL_VIEWS = 5000;
+
+/** Portuguese and Spanish function words, left out of a question's subject weight (not of its search terms). */
+const FOREIGN_FUNCTION_WORDS = new Set(
+  "o os a as um uma uns umas de do da dos das em no na nos nas num numa por para com sem que como qual quais quando onde porque se ao aos el la los las un una del al en con por para que como cual cuando donde es son y e ou".split(" ")
+);
 
 const STOPWORDS = new Set(
   (
@@ -166,6 +245,25 @@ export function countAtBoundary(prefix: string, text: string, firstOnly = false)
 }
 
 /** Share of the question's idf mass whose terms occur in `text`. */
+/**
+ * Whether two passages say nearly the same thing (one article copying another's paragraph:
+ * "NSA cryptography" and "NSA Suite B Cryptography"): Jaccard similarity of their word 5-grams.
+ */
+export function nearDuplicate(a: string, b: string, threshold = 0.5): boolean {
+  const grams = (t: string) => {
+    const w = t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    const out = new Set<string>();
+    for (let i = 0; i + 5 <= w.length; i++) out.add(w.slice(i, i + 5).join(" "));
+    return out;
+  };
+  const ga = grams(a);
+  const gb = grams(b);
+  if (!ga.size || !gb.size) return false;
+  let both = 0;
+  for (const g of ga) if (gb.has(g)) both++;
+  return both / (ga.size + gb.size - both) >= threshold;
+}
+
 export function coverage(text: string, stems: Stem[]): number {
   const low = text.toLowerCase();
   const total = stems.reduce((s, x) => s + x.idf, 0) || 1;
@@ -422,13 +520,14 @@ export class WikiPack {
       source: a.source,
       views: a.views,
       lead,
+      action: !lead && isActionPassage(sectionAt(a.text, start), a.text.slice(start, end)),
       ...(a.url ? { url: a.url } : {}),
       ...(a.license ? { license: a.license } : {}),
     };
   }
 
   /** The article's lead chunk plus its `nSections` chunks that best cover the question. */
-  async articlePassages(articleId: number, stems: Stem[], nSections = 2): Promise<PackHit[]> {
+  async articlePassages(articleId: number, stems: Stem[], nSections = 2, action = false): Promise<PackHit[]> {
     const a = await this.article(articleId);
     const rows = await this.db.getAllAsync<{ id: number; start: number; end: number }>(
       "SELECT id, start, end FROM chunks WHERE article_id = ? ORDER BY id",
@@ -439,13 +538,27 @@ export class WikiPack {
     const lead = a.text.startsWith("Key facts:", rows[0].start) && rows.length > 1 ? rows[1] : rows[0];
     const scored = rows
       .filter((r) => r !== lead)
-      .map((r) => ({ r, s: this.passageScore(a.text, r.start, r.end, stems) }))
+      .map((r) => {
+        const s = this.passageScore(a.text, r.start, r.end, stems);
+        if (!action) return { r, s };
+        // A what-to-do question wants the article's Treatment/First aid/During section, not its Prevention or History.
+        const kind = sectionKind(sectionAt(a.text, r.start));
+        if (kind === "background") return { r, s: s * 0.3 };
+        // Among what-to-do sections, the one that gives steps ("Stay indoors. Get down… Hold on…") over context; a
+        // neutral heading whose text is mostly steps counts as a what-to-do section.
+        const share = instructionShare(a.text.slice(r.start, r.end));
+        if (kind === "other") return { r, s: share >= STEPS_SHARE ? s + 0.5 + 0.4 * share : s };
+        return { r, s: s + (kind === "action" ? 0.5 : 0.25) + 0.4 * share };
+      })
       .sort((x, y) => y.s - x.s || y.r.start - x.r.start)
-      .slice(0, nSections)
-      .filter((x) => x.s > 0.15);
+      // One passage per section (the best-scored, first after the sort): two chunks of "Intravenous fluids" would
+      // crowd out another section.
+      .filter((x, i, all) => all.findIndex((y) => sectionAt(a.text, y.r.start) === sectionAt(a.text, x.r.start)) === i);
+    const ordered = action ? stepsFirst(scored, (x) => sectionAt(a.text, x.r.start)) : scored;
+    const picked = ordered.slice(0, nSections).filter((x) => x.s > 0.15);
     return Promise.all([
       this.hit(articleId, lead.id, lead.start, lead.end, 1, "title", true),
-      ...scored.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
+      ...picked.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
     ]);
   }
 
@@ -491,8 +604,10 @@ export class WikiPack {
    */
   async titlesInQuestion(query: string, stems: Stem[], max = 4): Promise<Array<{ id: number; share: number }>> {
     const rare = new Set(stems.filter((s) => s.idf >= Math.log(1 / 0.002)).map((s) => s.stem));
-    const weight = new Map(stems.map((s) => [s.stem, s.idf]));
-    const total = stems.reduce((n, s) => n + s.idf, 0) || 1;
+    // Portuguese/Spanish function words carry no subject; some packs index them (Appropedia's pages in those languages).
+    const content = stems.filter((s) => !FOREIGN_FUNCTION_WORDS.has(s.stem));
+    const weight = new Map(content.map((s) => [s.stem, s.idf]));
+    const total = content.reduce((n, s) => n + s.idf, 0) || 1;
     const sources: PackSource[] = [
       ...(TRAVEL_INTENT.test(query) ? ["enwikivoyage", "enwiki"] as const : ["enwiki", "enwikivoyage"] as const),
       ...this.topicSources,
@@ -504,8 +619,9 @@ export class WikiPack {
       const lower = cand.toLowerCase();
       if (used.some((u) => u.includes(lower))) continue; // inside a longer title already found
       const single = !cand.includes(" ");
-      // A lone word only counts when it's capitalized in the question or rare in the index.
-      if (single && !/^\p{Lu}/u.test(cand) && !(await this.isRare(lower, rare))) continue;
+      // A lone word only counts when it's capitalized in the question, rare in the index, or not in the index at all
+      // (then only an exact title or alias can match it: "queimadura" -> Burn through its Portuguese alias).
+      if (single && !/^\p{Lu}/u.test(cand) && !(await this.isRare(lower, rare)) && (await this.stems(lower)).length) continue;
       const ids: Array<{ id: number; primary: boolean }> = [];
       for (const source of sources) {
         const id =
@@ -515,8 +631,10 @@ export class WikiPack {
       }
       if (!ids.length) continue;
       const own = await this.stems(cand);
-      // A name none of whose words are in the index (an alias like "ERC20") matched a title exactly: it's the subject.
-      const share = own.length ? own.reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total : 1;
+      const words = new Set((lower.match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length > 1 && !STOPWORDS.has(w)));
+      // A name with a word the index doesn't know ("ERC20", "sangramento nasal") can only have matched an exact
+      // title or alias: it's the subject, whatever else the question says.
+      const share = own.length < words.size ? 1 : own.reduce((n, s) => n + (weight.get(s.stem) ?? 0), 0) / total;
       // So is an exact title or alias of a primary source in a topic pack ("ERC-20", "BIP 32"), however common its words are there.
       for (const { id, primary } of ids) found.push({ id, share: primary ? 1 : share });
       used.push(lower);
@@ -548,7 +666,9 @@ export class WikiPack {
       const id = await this.resolveTitle(t);
       if (id !== null && !ids.includes(id)) ids.push(id);
     }
-    let hits = await this.titleHits(ids, stems);
+    const action = ACTION_INTENT.test(query);
+    let lay = 0;
+    let hits = await this.titleHits(ids, stems, 5, action);
     const limit = Math.max(k, ids.length * 2);
     if (hits.length < limit) {
       const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
@@ -572,9 +692,40 @@ export class WikiPack {
         const h = await this.materialize(c);
         const relevant =
           coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5 || (sem?.get(c.articleId) ?? 0) >= SEMANTIC_KEEP;
-        if (relevant) {
+        // A what-to-do question: at most three passages per article, so a lay manual's steps (Wikibooks First Aid)
+        // get a place next to the clinical article's sections.
+        const perArticle = hits.filter((x) => x.articleId === c.articleId).length;
+        if (action && perArticle >= 3) continue;
+        if (relevant && !hits.some((x) => nearDuplicate(x.text, h.text))) {
+          // What-to-do question, passage from another section: the same article's action section instead, if it has one.
+          // Up to three of them: a section's first chunk is often context ("Earthquakes are unpredictable…") and the
+          // steps ("Drop, Cover and Hold") sit in the next one or in a subsection.
+          if (action) {
+            const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId));
+            if (acts.length && (!h.action || !acts.some((p) => p.chunkId === h.chunkId))) {
+              for (const act of acts.slice(0, 3 - perArticle)) {
+                hits.push({ ...act, via: "bm25", score: h.score });
+                seen.add(act.chunkId);
+              }
+              continue;
+            }
+          }
           hits.push(h);
           seen.add(c.chunkId);
+        }
+      }
+      // A what-to-do question answered only by clinical articles: add up to two lay sources from further down the
+      // keyword list (a first-aid manual, a government page, a travel guide's "Stay safe"), past the usual limit.
+      if (action && !hits.some((x) => LAY_SOURCES.has(x.source))) {
+        for (const c of keyword) {
+          if (lay >= 2) break;
+          if (seen.has(c.chunkId)) continue;
+          const h = await this.materialize(c);
+          if (!LAY_SOURCES.has(h.source) || coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) < 0.5) continue;
+          if (hits.some((x) => nearDuplicate(x.text, h.text))) continue;
+          hits.push(h);
+          seen.add(c.chunkId);
+          lay++;
         }
       }
     }
@@ -586,12 +737,12 @@ export class WikiPack {
         hits = [...hits, ...more.filter((h) => !seen.has(h.chunkId))];
       }
     }
-    return { hits: hits.slice(0, limit), stems };
+    return { hits: hits.slice(0, limit + lay), stems };
   }
 
-  private async titleHits(ids: number[], stems: Stem[], ranks = 5): Promise<PackHit[]> {
+  private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false): Promise<PackHit[]> {
     const perTitle: PackHit[][] = [];
-    for (const id of ids) perTitle.push(await this.articlePassages(id, stems));
+    for (const id of ids) perTitle.push(await this.articlePassages(id, stems, 2, action));
     const hits: PackHit[] = [];
     const seen = new Set<number>();
     const add = (h: PackHit) => {

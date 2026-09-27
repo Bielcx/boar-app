@@ -8,6 +8,7 @@
 //   node scripts/build-knowledge-pack.mjs --titles my.txt     # your own list, one title per line
 //
 // Every step is cached under build/knowledge-pack/<id>/, so an interrupted run resumes.
+import { normalizeUrl } from "./lib/wiki-pack-lib.mjs";
 import { existsSync, mkdirSync, readFileSync, appendFileSync, writeFileSync, rmSync, statSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join, resolve } from "node:path";
@@ -148,7 +149,7 @@ async function main() {
   const chunks = [];
   for (const p of pages) {
     for (const body of chunkIntro(cleanIntro(p.extract), opts.chunkChars, opts.maxChunks)) {
-      chunks.push({ title: p.title, body, source: `Wikipedia — ${p.url}` });
+      chunks.push({ title: p.title, body, source: `Wikipedia — ${normalizeUrl(p.url)}` });
     }
   }
   log(`${chunks.length} chunks`);

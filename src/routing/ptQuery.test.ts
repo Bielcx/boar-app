@@ -1,0 +1,33 @@
+import { describe, it, expect } from "vitest";
+import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
+
+describe("englishSearchTerms", () => {
+  it("Sextant safety-007: the PT nosebleed question gets English search words", () => {
+    expect(englishSearchTerms("Como faço para parar um sangramento no nariz?")).toBe("nosebleed nose bleed stop");
+  });
+
+  it("maps the other first-aid and emergency cases", () => {
+    expect(englishSearchTerms("Fui picado por uma cobra na trilha, o que faço?")).toBe("snakebite snake bite");
+    expect(englishSearchTerms("Meu filho derramou água fervente no braço. O que eu faço?")).toBe("burn scald");
+    expect(englishSearchTerms("Meu filho derramou água fervendo no braço. O que eu faço?")).toBe("burn scald");
+    expect(englishSearchTerms("Meu parceiro de trilha está tremendo, confuso e enrolando a fala no frio. O que devo fazer?")).toBe("hypothermia");
+    expect(englishSearchTerms("Como tratar uma queimadura?")).toBe("burn treat");
+    expect(englishSearchTerms("O que fazer durante um terremoto no hotel?")).toBe("earthquake");
+    expect(englishSearchTerms("Como tornar a água potável depois de uma enchente?")).toBe("safe drinking water flood");
+  });
+
+  it("returns null when it knows no term", () => {
+    expect(englishSearchTerms("Quem pintou a Mona Lisa?")).toBeNull();
+  });
+});
+
+describe("canonicalHealthTerms", () => {
+  it("names the article for Sextant's English safety questions", () => {
+    expect(canonicalHealthTerms("I just got bitten by a snake while hiking, two hours from the nearest road. What do I do right now?")).toBe("snakebite snake bite");
+    expect(canonicalHealthTerms("My child spilled boiling water on their arm. What do I do?")).toBe("burn scald");
+    expect(canonicalHealthTerms("My hiking partner is shivering, confused and slurring words in the cold. What should I do?")).toBe("hypothermia");
+    expect(canonicalHealthTerms("An earthquake starts while I'm inside a hotel room. What should I do?")).toBeNull();
+    expect(canonicalHealthTerms("How do I stop a nosebleed?")).toBe("nosebleed nose bleed");
+    expect(canonicalHealthTerms("What is the capital of Australia?")).toBeNull();
+  });
+});

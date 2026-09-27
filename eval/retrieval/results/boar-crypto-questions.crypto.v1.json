@@ -5,73 +5,77 @@
     "formatVersion": "2",
     "dims": "384",
     "embeddingModelSha256": "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
-    "sources": "{\"enwiki\":{\"dataset\":\"HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)\",\"shards\":[\"none.jsonl\"],\"articles\":3141}}",
-    "license": "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    "sources": "{\"eips\":{\"documents\":1208,\"licenses\":{\"CC0 1.0\":1208}},\"bips\":{\"documents\":180,\"licenses\":{\"BSD-2-Clause OR OPUBL-1.0\":4,\"BSD-2-Clause\":64,\"BSD-3-Clause OR CC0-1.0\":10,\"PD\":42,\"MIT\":3,\"CC0-1.0\":26,\"BSD-3-Clause\":27,\"CC-BY-4.0\":1,\"BSD-2-Clause OR FSFAP\":1,\"CC0-1.0 OR FSFAP\":2}},\"ethspecs\":{\"documents\":156,\"licenses\":{\"CC0 1.0\":129,\"CC BY-SA 4.0\":27}},\"ethereumorg\":{\"documents\":228,\"licenses\":{\"MIT\":228}},\"enwiki\":{\"documents\":1369,\"licenses\":{\"CC BY-SA 4.0\":1369}}}",
+    "license": "CC0 1.0; BSD-2-Clause OR OPUBL-1.0; BSD-2-Clause; BSD-3-Clause OR CC0-1.0; PD; MIT; CC0-1.0; BSD-3-Clause; CC-BY-4.0; BSD-2-Clause OR FSFAP; CC0-1.0 OR FSFAP; CC BY-SA 4.0",
+    "manifestSha256": "006eada262530989527fe05b7d3f2fed43f3c89bf0404393f1060c2092943acf",
     "name": "Ethereum and cryptography",
     "articles": "3141",
     "chunks": "54998",
     "indexedChunks": "53680",
     "dfMin": "2000",
     "params": "{\"fullTop\":1000000,\"leadChars\":2500,\"chunkChars\":1000,\"blockKb\":64,\"zlevel\":12,\"limit\":0,\"embedTop\":0}",
-    "builtAt": "2026-09-26T22:47:15.612Z"
+    "builtAt": "2026-09-27T00:06:00.175Z"
   },
   "questions": "eval/retrieval/questions.crypto.v1.jsonl",
   "n": 20,
-  "measuredAt": "2026-09-26T22:59:35.809Z",
+  "measuredAt": "2026-09-27T04:09:47.669Z",
   "results": {
     "v1-baseline": {
       "all": {
         "n": 20,
         "recall@1": 0.4,
-        "recall@3": 0.65,
-        "recall@6": 0.8,
-        "mrr10": 0.568,
-        "p50ms": 50.7,
-        "p95ms": 81.3
+        "recall@3": 0.55,
+        "recall@6": 0.65,
+        "mrr10": 0.505,
+        "p50ms": 65.6,
+        "p95ms": 105.5
       },
       "dev": {
         "n": 10,
         "recall@1": 0.5,
-        "recall@3": 0.8,
-        "recall@6": 0.8,
-        "mrr10": 0.66,
-        "p50ms": 60.6,
-        "p95ms": 81.3
+        "recall@3": 0.7,
+        "recall@6": 0.7,
+        "mrr10": 0.61,
+        "p50ms": 70.8,
+        "p95ms": 88
       },
       "test": {
         "n": 10,
         "recall@1": 0.3,
-        "recall@3": 0.5,
-        "recall@6": 0.8,
-        "mrr10": 0.475,
-        "p50ms": 50.7,
-        "p95ms": 70.8
+        "recall@3": 0.4,
+        "recall@6": 0.6,
+        "mrr10": 0.4,
+        "p50ms": 65.6,
+        "p95ms": 105.5
       },
       "byCategory": {
         "crypto-descriptive": {
           "n": 10,
-          "recall@1": 0.5,
-          "recall@3": 0.8,
-          "recall@6": 0.9,
-          "mrr10": 0.675,
-          "p50ms": 55.5,
-          "p95ms": 68
+          "recall@1": 0.6,
+          "recall@3": 0.7,
+          "recall@6": 0.7,
+          "mrr10": 0.65,
+          "p50ms": 65.6,
+          "p95ms": 85.2
         },
         "crypto-named": {
           "n": 10,
-          "recall@1": 0.3,
-          "recall@3": 0.5,
-          "recall@6": 0.7,
-          "mrr10": 0.46,
-          "p50ms": 50.6,
-          "p95ms": 81.3
+          "recall@1": 0.2,
+          "recall@3": 0.4,
+          "recall@6": 0.6,
+          "mrr10": 0.36,
+          "p50ms": 70.8,
+          "p95ms": 105.5
         }
       },
       "misses": [
         "crypto-named-002",
         "crypto-named-003",
         "crypto-named-005",
-        "crypto-descriptive-014"
+        "crypto-named-006",
+        "crypto-descriptive-014",
+        "crypto-descriptive-019",
+        "crypto-descriptive-020"
       ]
     },
     "bm25+title-weight+popularity": {
@@ -81,8 +85,8 @@
         "recall@3": 0.65,
         "recall@6": 0.7,
         "mrr10": 0.515,
-        "p50ms": 22.4,
-        "p95ms": 37.9
+        "p50ms": 36,
+        "p95ms": 58.2
       },
       "dev": {
         "n": 10,
@@ -90,8 +94,8 @@
         "recall@3": 0.7,
         "recall@6": 0.7,
         "mrr10": 0.46,
-        "p50ms": 21.4,
-        "p95ms": 35.8
+        "p50ms": 36,
+        "p95ms": 48.2
       },
       "test": {
         "n": 10,
@@ -99,8 +103,8 @@
         "recall@3": 0.6,
         "recall@6": 0.7,
         "mrr10": 0.57,
-        "p50ms": 23,
-        "p95ms": 37.9
+        "p50ms": 37.1,
+        "p95ms": 58.2
       },
       "byCategory": {
         "crypto-descriptive": {
@@ -109,8 +113,8 @@
           "recall@3": 0.6,
           "recall@6": 0.6,
           "mrr10": 0.483,
-          "p50ms": 19,
-          "p95ms": 37.9
+          "p50ms": 39,
+          "p95ms": 58.2
         },
         "crypto-named": {
           "n": 10,
@@ -118,8 +122,8 @@
           "recall@3": 0.7,
           "recall@6": 0.8,
           "mrr10": 0.547,
-          "p50ms": 23,
-          "p95ms": 33.5
+          "p50ms": 35.7,
+          "p95ms": 43.5
         }
       },
       "misses": [
@@ -138,8 +142,8 @@
         "recall@3": 0.8,
         "recall@6": 0.9,
         "mrr10": 0.728,
-        "p50ms": 11.8,
-        "p95ms": 62.4
+        "p50ms": 20,
+        "p95ms": 52.9
       },
       "dev": {
         "n": 10,
@@ -147,8 +151,8 @@
         "recall@3": 0.9,
         "recall@6": 0.9,
         "mrr10": 0.767,
-        "p50ms": 14.3,
-        "p95ms": 38.4
+        "p50ms": 20,
+        "p95ms": 48.9
       },
       "test": {
         "n": 10,
@@ -156,8 +160,8 @@
         "recall@3": 0.7,
         "recall@6": 0.9,
         "mrr10": 0.69,
-        "p50ms": 11.8,
-        "p95ms": 62.4
+        "p50ms": 20,
+        "p95ms": 52.9
       },
       "byCategory": {
         "crypto-descriptive": {
@@ -166,8 +170,8 @@
           "recall@3": 0.6,
           "recall@6": 0.8,
           "mrr10": 0.59,
-          "p50ms": 19.4,
-          "p95ms": 62.4
+          "p50ms": 22.4,
+          "p95ms": 48.9
         },
         "crypto-named": {
           "n": 10,
@@ -175,8 +179,8 @@
           "recall@3": 1,
           "recall@6": 1,
           "mrr10": 0.867,
-          "p50ms": 10.9,
-          "p95ms": 18.4
+          "p50ms": 16.2,
+          "p95ms": 52.9
         }
       },
       "misses": [
@@ -191,8 +195,8 @@
         "recall@3": 0.8,
         "recall@6": 0.85,
         "mrr10": 0.711,
-        "p50ms": 12.3,
-        "p95ms": 26.8
+        "p50ms": 15.4,
+        "p95ms": 32.6
       },
       "dev": {
         "n": 10,
@@ -200,8 +204,8 @@
         "recall@3": 0.9,
         "recall@6": 0.9,
         "mrr10": 0.733,
-        "p50ms": 13.9,
-        "p95ms": 26.8
+        "p50ms": 18.1,
+        "p95ms": 28.6
       },
       "test": {
         "n": 10,
@@ -209,8 +213,8 @@
         "recall@3": 0.7,
         "recall@6": 0.8,
         "mrr10": 0.689,
-        "p50ms": 12.3,
-        "p95ms": 24.2
+        "p50ms": 15.3,
+        "p95ms": 32.6
       },
       "byCategory": {
         "crypto-descriptive": {
@@ -219,8 +223,8 @@
           "recall@3": 0.6,
           "recall@6": 0.7,
           "mrr10": 0.539,
-          "p50ms": 17.9,
-          "p95ms": 26.8
+          "p50ms": 21.2,
+          "p95ms": 28.6
         },
         "crypto-named": {
           "n": 10,
@@ -228,8 +232,8 @@
           "recall@3": 1,
           "recall@6": 1,
           "mrr10": 0.883,
-          "p50ms": 11.7,
-          "p95ms": 19
+          "p50ms": 14.5,
+          "p95ms": 32.6
         }
       },
       "misses": [
@@ -245,8 +249,8 @@
         "recall@3": 0.85,
         "recall@6": 0.9,
         "mrr10": 0.75,
-        "p50ms": 11.2,
-        "p95ms": 24.6
+        "p50ms": 15.8,
+        "p95ms": 31.2
       },
       "dev": {
         "n": 10,
@@ -254,8 +258,8 @@
         "recall@3": 0.9,
         "recall@6": 0.9,
         "mrr10": 0.8,
-        "p50ms": 11.4,
-        "p95ms": 24.6
+        "p50ms": 15.8,
+        "p95ms": 24.9
       },
       "test": {
         "n": 10,
@@ -263,8 +267,8 @@
         "recall@3": 0.8,
         "recall@6": 0.9,
         "mrr10": 0.7,
-        "p50ms": 11.2,
-        "p95ms": 20
+        "p50ms": 16.8,
+        "p95ms": 31.2
       },
       "byCategory": {
         "crypto-descriptive": {
@@ -273,8 +277,8 @@
           "recall@3": 0.7,
           "recall@6": 0.8,
           "mrr10": 0.55,
-          "p50ms": 12.6,
-          "p95ms": 24.6
+          "p50ms": 16.9,
+          "p95ms": 24.9
         },
         "crypto-named": {
           "n": 10,
@@ -282,8 +286,8 @@
           "recall@3": 1,
           "recall@6": 1,
           "mrr10": 0.95,
-          "p50ms": 9,
-          "p95ms": 18.2
+          "p50ms": 12.8,
+          "p95ms": 31.2
         }
       },
       "misses": [

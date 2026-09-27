@@ -348,6 +348,22 @@ an earthquake?" → Ready.gov *Earthquakes § During an Earthquake*; "How can I
 start a fire without matches?" → FM 21-76 ch. 7 *Firecraft*; "How to treat a
 snake bite?" → Wikibooks *First Aid/Wilderness First Aid § Snakes*.
 
+**v2** (2026-09-26, the published one): the first build had no Wikipedia
+*Burn* or *Earthquake* article (the category crawl doesn't reach them), which
+matched the wrong burn and earthquake answers in Sextant's safety check. v2
+adds 51 core first-aid and disaster articles by name (`WP_CORE` in
+`fetch-preparedness.mjs`; 33 were missing), cleans image captions that spanned
+several lines, keeps every English Wikipedia redirect to its articles, and adds
+**Portuguese aliases** from Wikipedia's interlanguage links
+(`scripts/add-langlink-aliases.mjs --lang pt`: 729 names for 266 articles, e.g.
+Queimadura → *Burn*, Terremoto/Sismo → *Earthquake*, Picada de cobra →
+*Snakebite*, Sangramento nasal → *Nosebleed*, Engasgo → *Choking*). 1,754
+documents; pack **16,490,496 bytes**, SHA-256
+`d68cec86e56e1d4c205152c0e37e0978a3d5e396a5f0fb063b918d45e04708fd`, dataset
+commit `9b1ea56` (v1 stays at `6a65cc2`). Portuguese questions now put the
+right article first: "O que fazer em caso de queimadura?" → *Burn*, "O que fazer
+num terremoto?" → *Earthquake*, "Como parar um sangramento nasal?" → *Nosebleed*.
+
 Attribution: CC BY-SA 4.0 requires crediting each page; the app shows every
 passage's source title, URL and license, and the pack's `meta.license` lists
 all licenses. Public-domain text needs no license, but the source is still
@@ -433,3 +449,63 @@ top 6; "a tree of hashes checked by light clients" → *Merkle tree* misses), an
 Vitalik's question "Which signature algorithms are quantum resistant?" puts
 *Quantum cryptography* (key distribution, not signatures) first and
 *Post-quantum cryptography* third.
+
+### Search latency with the full English Wikipedia (15 packs)
+
+Measured 2026-09-26 on the Mac mini (M4, 16 GB) with `eval/retrieval/latency.mts`, bundled with esbuild and run on
+4 of the 15 shards (00, 04, 09, 14, downloaded from their pinned URLs and hash-checked), over the 180 eval questions
+(v1 + crypto). The app searches installed packs one after the other (`searchWikiPacks`), so the tool times the whole
+question over N = 1..4 packs, no query vector (the default path), cold (first pass) and warm (second pass).
+Raw numbers: `eval/retrieval/results/latency-en-4of15.json`.
+
+| Packs | p50 warm | p95 warm | p50 cold | p95 cold |
+|---|---|---|---|---|
+| 1 | 43 ms | 94 ms | 50 ms | 106 ms |
+| 2 | 90 ms | 206 ms | 98 ms | 210 ms |
+| 3 | 133 ms | 285 ms | 137 ms | 315 ms |
+| 4 | 175 ms | 366 ms | 174 ms | 367 ms |
+| **15 (linear fit)** | **~660 ms** | **~1.36 s** | ~630 ms | ~1.36 s |
+
+Time grows linearly, ~44 ms per pack at the median and ~90 ms at p95, so a phone with all 15 shards spends well over
+half a second searching on this machine's speed alone; a phone is slower. UNKNOWN: on-device numbers (not measured).
+Options to measure next: search packs concurrently (expo-sqlite opens each pack as its own database), or stop early
+once a named article is found.
+
+## Portuguese questions against English sources (PT-1)
+
+The keyword index and the embedder (bge-small, English) barely match Portuguese words, so a Portuguese question used
+to retrieve noise ("Por que existem as estações do ano?" → a Portuguese Appropedia page). `retrieve()` now detects a
+Portuguese question (`looksPortuguese`: two Portuguese function words, or one plus an accented lower-case word; 0 false
+positives on 348 English eval questions, 90 of 91 Portuguese detected) and runs a second search with the English
+article names it mentions, those results first, and an article whose title is one of the names ahead of the rest.
+
+The names come from `assets/lexicon/pt-en.json` (126,122 Portuguese names, 4.6 MB), built by
+`scripts/build-pt-lexicon.mjs` from Wikipedia itself: for each English title of the bundled corpora, wiki-vital5 and
+the topic packs (57,159), the title of the same article on pt.wikipedia and its Portuguese redirects. An exact title
+beats one with a "(…)" qualifier, which beats a redirect; a one-word name only comes from an exact title (a single
+word spelled like an English title, "Fahrenheit", also counts). No model, no network on the phone.
+
+Measured on Sextant's Portuguese questions with the English questions' gold titles (`eval/retrieval/pt.test.ts`,
+42 questions, packs: crypto, preparedness v2, English Wikivoyage, Wikipedia sample; `results/pt-vs-en-sextant-v2.json`):
+
+| Mode | recall@1 | recall@3 | recall@6 |
+|---|---|---|---|
+| English question | 0.095 | 0.214 | 0.429 |
+| Portuguese question as typed | 0.024 | 0.048 | 0.071 |
+| **Portuguese + English names (what `retrieve()` does)** | **0.548** | **0.619** | **0.643** |
+
+The English row is lower because an English question only gets the title boost when it names the article exactly;
+the Portuguese route always searches by name. On wiki-vital5 (format 1, keyword only) the suggestion questions put the
+right article first: estações do ano → *Season*, vacinas → *Immune system*/*Vaccine*, vírus, queimadura → *Burn*,
+efeito estufa, monções, pandemia/epidemia, fissão nuclear, Rota da Seda, Grande Barreira de Corais, sangramento nasal
+→ *Nosebleed*, Fahrenheit. Misses: "picada de abelha" (wiki-vital5 has no *Bee sting*).
+
+**Safety rules (gate ee1f2b7):** generic Portuguese words pulled off-topic sources into first-aid answers
+("cobra" → *Cobra*, "estrada" → *Road*, "filho" → *Son*). Now: longest name first (as before); a one-word name
+must be a long word (7+ letters) or a proper noun capitalized mid-question, and a one-word name for a qualified
+title ("complemento" → *Complement (set theory)*) needs the capital; one-word Portuguese redirects of 8+ letters
+count ("terremoto" → *Earthquake*, "sangramento" → *Bleeding*, "enchente" → *Flood*; lexicon v3, 126,122 names);
+disambiguation lists ("may refer to") are never a source on this path; and in a what-to-do question only passages
+from a section that says what to do go ahead of the rest. Sections whose heading is neutral but whose text is
+mostly instructions (lay manuals: Wikibooks *First Aid/Cold-Related Illness & Injury § Hypothermia*) count as
+what-to-do sections. Gate config: recall@1 0.548, @3 0.595, @6 0.643.

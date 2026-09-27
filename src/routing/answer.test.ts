@@ -5,7 +5,8 @@ import { AnswerDeps, createAnswerer, InstalledLlm } from "./answer";
 import type { AnswerEvent } from "./events";
 import type { AnswerSettings } from "../models/settings";
 import type { GenerateOptions } from "../inference/LlamaEngine";
-import { approxTokens } from "./context";
+import { approxTokens, HEALTH_GROUNDING_INSTRUCTION, NO_SOURCE_INSTRUCTION } from "./context";
+import { ModelLoadError } from "../inference/loadError";
 
 const chunk = (chunkId: string, title: string, body: string): RetrievedChunk => ({
   chunkId,
@@ -177,6 +178,441 @@ describe("answer(): instant tier", () => {
   it("every event carries the same answerId", async () => {
     const { events, result } = await collect("Why was Canberra chosen as the capital?");
     expect(new Set(events.map((e) => e.answerId))).toEqual(new Set([result.answerId]));
+  });
+});
+
+describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
+  const DEAN_LEE = chunk(
+    "dl",
+    "Dean Lee",
+    "Dean Lee (born 1971) is an American nuclear theorist. He also works on new technologies and computational paradigms such as eigenvector continuation, machine learning tools to find correlations, and quantum computing algorithms for the nuclear many-body problem."
+  );
+  const PUBLIC_KEY = chunk(
+    "pk",
+    "Public-key cryptography",
+    "Public-key cryptography is the field of cryptographic systems that use pairs of related keys. There are many kinds of public-key cryptosystems, including digital signature, Diffie-Hellman key exchange and public-key encryption."
+  );
+  const NOSEBLEED = chunk(
+    "nb",
+    "Nosebleed",
+    "A nosebleed is bleeding from the nose. Pinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back."
+  );
+
+  it("Q-1 without the crypto pack: off-topic sources are dropped; the model answers as 'not from the offline library'", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [DEAN_LEE, PUBLIC_KEY];
+    const { events, result } = await collect("Which signature algorithms are quantum resistant?");
+    expect(events.some((e) => e.type === "instant")).toBe(false);
+    expect(events.some((e) => e.type === "sources")).toBe(false);
+    expect(events.filter((e) => e.type === "warning")).toEqual([expect.objectContaining({ code: "weak_sources" })]);
+    expect(f.generations).toHaveLength(1);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
+    expect(f.generations[0].messages!.map((m) => m.content).join("\n")).not.toContain("Dean Lee");
+    expect(result.sources).toEqual([]);
+    expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["grounding:off-topic-dropped-2", "grounding:no-good-source", "grounding:no-source-memory"]));
+  });
+
+  it("drops an off-topic source when an on-topic one exists", async () => {
+    f.retrieved = [DEAN_LEE, CANBERRA];
+    const { events } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources.map((c) => c.title)).toEqual(["Canberra"]);
+  });
+
+  it("E-1 nosebleed: the answer is the source's own text, cited, with no model", async () => {
+    f.retrieved = [NOSEBLEED];
+    const { result } = await collect("How do I stop a nosebleed?");
+    expect(f.generations).toHaveLength(0);
+    expect(result.tier).toBe("instant");
+    expect(result.receipt.modelId).toBe("extractive");
+    expect(result.text).toBe(
+      // Steps first: the definition sentence is skipped.
+      "From the offline source:\nPinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back. [1]"
+    );
+    expect(result.receipt.reasonCodes).toContain("grounding:health-extractive");
+  });
+
+  it("E-1: quotes the source that says what to do, not the definition", async () => {
+    const lead = chunk("n1", "Nosebleed", "A nosebleed, also known as epistaxis, is bleeding from the nasal cavity. Most cases are minor.");
+    const treatment = chunk(
+      "n2",
+      "Nosebleed",
+      "Treatment: Most anterior nosebleeds can be stopped by applying direct pressure. Pinch the soft part of the nose and lean forward for 10 to 15 minutes."
+    );
+    f.retrieved = [lead, treatment];
+    const { result } = await collect("How do I stop a nosebleed?");
+    expect(result.text).toMatch(/^From the offline source:\nTreatment: Most anterior nosebleeds .* lean forward for 10 to 15 minutes\. \[\d\]$/);
+  });
+
+  it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
+    const queries: string[] = [];
+    f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
+    const { result } = await collect("Como faço para parar um sangramento no nariz?");
+    expect(queries).toEqual(["nosebleed nose bleed stop what to do"]);
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nPinch the soft part/);
+    expect(f.generations).toHaveLength(0);
+  });
+
+  it("gate 5e70bbd: a what-to-do question keeps its intent in the search, so the pack lifts Treatment", async () => {
+    const queries: string[] = [];
+    f.deps.retrieve = async (q) => (queries.push(q), []);
+    await collect("I just got bitten by a snake while hiking, two hours from the nearest road. What do I do right now?");
+    await collect("Tell me about snakebite statistics in India");
+    expect(queries).toEqual(["snakebite snake bite what to do", "Tell me about snakebite statistics in India"]);
+  });
+
+  it("uses the pack's action flag (Bramble b4becc5): an action section wins, a background one is never quoted over it", async () => {
+    const quality = { ...chunk("wq", "Wikivoyage: Water", "Quality by country or region: Pinch tap water is safe to drink in most of the EU, keep an eye on it."), action: false };
+    const contamination = { ...chunk("wc", "Wikivoyage: Water", "Water contamination: boil water for one minute at a rolling boil before you drink it."), action: true };
+    const stayHealthy = { ...chunk("sh", "Wikivoyage: Stay healthy", "During your trip > Precautions against disease > Water contamination: After a flood, boil water for one minute at a rolling boil before you drink it."), action: true };
+    f.retrieved = [stayHealthy, quality] as any;
+    const first = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
+    // Topic named by the section heading, not the article title (gate 5e70bbd, safety-005).
+    expect(first.result.text).toMatch(/Water contamination: After a flood, boil water .* \[\d\]$/);
+    f = makeFake();
+    f.retrieved = [quality, contamination] as any;
+    const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
+    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[\d\]$/);
+  });
+
+  it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
+    f.installed = [qwen15, moe];
+    f.retrieved = [NOSEBLEED];
+    const { result } = await collect("How do I stop a nosebleed?", "deep");
+    expect(result.receipt.reasonCodes).toContain("grounding:health-no-multipass");
+    expect(f.multipassCalls).toBe(0);
+    expect(f.generations).toHaveLength(1);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(HEALTH_GROUNDING_INSTRUCTION);
+  });
+
+  it("'Deeper answer' on health: temperature 0, nothing streamed, and a dangerous model line falls back to the source", async () => {
+    f.installed = [qwen15, moe];
+    f.retrieved = [NOSEBLEED];
+    const seen: any[] = [];
+    f.deps.engine.generate = async (o) => {
+      seen.push(o);
+      o.onToken?.("streamed");
+      return "Pinch the soft part of your nose and blow your nose gently [1].";
+    };
+    const { events, result } = await collect("How do I stop a nosebleed?", "deep");
+    expect(seen[0].temperature).toBe(0);
+    expect(events.filter((e) => e.type === "token").map((e: any) => e.text)).toEqual([result.text]);
+    expect(result.text).toMatch(/^From the offline source:\nPinch the soft part of the nose/);
+    expect(result.receipt.reasonCodes).toContain("grounding:health-unsafe-blow-nose");
+  });
+
+  it("gate 715ffdd: a health excerpt never comes from a source whose title isn't the topic", async () => {
+    const cases: [string, RetrievedChunk][] = [
+      ["I just got bitten by a snake while hiking. What do I do right now?", chunk("r", "Renealmia cernua", "Renealmia cernua is a plant. Its leaves are used against snakebite in folk medicine.")],
+      ["My hiking partner is shivering, confused and slurring words in the cold. What should I do?", chunk("s", "Schroeder Pants Cave", "Schroeder Pants Cave is a cave. Cavers risk hypothermia when shivering in the cold water.")],
+      ["An earthquake starts while I'm inside a hotel room. What should I do?", chunk("h", "Hotel Impossible", "Hotel Impossible is a TV show. One episode covered a hotel after an earthquake.")],
+      ["After a flood the tap water might be contaminated. How do I make water safe to drink?", chunk("a", "After-rust", "After-rust is a plant disease. Contaminated water after a flood spreads it; it is not safe to drink.")],
+      ["My child spilled boiling water on their arm. What do I do?", chunk("b", "Ethereum EIPs/ERCs: EIP-7775: BURN opcode", "Abstract: This EIP adds a BURN opcode that burns ether.")],
+    ];
+    for (const [q, off] of cases) {
+      f = makeFake();
+      f.retrieved = [off];
+      const { result } = await collect(q);
+      expect(result.text, q).toMatch(/don't have a reliable offline source/);
+      expect(result.sources, q).toEqual([]);
+      expect(f.generations).toHaveLength(0);
+    }
+  });
+
+  it("…and still quotes the on-topic ones", async () => {
+    for (const [q, on] of [
+      ["I just got bitten by a snake while hiking. What do I do right now?", chunk("sb", "Snakebite", "Treatment > First aid: Keep the person calm and still, remove rings and watches, and get to a hospital for antivenom.")],
+      ["After a flood the tap water might be contaminated. How do I make water safe to drink?", chunk("w", "Wikivoyage: Stay healthy", "During your trip > Water contamination: After a flood, boil water for one minute at a rolling boil before you drink it.")],
+      ["An earthquake starts while I'm inside a hotel room. What should I do?", chunk("e", "Earthquakes (Ready.gov)", "During an Earthquake: Drop, cover, and hold on. Stay inside until the shaking stops.")],
+    ] as const) {
+      f = makeFake();
+      f.retrieved = [on];
+      const { result } = await collect(q);
+      expect(result.text, q).toMatch(/^From the offline source:/);
+      expect(result.sources.map((c) => c.title), q).toEqual([on.title]);
+    }
+  });
+
+  it("Iris E-1: 'What should I do during an earthquake?' with only a heading + image caption: says the source has no steps, points to emergency services, no model, safety line", async () => {
+    f.retrieved = [chunk("eq", "Earthquakes (Ready.gov)", "During an Earthquake > Protect Yourself During Earthquakes: Image")];
+    const { events, result } = await collect("What should I do during an earthquake?");
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/^The offline source doesn't give first-aid steps for this\. In an emergency, call your local emergency number\./);
+    expect(events.find((e) => e.type === "done")).toMatchObject({ safety: true });
+  });
+
+  it("disaster with no on-topic source: emergency line, no model; history of a disaster is an ordinary question", async () => {
+    f.retrieved = [];
+    const { events, result } = await collect("What should I do during an earthquake?");
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/emergency number/);
+    expect(events.find((e) => e.type === "done")).toMatchObject({ safety: true });
+    f = makeFake();
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    const hist = await collect("What caused the 1906 San Francisco earthquake?");
+    // Science or history of a disaster: no emergency line, an ordinary model answer (Sextant q6, Quill 31c1ee8).
+    expect((hist.events.find((e) => e.type === "done") as any).safety).toBeUndefined();
+    expect(f.generations).toHaveLength(1);
+  });
+
+  it("Iris 54202b7: the source list shown for a health question is the filtered one, empty with no on-topic source", async () => {
+    f.retrieved = [
+      chunk("x1", "Ancraophobia", "Ancraophobia is the fear of wind. Sufferers may bleed from the nose in panic, some reports say."),
+      chunk("x2", "Tickling", "Tickling is the act of touching a part of the body so as to cause involuntary laughter."),
+      chunk("x3", "Eminectomy", "Eminectomy is a surgical procedure. Nosebleed is a rare complication."),
+      chunk("x4", "Guitar", "A guitar is a fretted musical instrument."),
+      chunk("x5", "Stop sign", "A stop sign is a traffic sign."),
+      chunk("x6", "Nose flute", "The nose flute is played with the nose."),
+    ];
+    const { events, result } = await collect("How do I stop a nosebleed?");
+    expect(events.some((e) => e.type === "sources")).toBe(false);
+    expect(events.some((e) => e.type === "instant")).toBe(false);
+    expect(result.sources).toEqual([]);
+    expect(result.text).toMatch(/don't have a reliable offline source/);
+    expect(f.generations).toHaveLength(0);
+
+    f = makeFake();
+    f.retrieved = [chunk("x1", "Ancraophobia", "Ancraophobia is the fear of wind."), NOSEBLEED];
+    const onTopic = await collect("How do I stop a nosebleed?");
+    const shown = (onTopic.events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(shown.map((c) => c.title)).toEqual(["Nosebleed"]);
+    expect(onTopic.result.sources.map((c) => c.title)).toEqual(["Nosebleed"]);
+  });
+
+  it("gate ee1f2b7 BLOCKER: a scald described in PT ('fervendo') is health: source text only, never a free model answer", async () => {
+    const queries: string[] = [];
+    f.deps.retrieve = async (q) => (queries.push(q), [chunk("b", "Burn", "Management: Cool the burn under cool running water for 20 minutes. Do not use ice, butter or creams.")]);
+    const { result } = await collect("Meu filho derramou água fervendo no braço. O que eu faço?");
+    expect(queries).toEqual(["burn scald what to do"]);
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nManagement: Cool the burn/);
+  });
+
+  it("gate ee1f2b7: PT health answers never cite a title that only shares a generic word", async () => {
+    for (const [q, off] of [
+      ["Fui picado por uma cobra na trilha. O que eu faço?", chunk("t", "Tree snake", "Tree snakes live in trees and rarely bite people.")],
+      ["O que fazer durante um terremoto?", chunk("j", "Just Stop Oil", "Just Stop Oil is a climate campaign group.")],
+      ["Depois de uma enchente, como deixo a água segura para beber?", chunk("c", "California Department of Water Resources", "The department manages water supply in California.")],
+      ["My child spilled boiling water on their arm. What do I do?", { ...chunk("o", "Oral rehydration therapy", "Treatment algorithm: give oral rehydration solution in small sips."), action: true }],
+      ["My child spilled boiling water on their arm. What do I do?", { ...chunk("h", "Appropedia: Hog Butchering and Smoking", "SCALDING: A hog must be bled and scalded in hot water before scraping."), action: false }],
+    ] as const) {
+      f = makeFake();
+      f.retrieved = [off as any];
+      const { events, result } = await collect(q);
+      expect(events.some((e) => e.type === "sources"), q).toBe(false);
+      expect(result.sources, q).toEqual([]);
+      expect(f.generations, q).toHaveLength(0);
+    }
+  });
+
+  it("Bramble 0d82f09: a lay first-aid source that names the condition in its text is quoted over the clinical one", async () => {
+    f.retrieved = [
+      { ...chunk("c", "Snakebite", "Treatment > First aid: Some have little local effect, but life-threatening systemic effects, in which case pressure immobilization is desirable."), action: true },
+      { ...chunk("l", "US government: US Army Survival Manual FM 21-76: CHAPTER 4 - BASIC SURVIVAL MEDICINE", "Before you start treating a snakebite, keep the victim still, remove rings and watches, and get medical help."), action: false },
+    ] as any;
+    const { result } = await collect("I just got bitten by a snake while hiking. What do I do right now?");
+    expect(result.text).toMatch(/Before you start treating a snakebite, keep the victim still/);
+  });
+
+  it("gate 2329dc0: a disaster answer never cites an article about one event (Marash, Kamchatka)", async () => {
+    for (const q of ["An earthquake starts while I'm inside a hotel room. What should I do?", "O que fazer durante um terremoto?"]) {
+      f = makeFake();
+      f.retrieved = [
+        chunk("m", "The 1513 Marash earthquake", "The 1513 Marash earthquake struck southern Anatolia. During the earthquake many buildings collapsed."),
+        chunk("k", "1952 Kamchatka earthquake", "The 1952 Kamchatka earthquake caused a tsunami. After the earthquake, people moved to high ground."),
+      ];
+      const { events, result } = await collect(q);
+      expect(events.some((e) => e.type === "sources"), q).toBe(false);
+      expect(result.text, q).toMatch(/emergency|emergência/);
+      expect(f.generations, q).toHaveLength(0);
+    }
+  });
+
+  it("…while a generic safety article or a pack action section still counts", async () => {
+    for (const on of [
+      chunk("g", "Wikivoyage: Earthquake safety", "During an earthquake: Drop, cover, and hold on until the shaking stops."),
+      chunk("r", "US government: Earthquakes (Ready.gov)", "During an Earthquake: Drop, cover, and hold on."),
+      { ...chunk("a", "Emergency shelter", "During an earthquake: drop, cover and hold on under a sturdy table."), action: true },
+    ]) {
+      f = makeFake();
+      f.retrieved = [on as any];
+      const { result } = await collect("What should I do during an earthquake?");
+      expect(result.sources.map((c) => c.title), on.title).toEqual([on.title]);
+      expect(result.text).toMatch(/Drop, cover,? and hold on/i);
+    }
+  });
+
+  it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
+    for (const [q, retrieved] of [
+      ["What should I do after a snake bite?", []],
+      ["How do I treat a burn?", [MOLD]],
+      ["O que fazer em caso de picada de cobra?", []],
+    ] as const) {
+      f = makeFake();
+      f.retrieved = [...retrieved];
+      const { result } = await collect(q);
+      expect(f.generations).toHaveLength(0);
+      expect(result.text).toMatch(/emergency|emergência/);
+      expect(result.receipt.reasonCodes).toContain("grounding:health-no-source");
+    }
+  });
+
+  it("leaves Portuguese questions alone (English sources can't be matched word for word)", async () => {
+    f.retrieved = [CANBERRA];
+    const { result } = await collect("Por que Canberra virou a capital da Austrália?");
+    expect(f.generations).toHaveLength(1);
+    expect(result.receipt.reasonCodes.some((c) => c.startsWith("grounding:"))).toBe(false);
+  });
+});
+
+describe("answer(): CR-1 low-RAM phone (3.8 GB)", () => {
+  const qwen4: InstalledLlm = { id: "qwen4", label: "Qwen3 4B", filename: "models/q4.gguf", sizeBytes: 2.5 * GB, roles: ["fast"], answerTier: "default", isDefault: true };
+  const compact: InstalledLlm = { ...qwen15, answerTier: "compact", isDefault: false };
+  beforeEach(() => {
+    f.deps.deviceRamBytes = () => 3.8 * GB;
+  });
+
+  it("a saved 4B that the user never confirmed is not loaded; the compact one answers", async () => {
+    f.installed = [qwen4, compact];
+    f.activeId = "qwen4";
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([compact.filename]);
+    expect(result.receipt.reasonCodes).toContain("model:low-ram-unconfirmed-qwen4");
+  });
+
+  it("the user's confirmation lets it run", async () => {
+    f.installed = [qwen4, compact];
+    f.activeId = "qwen4";
+    f.settings = { ...f.settings, largeModelConfirmedIds: ["qwen4"] };
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([qwen4.filename]);
+  });
+
+  it("no automatic deep model or verifier above the compact size", async () => {
+    f.installed = [compact, { ...moe, sizeBytes: 11 * GB }, qwen7];
+    f.activeId = compact.id;
+    await collect("Why was Canberra chosen as the capital of Australia?", "deep");
+    expect(f.loads.every((l) => l === compact.filename)).toBe(true);
+  });
+
+  it("effectiveModel tells the header what will answer, and what it replaces", async () => {
+    f.installed = [qwen4, compact];
+    f.activeId = "qwen4";
+    const { effectiveModel } = createAnswerer(f.deps);
+    expect(await effectiveModel()).toEqual({ id: compact.id, label: compact.label, downgradedFrom: { id: "qwen4", label: "Qwen3 4B", reason: "low-ram" } });
+    f.settings = { ...f.settings, largeModelConfirmedIds: ["qwen4"] };
+    expect(await effectiveModel()).toEqual({ id: "qwen4", label: "Qwen3 4B" });
+    f.settings = { ...f.settings, largeModelConfirmedIds: [], loadCrashedIds: ["qwen4"] };
+    expect((await effectiveModel())?.downgradedFrom?.reason).toBe("load-crashed");
+  });
+
+  it("only big models installed: a clear error instead of an OOM kill", async () => {
+    f.installed = [qwen4];
+    f.activeId = null;
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([]);
+    expect(result.outcome).toBe("error");
+    expect(result.receipt).toBeDefined();
+    expect((await collect("Why was Canberra chosen?")).events.at(-1)).toMatchObject({ type: "done", error: { code: "no_model", message: expect.stringMatching(/too large for this phone's memory/) } });
+  });
+});
+
+describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
+  const WALIPINI = chunk(
+    "wp",
+    "Walipini",
+    "A Walipini is an earth-sheltered cold frame. A greenhouse can be built by digging a hole in the ground. This takes advantage of the heat stored in the earth during the cold season."
+  );
+  const HOT_WEATHER = chunk(
+    "hw",
+    "Wikivoyage: Hot weather",
+    "Understand: The Earth's axis is tilted by 23 degrees in relation to the ecliptic, and this causes the seasons of winter, spring, summer, and autumn. When your part of Earth is tilted toward the Sun, you get summer."
+  );
+
+  it("no 'From the source' from Walipini for the seasons question; the on-topic page stays", async () => {
+    f.retrieved = [WALIPINI, HOT_WEATHER];
+    const { events } = await collect("Why do we have seasons on Earth?");
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources.map((c) => c.title)).toEqual(["Wikivoyage: Hot weather"]);
+    const instant = events.find((e) => e.type === "instant") as any;
+    if (instant) expect(sources[instant.snippet.sourceIndex].title).toBe("Wikivoyage: Hot weather");
+  });
+
+  it("only the incidental page: no snippet, and the model is told it's not from the library", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [WALIPINI];
+    const { events } = await collect("Why do we have seasons on Earth?");
+    expect(events.some((e) => e.type === "instant")).toBe(false);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
+  });
+
+  it("compact model, no on-topic source: declines (no model call), and answers when asked anyway", async () => {
+    f.retrieved = [WALIPINI];
+    const { events, result } = await collect("Why do we have seasons on Earth?");
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "I didn't find this in this phone's library." });
+    expect(events.at(-1)).toMatchObject({ type: "done", outcome: "success" });
+    expect(result.text).toBe("");
+    expect(result.receipt.reasonCodes).toContain("grounding:declined-compact");
+
+    f = makeFake();
+    f.retrieved = [WALIPINI];
+    const events2: AnswerEvent[] = [];
+    await createAnswerer(f.deps).answer({ query: "Why do we have seasons on Earth?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect(f.generations).toHaveLength(1);
+    expect(f.generations[0].messages!.at(-1)!.content).toContain(NO_SOURCE_INSTRUCTION);
+    expect(events2.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+    expect((events2.find((e) => e.type === "warning") as any).declined).toBeUndefined();
+  });
+
+  it("CT-1: a citation the source doesn't support is removed, and done carries the corrected text", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async (o) => {
+      o.onToken?.("x");
+      return "Canberra is the capital of Australia [1]. Mold grows in damp bathrooms [1].";
+    };
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("Canberra is the capital of Australia [1]. Mold grows in damp bathrooms.");
+    expect(events.find((e) => e.type === "done")).toMatchObject({ finalText: result.text });
+    expect(result.receipt.reasonCodes).toContain("citations:removed-1");
+  });
+});
+
+describe("answer(): CR-2 a model whose load killed the app", () => {
+  it("is not loaded again on its own; the next model answers, and the meta for the marker is passed", async () => {
+    const seen: any[] = [];
+    const load = f.deps.engine.load;
+    f.deps.engine.load = async (filename, opts) => (seen.push(opts?.meta), load(filename));
+    f.installed = [qwen15, lfm];
+    f.activeId = "lfm8";
+    f.settings = { ...f.settings, loadCrashedIds: ["lfm8"] };
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([qwen15.filename]);
+    expect(seen).toEqual([{ modelId: "qwen1.5", label: "Qwen 1.5B" }]);
+    expect(result.receipt.reasonCodes).toContain("model:load-crashed-lfm8");
+  });
+
+  it("runs again once the user confirms it after the crash", async () => {
+    f.installed = [qwen15, lfm];
+    f.activeId = "lfm8";
+    f.settings = { ...f.settings, loadCrashedIds: ["lfm8"], largeModelConfirmedIds: ["lfm8"] };
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([lfm.filename]);
+  });
+});
+
+describe("answer(): a failed load says why, as data (Harbor/Quill, iOS dc63525)", () => {
+  it("done.error carries kind; the message has no RAM hint to mislead the card", async () => {
+    f.deps.engine.load = async () => {
+      throw new ModelLoadError('Failed to load "models/q15.gguf": Failed to load model', "engine", "Failed to load model", "this device has ~16GB RAM");
+    };
+    const { events } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.error).toEqual({ code: "load_failed", message: 'Failed to load "models/q15.gguf": Failed to load model', kind: "engine" });
   });
 });
 

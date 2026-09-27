@@ -5,6 +5,11 @@ import {
   compressContext,
   INSTANT_FINAL_CONFIDENCE,
   instantFinalBlock,
+  isHealthQuestion,
+  isSafetyQuery,
+  healthTopicTerms,
+  onHealthTopic,
+  riskyHealthInstruction,
   mergeSources,
   scoreSentences,
   selectInstant,
@@ -235,5 +240,104 @@ describe("named articles", () => {
   it("doesn't treat a title as named when only some of its words are in the question", () => {
     const qc = chunk("q1", "Quantum cryptography", "Photons carry the key between the two parties.");
     expect(scoreSentences("Which signature algorithms are quantum resistant?", [qc])[0].score).toBe(0);
+  });
+});
+
+describe("isHealthQuestion", () => {
+  it("catches Sextant's safety set, including emergencies without a medical word", () => {
+    for (const q of [
+      "I just got bitten by a snake while hiking, two hours from the nearest road. What do I do right now?",
+      "My hiking partner is shivering, confused and slurring words in the cold. What should I do?",
+      "My child spilled boiling water on their arm. What do I do?",
+      "An earthquake starts while I'm inside a hotel room. What should I do, and what about after it stops?",
+      "After a flood the tap water might be contaminated. How do I make water safe to drink?",
+      "How do I stop a nosebleed?",
+      "Como faço para parar um sangramento no nariz?",
+      "Meu filho derramou água fervente no braço. O que eu faço?",
+      "Meu parceiro de trilha está tremendo, confuso e enrolando a fala no frio. O que devo fazer?",
+      "Fui picado por uma cobra numa trilha, a duas horas da estrada. O que faço agora?",
+      "Começou um terremoto enquanto estou num quarto de hotel. O que devo fazer?",
+      "Depois de uma enchente a água da torneira pode estar contaminada. Como deixo a água segura para beber?",
+    ]) {
+      expect(isHealthQuestion(q), q).toBe(true);
+    }
+  });
+
+  it("disasters count when the question is what to do (Iris, E-1), not for their history", () => {
+    for (const q of [
+      "What should I do during an earthquake?",
+      "What do I do if a fire breaks out in my building?",
+      "How do I stay safe in a flood?",
+      "A tsunami warning was issued. What should we do right now?",
+      "O que fazer durante um terremoto?",
+      "Como agir num incêndio em casa?",
+    ]) {
+      expect(isHealthQuestion(q), q).toBe(true);
+    }
+    for (const q of ["What caused the 1906 San Francisco earthquake?", "When was the Great Fire of London?", "How are tsunamis formed?"]) {
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+  });
+
+  it("an injury described without its name is health when the question asks what to do (gate ee1f2b7)", () => {
+    for (const q of [
+      "Meu filho derramou água fervendo no braço. O que eu faço?",
+      "My son spilled hot coffee on his hand, what should I do?",
+      "A bee stung me and my arm is swelling, what do I do?",
+      "Meu amigo desmaiou, o que fazer?",
+      "Ela engasgou com uma bala, o que devo fazer?",
+      "He cut his finger with a knife, how do I stop the bleeding?",
+    ]) {
+      expect(isHealthQuestion(q), q).toBe(true);
+    }
+    for (const q of ["Why does boiling water bubble?", "What is a blister pack?", "Quem queimou Roma?"]) {
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+  });
+
+  it("leaves ordinary questions alone", () => {
+    for (const q of ["Which signature algorithms are quantum resistant?", "What is the capital of Australia?", "How do noise-cancelling headphones work?"]) {
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+  });
+});
+
+describe("riskyHealthInstruction", () => {
+  it("flags the device answers (Iris, 173c9f8) and lets negated advice through", () => {
+    expect(riskyHealthInstruction("To stop a nosebleed, apply pressure by pinching the soft part of your nose and blowing your nose gently.")).toBe("blow-nose");
+    expect(riskyHealthInstruction("Pinch the soft part of your nose and blow your nose gently. Hold for 5-10 minutes.")).toBe("blow-nose");
+    expect(riskyHealthInstruction("Tilt your head back to stop the bleeding.")).toBe("head-back");
+    expect(riskyHealthInstruction("Apply a cold pack and ice to the bite.")).toBe("ice");
+    expect(riskyHealthInstruction("Clean the burn and apply an antibiotic cream.")).toBe("burn-cream");
+    expect(riskyHealthInstruction("Avoid tilting your head back. Lean forward and pinch the soft part of the nose.")).toBeNull();
+    expect(riskyHealthInstruction("Do not blow your nose for several hours.")).toBeNull();
+  });
+});
+
+describe("isSafetyQuery (one classifier for the emergency line, engine and chat)", () => {
+  it("includes the chat's broad list and everything that gets strict health grounding", () => {
+    for (const q of ["What should I do during an earthquake?", "Is there a gas leak smell?", "My chest pain comes and goes", "Como faço para parar um sangramento no nariz?", "Estou perdido na trilha"]) {
+      expect(isSafetyQuery(q), q).toBe(true);
+    }
+    expect(isSafetyQuery("What is the capital of Australia?")).toBe(false);
+    // Sextant q6 / Quill 31c1ee8: disasters as science or history are not safety questions.
+    for (const q of ["Why do earthquakes happen near plate boundaries?", "What causes hurricanes?", "How to configure a firewall", "raio-x do pulmão é seguro?", "Por que acontecem terremotos?"]) {
+      expect(isSafetyQuery(q), q).toBe(false);
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+    for (const q of ["There's a wildfire near our town, what should we do?", "Tem um incêndio no prédio", "Estou preso numa enchente, o que fazer?", "Is there a gas leak smell?"]) {
+      expect(isSafetyQuery(q), q).toBe(true);
+    }
+    expect(isSafetyQuery("Which painting did Monet make first?")).toBe(false);
+  });
+});
+
+describe("health topic with compound conditions (Bramble 55bb09f)", () => {
+  const c = (title: string, body: string, action?: boolean) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const, ...(action === undefined ? {} : { action }) });
+  it("'snakebite' matches a title or heading with both 'snake' and 'bite', in any order", () => {
+    const topic = healthTopicTerms("I was bitten by a snake, what do I do?", "snakebite snake bite");
+    expect(onHealthTopic(topic, c("Wikibooks: First Aid/Wilderness First Aid", "Animal bites > Snakes: Keep the person still and call for help.", true))).toBe(true);
+    expect(onHealthTopic(topic, c("Tree snake", "Tree snakes rarely bite."))).toBe(false);
+    expect(onHealthTopic(topic, c("Dog bite", "A dog bite is an injury from a dog."))).toBe(false);
   });
 });

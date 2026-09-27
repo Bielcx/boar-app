@@ -34,17 +34,7 @@ import { constants as zc, createGunzip, zstdCompressSync, zstdDecompressSync } f
 import { parseArgs } from "node:util";
 import { asyncBufferFromFile, parquetMetadataAsync, parquetReadObjects } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
-import {
-  chunkArticle,
-  cleanWikivoyage,
-  infoboxText,
-  isTable,
-  leadChunkIndex,
-  leadOf,
-  parseDumpPage,
-  parseIndexLine,
-  parseRedirectRows,
-} from "./lib/wiki-pack-lib.mjs";
+import { chunkArticle, cleanWikivoyage, infoboxText, isTable, leadChunkIndex, leadOf, parseDumpPage, parseIndexLine, parseRedirectRows, normalizeUrl } from "./lib/wiki-pack-lib.mjs";
 import { quantizeInt8 } from "./lib/knowledge-pack-lib.mjs";
 import { EMBEDDING_MODEL, embedChunks, ensureEmbeddingModel, sha256File } from "./lib/embedding.mjs";
 
@@ -206,7 +196,7 @@ class PackWriter {
       this.db.exec("CREATE TABLE article_meta (article_id INTEGER PRIMARY KEY, url TEXT, license TEXT)");
       this.insMeta = this.db.prepare("INSERT INTO article_meta VALUES (?, ?, ?)");
     }
-    this.insMeta.run(id, url, license);
+    this.insMeta.run(id, url ? normalizeUrl(url) : url, license);
   }
 
   flushBlock() {

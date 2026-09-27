@@ -112,6 +112,37 @@ describe("LlamaEngine Metal fallback (iPhone 13)", () => {
   });
 });
 
+describe("LlamaEngine CR-2 marker and model swap", () => {
+  it("writes the marker before initLlama with the previous model, clears it after, and releases the old model first", async () => {
+    const log: string[] = [];
+    const guard = {
+      begin: async (meta: any, previous: any) =>
+        void log.push(`begin ${meta.modelId} prev=${previous?.modelId ?? "-"} inits=${initParams.length} live=${created.filter((c) => !c.released).length}`),
+      end: async (meta: any, ok: boolean) => void log.push(`end ${meta.modelId} ${ok} inits=${initParams.length}`),
+      consume: async () => null,
+      ensureChecked: async () => {},
+    };
+    const engine = new LlamaEngine(guard as any);
+    await engine.load("models/q15.gguf", { meta: { modelId: "q15", label: "1.5B" } });
+    const first = created[0];
+    const origInit = initParams.length;
+    await engine.load("models/q4.gguf", { meta: { modelId: "q4", label: "4B" } });
+    // live=0 at the 4B's begin: the 1.5B was released before the 4B's initLlama.
+    expect(log).toEqual(["begin q15 prev=- inits=0 live=0", "end q15 true inits=1", "begin q4 prev=q15 inits=1 live=0", "end q4 true inits=2"]);
+    // The 1.5B is released before the 4B's context is created: never both resident.
+    expect(first.released).toBe(true);
+    expect(origInit).toBe(1);
+  });
+
+  it("a failed load still clears the marker (the app survived it)", async () => {
+    const ends: boolean[] = [];
+    const guard = { begin: async () => {}, end: async (_m: any, ok: boolean) => void ends.push(ok), consume: async () => null, ensureChecked: async () => {} };
+    initFailures.push("model file not found");
+    await expect(new LlamaEngine(guard as any).load("models/a.gguf")).rejects.toThrow();
+    expect(ends).toEqual([false]);
+  });
+});
+
 describe("LlamaEngine load/unload", () => {
   it("never leaves an orphaned context when loads overlap (quick model swaps)", async () => {
     const engine = new LlamaEngine();

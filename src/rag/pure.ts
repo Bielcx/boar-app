@@ -155,10 +155,13 @@ export function buildLexicalQuery(query: string): LexicalQuery | null {
  * How many content terms a lexical hit must contain. OR-matching alone
  * would accept a document that shares one incidental word with the
  * question ("black" → "Black Sea" for "black holes"), so short queries
- * need every term and longer ones at least half.
+ * need every term and longer ones a strict majority. Half was too little:
+ * for "Which signature algorithms are quantum resistant?" a nuclear
+ * physicist's bio (quantum Monte Carlo *algorithms*) matched 2 of 4 terms and
+ * became the only source when the corpus had nothing on the topic.
  */
 export function requiredTermMatches(termCount: number): number {
-  return termCount <= 2 ? termCount : Math.ceil(termCount / 2);
+  return termCount <= 2 ? termCount : Math.floor(termCount / 2) + 1;
 }
 
 export function countMatchedTerms(text: string, terms: LexicalTerm[]): number {
@@ -397,6 +400,8 @@ function styleSection(styleReminder: string | undefined): string {
 }
 
 const GROUNDING_INSTRUCTION =
+  // "You are Boar" alone made a 1.5B model answer "Boar is a water mammal" (Sextant, 2026-09-26).
+  'You are BOAR, an offline AI research app running on this phone; "Boar" is the app\'s name, never the animal, so never describe yourself as one. ' +
   "You have no ability to control real-world devices or take physical actions — no alarms, " +
   "lights, thermostats, timers, or any other device or system. You can only respond with text. " +
   "Treat greetings and casual small talk conversationally and briefly, not as a command or task. " +

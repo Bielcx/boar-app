@@ -178,3 +178,12 @@ describe("modelSpeedStats / deepAutoEligible (shared with the model picker)", ()
     expect(deepAutoEligible({ medianTokPerSec: 5, samples: 2 })).toBe(true);
   });
 });
+
+describe("deepAutoEligible on a low-RAM phone (CR-1)", () => {
+  it("never automatic above the compact size at <= 4.5 GB, whatever the speed", () => {
+    const fast = { samples: 5, medianTokPerSec: 20 } as any;
+    expect(deepAutoEligible(fast)).toBe(true);
+    expect(deepAutoEligible(fast, { model: { sizeBytes: 11e9 }, totalRamBytes: 3.8 * 1024 ** 3 })).toBe(false);
+    expect(deepAutoEligible(fast, { model: { sizeBytes: 11e9 }, totalRamBytes: 12 * 1024 ** 3 })).toBe(true);
+  });
+});

@@ -29,8 +29,10 @@ vi.mock("../inference/LlamaEngine", () => ({
   },
 }));
 
+const OFF = chunk("off", "Dean Lee", "Dean Lee is an American nuclear theorist who works on quantum computing algorithms.");
+let withOffTopic = false;
 vi.mock("../rag/retrieve", () => ({
-  retrieve: async (q: string) => (q.includes("French") ? [FR, EU] : [EU, IR]),
+  retrieve: async (q: string) => [...(q.includes("French") ? [FR, EU] : [EU, IR]), ...(withOffTopic ? [OFF] : [])],
 }));
 
 import { runDeepResearch } from "./orchestrator";
@@ -38,6 +40,7 @@ import { runDeepResearch } from "./orchestrator";
 beforeEach(() => {
   calls.length = 0;
   hasTemplate = true;
+  withOffTopic = false;
 });
 
 const text = (c: (typeof calls)[number]) => c.messages?.map((m) => m.content).join("\n") ?? c.prompt ?? "";
@@ -59,6 +62,17 @@ describe("runDeepResearch citations", () => {
     expect(first).toContain(`[${euNumber}] Europe`);
     expect(second).toContain(`[${euNumber}] Europe`);
     expect(second).toContain(`[${ids.indexOf("ir") + 1}] Industrial Revolution`);
+  });
+
+  it("an off-topic source is not read, numbered or shown (onTopic per sub-question)", async () => {
+    withOffTopic = true;
+    let emitted: RetrievedChunk[] = [];
+    const r = await runDeepResearch("Compare the causes of both revolutions", undefined, undefined, 256, undefined, undefined, undefined, {
+      onSources: (s) => (emitted = s),
+    });
+    expect(r.citations.map((c) => c.chunkId).sort()).toEqual(["eu", "fr", "ir"]);
+    expect(emitted.map((c) => c.title)).not.toContain("Dean Lee");
+    expect(calls.map(text).join("\n")).not.toContain("Dean Lee");
   });
 
   it("uses the model's chat template when the GGUF ships one, plain prompts otherwise", async () => {

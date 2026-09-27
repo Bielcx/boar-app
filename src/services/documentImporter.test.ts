@@ -79,6 +79,18 @@ describe("importDocuments", () => {
     expect(deleted).toEqual(["file:///cache/DocumentPicker/secret.txt"]);
   });
 
+  it("a reset during an import stops it as a cancellation: no error state, no cleanup on the closing database", async () => {
+    const { importDocuments, ImportCancelledError } = await import("./documentImporter");
+    const { getCollectionIndexStatus } = await import("../rag/indexStatus");
+    const { abortAllWork } = await import("../rag/cancellation");
+    let n = 0;
+    onEmbed = () => {
+      if (++n === 2) abortAllWork();
+    };
+    await expect(importDocuments([asset("notes.txt")], "Reset")).rejects.toBeInstanceOf(ImportCancelledError);
+    expect(Object.entries(getCollectionIndexStatus()).filter(([k]) => k.endsWith("-reset"))).toEqual([]);
+  });
+
   it("refuses a document over the size limit before reading it", async () => {
     const { importDocuments } = await import("./documentImporter");
     await (await import("../rag/db")).getDb();

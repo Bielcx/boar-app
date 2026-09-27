@@ -179,8 +179,10 @@ export function selectInstant(query: string, chunks: RetrievedChunk[]): InstantS
  * ML-DSA-44..."). A sentence opening with a pronoun ("It initially
  * focuses...") needs the text before it.
  */
-export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | null {
+export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | "health" | null {
   const q = query.trim().replace(/[?!.\s]+$/, "");
+  // One sentence is never a complete first-aid answer.
+  if (isHealthQuestion(q)) return "health";
   if (/^(it|its|this|that|these|those|they|their|he|she|his|her|such|both)\b/i.test(snippet.trim())) return "anaphora";
   if (/\b(and|or)\s+(what|how|why|which|who|when|where)\b/i.test(q)) return "compound";
   if (/^(which|what)\b.*\b(are|were)\b/i.test(q)) return "list";
@@ -192,6 +194,365 @@ export function instantFinalBlock(query: string, snippet: string): "anaphora" | 
     if (!defines.test(snippet)) return "not-definition";
   }
   return null;
+}
+
+/**
+ * Share of the question's distinct content words found in `text` (0..1).
+ * An absolute measure: relative scores alone let an off-topic page win when
+ * nothing on-topic was retrieved ("Dean Lee", a nuclear physicist, for "Which
+ * signature algorithms are quantum resistant?", with no crypto pack).
+ */
+export function termCoverage(query: string, text: string): number {
+  const q = [...new Set(tokenizeTerms(query))];
+  if (!q.length) return 1;
+  const t = new Set(tokenizeTerms(text));
+  return q.filter((x) => t.has(x)).length / q.length;
+}
+
+/** Below this, a snippet is not shown as "from the source", and the sources count as weak. */
+export const MIN_TERM_COVERAGE = 0.75;
+
+/** Best coverage of the question by any single source (title + body). 0 without sources. */
+export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number {
+  return chunks.reduce((best, c) => Math.max(best, termCoverage(query, `${c.title} ${c.body}`)), 0);
+}
+
+/** Health, first aid and emergencies: the answer may only state what the sources say. */
+const HEALTH =
+  /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|shiver\w*|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
+
+// Portuguese terms starting or ending with an accented letter: JS \b doesn't see "á" as a letter.
+const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quente)|queimadura|picad[ao]|tremend\w*|tremores?|calafrios?|hipotermia|sangramento|engasg\w*|afogamento|desmai\w*|convuls\p{L}*|emerg[êe]ncia)(?![\p{L}])/iu;
+
+// Disasters are safety questions when the question is what to do (Iris, E-1: "What should I
+// do during an earthquake?"), not when it asks history ("What caused the 1906 earthquake?").
+const DISASTER =
+  /(^|[^\p{L}])(earthquakes?|tsunamis?|floods?|flooding|hurricanes?|tornado(es)?|cyclones?|typhoons?|wildfires?|bush ?fires?|house fires?|kitchen fires?|on fire|caught fire|fires? (breaks?|broke) out|fire alarm|smoke inhalation|landslides?|avalanches?|volcan\p{L}*|eruption|terremotos?|sismos?|tsunamis?|enchentes?|inunda\p{L}*|alagamentos?|furac[ãa]o|tornados?|inc[êe]ndios?|deslizamentos?|avalanches?)(?![\p{L}])/iu;
+export const ACTION_INTENT =
+  /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get|treat|stop|help|make|purify|care)|how to (treat|stop|help|survive|make|purify)|first aid|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
+
+// An injury DESCRIBED without the condition's name ("spilled boiling water on his arm",
+// "derramou água fervendo no braço", "got bitten", "está sangrando"): health when the
+// question asks what to do (gate ee1f2b7: 20/20 free answers, one said "medicinal oil").
+const INJURY_DESCRIBED =
+  /(^|[^\p{L}])(spill\p{L}*|splash\p{L}*|scald\p{L}*|burn\p{L}*|boiling|blister\p{L}*|bit|bitten|stung|sting\p{L}*|bleed\p{L}*|faint\p{L}*|passed out|chok\p{L}*|cut (my|his|her|their|him|herself|himself|myself)|fell (off|down|from)|broke (my|his|her|their)|twist\p{L}*|sprain\p{L}*|swallow\p{L}*|electrocut\p{L}*|derram\p{L}*|escald\p{L}*|queim\p{L}*|fervend\p{L}*|fervent\p{L}*|bolha\p{L}*|mord\p{L}*|picou|picad\p{L}*|sangr\p{L}*|desmai\p{L}*|engasg\p{L}*|cortou|caiu d\p{L}*|bateu a cabe[çc]a|torceu|quebrou|engoliu|choque el[ée]trico)(?![\p{L}])/iu;
+
+export function isHealthQuestion(query: string): boolean {
+  return (
+    HEALTH.test(query) ||
+    HEALTH_PT.test(query) ||
+    (DISASTER.test(query) && ACTION_INTENT.test(query)) ||
+    (INJURY_DESCRIBED.test(query) && ACTION_INTENT.test(query))
+  );
+}
+
+/**
+ * The chat's emergency-services line (Quill, src/ui/chat/safetyNote.ts b48657b, EQ-1): a broad,
+ * deliberately generous word list ("a note too many costs a line, one too few can cost more").
+ * Kept here so engine and UI use one classifier: isSafetyQuery = isHealthQuestion (which also
+ * switches the answer to the source's own text, so it is stricter) OR these words.
+ */
+// Disasters get the line only with a what-to-do word (Quill 31c1ee8): "Why do earthquakes
+// happen near plate boundaries?" is science, not an emergency.
+const DISASTER_NOTE_STEMS = [
+  "earthquake", "flood", "wildfire", "hurricane", "tornado", "tsunami", "disaster", "landslide", "avalanche",
+  "lightning", "blizzard", "volcan", "terremoto", "sismo", "enchente", "inunda", "queimada", "furacão",
+  "furacao", "desastre", "deslizamento", "vulcão", "vulcao",
+];
+const DISASTER_NOTE_WORDS = ["fire", "fires", "raio", "raios"];
+const NOTE_INTENT =
+  /\b(what should|what to do|what do i do|how do i|how to|during|survive|stay safe|safe|prepare|protect|escape|help|trapped|caught in|in case of|hit by|there is|there's)\b|o que fazer|o que devo|como agir|como me proteger|como sobreviver|durante|sobreviv|preparar|proteger|escapar|ajuda|preso|em caso de|tem uma?\b|est[áa] pegando/i;
+const SAFETY_NOTE_STEMS = [
+  "evacuat", "gas leak", "carbon monoxide", "survival", "evacua", "vazamento de gás", "vazamento de gas",
+  "monóxido", "perdido", "incêndio", "incendio",
+  "first aid", "emergency", "bleed", "blood", "nosebleed", "burn", "wound", "injur", "fractur",
+  "broken bone", "sprain", "resuscitat", "chok", "poison", "overdose", "allerg", "anaphyla", "faint",
+  "unconscious", "seizure", "heart attack", "stroke", "chest pain", "breath", "drown", "hypotherm",
+  "heatstroke", "heat stroke", "dehydrat", "fever", "concussion", "symptom", "medicine", "medication",
+  "primeiros socorros", "emergência", "emergencia", "sangr", "hemorrag", "queimad", "ferid", "ferimento",
+  "fratur", "osso quebrado", "entors", "reanima", "engasg", "envenen", "intoxica", "picada",
+  "mordida", "alergi", "desmai", "inconsciente", "convuls", "infarto", "derrame", "dor no peito", "respira",
+  "afog", "hipotermia", "insolação", "insolacao", "desidrat", "febre", "concussão", "sintoma", "remédio",
+  "remedio", "medicamento",
+];
+/** Whole words only ("pain" must not match "painting", "raio" not "raio-x"). */
+const SAFETY_NOTE_WORDS = ["pain", "dor", "dose", "cut", "shock", "choque", "bite", "sting", "cpr", "rcp", "avc", "dores", "cuts", "bites", "stings"];
+const escRe = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const wordList = (stems: string[], words: string[]) =>
+  new RegExp(`(^|[^\\p{L}])(?:(?:${stems.map(escRe).join("|")})|(?:${words.map(escRe).join("|")})(?![\\p{L}-]))`, "iu");
+const SAFETY_NOTE = wordList(SAFETY_NOTE_STEMS, SAFETY_NOTE_WORDS);
+const DISASTER_NOTE = wordList(DISASTER_NOTE_STEMS, DISASTER_NOTE_WORDS);
+
+/** One classifier for the emergency-services line, shared by the engine (done.safety) and the chat. */
+export function isSafetyQuery(query: string): boolean {
+  return isHealthQuestion(query) || SAFETY_NOTE.test(query) || (DISASTER_NOTE.test(query) && NOTE_INTENT.test(query));
+}
+
+/**
+ * The health topic of a question, as search terms: what the health detector
+ * matched ("bitten", "earthquake", "safe to drink") plus the article names it
+ * maps to (canonical EN / PT dictionary: "snakebite", "hypothermia").
+ */
+// Words that name no condition: in a title they match anything ("Just Stop Oil", "Tree snake",
+// "California Department of Water Resources", gate ee1f2b7).
+const GENERIC_TOPIC = new Set(tokenizeTerms("water stop treat treatment child children nose safe drink drinking prevent help make first aid snake arm hand hot cold"));
+
+export function healthTopicTerms(query: string, articleTerms: string | null): Set<string> {
+  // With article terms (the dictionary / canonical names), they ARE the topic: the story's own
+  // words ("cobra", "parar") are not. Otherwise, what the health detector matched.
+  const source = articleTerms
+    ? articleTerms
+    : [
+        ...(query.match(new RegExp(HEALTH.source, "gi")) ?? []),
+        ...(query.match(new RegExp(HEALTH_PT.source, "giu")) ?? []),
+        ...(query.match(new RegExp(DISASTER.source, "giu")) ?? []),
+      ].join(" ");
+  const terms = new Set(tokenizeTerms(source).filter((t) => !GENERIC_TOPIC.has(t)));
+  // "snakebite snake bite": the parts only count together (via COMPOUNDS), never alone ("Dog bite").
+  for (const [compound, parts] of Object.entries(COMPOUNDS)) if (terms.has(compound)) parts.forEach((p) => terms.delete(p));
+  // Drinking water: the condition is contamination / purification, not "water".
+  if (/\b(drink|flood|contaminat|potavel|purif)/i.test(source)) ["contaminat", "purification", "purify", "disinfect", "boil", "flood"].forEach((t) => terms.add(t));
+  return terms;
+}
+
+/**
+ * A health source must BE about the topic: its title names it. Word overlap
+ * in the text is not enough: with "snakebite" as the query, a plant used
+ * against snakebites ("Renealmia cernua") covered it fully (gate 715ffdd).
+ */
+/** Sources written for laypeople (first-aid book, travel health, Ready.gov/CDC): preferred for what to do. */
+const LAY_SOURCE = /^(Wikibooks|Wikivoyage|US government):/;
+
+// Technical specifications are never first-aid sources ("EIP-7775: BURN opcode" for a burn).
+const NON_HEALTH_SOURCE = /^(Ethereum EIPs\/ERCs|Ethereum specs|ethereum\.org|Bitcoin BIPs):/;
+
+// Disasters (gate 2329dc0): an article about one event ("The 1513 Marash earthquake", "1952
+// Kamchatka earthquake") names the topic but tells nobody what to do. For them, only a
+// generic title counts ("Earthquake safety", "Earthquakes (Ready.gov)"), or a pack action section.
+const DISASTER_TOPIC = /^(earthquak|flood|tsunami|fire|wildfire|hurricane|tornado|cyclone|typhoon|landslide|avalanche|volcan|eruption|blizzard|storm)/;
+const SAFETY_TITLE_WORDS = new Set(
+  tokenizeTerms("safety safe preparedness prepare preparing survival survive response emergency emergencies guide tips what do during after before protect yourself staying")
+);
+
+/** "Earthquake safety", "Earthquakes (Ready.gov)": the topic word plus safety words only, no year or place. */
+function genericDisasterTitle(title: string, topic: Set<string>): boolean {
+  const bare = title.replace(/^[^:]{1,30}:\s*/, "").replace(/\([^)]*\)/g, " ");
+  const words = tokenizeTerms(bare);
+  const inTopic = (w: string) => [...topic].some((t) => sameTerm(w, t));
+  return words.some(inTopic) && words.every((w) => inTopic(w) || SAFETY_TITLE_WORDS.has(w));
+}
+
+export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolean {
+  if (NON_HEALTH_SOURCE.test(chunk.title)) return false;
+  const action = (chunk as { action?: boolean }).action;
+  // Drinking water after a flood is about the water (contamination, boiling), not the disaster itself.
+  const waterSafety = [...topic].some((t) => /^(contaminat|purif|disinfect|boil)/.test(t));
+  if (!waterSafety && [...topic].some((t) => DISASTER_TOPIC.test(t))) {
+    if (genericDisasterTitle(chunk.title, topic)) return true;
+    return action === true && titleNames(`${sectionHeading(chunk)} ${chunk.body}`, topic);
+  }
+  // The article title names the condition; or the section heading does ("Stay healthy" ›
+  // "... > Water contamination") and the pack didn't mark it as background
+  // ("Hog Butchering and Smoking › SCALDING" is not about scalds on people).
+  if (titleNames(chunk.title, topic)) return true;
+  if ((action !== false || LAY_SOURCE.test(chunk.title)) && titleNames(sectionHeading(chunk), topic)) return true;
+  // A pack's action section counts only when its text names the condition too
+  // ("Oral rehydration therapy › Treatment" is an action section, not about burns). So does a
+  // lay first-aid source whose text names it (Army FM 21-76 "Before you start treating a
+  // snakebite...", Wikibooks "Outdoor Survival/First Aid › Insect and animal bite").
+  return (action === true || LAY_SOURCE.test(chunk.title)) && titleNames(chunk.body, topic);
+}
+
+/** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
+export const HEALTH_GROUNDING_INSTRUCTION =
+  "This is a health or first-aid question. State only what the numbered sources say, and cite the source of each step. " +
+  "Do not add steps or facts from memory. If the sources do not cover something, say so and advise calling the local emergency number.";
+
+/**
+ * A source is on topic when its title shares a content word with the question
+ * ("Post-quantum cryptography", "Nosebleed") or its text covers most of the
+ * question's words. "Dean Lee" (a nuclear physicist) for "Which signature
+ * algorithms are quantum resistant?" is neither.
+ */
+/** Same word despite the tiny stemmer ("earthquakes" -> "earthquak", "earthquake" stays). */
+function sameTerm(a: string, b: string): boolean {
+  // A stemmer quirk differs by a short suffix ("earthquak"/"earthquake", "contaminat"/"contamination");
+  // a longer one is another word ("snake" is not "snakebite").
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 5 && long.startsWith(short) && long.length - short.length <= 3;
+}
+
+/**
+ * Conditions written as one word or two ("snakebite" / "snake bite", Wikibooks'
+ * "Animal bites > Snakes"): the compound matches a title with both parts.
+ */
+const COMPOUNDS: Record<string, [string, string]> = {
+  snakebite: ["snake", "bite"],
+  nosebleed: ["nose", "bleed"],
+  heatstroke: ["heat", "stroke"],
+  frostbite: ["frost", "bite"],
+};
+
+function titleNames(title: string, terms: Iterable<string>): boolean {
+  const t = tokenizeTerms(title);
+  const has = (q: string) => t.some((x) => sameTerm(x, q));
+  for (const q of terms) {
+    if (has(q)) return true;
+    // Parts on the raw words: the tiny stemmer turns "bites" into "bit".
+    const parts = COMPOUNDS[q];
+    if (parts && parts.every((p) => new RegExp(`\\b${p}(s|es)?\\b`, "i").test(title))) return true;
+  }
+  return false;
+}
+
+/** A pack chunk's section path ("During your trip > ... > Water contamination"), or "". */
+function sectionHeading(chunk: RetrievedChunk): string {
+  const colon = chunk.body.indexOf(":");
+  return colon > 0 && colon <= 120 ? chunk.body.slice(0, colon) : "";
+}
+
+export function onTopic(query: string, chunk: RetrievedChunk): boolean {
+  const q = new Set(tokenizeTerms(query));
+  // The article title or the section heading names a question word.
+  if (titleNames(chunk.title, q) || titleNames(sectionHeading(chunk), q)) return true;
+  // With one or two content words, any page that mentions them somewhere "covers" the
+  // question (Walipini, an earth-sheltered greenhouse, for "Why do we have seasons on
+  // Earth?"). Then the passage must open with them: "Canberra is the capital city of
+  // Australia", "The Earth's axis is tilted ... this causes the seasons".
+  if (q.size < MIN_TERMS_FOR_COVERAGE) {
+    const colon = chunk.body.indexOf(":");
+    const text = colon > 0 && colon <= 80 ? chunk.body.slice(colon + 1) : chunk.body;
+    const first = new Set(tokenizeTerms(splitSentences(text.trim())[0] ?? ""));
+    return q.size > 0 && [...q].every((t) => first.has(t));
+  }
+  return termCoverage(query, `${chunk.title} ${chunk.body}`) >= MIN_TERM_COVERAGE;
+}
+
+/** Questions with fewer content words than this need a source whose title names one of them. */
+export const MIN_TERMS_FOR_COVERAGE = 3;
+
+/**
+ * Next to the question when a knowledge question found no offline source at
+ * all: the model may answer, but says so and only states what it is sure of
+ * (the post-quantum question without a pack: the 1.5B otherwise named
+ * "Rainbow" and "McEliece" as signature standards; the compact model now
+ * declines instead, see answer.ts).
+ */
+export const NO_SOURCE_INSTRUCTION =
+  "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
+  // s32 (ee1f2b7): "Only state what you are sure of" made the 4B drop list items (the Danube without
+  // Moldova). The compact model no longer answers from memory unasked (6e5e9b7), so ask for a full answer.
+  "Then answer completely; if you are unsure of a specific detail, say which one.";
+
+/** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
+export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
+
+/** Longest health excerpt shown as the answer (about 120 words). */
+export const HEALTH_EXTRACT_MAX_CHARS = 700;
+
+// What to DO, not what it is: a treatment / first-aid / "during" section, with instructions.
+const ACTION_SECTION = /^(treatment|first aid|management|what to do|during|immediate|self[- ]care|emergency care|response|stay safe|how to|signs and treatment)/i;
+const ACTION_WORD = /\b(apply|applying|pinch|lean|press|pressure|call|cool|drop|cover|hold|boil|move|remove|keep|seek|get|stay|avoid|do not|don't)\b/gi;
+const HEDGE = /\b(controversial|traditionally|historically|history|studies|evidence is)\b/i;
+// Sections that describe, not instruct.
+const DESCRIPTIVE_SECTION = /^(cause|causes|mechanics|mechanism|pathophysiology|epidemiology|history|etymology|society|research|classification|prognosis|injection|diagnosis)\b/i;
+/** Under this, the chosen source gives no steps: say so before quoting it. */
+export const HEALTH_ACTION_MIN_SCORE = 0.5;
+
+/** Which source to quote for a health question: the most instructive on-topic one (index into `sources`). */
+export function healthSourceIndex(sources: RetrievedChunk[]): number {
+  let best = 0;
+  let bestScore = -Infinity;
+  // The packs mark action sections (RetrievedChunk.action, Bramble b4becc5): when any is marked,
+  // only those are candidates ("Quality by country" never beats "Water contamination").
+  const flag = (c: RetrievedChunk) => (c as { action?: boolean }).action;
+  const anyAction = sources.some((c) => flag(c) === true);
+  sources.forEach((c, i) => {
+    if (anyAction && flag(c) !== true && !LAY_SOURCE.test(c.title)) return;
+    // Laypeople's first-aid text beats a clinical Treatment section ("Active external rewarming involves...").
+    // Lay first-aid text that gives steps beats a clinical Treatment section.
+    const lay = LAY_SOURCE.test(c.title) ? (healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE ? 6 : 2) : 0;
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay - i * 0.05;
+    if (score > bestScore) (best = i), (bestScore = score);
+  });
+  return best;
+}
+
+/** How much a source tells what to do: an instructions section, action words, minus description and hedging. */
+export function healthActionScore(c: RetrievedChunk): number {
+  // Pack chunks start with "Section > Subsection: "; anything else has no section.
+  const colon = c.body.indexOf(":");
+  const section = colon > 0 && colon <= 80 ? c.body.slice(0, colon) : "";
+  return (
+    (ACTION_SECTION.test(section) ? 2 : 0) +
+    Math.min(2, (c.body.match(ACTION_WORD)?.length ?? 0) * 0.25) -
+    (HEDGE.test(c.body) ? 1 : 0) -
+    (DESCRIPTIVE_SECTION.test(section) ? 1.5 : 0) -
+    // A caption or a heading alone ("Image") is not an answer.
+    (c.body.length - section.length < 40 ? 3 : 0)
+  );
+}
+
+/**
+ * A health answer taken word for word from one source (its full text, not
+ * the compressed one), cut at a sentence end and cited by its number.
+ */
+export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean): string {
+  // Steps first: start at the first sentence that tells what to do, keeping the section heading
+  // ("Treatment > First aid: Snakebite first aid recommendations vary..." opens with background).
+  const colon = source.body.indexOf(":");
+  const heading = colon > 0 && colon <= 120 ? source.body.slice(0, colon) : "";
+  const sentences = splitSentences(heading ? source.body.slice(colon + 1).replace(/^[:\s]+/, "") : source.body);
+  const firstStep = sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
+  const from = firstStep > 0 ? sentences.slice(firstStep) : sentences;
+  let text = heading ? `${heading}:` : "";
+  for (const s of from) {
+    if (text.length > heading.length + 1 && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
+    text = text ? `${text} ${s}` : s;
+  }
+  // Steps = an instructions-like source AND at least one sentence that tells what to do
+  // (a heading plus an image caption, "During an Earthquake: Image", is not an answer).
+  const steps = healthActionScore(source) >= HEALTH_ACTION_MIN_SCORE && splitSentences(text).some((s) => new RegExp(ACTION_WORD.source, "i").test(s));
+  const lead = steps
+    ? pt
+      ? "Da fonte offline (em inglês):"
+      : "From the offline source:"
+    : pt
+      ? "A fonte offline não traz os passos de socorro para isso. Em uma emergência, ligue para o serviço de emergência local (192 SAMU, 193 Bombeiros). O que a fonte diz (em inglês):"
+      : "The offline source doesn't give first-aid steps for this. In an emergency, call your local emergency number. What the source says:";
+  return `${lead}\n${text} [${sourceNumber}]`;
+}
+
+// First-aid instructions the sources call wrong (NHS, CDC, Ready.gov), as a model might phrase them.
+const RISKY_HEALTH: Array<[string, RegExp]> = [
+  ["blow-nose", /\bblow\w*\b[^.]{0,20}\bnose\b/i],
+  ["head-back", /\b(tilt|lean|put|tip|throw)\w*\b[^.]{0,25}\bhead\b[^.]{0,10}\bback(wards?)?\b/i],
+  ["lie-down-nosebleed", /\b(lie|lay)\b[^.]{0,10}\b(down|flat)\b[^.]{0,40}\bnose/i],
+  ["tourniquet", /\btourniquet|torniquete|garrote/i],
+  ["suck-venom", /\bsuck\w*[^.]{0,30}venom|chup\w*[^.]{0,30}veneno/i],
+  ["cut-wound", /\b(cut|slice|incise)\w*\b[^.]{0,30}\b(bite|wound|fang)/i],
+  ["ice", /\b(apply|use|put)\w*\b[^.]{0,20}\bice\b|\bice[- ](pack|cold)|\bgelo\b/i],
+  ["butter-toothpaste", /\bbutter\b|toothpaste|manteiga|pasta de dente/i],
+  ["burn-cream", /\b(cream|ointment|lotion)s?\b[^.]{0,30}\bburn|\bburn\w*\b[^.]{0,40}\b(cream|ointment|lotion)|pomada/i],
+  ["doorway", /\bdoorway|batente|v[ãa]o da porta/i],
+  ["run-outside-quake", /\b(run|rush)\w* (outside|outdoors)/i],
+];
+const NEGATED = /\b(do not|don't|dont|never|avoid|not|no|instead of|rather than|without)\b|n[ãa]o\b|nunca|evite/i;
+
+/** The first known-dangerous instruction in a generated health answer (not negated in its sentence), or null. */
+export function riskyHealthInstruction(answer: string): string | null {
+  for (const sentence of splitSentences(answer)) {
+    for (const [id, re] of RISKY_HEALTH) if (re.test(sentence) && !NEGATED.test(sentence)) return id;
+  }
+  return null;
+}
+
+/** Health question without a good source: fixed text, no model. */
+export function noHealthSourceAnswer(pt: boolean): string {
+  return pt
+    ? "Não tenho uma fonte offline confiável sobre isso, então não vou arriscar orientações de saúde de memória. Em uma emergência, ligue para o serviço de emergência local (192 SAMU ou 193 Bombeiros no Brasil, 112 na Europa, 911 nos EUA)."
+    : "I don't have a reliable offline source on this, so I won't give health advice from memory. In an emergency, call your local emergency number (911 in the US, 112 in Europe).";
 }
 
 /** A chunk whose best sentence scores under this share of the best chunk's is dropped. */

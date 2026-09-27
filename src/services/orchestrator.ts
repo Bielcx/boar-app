@@ -1,6 +1,6 @@
 import { llamaEngine } from "../inference/LlamaEngine";
 import { retrieve, RetrievedChunk, ConversationHistory } from "../rag/retrieve";
-import { compressContext, mergeSources } from "../routing/context";
+import { compressContext, mergeSources, onTopic, PT_QUESTION } from "../routing/context";
 import { taskRequest } from "../inference/format";
 
 /**
@@ -169,7 +169,12 @@ export async function runDeepResearch(
     if (shouldStop?.()) return { answer: "", subQuestions, citations: allChunks, timedOut };
     onProgress?.({ stage: "researching", subQuestionIndex: i, subQuestionCount: subQuestions.length });
     const retrieved = await retrieve(subQuestions[i], options.retrieveK ?? 6);
-    const { chunks } = compressContext(subQuestions[i], retrieved, { tokenBudget: SUB_QUESTION_CONTEXT_TOKENS });
+    const compressed = compressContext(subQuestions[i], retrieved, { tokenBudget: SUB_QUESTION_CONTEXT_TOKENS }).chunks;
+    // CT-2 / RT-1 here too: a source off the topic of this sub-question (or of the whole
+    // question, which the decomposition rephrases) is not read, numbered or shown.
+    // Portuguese can't be matched word for word against English sources: no guard.
+    const pt = PT_QUESTION.test(subQuestions[i]) || PT_QUESTION.test(query);
+    const chunks = pt ? compressed : compressed.filter((c) => onTopic(subQuestions[i], c) || onTopic(query, c));
     perQuestion.push(chunks);
     // Number against every source seen so far, so the same chunk keeps one number across sub-questions.
     const merged = mergeSources(perQuestion);
