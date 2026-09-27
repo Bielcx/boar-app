@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { APP_RESERVE_BYTES, checkStorageForDownload, FREE_SPACE_MARGIN_BYTES } from "./storageBudget";
 
-const GB = 1024 ** 3;
+const GB = 1000 ** 3;
 const base = { usedBytes: 4 * GB, reservedBytes: 0, downloadBytes: 5 * GB, alreadyDownloadedBytes: 0, freeDiskBytes: 300 * GB, budgetBytes: 50 * GB };
 
 describe("checkStorageForDownload", () => {
@@ -14,7 +14,7 @@ describe("checkStorageForDownload", () => {
     const r = checkStorageForDownload({ ...base, usedBytes: 40 * GB, downloadBytes: 10 * GB });
     expect(r.ok).toBe(false);
     expect(r.ok === false && r.reason).toBe("budget");
-    expect(r.ok === false && r.message).toMatch(/50\.0GB storage budget.*10\.0GB download.*51\.0GB/);
+    expect(r.ok === false && r.message).toMatch(/50 GB storage budget.*10 GB download.*51 GB/);
   });
 
   it("counts the full size of other downloads still running", () => {

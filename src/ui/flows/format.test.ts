@@ -21,7 +21,7 @@ describe("formatBytes", () => {
     expect(formatBytes(999_700, "en")).toBe("1 MB");
     expect(formatBytesParts(1_250_000_000, "pt")).toEqual({ value: "1,3", unit: "GB" });
     expect(formatBytes(2_500_000, "en")).toBe("2.5 MB");
-    expect(formatBytes(600_000, "en")).toBe("600 KB");
+    expect(formatBytes(600_000, "en")).toBe("600 kB");
   });
 });
 

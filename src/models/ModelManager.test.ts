@@ -352,7 +352,7 @@ describe("import size limits", () => {
     fakeSizes.set(SRC, 40 * 1000 ** 3);
     const e = await rejection(new ModelManager([asset()]).importFromFile(SRC));
     expect(e).toMatchObject({ kind: "too-large", permanent: true });
-    expect(e.message).toMatch(/This file is 40\.0 GB; nothing BOAR can install is larger than 30\.0 GB/);
+    expect(e.message).toMatch(/This file is 40 GB; nothing BOAR can install is larger than 30 GB/);
     expect([...files.keys()]).toEqual([SRC]);
   });
 
