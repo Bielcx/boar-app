@@ -620,7 +620,8 @@
         "answer": "Answer model",
         "search": "Search model",
         "knowledge": "Knowledge",
-        "places": "Places"
+        "places": "Places",
+        "extras": "Also imported"
       },
       "categoryStatus": {
         "failed": "Failed",

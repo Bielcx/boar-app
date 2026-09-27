@@ -27,6 +27,8 @@ interface Props {
   hidePick?: boolean;
   /** The file being checked is shown elsewhere (the setup's hero): list only finished and refused ones. */
   hideActive?: boolean;
+  /** Verified files are shown elsewhere (the setup's category rows): list only the refused ones. */
+  hideVerified?: boolean;
 }
 
 /**
@@ -34,7 +36,7 @@ interface Props {
  * verified as a catalog item, or why it was refused. Refusals stay on
  * screen with the file name until the next pick (Prism F8).
  */
-export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick, hideActive }: Props) {
+export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick, hideActive, hideVerified }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
@@ -71,7 +73,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
   }, [imports, announce, t]);
   return (
     <View style={{ gap: tokens.space.md }}>
-      {imports.filter((f) => !(hideActive && f.status === "importing")).map((f) => {
+      {imports.filter((f) => !(hideActive && f.status === "importing") && !(hideVerified && f.status === "verified")).map((f) => {
         const label = labelFor(f.assetId);
         return (
           <View key={f.name} style={{ gap: tokens.space.xs }}>
