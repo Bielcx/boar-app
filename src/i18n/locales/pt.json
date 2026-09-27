@@ -341,8 +341,8 @@
       "error": {
         "network": "Sem conexão. Conecte-se e tente de novo.",
         "storage": "Falta espaço livre no celular.",
-        "hash-mismatch": "O arquivo veio diferente do esperado. Pegue uma cópia nova do arquivo e tente de novo.",
-        "size-mismatch": "O arquivo veio incompleto. Pegue uma cópia nova do arquivo e tente de novo.",
+        "hash-mismatch": "O arquivo veio diferente do esperado. Baixe de novo.",
+        "size-mismatch": "O arquivo veio incompleto. Baixe de novo.",
         "offline-variant": "Esta versão não acessa a internet. Importe o arquivo.",
         "load": "Não foi possível carregar este modelo.",
         "unknown": "Algo deu errado.",
@@ -356,7 +356,7 @@
       "remove": "Remover",
       "inUseHint": "Em uso. Escolha outro modelo antes de remover este.",
       "removeTitle": "Remover {{name}}?",
-      "removeBody": "Libera {{size}} neste celular. Dá para adicionar de novo depois.",
+      "removeBody": "Libera {{size}} neste celular. Dá para baixar de novo depois.",
       "removed": "{{name}} removido",
       "wontFitTitle": "{{name}} não cabe neste celular",
       "downloadAnyway": "Baixar mesmo assim ({{size}})",
@@ -408,7 +408,8 @@
       "usedLabel": "Usado pelo BOAR",
       "freeLabel": "Livre no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
-      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
+      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular.",
+      "storage": "O BOAR usa {{used}} · {{free}} livres no celular"
     },
     "knowledge": {
       "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",
@@ -566,7 +567,7 @@
         }
       },
       "recommended": "Recomendado",
-      "alreadyDownloaded": "Já está no celular",
+      "alreadyDownloaded": "Já baixado",
       "noSpace": "Falta espaço: são necessários mais {{size}}.",
       "install": "Baixar {{size}}",
       "continue": "Continuar",
@@ -603,7 +604,7 @@
       "downloadingLine": "{{pct}}% · {{done}} de {{total}}",
       "ready": "Pronto",
       "indexRow": "Índice de busca no celular",
-      "waitingDownloads": "Começa quando todos os arquivos estiverem no celular",
+      "waitingDownloads": "Começa quando os downloads terminarem",
       "indexStarting": "Começando",
       "indexCounter": "{{done}} de {{total}} artigos",
       "minutesLeft_one": "falta cerca de {{count}} min",
@@ -640,7 +641,13 @@
         "compact": "Compacto"
       },
       "suggested": "Sugerido",
-      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão."
+      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
+      "stepOf": "Passo {{step}} de {{total}}",
+      "stepAnnounce": "Passo {{step}} de 3, {{title}}",
+      "download": "Download: {{size}}",
+      "diskAfter": "Espaço depois de instalar: {{size}}",
+      "time": "Cerca de {{minutes}} min a {{speed}}/s (estimativa)",
+      "importSize": "Arquivos para importar: {{size}}"
     },
     "places": {
       "title": "Lugares (offline)",
@@ -943,7 +950,6 @@
       "coordinates": "Coordenadas",
       "viewPassage": "Ver o trecho do guia",
       "whichCity": "Qual cidade?",
-      "cityLabel": "Cidade",
       "search": "Buscar",
       "useLocation": "Usar minha localização",
       "typeCity": "Digitar a cidade",
@@ -961,7 +967,8 @@
       "noneNearFiltered": "Não tenho dados offline de lugares ({{filter}}) perto de você",
       "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
       "searchHint": "Digite uma cidade primeiro",
-      "dietToVerify": "Etiqueta de dieta do OSM a conferir"
+      "dietToVerify": "Etiqueta de dieta do OSM a conferir",
+      "cityPlaceholder": "ex.: Berlim"
     },
     "assistantName": "boar",
     "suggestionTopics": {

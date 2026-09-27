@@ -341,8 +341,8 @@
       "error": {
         "network": "No connection. Connect and try again.",
         "storage": "Not enough free space on the phone.",
-        "hash-mismatch": "The file doesn't match the expected one. Get a fresh copy of the file and try again.",
-        "size-mismatch": "The file is incomplete. Get a fresh copy of the file and try again.",
+        "hash-mismatch": "The file doesn't match the expected one. Download it again.",
+        "size-mismatch": "The file is incomplete. Download it again.",
         "offline-variant": "This version has no internet access. Import the file instead.",
         "load": "Couldn't load this model.",
         "unknown": "Something went wrong.",
@@ -356,7 +356,7 @@
       "remove": "Remove",
       "inUseHint": "In use. Choose another model before removing this one.",
       "removeTitle": "Remove {{name}}?",
-      "removeBody": "Frees {{size}} on this phone. You can add it again later.",
+      "removeBody": "Frees {{size}} on this phone. You can download it again later.",
       "removed": "{{name}} removed",
       "wontFitTitle": "{{name}} won't fit on this phone",
       "downloadAnyway": "Download anyway ({{size}})",
@@ -408,7 +408,8 @@
       "usedLabel": "Used by BOAR",
       "freeLabel": "Free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
-      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
+      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone.",
+      "storage": "BOAR uses {{used}} · {{free}} free on this phone"
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",
@@ -566,7 +567,7 @@
         }
       },
       "recommended": "Recommended",
-      "alreadyDownloaded": "Already on the phone",
+      "alreadyDownloaded": "Already downloaded",
       "noSpace": "Not enough space: {{size}} more is needed.",
       "install": "Download {{size}}",
       "continue": "Continue",
@@ -603,7 +604,7 @@
       "downloadingLine": "{{pct}}% · {{done}} of {{total}}",
       "ready": "Ready",
       "indexRow": "Search index on the phone",
-      "waitingDownloads": "Starts when every file is on the phone",
+      "waitingDownloads": "Starts when the downloads finish",
       "indexStarting": "Starting",
       "indexCounter": "{{done}} of {{total}} articles",
       "minutesLeft_one": "about {{count}} min left",
@@ -640,7 +641,13 @@
         "compact": "Compact"
       },
       "suggested": "Suggested",
-      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
+      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one.",
+      "stepOf": "Step {{step}} of {{total}}",
+      "stepAnnounce": "Step {{step}} of 3, {{title}}",
+      "download": "Download: {{size}}",
+      "diskAfter": "Space after install: {{size}}",
+      "time": "About {{minutes}} min at {{speed}}/s (estimate)",
+      "importSize": "Files to import: {{size}}"
     },
     "places": {
       "title": "Places (offline)",
@@ -943,7 +950,6 @@
       "coordinates": "Coordinates",
       "viewPassage": "View the guide passage",
       "whichCity": "Which city?",
-      "cityLabel": "City",
       "search": "Search",
       "useLocation": "Use my location",
       "typeCity": "Type the city",
@@ -961,7 +967,8 @@
       "noneNearFiltered": "No {{filter}} places in the offline map near you",
       "noneBody": "Nothing here is guessed: the list only shows places recorded in the installed offline map. Try a nearby city or install another region.",
       "searchHint": "Type a city first",
-      "dietToVerify": "OSM diet tag to double-check"
+      "dietToVerify": "OSM diet tag to double-check",
+      "cityPlaceholder": "e.g. Berlin"
     },
     "assistantName": "boar",
     "suggestionTopics": {

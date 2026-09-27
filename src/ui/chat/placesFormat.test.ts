@@ -12,6 +12,7 @@ import {
   placeDetailLine,
   spokenDistance,
   deviceClockApplies,
+  showUseLocation,
 } from "./placesFormat";
 
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -138,5 +139,16 @@ describe("deviceClockApplies", () => {
     expect(deviceClockApplies({ kind: "city", deviceInside: true })).toBe(true);
     expect(deviceClockApplies({ kind: "city", deviceInside: false })).toBe(false);
     expect(deviceClockApplies({ kind: "city" })).toBe(false);
+  });
+});
+
+describe("showUseLocation", () => {
+  it("offers the GPS when permission was never asked (skipped in setup), was granted, or had no fix", () => {
+    for (const status of ["prompt", undefined, "granted", "unavailable", "stale"]) expect(showUseLocation(true, status)).toBe(true);
+  });
+
+  it("hides it when permission is denied or the app can't locate", () => {
+    expect(showUseLocation(true, "denied")).toBe(false);
+    expect(showUseLocation(false, "prompt")).toBe(false);
   });
 });

@@ -98,6 +98,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   const [items, setItems] = useState<ChatItem[]>([]);
   const itemsRef = useRef<ChatItem[]>([]);
+  // Answers asked in this run (not restored from history): only these may take focus (the city prompt).
+  const askedIds = useRef<Set<string>>(new Set());
   itemsRef.current = items;
   const [input, setInput] = useState("");
   const [ready, setReady] = useState(false);
@@ -332,6 +334,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       // Claim the answer slot before the first await.
       const assistantId = `${Date.now()}-a`;
       activeRef.current = { messageId: assistantId, handle: null };
+      askedIds.current.add(assistantId);
       setActive(activeRef.current);
       setInput("");
       followBottom.current = true;
@@ -456,7 +459,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [locationExplain, setLocationExplain] = useState<((ok: boolean) => void) | null>(null);
   const locateAndAsk = useCallback(
     async (messageId: string) => {
-      if (!locate) return;
       const result = await locate(() => new Promise<boolean>((resolve) => setLocationExplain(() => resolve)));
       setLocationExplain(null);
       if (result.status === "ok") followUp(messageId, {});
@@ -604,7 +606,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       });
     },
     city: (id, city) => followUp(id, { place: city }),
-    useLocation: locate ? (id) => locateAndAsk(id) : undefined,
+    useLocation: (id) => locateAndAsk(id),
     getMap: openSettings,
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
@@ -631,7 +633,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       copy: (item) => rowActions.current.copy(item),
       share: (item) => rowActions.current.share(item),
       city: (id, c) => rowActions.current.city(id, c),
-      useLocation: locate ? (id) => rowActions.current.useLocation?.(id) : undefined,
+      useLocation: (id) => rowActions.current.useLocation?.(id),
       getMap: () => rowActions.current.getMap(),
       copyReceipt: (text) => rowActions.current.copyReceipt(text),
       copyQuestion: (text) => rowActions.current.copyQuestion(text),
@@ -649,6 +651,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         <AssistantRow
           item={item}
           active={activeId === item.id}
+          fresh={askedIds.current.has(item.id)}
           stopping={activeId === item.id && stopping}
           locale={locale}
           actions={actions}
@@ -803,12 +806,14 @@ const UserRow = memo(function UserRow({ text, actions }: { text: string; actions
 const AssistantRow = memo(function AssistantRow({
   item,
   active,
+  fresh,
   stopping,
   locale,
   actions,
 }: {
   item: Extract<ChatItem, { kind: "assistant" }>;
   active: boolean;
+  fresh: boolean;
   stopping: boolean;
   locale: string;
   actions: RowActions;
@@ -836,6 +841,7 @@ const AssistantRow = memo(function AssistantRow({
     <AssistantMessage
       answer={item.answer}
       active={active}
+      fresh={fresh}
       stopping={stopping}
       interrupted={item.interrupted}
       feedback={item.feedback}

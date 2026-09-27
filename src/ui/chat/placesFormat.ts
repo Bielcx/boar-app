@@ -250,3 +250,13 @@ export function placesEmptyTitle(
 export function deviceClockApplies(area: { kind: "near" | "city"; deviceInside?: boolean }): boolean {
   return area.kind === "near" || area.deviceInside === true;
 }
+
+/**
+ * Whether the "Which city?" prompt offers "Use my location": whenever the app
+ * can locate, unless the permission is already denied (then asking again
+ * does nothing; the city is the way). "prompt" (never asked, e.g. skipped in
+ * setup) keeps the button: it explains, then asks the system once.
+ */
+export function showUseLocation(canLocate: boolean, status: string | undefined): boolean {
+  return canLocate && status !== "denied";
+}
