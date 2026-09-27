@@ -9,7 +9,7 @@
 
 // Longest phrases first: "sangramento no nariz" before "sangramento".
 const PT_EN: Array<[RegExp, string]> = [
-  [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz sangrando|epistaxe/i, "nosebleed nose bleed"],
+  [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz[^.?!]{0,20}sangr\w*|sangr\w*[^.?!]{0,20}nariz|epistaxe/i, "nosebleed nose bleed"],
   [/primeiros socorros/i, "first aid"],
   [/picada de (cobra|serpente)|mordida de (cobra|serpente)|picad[ao] por (uma )?(cobra|serpente)|mordid[ao] por (uma )?(cobra|serpente)|(cobra|serpente)[^.]{0,30}(picou|mordeu)|(picou|mordeu)[^.]{0,30}(cobra|serpente)/i, "snakebite snake bite"],
   [/picada de (abelha|vespa)|ferroada/i, "bee sting"],
@@ -72,7 +72,9 @@ const EN_CANONICAL: Array<[RegExp, string]> = [
   [/\b(bitten|bit) by (a |an )?(snake|viper|rattlesnake|cobra)|\bsnake ?bites?\b/i, "snakebite snake bite"],
   [/\b(spill\w*|splash\w*|scald\w*|pour\w*)\b[^.]{0,40}\b(boiling|hot) (water|oil|coffee|tea)|\b(boiling|hot) (water|oil)[^.]{0,40}\b(spill\w*|scald\w*|burn\w*)|\bscalds?\b/i, "burn scald"],
   [/\bshiver\w*[^.]{0,80}\bcold\b|\bcold\b[^.]{0,80}\bshiver\w*/i, "hypothermia"],
-  [/\bnose ?bleeds?\b|\bbleeding (from )?(the |my |his |her )?nose\b/i, "nosebleed nose bleed"],
+  [/\bnose ?bleeds?\b|\bbleed\w*[^.?!]{0,20}\bnose\b|\bnose\b[^.?!]{0,20}\bbleed\w*/i, "nosebleed nose bleed"],
+  // Any other bleeding ("My arm is bleeding a lot"): the articles' word, not the story's.
+  [/\bbleed(s|ing)?\b/i, "bleeding"],
   [/\bchok(e|ing)\b/i, "choking"],
   // Earthquakes and floods: the question's own words find the "During an earthquake" sections better.
 ];
@@ -81,6 +83,8 @@ const EN_CANONICAL: Array<[RegExp, string]> = [
 /** Canonical English search words for an English first-aid question, or null. */
 export function canonicalHealthTerms(query: string): string | null {
   const out = EN_CANONICAL.filter(([re]) => re.test(query)).map(([, t]) => t);
+  // A nosebleed is not generic bleeding (it would pull in "Emergency bleeding control").
+  if (out.includes("nosebleed nose bleed")) out.splice(out.indexOf("bleeding"), out.includes("bleeding") ? 1 : 0);
   if (!out.length) return null;
   return out.join(" ");
 }
