@@ -148,6 +148,7 @@ export function SettingsScreen() {
       <Section title={t("flows.settings.appearance")}>
         <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
           <SegmentedControl<Appearance>
+            size="compact"
             label={t("flows.settings.theme")}
             value={appearance}
             onChange={setAppearance}
@@ -158,10 +159,11 @@ export function SettingsScreen() {
               { value: "system", label: t("flows.settings.themeSystem") },
             ]}
           />
-          <Text variant="subhead" color="secondary">
+          <Text variant="label" color="secondary">
             {t("flows.settings.palette")}
           </Text>
           <SegmentedControl<PaletteChoice>
+            size="compact"
             label={t("flows.settings.palette")}
             value={palette}
             onChange={setPalette}
@@ -170,10 +172,11 @@ export function SettingsScreen() {
               { value: "luar", label: t("flows.settings.paletteLuar") },
             ]}
           />
-          <Text variant="subhead" color="secondary">
+          <Text variant="label" color="secondary">
             {t("flows.settings.textSize")}
           </Text>
           <SegmentedControl<FontScale>
+            size="compact"
             label={t("flows.settings.textSize")}
             value={fontScale}
             onChange={setFontScale}
@@ -183,10 +186,11 @@ export function SettingsScreen() {
               { value: "large", label: t("flows.settings.textLarge") },
             ]}
           />
-          <Text variant="subhead" color="secondary">
+          <Text variant="label" color="secondary">
             {t("flows.settings.language")}
           </Text>
           <SegmentedControl<LanguageId>
+            size="compact"
             label={t("flows.settings.language")}
             value={languageId}
             onChange={setLanguage}
