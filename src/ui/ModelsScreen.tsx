@@ -3,8 +3,9 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, ListRow, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
+import { Badge, Button, Card, EmptyState, ListRow, MetaLine, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
+import { screenRhythm } from "./flows/rhythm";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
@@ -49,7 +50,7 @@ export function ModelsScreen() {
   };
   if (!catalog.loaded) {
     return (
-      <Screen>
+      <Screen contentStyle={screenRhythm(tokens)}>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={tokens.space.lg} width="60%" />
           <Skeleton height={tokens.size.control * 2} />
@@ -98,15 +99,12 @@ export function ModelsScreen() {
   );
 
   return (
-    <Screen>
-      <Card style={{ flexDirection: "row", gap: tokens.space.base }}>
-        <View style={{ flex: 1 }}>
-          <Stat label={t("flows.models.usedLabel")} {...formatBytesParts(catalog.usedBytes, i18n.language)} />
-        </View>
+    <Screen contentStyle={screenRhythm(tokens)}>
+      {/* One figure per card (phase 2 rule): what BOAR uses; the free space is the metadata under it. */}
+      <Card padding="compact" style={{ gap: tokens.space.xs }}>
+        <Stat label={t("flows.models.usedLabel")} {...formatBytesParts(catalog.usedBytes, i18n.language)} />
         {catalog.freeBytes > 0 && (
-          <View style={{ flex: 1 }}>
-            <Stat label={t("flows.models.freeLabel")} {...formatBytesParts(catalog.freeBytes, i18n.language)} />
-          </View>
+          <MetaLine items={[t("flows.models.freeMeta", { size: formatBytes(catalog.freeBytes, i18n.language) })]} />
         )}
       </Card>
 
@@ -267,7 +265,7 @@ export function ModelSearchScreen() {
   };
 
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <Text variant="callout" color="secondary">
         {t("flows.models.searchIntro")}
       </Text>

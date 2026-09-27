@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, EmptyState, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, useToast } from "./components";
 import type { Tone } from "./theme";
 import { useTokens } from "./theme";
+import { screenRhythm } from "./flows/rhythm";
 import { MODEL_CATALOG, RAM_BUDGET_BYTES, STORAGE_BUDGET_BYTES } from "../models/manifest";
 import {
   clearExecutionTelemetry,
@@ -97,14 +98,14 @@ export function PerformanceScreen() {
 
   if (error) {
     return (
-      <Screen>
+      <Screen contentStyle={screenRhythm(tokens)}>
         <EmptyState tone="error" title={t("flows.performance.loadFailed")} actionLabel={t("flows.row.retry")} onAction={load} />
       </Screen>
     );
   }
   if (!records || !catalog.loaded) {
     return (
-      <Screen>
+      <Screen contentStyle={screenRhythm(tokens)}>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
           <Skeleton height={120} />
           <Skeleton height={120} />
@@ -128,7 +129,7 @@ export function PerformanceScreen() {
   }
 
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       {PERF_BANDS_PROVISIONAL && (
         <Text variant="footnote" color="secondary">
           {t("flows.performance.provisional")}
@@ -243,28 +244,28 @@ export function PerformanceLogsScreen() {
 
   if (error) {
     return (
-      <Screen>
+      <Screen contentStyle={screenRhythm(tokens)}>
         <EmptyState tone="error" title={t("flows.performance.loadFailed")} actionLabel={t("flows.row.retry")} onAction={load} />
       </Screen>
     );
   }
   if (!records) {
     return (
-      <Screen>
+      <Screen contentStyle={screenRhythm(tokens)}>
         <Skeleton height={80} />
       </Screen>
     );
   }
   if (records.length === 0) {
     return (
-      <Screen>
+      <Screen contentStyle={screenRhythm(tokens)}>
         <EmptyState icon="activity" title={t("flows.performance.logsEmpty")} body={t("flows.performance.empty")} />
       </Screen>
     );
   }
 
   return (
-    <Screen>
+    <Screen contentStyle={screenRhythm(tokens)}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportJson")} loading={exporting} onPress={() => doExport("json")} />
         <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportCsv")} disabled={exporting} onPress={() => doExport("csv")} />

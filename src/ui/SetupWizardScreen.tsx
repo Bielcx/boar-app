@@ -1101,7 +1101,7 @@ function InstallStep({
                 <Text variant="footnote" color="secondary">
                   {t(`flows.onboarding.${r.key}`)}
                 </Text>
-                <Text variant="mono" numeric align="right" style={{ flex: 1 }}>
+                <Text variant="footnote" align="right" style={{ flex: 1 }}>
                   {r.value}
                 </Text>
               </View>

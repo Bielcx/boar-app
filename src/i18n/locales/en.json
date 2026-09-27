@@ -439,7 +439,7 @@
       "samples_one": "{{count}} answer measured here · {{date}}",
       "samples_other": "Median of {{count}} answers measured here · {{date}}",
       "usedLabel": "Used by BOAR",
-      "freeLabel": "Free on this phone",
+      "freeMeta": "{{size}} free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
       "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
     },
