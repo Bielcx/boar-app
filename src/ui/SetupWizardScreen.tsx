@@ -50,6 +50,11 @@ interface Props {
 type Step = 1 | 2 | 3;
 type IndexPhase = "waiting" | "building" | "ready" | "error";
 
+/** The mockup's setup rhythm (FIDELITY): 14 pt between blocks, content right under the stepper. */
+function setupRhythm(t: ReturnType<typeof useTokens>) {
+  return { gap: t.space.md + t.space.xxs, paddingTop: t.space.xs };
+}
+
 /** Above this OS font scale the two language cards stack instead of sitting side by side. */
 const LARGE_TEXT = 1.15;
 const LANGUAGES: { id: LanguageId; name: string }[] = [
@@ -277,10 +282,12 @@ function SetupStepper({ stage }: { stage: number }) {
 function StepHeader({ titleRef, stage, title, subtitle }: { titleRef: React.RefObject<RNText | null>; stage: number; title: string; subtitle?: string }) {
   const tokens = useTokens();
   return (
-    <View style={{ gap: tokens.space.xl }}>
+    // 18 pt from the stepper's labels to the title, as measured on the mockup (FIDELITY).
+    <View style={{ gap: tokens.space.base + tokens.space.xxs }}>
       <SetupStepper stage={stage} />
       <View style={{ gap: tokens.space.xs }}>
-        <Text ref={titleRef} variant="title2" header>
+        {/* 26 pt like the mockup's step titles (FIDELITY). */}
+        <Text ref={titleRef} variant="title1" header>
           {title}
         </Text>
         {subtitle && (
@@ -328,6 +335,7 @@ function Welcome({
   ].filter((r) => r.bytes > 0);
   return (
     <Screen
+      contentStyle={setupRhythm(tokens)}
       ambient
       edges={["top", "bottom", "left", "right"]}
       footer={
@@ -508,6 +516,7 @@ function PackageStep({
 
   return (
     <Screen
+      contentStyle={setupRhythm(tokens)}
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
@@ -898,6 +907,16 @@ function InstallStep({
     return () => clearInterval(id);
   }, [downloading]);
   const stalled = downloading && now - lastMove.current.at > STALL_MS;
+  // Measured download speed since this screen started receiving bytes: the time left is shown only once measured.
+  const rateStart = useRef<{ bytes: number; at: number } | null>(null);
+  if (downloading && !rateStart.current && doneBytes > 0) rateStart.current = { bytes: doneBytes, at: Date.now() };
+  const etaS = (() => {
+    const r = rateStart.current;
+    if (!r || !downloading) return undefined;
+    const elapsedS = (now - r.at) / 1000;
+    const bps = (doneBytes - r.bytes) / Math.max(elapsedS, 1);
+    return elapsedS >= 5 && bps > 0 ? (totalBytes - doneBytes) / bps : undefined;
+  })();
 
   // Announce every quarter of the download, never per tick (Prism F4).
   const quarter = totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 4) : 0;
@@ -962,6 +981,9 @@ function InstallStep({
   const indexing = indexPhase === "building" || indexPhase === "error";
   const { fontScale } = useWindowDimensions();
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
+  // The item whose bytes are arriving now, "Item 2 of 5 — name" under the bar (the mockup's "Model 1 of 3 — …").
+  const currentIdx = states.findIndex((x) => moving(x.state));
+  const current = currentIdx >= 0 ? { n: currentIdx + 1, label: states[currentIdx].asset.label } : undefined;
   const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
   // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
@@ -1064,6 +1086,7 @@ function InstallStep({
 
   return (
     <Screen
+      contentStyle={setupRhythm(tokens)}
       edges={["top", "bottom", "left", "right"]}
       footer={
         ready ? (
@@ -1099,26 +1122,20 @@ function InstallStep({
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
       {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
         // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
-        <Card style={{ gap: tokens.space.md, overflow: "hidden" }}>
-          {/* The boar sits in the corner like the mockup; the content sets the card's height (Iris, Prism N-6). */}
-          {/* The whole boar may reach the corner (its glow is clipped); the brand disc at large text is a
-              framed avatar, so it keeps the card's padding and never crosses the rounded edge (Prism H-1). */}
+        // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
+        // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
+        <Card style={{ gap: tokens.space.md - tokens.space.xxs, overflow: "hidden", borderRadius: tokens.radius.lg + tokens.space.xxs }}>
           {fontScale > LARGE_TEXT ? (
+            // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
             <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
               <Mascot size="brand" />
             </View>
           ) : (
-            <View style={{ position: "absolute", top: 0, right: 0 }}>
+            <View style={{ position: "absolute", top: -tokens.space.xs, right: -tokens.space.xs }}>
               <Mascot size="hero" glow />
             </View>
           )}
-          {/* As tall as the boar, so the bar and the metadata start below its feet (Iris). */}
-          <View
-            style={{
-              paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascot - tokens.space.base,
-              minHeight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base,
-            }}
-          >
+          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascot - tokens.space.xl }}>
             {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
@@ -1126,27 +1143,45 @@ function InstallStep({
               <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
             )}
           </View>
-          <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
-          <MetaLine items={hero.meta} />
+          <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
+          {!allPresent && !offline && current && (
+            <Text variant="footnote" numberOfLines={2}>
+              {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
+            </Text>
+          )}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: tokens.space.md }}>
+            <MetaLine items={hero.meta} />
+            {!allPresent && etaS != null && <MetaLine items={[t("flows.onboarding.minutesLeft", { count: minutesLeft(etaS) })]} />}
+          </View>
         </Card>
       )}
 
       {/* Right under the progress, where it is seen: downloads pause in the background (Prism S3-5). */}
       {downloading && (
-        <Card style={{ gap: tokens.space.xs }}>
+        // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
+        <View
+          style={{
+            gap: tokens.space.xs,
+            backgroundColor: tokens.color.status.warning.soft,
+            borderRadius: tokens.radius.lg - tokens.space.xxs,
+            paddingVertical: tokens.space.md,
+            paddingHorizontal: tokens.space.md + tokens.space.xxs,
+          }}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
             <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
             <Text variant="label" color="warning">
               {t("flows.onboarding.keepOpenTitle")}
             </Text>
           </View>
-          <Text variant="footnote" color="secondary">
+          <Text variant="footnote">
             {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
-        </Card>
+        </View>
       )}
 
-      <Card padding="none">
+      {/* The mockup's list card: 4/14 padding, rows 9 pt tall padding, status in small caps (FIDELITY). */}
+      <Card padding="none" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs, paddingVertical: tokens.space.xs }}>
         {[
           ...fileRows,
           {
@@ -1177,7 +1212,7 @@ function InstallStep({
           .map((row, i, rows) => (
           <React.Fragment key={row.key}>
           {row.group && row.group !== rows[i - 1]?.group && (
-            <View style={{ paddingHorizontal: tokens.space.base, paddingTop: tokens.space.md }}>
+            <View style={{ paddingTop: tokens.space.md }}>
               <Text variant="label" color="secondary">
                 {row.group}
               </Text>
@@ -1188,8 +1223,7 @@ function InstallStep({
             accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
             style={{
               gap: tokens.space.xs,
-              paddingHorizontal: tokens.space.base,
-              paddingVertical: tokens.space.md,
+              paddingVertical: tokens.space.sm,
               borderBottomWidth: i < rows.length - 1 && rows[i + 1].group === row.group ? tokens.size.hairline : 0,
               borderBottomColor: tokens.color.line.hairline,
             }}
@@ -1200,7 +1234,8 @@ function InstallStep({
                 {row.title}
               </Text>
               {row.key !== "index" && (
-                <Text variant="mono" color={row.tone} numeric>
+                // Small caps like the mockup's STREAMING / QUEUED / PENDING.
+                <Text variant="label" color={row.tone} numeric>
                   {row.status}
                 </Text>
               )}
@@ -1278,6 +1313,9 @@ function PhaseIcon({ state, model }: { state: RowState; model: CatalogModel }) {
   if (state.kind === "installed" || state.kind === "in-use") return <Icon name="check-circle" color={tokens.color.status.success.solid} />;
   if (state.kind === "failed") return <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />;
   if (moving(state)) return <Icon name="download" color={tokens.color.accent.text} />;
-  // Not a ring: an empty circle read as the radio of step 2 (Prism N-7).
-  return <Icon name={state.kind === "not-installed" && !canDownload(model) ? "file-plus" : "clock"} color={tokens.color.text.secondary} />;
+  // Waiting: what the item is, like the mockup (database for the search model, book for knowledge);
+  // a file to import says so. Never an empty ring (Prism N-7).
+  const waiting: IconName =
+    state.kind === "not-installed" && !canDownload(model) ? "file-plus" : model.kind === "embedding" ? "database" : model.kind === "corpus" ? "book-open" : "cpu";
+  return <Icon name={waiting} color={tokens.color.text.secondary} />;
 }

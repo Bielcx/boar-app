@@ -129,7 +129,13 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
                 state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
                 // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
                 view.wontFit
-              ? t("flows.row.wontFitWhy")
+              ? fit
+                ? t("flows.row.wontFitNumbers", {
+                    // What it needs: weights and working memory for a dense model, the working memory alone for MoE.
+                    need: formatRam(fit.expertFraction === 0 ? fit.fileBytes + fit.anonBytes : fit.anonBytes, i18n.language),
+                    total: formatRam(fit.totalBytes, i18n.language),
+                  })
+                : t("flows.row.wontFitWhy")
               : view.mayCloseApp
                 ? t("flows.row.mayCloseWhy")
                 : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
@@ -153,7 +159,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       </View>
       {view.wontFit ? (
         <View style={{ flexDirection: "row" }}>
-          <Badge label={t("flows.row.wontFitHere")} tone="danger" dot caps={false} />
+          {/* A fixed fact about a model that can't be chosen, not a risk: neutral outline, like NOT ON DISK (Iris). */}
+          <Badge label={t("flows.row.wontFitHere")} tone="neutral" emphasis="outline" />
         </View>
       ) : view.mayCloseApp ? (
         <View style={{ flexDirection: "row" }}>
