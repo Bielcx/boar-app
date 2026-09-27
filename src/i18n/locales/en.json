@@ -766,7 +766,8 @@
       "placesFound_one": "{{count}} place found",
       "placesFound_other": "{{count}} places found",
       "placesFound_zero": "No places found",
-      "locating": "Finding your location. You can also type the city."
+      "locating": "Finding your location. You can also type the city.",
+      "readyNoSource": "Answer ready, without a source from this phone’s library"
     },
     "snippet": {
       "fromSource": "From the source",
@@ -1079,6 +1080,15 @@
       "seeModels": "See models",
       "dismiss": "Dismiss",
       "messageNoFallback": "{{model}} closed the app: this phone doesn’t have enough memory for it. Choose a smaller model."
+    },
+    "weak": {
+      "title": "No strong source on this phone",
+      "body": "Answered from the model's general knowledge, which can be wrong. Nothing in this phone's library matched closely.",
+      "showClosest": "Show closest passages",
+      "hideClosest": "Hide closest passages",
+      "closestTitle": "Closest passages (weak match)",
+      "weakMatch": "weak match",
+      "receipt": "general knowledge"
     }
   },
   "location": {

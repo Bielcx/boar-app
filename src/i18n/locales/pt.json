@@ -766,7 +766,8 @@
       "placesFound_one": "{{count}} lugar encontrado",
       "placesFound_other": "{{count}} lugares encontrados",
       "placesFound_zero": "Nenhum lugar encontrado",
-      "locating": "Procurando sua localização. Você também pode digitar a cidade."
+      "locating": "Procurando sua localização. Você também pode digitar a cidade.",
+      "readyNoSource": "Resposta pronta, sem fonte do acervo deste celular"
     },
     "snippet": {
       "fromSource": "Da fonte",
@@ -1079,6 +1080,15 @@
       "seeModels": "Ver modelos",
       "dismiss": "Dispensar",
       "messageNoFallback": "O {{model}} fechou o app: este celular não tem memória para ele. Escolha um modelo menor."
+    },
+    "weak": {
+      "title": "Sem fonte forte neste celular",
+      "body": "Respondido com o conhecimento geral do modelo, que pode errar. Nada no acervo deste celular bateu de perto.",
+      "showClosest": "Ver trechos mais próximos",
+      "hideClosest": "Ocultar trechos mais próximos",
+      "closestTitle": "Trechos mais próximos (correspondência fraca)",
+      "weakMatch": "fraca",
+      "receipt": "conhecimento geral"
     }
   },
   "location": {

@@ -43,6 +43,8 @@ export interface AnswerState {
   deepAvailable?: { estSeconds?: number; reason?: string };
   /** The model's weights stream from storage: answers will be slower than usual. */
   streamsFromStorage?: boolean;
+  /** No offline source covers the question: the model answered from general knowledge (Tusk weak_sources). */
+  weakSources?: boolean;
 }
 
 export function initialAnswer(answerId: string): AnswerState {
@@ -92,7 +94,10 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       return { ...state, location: { status: event.status, accuracyM: event.accuracyM, ageS: event.ageS } };
 
     case "warning":
-      return event.code === "model_streams_from_storage" ? { ...state, streamsFromStorage: true } : state;
+      if (event.code === "model_streams_from_storage") return { ...state, streamsFromStorage: true };
+      // Read as a string until the engine's code union has "weak_sources" (Tusk bdcbf8b).
+      if ((event.code as string) === "weak_sources") return { ...state, weakSources: true };
+      return state;
 
     case "stage":
       if (event.tier === "instant" || state[event.tier]?.outcome) return state;

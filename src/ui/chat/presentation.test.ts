@@ -153,3 +153,10 @@ describe("loadCrashMessage (Boar CR-2)", () => {
     expect(loadCrashMessage({ crashedLabel: "Qwen3 4B", fallbackLabel: "" }, t)).toBe('chat.loadCrash.messageNoFallback{"model":"Qwen3 4B"}');
   });
 });
+
+describe("weak sources announcement", () => {
+  it("says the answer has no source from the library", () => {
+    const st = { answerIds: [], sources: [], weakSources: true } as AnswerState;
+    expect(phaseAnnouncement("done", st, t)).toEqual({ message: "chat.announce.readyNoSource" });
+  });
+});

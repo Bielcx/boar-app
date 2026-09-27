@@ -208,3 +208,12 @@ describe("asInterrupted (FS-1)", () => {
     expect(asInterrupted(done).fast?.outcome).toBe("success");
   });
 });
+
+describe("weak sources (Tusk weak_sources, Iris spec)", () => {
+  it("marks the answer as answered from general knowledge", () => {
+    const base = { answerIds: ["a"], sources: [] } as AnswerState;
+    const s = answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources" as never, message: "No offline source covers this question." });
+    expect(s.weakSources).toBe(true);
+    expect(answerReducer(base, { type: "warning", answerId: "a", code: "model_streams_from_storage", message: "" }).weakSources).toBeUndefined();
+  });
+});
