@@ -211,6 +211,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           lang={lang}
           onBack={() => setBackOpen(true)}
           onChoosePackage={() => setStep(2)}
+          answerModel={answerModel}
+          placesLabel={trip?.label ?? (travel ? (lang.startsWith("pt") ? travel.name.pt : travel.name.en) : undefined)}
           onReady={async () => {
             // The chosen answer model (default or compact) writes the answers from now on.
             if (answerModel) await setActiveModelId("llm", answerModel.id);
@@ -808,6 +810,8 @@ function InstallStep({
   onBack,
   onChoosePackage,
   onReady,
+  answerModel,
+  placesLabel,
 }: {
   titleRef: React.RefObject<RNText | null>;
   assets: CatalogModel[];
@@ -817,6 +821,9 @@ function InstallStep({
   onBack: () => void;
   onChoosePackage: () => void;
   onReady: () => void;
+  /** For the closing summary: what will answer, and the places chosen (region or trip). */
+  answerModel?: CatalogModel;
+  placesLabel?: string;
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
@@ -984,6 +991,60 @@ function InstallStep({
         spoken: statusLine(state, asset, t, lang) as string | undefined,
         tone: (state.kind === "failed" ? "danger" : moving(state) ? "accent" : "secondary") as TextColor,
       }));
+  // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
+  if (ready) {
+    const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
+    const summary = [
+      answerModel && { key: "doneAnswer", value: answerModel.label },
+      collections > 0 && { key: "doneKnowledge", value: t("flows.onboarding.doneCollections", { count: collections, value: formatCount(collections, lang) }) },
+      placesLabel && { key: "donePlaces", value: placesLabel },
+      seed && seed.total > 0 && { key: "doneIndex", value: t("flows.onboarding.doneArticles", { count: seed.total, value: formatCount(seed.total, lang) }) },
+    ].filter((r): r is { key: string; value: string } => !!r);
+    return (
+      <Screen center edges={["top", "bottom", "left", "right"]} footer={<Button label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
+        <View style={{ alignItems: "center", gap: tokens.space.md }}>
+          <Mascot size="hero" glow />
+          <Text ref={titleRef} variant="title1" align="center" header>
+            {t("flows.onboarding.doneTitle")}
+          </Text>
+          <Text variant="footnote" color="secondary" align="center">
+            {t("flows.onboarding.doneBody")}
+          </Text>
+        </View>
+        {summary.length > 0 && (
+          <Card>
+            <Text variant="label" color="secondary">
+              {t("flows.onboarding.doneSummary")}
+            </Text>
+            {summary.map((r, i) => (
+              <View
+                key={r.key}
+                accessible
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: tokens.space.md,
+                  paddingTop: tokens.space.md,
+                  paddingBottom: i < summary.length - 1 ? tokens.space.md : 0,
+                  borderBottomWidth: i < summary.length - 1 ? tokens.size.hairline : 0,
+                  borderBottomColor: tokens.color.line.hairline,
+                }}
+              >
+                <Text variant="footnote" color="secondary">
+                  {t(`flows.onboarding.${r.key}`)}
+                </Text>
+                <Text variant="mono" numeric align="right" style={{ flex: 1 }}>
+                  {r.value}
+                </Text>
+              </View>
+            ))}
+          </Card>
+        )}
+      </Screen>
+    );
+  }
+
   return (
     <Screen
       edges={["top", "bottom", "left", "right"]}
@@ -1058,9 +1119,7 @@ function InstallStep({
                   ? t("flows.onboarding.waitingDownloads")
                   : indexPhase === "building"
                     ? t("flows.onboarding.indexStarting")
-                    : indexPhase === "ready"
-                      ? t("flows.onboarding.ready")
-                      : t("flows.onboarding.indexFailed"),
+                    : t("flows.onboarding.indexFailed"),
             spoken: undefined,
             // The hero carries the index progress in accent; the row stays secondary (R-IDX-2).
             tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
