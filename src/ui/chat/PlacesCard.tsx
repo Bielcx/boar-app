@@ -85,7 +85,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
             </Text>
           )}
           {!distance && place.address && (
-            <Text variant="footnote" color="tertiary" numberOfLines={1}>
+            <Text variant="footnote" color="secondary" numberOfLines={1}>
               {place.address}
             </Text>
           )}
@@ -152,7 +152,18 @@ function PlaceSheet({
             icon="map"
             fullWidth
             onPress={() =>
-              Linking.openURL(geoUri(place)).catch(() => toast({ message: tr("chat.places.noMapsApp"), tone: "danger" }))
+              Linking.openURL(geoUri(place)).catch(() =>
+                toast({
+                  message: tr("chat.places.noMapsApp"),
+                  tone: "danger",
+                  // No maps app (e.g. GrapheneOS): the coordinates still work anywhere.
+                  actionLabel: tr("chat.places.copyCoordinates"),
+                  onAction: async () => {
+                    await Clipboard.setStringAsync(coords);
+                    toast({ message: tr("chat.places.coordinatesCopied"), icon: "check" });
+                  },
+                })
+              )
             }
           />
         </>
@@ -178,8 +189,9 @@ function PlaceSheet({
         {place.website && <Row label={tr("chat.places.website")} value={place.website} />}
         {place.description && <Row label={tr("chat.places.description")} value={place.description} />}
         <Row label={tr("chat.places.coordinates")} value={coords} />
-        <Text variant="caption" color="field">
-          {`${sourceName(place.source, tr)} · ${place.id}`}
+        {/* The raw id (node/123…) is noise on screen; screen readers still get it for reporting a wrong entry. */}
+        <Text variant="caption" color="field" accessibilityLabel={`${sourceName(place.source, tr)}, ${place.id}`}>
+          {sourceName(place.source, tr)}
         </Text>
         {place.sourceIndex != null && (
           <Button
@@ -303,7 +315,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             {cardSubtitle(r, locale, tr)}
           </Text>
           {stale && (
-            <Text variant="caption" color="tertiary">
+            <Text variant="caption" color="secondary">
               {tr("chat.places.staleLocation", { minutes: Math.round(r.area.origin!.ageS! / 60) })}
             </Text>
           )}
@@ -334,7 +346,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             />
           )}
           {r.truncated && expanded && (
-            <Text variant="caption" color="tertiary">
+            <Text variant="caption" color="secondary">
               {tr("chat.places.truncated")}
             </Text>
           )}
@@ -345,7 +357,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             accessibilityLabel={tr("chat.places.attributionLabel")}
             style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, minHeight: t.size.touch }}
           >
-            <Icon name="map" size={14} color={t.color.text.field} />
+            <Icon name="map" size="sm" color={t.color.text.field} />
             <Text variant="caption" color="field" style={{ flex: 1 }}>
               {r.attribution
                 .map((a) => [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), a.date].filter(Boolean).join(" · "))
@@ -353,7 +365,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
             </Text>
           </Pressable>
           {showLicense && (
-            <Text variant="caption" color="tertiary">
+            <Text variant="caption" color="secondary">
               {r.attribution
                 .map((a) => tr("chat.places.licenseLine", { source: sourceName(a.source, tr), license: a.license }))
                 .join("\n")}
