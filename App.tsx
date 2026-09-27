@@ -66,19 +66,24 @@ function AppContent() {
   // and an indeterminate bar, as soon as it has drawn; boot measured ~1.0 s on iOS (Harbor), long
   // enough for the bar to be seen. If the app is ready before BootSplash mounts, hide on ready.
   const nativeHidden = useRef(false);
-  const hideNative = useCallback(() => {
+  // `via` says which path released the native splash: "image" (BootSplash drew) or "ready" (the app was
+  // ready first, so BootSplash never showed). Ready minus hide = how long BootSplash was on screen.
+  const hideNative = useCallback((via: "image" | "ready") => {
     if (nativeHidden.current) return;
     nativeHidden.current = true;
     // Boot timing for Tusk's measurements (the native splash is released here).
-    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms`);
+    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms via=${via}`);
     SplashScreen.hideAsync().catch(() => {});
   }, []);
+  const onBootSplashDrawn = useCallback(() => hideNative("image"), [hideNative]);
   useEffect(() => {
-    if (ready) hideNative();
+    if (!ready) return;
+    console.info(`[boot] ready after=${Date.now() - BOOT_T0}ms`);
+    hideNative("ready");
   }, [ready, hideNative]);
 
   if (!ready) {
-    return <BootSplash onFirstLayout={hideNative} textReady={fontsLoaded || !!fontError} />;
+    return <BootSplash onFirstLayout={onBootSplashDrawn} textReady={fontsLoaded || !!fontError} />;
   }
   return <RootNavigator initialRoute={initialRoute!} />;
 }
