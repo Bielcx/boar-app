@@ -26,3 +26,13 @@ describe("splitInlineBullets on a pack's flattened list (Prism FMT-1)", () => {
     );
   });
 });
+
+describe("splitInlineBullets on flattened numbered steps (FMT-1, Ready.gov)", () => {
+  it("puts each numbered step on its own line; a lone number in a sentence stays", () => {
+    expect(splitInlineBullets("Drop, Cover, and Hold On: 1. Drop where you are. 2. Cover your head. 3. Hold On until it stops.")).toBe(
+      "Drop, Cover, and Hold On:\n1. Drop where you are.\n2. Cover your head.\n3. Hold On until it stops."
+    );
+    expect(splitInlineBullets("It happened in 1906. 2 people saw it.")).toBe("It happened in 1906. 2 people saw it.");
+    expect(splitInlineBullets("See step 1. 2. Then go.")).toBe("See step 1. 2. Then go.");
+  });
+});
