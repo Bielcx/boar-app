@@ -262,11 +262,9 @@ export const size = {
   mascotSm: 48,
   /** Mascot above a status (model loading/error) and in the download hero. */
   mascotMd: 120,
-  /** Mascot as the hero of the chat's empty state: a 170×150 layout box... */
+  /** Mascot as the hero of the chat's empty state: a 170×150 layout box (image placement in mascotFrame.ts). */
   mascot: 170,
   mascotBoxHeight: 150,
-  /** ...with the 200 pt image overflowing it at (-15, -25), as in the mockup. */
-  mascotImage: 200,
   /** Chat composer pill and send button. */
   composer: 52,
   /** Regular button (mockup 46; raised to the touch minimum where that is larger). */

@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleProp, View, ViewStyle } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { Edge, SafeAreaView } from "react-native-safe-area-context";
+import { Edge, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTokens } from "../theme";
 import { Ambient } from "./Ambient";
 
@@ -28,6 +28,11 @@ export interface ScreenProps {
 /** Screen scaffold: canvas background, safe area, keyboard handling, content rhythm. */
 export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient, center }: ScreenProps) {
   const t = useTokens();
+  const insets = useSafeAreaInsets();
+  // With a footer, the footer owns the bottom inset: the mockup ends the action 30 pt above the
+  // screen edge, i.e. 4 pt into the home-indicator area (34), not a full inset + padding below it.
+  const padsBottom = edges.includes("bottom");
+  const safeEdges = footer && padsBottom ? edges.filter((e) => e !== "bottom") : edges;
   const inner: ViewStyle = {
     paddingHorizontal: padded ? t.space.gutter : 0,
     paddingVertical: t.space.base,
@@ -35,7 +40,7 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
     ...(center ? { flexGrow: 1, justifyContent: "center" } : null),
   };
   return (
-    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: t.color.bg.canvas }}>
+    <SafeAreaView edges={safeEdges} style={{ flex: 1, backgroundColor: t.color.bg.canvas }}>
       {ambient && <Ambient />}
       {scroll ? (
         <KeyboardAwareScrollView
@@ -55,7 +60,7 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
           style={{
             paddingHorizontal: t.space.gutter,
             paddingTop: t.space.md,
-            paddingBottom: t.space.sm,
+            paddingBottom: padsBottom ? Math.max(insets.bottom - t.space.xs, t.space.sm) : t.space.sm,
             gap: t.space.sm,
             borderTopWidth: ambient ? 0 : t.size.hairline,
             borderTopColor: t.color.line.hairline,

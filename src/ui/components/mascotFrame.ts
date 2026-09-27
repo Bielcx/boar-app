@@ -39,3 +39,16 @@ export function wholeImage(n: number): { size: number; left: number; top: number
   const k = n / SOURCE_PX;
   return { size: CROP.side * k, left: CROP.x * k, top: CROP.y * k };
 }
+
+/**
+ * The chat empty state's hero, as the mockup RENDERS it (DOM: img 170×200 at page x96.5 y113,
+ * object-fit contain → the original drawn at 170 pt), relative to the 170×150 layout box.
+ * The CSS says 200×200 at (-15,-25), but the image is capped at 170 wide, so the rendered
+ * boar is 170 pt at (-15, -10). Using the declared 200 made it 17% bigger and 14 pt to the right.
+ */
+export const HERO_ORIGINAL = { size: 170, left: -15, top: -10 } as const;
+
+export function heroImage(): { size: number; left: number; top: number } {
+  const w = wholeImage(HERO_ORIGINAL.size);
+  return { size: w.size, left: HERO_ORIGINAL.left + w.left, top: HERO_ORIGINAL.top + w.top };
+}

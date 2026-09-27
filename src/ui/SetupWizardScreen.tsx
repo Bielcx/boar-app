@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Text, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, useAnnounce } from "./components";
 import type { TextColor } from "./components/Text";
 import { useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -513,6 +513,7 @@ function PackageStep({
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   // Computed from Tusk's estimate for this phone: the honest stand-in for the mockup's "Runs Great / RAM".
   const answerFit = answerModel ? fitFor(answerModel) : undefined;
+  const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
   const offline = !networkAllowed();
@@ -540,6 +541,9 @@ function PackageStep({
         <>
           <Button
             size="lg"
+            // The mockup's CTA carries an arrow (Prism S2F-2).
+            icon="arrow-right"
+            iconPosition="end"
             label={
               chosen.plan.downloadBytes > 0 && !offline
                 ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) })
@@ -562,18 +566,29 @@ function PackageStep({
       <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
       {/* The mockup's model card on top: what will answer, with a computed fact in place of "Runs Great" (FIDELITY). */}
       {answerModel && (
-        <Card padding="compact" style={{ gap: tokens.space.sm }}>
+        <Card
+          padding="compact"
+          style={{ gap: tokens.space.sm }}
+          // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
+          onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
+          accessibilityLabel={[t(`flows.onboarding.answerTier.${answerTier}`), answerModel.label, formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
-            <Badge label={t(`flows.onboarding.answerTier.${answerTier}`)} emphasis="outline" />
             {answerTier === recommendedTier && <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" />}
             <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
           </View>
-          <Text variant="headline">{answerModel.label}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Text variant="headline" style={{ flex: 1 }}>
+              {answerModel.label}
+            </Text>
+            {choices.compact && choices.default && <Icon name="chevron-right" size="sm" color={tokens.color.text.secondary} />}
+          </View>
           {answerFit && (
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.xs + tokens.space.xxs }}>
               <Badge label={t(`flows.row.fitShort.${answerFit.verdict}`)} tone={ANSWER_FIT_TONE[answerFit.verdict]} dot caps={false} />
@@ -582,27 +597,41 @@ function PackageStep({
               </Text>
             </View>
           )}
-          {choices.compact && choices.default && (
-            <>
-              {compactSuggested && (
-                <Text variant="caption" color="secondary">
-                  {pick?.reason === "compact-low-ram"
-                    ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
-                    : t("flows.onboarding.compactWhy")}
-                </Text>
-              )}
-              {/* The standard/compact choice stays one tap away, without a second list on the screen. */}
-              <View style={{ alignSelf: "flex-start", marginLeft: -tokens.space.md }}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  label={t(answerTier === "compact" ? "flows.onboarding.useStandard" : "flows.onboarding.useCompact")}
-                  onPress={() => onUserAnswer(answerTier === "compact" ? "default" : "compact")}
-                />
-              </View>
-            </>
-          )}
         </Card>
+      )}
+      {choices.compact && choices.default && (
+        <Sheet
+          visible={modelSheetOpen}
+          onClose={() => setModelSheetOpen(false)}
+          title={t("flows.onboarding.chooseAnswerTitle")}
+          description={
+            compactSuggested
+              ? pick?.reason === "compact-low-ram"
+                ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                : t("flows.onboarding.compactWhy")
+              : undefined
+          }
+        >
+          <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
+            {(["default", "compact"] as const).map((tierId) => {
+              const m = choices[tierId]!;
+              return (
+                <OptionCard
+                  key={tierId}
+                  title={t(`flows.onboarding.answerTier.${tierId}`)}
+                  selected={answerTier === tierId}
+                  onPress={() => {
+                    onUserAnswer(tierId);
+                    setModelSheetOpen(false);
+                  }}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
+                  trailing={formatBytes(m.sizeBytes, lang)}
+                  meta={[m.label]}
+                />
+              );
+            })}
+          </View>
+        </Sheet>
       )}
       <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
         {plans.map((p) => {
@@ -724,15 +753,29 @@ function TravelCard({
     <Section title={t("flows.places.travelTitle")} footer={t("flows.places.footer")}>
       {region && cities ? (
         <>
-          <ListRow
-            title={t("flows.places.include", { region: name })}
-            subtitle={[
-              t("flows.places.meta", { places: formatCount(region.poiCount, lang), size: formatBytes(region.sizeBytes, lang) }),
-              cities.more > 0 ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more }) : cities.names.join(", "),
-              t(`flows.places.reason.${suggestion!.reason}`),
-            ].join("\n")}
-            switch={{ value: selected?.id === region.id, onValueChange: (v) => onChange(v ? region : null) }}
-          />
+          {/* In the rhythm of the mockup's cards (Iris): title 16, one metadata line, the reason in a caption. */}
+          <View style={{ paddingVertical: tokens.space.md - tokens.space.xxs, paddingHorizontal: tokens.space.md, gap: tokens.space.xs }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
+              <Text variant="cardTitle" style={{ flex: 1 }}>
+                {t("flows.places.placesFor", { region: name })}
+              </Text>
+              <Switch
+                label={t("flows.places.include", { region: name })}
+                value={selected?.id === region.id}
+                onValueChange={(v) => onChange(v ? region : null)}
+              />
+            </View>
+            <MetaLine
+              variant="caption"
+              items={[
+                t("flows.places.meta", { places: formatCount(region.poiCount, lang), size: formatBytes(region.sizeBytes, lang) }),
+                t("flows.places.cityCount", { count: cities.names.length + cities.more, value: formatCount(cities.names.length + cities.more, lang) }),
+              ]}
+            />
+            <Text variant="caption" color="secondary">
+              {t(`flows.places.reason.${suggestion!.reason}`)}
+            </Text>
+          </View>
         </>
       ) : (
         <ListRow title={t("flows.places.noRegionHere")} />
@@ -909,6 +952,7 @@ function InstallStep({
     return () => clearInterval(id);
   }, [downloading]);
   const stalled = downloading && now - lastMove.current.at > STALL_MS;
+  const transferring = downloading || catalog.imports.some((f) => f.status === "importing");
   // Measured download speed since this screen started receiving bytes: the time left is shown only once measured.
   const rateStart = useRef<{ bytes: number; at: number } | null>(null);
   if (downloading && !rateStart.current && doneBytes > 0) rateStart.current = { bytes: doneBytes, at: Date.now() };
@@ -1074,9 +1118,23 @@ function InstallStep({
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
-          {/* The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism). */}
-          <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
-          {indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
+          {offline && !allPresent ? (
+            // Offline, the step's action is choosing the files: it takes the mockup's CTA place (primary, the one accent).
+            <Button
+              size="lg"
+              icon="file-plus"
+              label={t("flows.import.pick")}
+              fullWidth
+              loading={catalog.imports.some((f) => f.status === "importing")}
+              onPress={catalog.importFiles}
+            />
+          ) : (
+            // The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism).
+            <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
+          )}
+          {/* No Back while bytes move (download or import), as in the mockup; it returns when nothing is
+              transferring (nothing imported yet, or a failure), and the CTA moves up with it (Iris). */}
+          {!transferring && indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
         </>
       }
     >
@@ -1088,20 +1146,6 @@ function InstallStep({
         subtitle={t(`flows.onboarding.${ready ? "doneBody" : indexing ? "indexSub" : offline ? "importSub" : "step3Sub"}`)}
       />
 
-      {needsImport && !allPresent && (
-        <View style={{ gap: tokens.space.sm }}>
-          {!offline && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.onboarding.importPlacesNote")}
-            </Text>
-          )}
-          {/* In the offline build choosing files is the step's action: primary, the one accent (Iris, Prism N-8). */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} primary={offline} />
-          <Text variant="footnote" color="secondary" selectable>
-            {t("flows.onboarding.importHow")}
-          </Text>
-        </View>
-      )}
 
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
       {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
@@ -1214,8 +1258,23 @@ function InstallStep({
         ))}
       </Card>
 
+      {needsImport && !allPresent && (
+        <View style={{ gap: tokens.space.sm }}>
+          {!offline && (
+            <Text variant="footnote" color="secondary">
+              {t("flows.onboarding.importPlacesNote")}
+            </Text>
+          )}
+          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} />
+          <Text variant="footnote" color="secondary" selectable>
+            {t("flows.onboarding.importHow")}
+          </Text>
+        </View>
+      )}
+
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
-      {downloading && (
+      {transferring && (
         // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
         <View
           style={{
@@ -1300,10 +1359,13 @@ function moving(state: RowState): boolean {
 function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const tokens = useTokens();
   return (
+    // Low like the mockup's text link; the 44 pt touch comes from hitSlop (Prism).
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={{ minHeight: tokens.size.touch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.space.xs + tokens.space.xxs }}
+      hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
+      // 10 pt below the CTA like the mockup (the footer's gap is 8).
+      style={{ alignSelf: "center", marginTop: tokens.space.xxs, flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}
     >
       <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
       <Text variant="subhead" color="secondary">
