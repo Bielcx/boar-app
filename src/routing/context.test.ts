@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  healthSourceIndex,
+  coreProcedure,
   healthTopicTerms,
   onHealthTopic,
   riskyHealthInstruction,
@@ -341,6 +343,23 @@ describe("health topic with compound conditions (Bramble 55bb09f)", () => {
     expect(onHealthTopic(topic, c("Tree snake", "Tree snakes rarely bite."))).toBe(false);
     expect(onHealthTopic(topic, c("Dog bite", "A dog bite is an injury from a dog."))).toBe(false);
   });
+
+  it("Prism NB-1: a cut that bleeds is not a nosebleed, even when Nosebleed's text says 'bleeding'", () => {
+    const topic = healthTopicTerms("How do I stop bleeding from a cut?", "bleeding");
+    const nose = c("Nosebleed", "Treatment: Most anterior nosebleeds can be stopped by applying direct pressure, which helps by promoting blood clots and stopping the bleeding.", true);
+    expect(onHealthTopic(topic, nose)).toBe(false);
+    expect(onHealthTopic(topic, c("Bleeding", "Management: Acute bleeding is often treated by the application of direct pressure.", true))).toBe(true);
+    expect(onHealthTopic(healthTopicTerms("Meu nariz esta sangrando", "nosebleed nose bleed"), nose)).toBe(true);
+  });
+
+  it("bleeding: the source with direct pressure is quoted, not 'Special cases > Amputations'", () => {
+    const topic = healthTopicTerms("My arm is bleeding a lot, what do I do?", "bleeding");
+    const sources = [
+      c("Wikibooks: First Aid/External Bleeding", "Special cases > Amputations: Cover the amputated part with a moist dressing and place it in a clean bag.", true),
+      c("Bleeding", "Management: Acute bleeding from an injury is treated by applying direct pressure to the wound.", true),
+    ];
+    expect(healthSourceIndex(sources, coreProcedure(topic))).toBe(1);
+  });
 });
 
 describe("compressContext relevance (the sources' relevance bar)", () => {
@@ -375,6 +394,9 @@ describe("isCurrentEventQuery (CT-3)", () => {
       "Who won the 1970 World Cup?",
       "What is the latest theory about dark matter?",
       "How do vaccines work?",
+      "What happened today in history?",
+      "O que aconteceu hoje na história?",
+      "How do I treat a burn now?",
     ]) {
       expect(isCurrentEventQuery(q), q).toBe(false);
     }

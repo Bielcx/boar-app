@@ -16,6 +16,13 @@ describe("englishSearchTerms", () => {
     expect(englishSearchTerms("Como tornar a água potável depois de uma enchente?")).toBe("safe drinking water flood");
   });
 
+  it("Prism NB-1: 'nariz está sangrando' is a nosebleed, with or without accents", () => {
+    expect(englishSearchTerms("Meu nariz esta sangrando, o que eu faco?")).toBe("nosebleed nose bleed");
+    expect(englishSearchTerms("Meu nariz está sangrando, o que eu faço?")).toBe("nosebleed nose bleed");
+    expect(englishSearchTerms("Está sangrando pelo nariz")).toBe("nosebleed nose bleed");
+    expect(englishSearchTerms("Meu braço está sangrando muito")).toBe("bleeding");
+  });
+
   it("returns null when it knows no term", () => {
     expect(englishSearchTerms("Quem pintou a Mona Lisa?")).toBeNull();
   });
@@ -29,5 +36,10 @@ describe("canonicalHealthTerms", () => {
     expect(canonicalHealthTerms("An earthquake starts while I'm inside a hotel room. What should I do?")).toBeNull();
     expect(canonicalHealthTerms("How do I stop a nosebleed?")).toBe("nosebleed nose bleed");
     expect(canonicalHealthTerms("What is the capital of Australia?")).toBeNull();
+  });
+
+  it("any other bleeding searches 'bleeding'; a nose that bleeds is a nosebleed only", () => {
+    expect(canonicalHealthTerms("My arm is bleeding a lot, what do I do?")).toBe("bleeding");
+    expect(canonicalHealthTerms("My nose is bleeding, what do I do?")).toBe("nosebleed nose bleed");
   });
 });

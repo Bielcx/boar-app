@@ -355,6 +355,9 @@ export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolea
   // "... > Water contamination") and the pack didn't mark it as background
   // ("Hog Butchering and Smoking › SCALDING" is not about scalds on people).
   if (titleNames(chunk.title, topic)) return true;
+  // An article about another compound condition is off topic even when its text names the
+  // question's word: "Nosebleed › Treatment" says "bleeding", but a cut on the arm is not a nosebleed.
+  if (Object.keys(COMPOUNDS).some((c) => !topic.has(c) && new RegExp(`\\b${c}s?\\b`, "i").test(chunk.title))) return false;
   if ((action !== false || LAY_SOURCE.test(chunk.title)) && titleNames(sectionHeading(chunk), topic)) return true;
   // A pack's action section counts only when its text names the condition too
   // ("Oral rehydration therapy › Treatment" is an action section, not about burns). So does a
@@ -456,8 +459,11 @@ const CURRENT_TIME =
 const EVENT_INTENT =
   /\b(who won|who (is )?winning|won|win|beat|score|scores|result|results|match|game|election|news|headlines?|what happened|happening|price|stock|weather|forecast|standings?|goals?)\b|(^|[^\p{L}])(quem ganhou|quem venceu|ganhou|venceu|placar|resultado|jogo|partida|elei[çc][ãa]o|not[íi]cias?|manchetes?|aconteceu|cota[çc][ãa]o|pre[çc]o|previs[ãa]o do tempo|gols?)(?![\p{L}])/iu;
 
+// "What happened today in history?" asks about the past (Prism): the library answers it.
+const HISTORY_FRAME = /\b(in history|on this day|this day in|historically)\b|(^|[^\p{L}])(na hist[óo]ria|neste dia|nesse dia|num dia como hoje)(?![\p{L}])/iu;
+
 export function isCurrentEventQuery(query: string): boolean {
-  return CURRENT_TIME.test(query) && EVENT_INTENT.test(query);
+  return CURRENT_TIME.test(query) && EVENT_INTENT.test(query) && !HISTORY_FRAME.test(query);
 }
 
 export function currentEventAnswer(pt: boolean): string {
@@ -491,6 +497,8 @@ const CORE_PROCEDURE: Array<[RegExp, RegExp]> = [
   [/^earthquak|^terremot|^sismo/, /\bdrop\b[^.]{0,40}\bcover\b|\bhold on\b|drop,? cover|abaixe|proteja-se|segure-se/i],
   [/^burn|^scald|^queimad/, /\b(cool|cold|lukewarm)\b[^.]{0,30}\b(running )?water\b|[áa]gua (corrente|fria)/i],
   [/^nosebleed|^nose|^sangram/, /\bpinch\w*|\blean\w* forward|\btilt\w*[^.]{0,20}forward|inclin\w*[^.]{0,20}frente|apert/i],
+  // After nosebleed: a nosebleed's topic has no "bleed" (the compound's parts are dropped).
+  [/^bleed|^sangr|^hemorrag/, /\b(direct|firm|steady)\b[^.]{0,20}\bpressure\b|\b(apply|put|press)\w*\b[^.]{0,30}\b(pressure|firmly)\b|press[ãa]o (direta|firme)/i],
   [/^hypotherm|^hipoterm/, /\bshelter\b|\bwarm\w*|\bremove\b[^.]{0,30}\bwet\b|\bcold environment\b|abrigo|aquec/i],
   [/^snakebite|^snake/, /\b(keep|stay)\b[^.]{0,20}\b(still|calm)\b|\bimmobili\w*|\bantivenom\b|\bhospital\b|\bemergency\b/i],
   [/^contaminat|^purif|^boil|^water/, /\bboil\w*|\bdisinfect\w*|\bbleach\b|ferv/i],
