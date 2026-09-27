@@ -55,6 +55,9 @@ function setupRhythm(t: ReturnType<typeof useTokens>) {
   return { gap: t.space.md + t.space.xxs, paddingTop: t.space.xs };
 }
 
+/** Narrowest screen (pt) where the language cards keep their EN/PT monogram (393 yes, 360 no). */
+const MONOGRAM_MIN_WIDTH = 380;
+
 /** Above this OS font scale the two language cards stack instead of sitting side by side. */
 const LARGE_TEXT = 1.15;
 const LANGUAGES: { id: LanguageId; name: string }[] = [
@@ -323,16 +326,15 @@ function Welcome({
   const tokens = useTokens();
   const announce = useAnnounce();
   const { fontScale } = useWindowDimensions();
-  const points: { icon: IconName; key: string }[] = [
-    { icon: "wifi-off", key: "point1" },
-    { icon: "shield", key: "point2" },
-    { icon: "book", key: "point3" },
-  ];
+  const { width } = useWindowDimensions();
+  // The EN/PT monogram fits two cards side by side on a 393 pt screen, not on a 360 dp one (Iris).
+  const monogram = width >= MONOGRAM_MIN_WIDTH && fontScale <= LARGE_TEXT;
   // Measured on this phone; a value the OS would not give is left out, never guessed.
   const phone = [
-    { key: "phoneMemory", bytes: deviceRamBytes, ram: true },
-    { key: "phoneFree", bytes: freeBytes, ram: false },
-  ].filter((r) => r.bytes > 0);
+    { key: "phoneMemory", value: deviceRamBytes > 0 ? formatRam(deviceRamBytes, lang) : null },
+    { key: "phoneFree", value: freeBytes > 0 ? formatBytes(freeBytes, lang) : null },
+    { key: "phoneEngine", value: t("flows.onboarding.phoneEngineValue") },
+  ].filter((r): r is { key: string; value: string } => !!r.value);
   return (
     <Screen
       contentStyle={setupRhythm(tokens)}
@@ -340,93 +342,104 @@ function Welcome({
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
-          <Button label={t("flows.onboarding.start")} icon="arrow-right" iconPosition="end" fullWidth onPress={onNext} />
+          <Button size="lg" label={t("flows.onboarding.start")} icon="arrow-right" iconPosition="end" fullWidth onPress={onNext} />
           {onSkip && <Button label={t("flows.onboarding.backToApp")} variant="ghost" fullWidth onPress={onSkip} />}
         </>
       }
     >
       <SetupStepper stage={0} />
-      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
+      {/* The mockup's brand row: disc 48, gap 10, wordmark 28 (title1 26), tagline 12 in a2, 3 pt apart. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs }}>
         <Mascot size="brand" />
         <View style={{ flex: 1, gap: tokens.space.xxs }}>
           {/* The identity's wordmark is lowercase (chat header, splash). */}
           <Text ref={titleRef} variant="title1" header>
             boar
           </Text>
-          <Text variant="footnote" color="field">
+          <Text variant="caption" color="field">
             {t("flows.onboarding.brandSub")}
           </Text>
         </View>
       </View>
-      <Card style={{ gap: tokens.space.md }}>
+      {/* One overline and one paragraph of 13.5, like the mockup (Iris, Prism F1-3). */}
+      <Card padding="compact" style={{ gap: tokens.space.xs + tokens.space.xxs }}>
         <Text variant="label" color="field">
           {t("flows.onboarding.introLabel")}
         </Text>
-        <Text variant="body">{t("flows.onboarding.tagline")}</Text>
-        <View style={{ gap: tokens.space.sm }}>
-          {points.map((p) => (
-            // Icon on the first line's optical centre when the text wraps (Iris, 1.3).
-            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "flex-start" }}>
-              <View style={{ paddingTop: tokens.space.xxs }}>
-                <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
-              </View>
-              <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
-                {t(`flows.onboarding.${p.key}`)}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <Text variant="footnote">{t("flows.onboarding.introBody")}</Text>
       </Card>
       <View style={{ gap: tokens.space.sm }}>
         <Text variant="label" color="secondary">
           {t("flows.settings.language")}
         </Text>
         {/* Side by side like the mockup; stacked when large text would break "Português". */}
-        <View accessibilityRole="radiogroup" style={{ flexDirection: fontScale > LARGE_TEXT ? "column" : "row", gap: tokens.space.md }}>
-          {LANGUAGES.map((l) => (
-            <View key={l.id} style={fontScale > LARGE_TEXT ? undefined : { flex: 1 }}>
-              <OptionCard
-                title={l.name}
-                indicator="check"
-                selected={languageId === l.id}
-                onPress={async () => {
-                  await setLanguage(l.id);
-                  announce(i18n.getFixedT(l.id)("flows.onboarding.languageAnnounce"));
-                }}
-              />
-            </View>
-          ))}
+        <View accessibilityRole="radiogroup" style={{ flexDirection: fontScale > LARGE_TEXT ? "column" : "row", gap: tokens.space.sm }}>
+          {LANGUAGES.map((l) => {
+            const selected = languageId === l.id;
+            return (
+              <View key={l.id} style={fontScale > LARGE_TEXT ? undefined : { flex: 1 }}>
+                <OptionCard
+                  title={l.name}
+                  indicator="check"
+                  selected={selected}
+                  leading={
+                    monogram ? (
+                      <View
+                        style={{
+                          width: tokens.size.controlSm,
+                          height: tokens.size.controlSm,
+                          borderRadius: tokens.radius.full,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: selected ? tokens.color.accent.solid : tokens.color.bg.raised,
+                        }}
+                        importantForAccessibility="no-hide-descendants"
+                        accessibilityElementsHidden
+                      >
+                        <Text variant="caption" weight="semibold" color={selected ? "onAccent" : "primary"}>
+                          {l.id.toUpperCase()}
+                        </Text>
+                      </View>
+                    ) : undefined
+                  }
+                  onPress={async () => {
+                    await setLanguage(l.id);
+                    announce(i18n.getFixedT(l.id)("flows.onboarding.languageAnnounce"));
+                  }}
+                />
+              </View>
+            );
+          })}
         </View>
       </View>
-      {phone.length > 0 && (
-        <Card>
-          <Text variant="label" color="secondary">
-            {t("flows.onboarding.phoneLabel")}
-          </Text>
-          {phone.map((r, i) => (
-            <View
-              key={r.key}
-              accessible
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingTop: tokens.space.md,
-                paddingBottom: i < phone.length - 1 ? tokens.space.md : 0,
-                borderBottomWidth: i < phone.length - 1 ? tokens.size.hairline : 0,
-                borderBottomColor: tokens.color.line.hairline,
-              }}
-            >
-              <Text variant="footnote" color="secondary">
-                {t(`flows.onboarding.${r.key}`)}
-              </Text>
-              <Text variant="mono" numeric>
-                {r.ram ? formatRam(r.bytes, lang) : formatBytes(r.bytes, lang)}
-              </Text>
-            </View>
-          ))}
-        </Card>
-      )}
+      {/* The mockup's hardware card, with measured values only: no "Verified" column (Prism F1-5/F1-6). */}
+      <Card style={{ paddingTop: tokens.space.md, paddingHorizontal: tokens.space.md + tokens.space.xxs, paddingBottom: tokens.space.xs + tokens.space.xxs }}>
+        <Text variant="label" color="secondary">
+          {t("flows.onboarding.phoneLabel")}
+        </Text>
+        {phone.map((r, i) => (
+          <View
+            key={r.key}
+            accessible
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: tokens.space.sm,
+              paddingVertical: tokens.space.xs + tokens.space.xxs,
+              borderTopWidth: i > 0 ? tokens.size.hairline : 0,
+              borderTopColor: tokens.color.line.row,
+            }}
+          >
+            <Text variant="footnote" color="secondary">
+              {t(`flows.onboarding.${r.key}`)}
+            </Text>
+            <Text variant="caption" numeric>
+              {r.value}
+            </Text>
+          </View>
+        ))}
+      </Card>
     </Screen>
   );
 }
@@ -521,6 +534,7 @@ function PackageStep({
       footer={
         <>
           <Button
+            size="lg"
             label={
               chosen.plan.downloadBytes > 0 && !offline
                 ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) })
@@ -1040,7 +1054,7 @@ function InstallStep({
     ].filter((r): r is { key: string; value: string } => !!r);
     return (
       // ambient: the same ember light as the Welcome, so both ends of setup rhyme (Iris).
-      <Screen center ambient edges={["top", "bottom", "left", "right"]} footer={<Button label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
+      <Screen center ambient edges={["top", "bottom", "left", "right"]} footer={<Button size="lg" label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
         <View style={{ alignItems: "center", gap: tokens.space.md }}>
           <Mascot size="hero" glow />
           <Text ref={titleRef} variant="title1" align="center" header>
@@ -1089,11 +1103,11 @@ function InstallStep({
       contentStyle={setupRhythm(tokens)}
       edges={["top", "bottom", "left", "right"]}
       footer={
-        ready ? (
-          <Button label={t("flows.onboarding.open")} fullWidth onPress={onReady} />
-        ) : indexPhase === "building" ? undefined : ( // no disabled Back while the index is built (Prism R-IDX-3)
-          <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} />
-        )
+        <>
+          {/* The mockup's CTA: large, disabled until everything is on the phone (Iris §3). */}
+          <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled onPress={onReady} />
+          {indexPhase !== "building" && <Button label={t("flows.onboarding.back")} variant="ghost" fullWidth onPress={onBack} />}
+        </>
       }
     >
       <StepHeader
@@ -1124,18 +1138,19 @@ function InstallStep({
         // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
         // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
         // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
-        <Card style={{ gap: tokens.space.md - tokens.space.xxs, overflow: "hidden", borderRadius: tokens.radius.lg + tokens.space.xxs }}>
+        <Card style={{ gap: tokens.space.md - tokens.space.xxs, borderRadius: tokens.radius.hero }}>
           {fontScale > LARGE_TEXT ? (
             // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
             <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
               <Mascot size="brand" />
             </View>
           ) : (
-            <View style={{ position: "absolute", top: -tokens.space.xs, right: -tokens.space.xs }}>
-              <Mascot size="hero" glow />
+            // The mockup's boar overflows the card (top -4, right -6), unclipped (Iris §3).
+            <View style={{ position: "absolute", top: -tokens.space.xs, right: -(tokens.space.xs + tokens.space.xxs) }}>
+              <Mascot size="md" />
             </View>
           )}
-          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascot - tokens.space.xl }}>
+          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascotMd - tokens.space.xl }}>
             {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
@@ -1225,7 +1240,7 @@ function InstallStep({
               gap: tokens.space.xs,
               paddingVertical: tokens.space.sm,
               borderBottomWidth: i < rows.length - 1 && rows[i + 1].group === row.group ? tokens.size.hairline : 0,
-              borderBottomColor: tokens.color.line.hairline,
+              borderBottomColor: tokens.color.line.row,
             }}
           >
             <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>

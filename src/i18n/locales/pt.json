@@ -563,19 +563,18 @@
       "packFooter": "Cada trecho nas respostas indica a fonte e a licença."
     },
     "onboarding": {
-      "tagline": "Pesquisa com IA que roda inteira no seu celular, sem internet.",
       "brandSub": "Assistente de pesquisa offline",
       "introLabel": "Como funciona",
       "phoneLabel": "Este celular",
       "phoneMemory": "Memória",
       "phoneFree": "Espaço livre",
+      "phoneEngine": "Roda em",
+      "phoneEngineValue": "llama.cpp, neste celular",
+      "introBody": "Pesquisa com IA que roda inteira no seu celular. Depois de configurada, funciona sem internet, suas perguntas não saem do celular e cada resposta mostra as fontes que usou.",
       "meta": {
         "onDisk": "{{size}} no disco depois de instalar",
         "time": "~{{minutes}} min a {{speed}}/s"
       },
-      "point1": "Funciona offline depois de configurado.",
-      "point2": "Suas perguntas não saem do celular.",
-      "point3": "Mostra as fontes de cada resposta.",
       "start": "Começar",
       "backToApp": "Voltar ao app",
       "step2Title": "Escolha o que instalar",

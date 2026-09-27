@@ -49,7 +49,6 @@ const DYNAMIC_KEYS = [
   ...expand("flows.about.how", ["1", "2", "3"]),
   ...expand("flows.knowledge.stage.", ["reading", "chunking", "embedding"]),
   ...expand("flows.length.hint", ["256", "512", "1024", "2048"]),
-  ...expand("flows.onboarding.point", ["1", "2", "3"]),
   ...expand("flows.onboarding.package.", ["essential.name", "essential.body", "encyclopedia.name", "encyclopedia.body"]),
   ...expand("flows.onboarding.step", ["2Title", "3Title"]),
   ...expand("flows.onboarding.", ["doneAnswer", "doneKnowledge", "donePlaces", "doneIndex"]),
