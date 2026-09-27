@@ -820,7 +820,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           extraData={renderItem}
-          contentContainerStyle={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           // With a conversation on screen, a model error comes in as the next message, above the composer: it
