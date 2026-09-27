@@ -254,6 +254,25 @@ export class ModelManager {
     signal?: AbortSignal,
     catalog: CatalogModel[] = this.importCatalog()
   ): Promise<CatalogModel> {
+    // Every attempt and every refusal is logged, including the ones decided
+    // before any copy (unknown size, too large, no room): a silent refusal
+    // looks like "the import button does nothing" on a device.
+    dlog("import", `importing ${srcUri}`);
+    try {
+      return await this.importFromFileUnlogged(srcUri, onProgress, signal, catalog);
+    } catch (e: any) {
+      const kind = e instanceof AssetIntegrityError ? e.kind : e?.name ?? "error";
+      dlog("import", `refused ${srcUri}: ${kind}: ${e?.message ?? e}`);
+      throw e;
+    }
+  }
+
+  private async importFromFileUnlogged(
+    srcUri: string,
+    onProgress: HashProgress | undefined,
+    signal: AbortSignal | undefined,
+    catalog: CatalogModel[]
+  ): Promise<CatalogModel> {
     // Entries without a known hash can't be identified by content.
     catalog = catalog.filter((a) => /^[0-9a-f]{64}$/i.test(a.sha256));
     throwIfAborted(signal);

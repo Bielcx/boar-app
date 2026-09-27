@@ -355,6 +355,20 @@ describe("import size limits", () => {
     expect(e.message).toMatch(/This file is 40\.0 GB; nothing BOAR can install is larger than 30\.0 GB/);
     expect([...files.keys()]).toEqual([SRC]);
   });
+
+  it("logs a refusal decided before any copy, so a device log shows why nothing happened", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      put(SRC, Buffer.from("a pack from an older upload, one byte longer"));
+      const e = await rejection(new ModelManager([asset()]).importFromFile(SRC));
+      expect(e.kind).toBe("unknown-file");
+      const lines = log.mock.calls.map((c) => String(c[0]));
+      expect(lines).toContain(`[ModelManager:download:import] importing ${SRC}`);
+      expect(lines.some((l) => l.startsWith(`[ModelManager:download:import] refused ${SRC}: unknown-file: This file (`))).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
+  });
 });
 
 describe("asset registry integration", () => {
