@@ -131,6 +131,16 @@ CC BY-SA 4.0. Source of truth: `src/rag/wikiEnPacks.ts`.
 | 13 | 1.14 GB | 372,746 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-13.sqlite) | `189c1c011ebea6de20c6849ce3233ac723737fa31dae5c570028b42f73cbf24e` |
 | 14 | 1.22 GB | 410,159 | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/ce244fa65789d8628de0d979969b7d526f10d63f/wiki/en/boar-wiki-en-14.sqlite) | `abb0edb68c7792767a783b2d5bc5fcc1a6af1253c30c4f721e2cde3227985f34` |
 
+## English Wikivoyage (optional)
+
+Travel guides for 34,002 places (where to go, how to get around, where to eat
+and sleep), one pack of 351.1 MB, CC BY-SA 4.0. Source of truth:
+`WIKIVOYAGE_EN` in `src/rag/wikiEnPacks.ts`.
+
+| Asset | Size | Download | SHA-256 |
+|---|---|---|---|
+| Wikivoyage (English) | 351.1 MB | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/9557c7b2a50a1c37fdf36d41db4cd0fdc8c33c0b/wiki/en/boar-wikivoyage-en.sqlite) | `ff8595e32f56b8b84e20464afd8bf88532d47d2d82d799e3df8489440004b66e` |
+
 ## Size limits
 
 Files are checked before anything is copied:
