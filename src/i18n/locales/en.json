@@ -719,12 +719,13 @@
     "stage": {
       "searching": "Searching sources…",
       "loadingModel": "Loading the model…",
-      "reading": "Reading {{count}} sources…",
       "thinking": "Thinking…",
       "verifying": "Checking the answer…",
       "synthesizing": "Putting it together…",
       "part": "Researching part {{index}} of {{count}}…",
-      "stopping": "Stopping…"
+      "stopping": "Stopping…",
+      "reading_one": "Reading {{count}} source…",
+      "reading_other": "Reading {{count}} sources…"
     },
     "announce": {
       "searching": "Searching sources",

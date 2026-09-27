@@ -719,12 +719,13 @@
     "stage": {
       "searching": "Buscando nas fontes…",
       "loadingModel": "Carregando o modelo…",
-      "reading": "Lendo {{count}} fontes…",
       "thinking": "Pensando…",
       "verifying": "Conferindo a resposta…",
       "synthesizing": "Juntando tudo…",
       "part": "Pesquisando parte {{index}} de {{count}}…",
-      "stopping": "Parando…"
+      "stopping": "Parando…",
+      "reading_one": "Lendo {{count}} fonte…",
+      "reading_other": "Lendo {{count}} fontes…"
     },
     "announce": {
       "searching": "Buscando nas fontes",
