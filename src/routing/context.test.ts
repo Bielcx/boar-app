@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  onTopic,
+  namedByLexicon,
   healthSourceIndex,
   coreProcedure,
   healthTopicTerms,
@@ -400,5 +402,64 @@ describe("isCurrentEventQuery (CT-3)", () => {
     ]) {
       expect(isCurrentEventQuery(q), q).toBe(false);
     }
+  });
+});
+
+describe("namedByLexicon (PT-1: lexicon names are article titles)", () => {
+  const c = (title: string, body = "Text.") => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("a one-word name is the whole title; a multi-word name may sit in a longer title or a heading", () => {
+    expect(namedByLexicon(["Season"], c("Season"))).toBe(true);
+    expect(namedByLexicon(["Season"], c("Wikivoyage: Seasons"))).toBe(true);
+    expect(namedByLexicon(["Season"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)"))).toBe(false);
+    expect(namedByLexicon(["Season"], c("Hunting", "Seasons > Season: Hunting season is regulated."))).toBe(true);
+    expect(namedByLexicon(["Nuclear fission"], c("Potassium iodide", "Volatile nuclear fission products are released."))).toBe(false);
+    expect(namedByLexicon(["Greenhouse effect"], c("Runaway greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Georgia (country)"], c("Georgia (country)"))).toBe(true);
+  });
+});
+
+describe("onTopic: a question's year and proper nouns (Sextant, gate a9f156c)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  const MARASH = c("1513 Marash earthquake", "The 1513 Marash earthquake or Maraş earthquake allegedly affected Marash in 1513 or 1514. It followed about 400 years after the 1114 Marash earthquake.");
+  const ROBERTS = c("Andy Roberts (cricketer)", "Sir Anderson Montgomery Everton Roberts is an Antiguan former first-class cricketer. He was a member of the team that won both the 1975 Cricket World Cup and the 1979 Cricket World Cup.");
+  const SCARY = c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology directed by Bryan Renaud. The story follows a group of friends who unleash a long-dormant demon when stumbling into the dark web.");
+  it("off topic: another year, a name the source lacks, a title word without the question", () => {
+    expect(onTopic("What happened in the 1906 earthquake?", MARASH)).toBe(false);
+    expect(onTopic("Who won the 1970 World Cup?", ROBERTS)).toBe(false);
+    expect(onTopic("What is the latest theory about dark matter?", SCARY)).toBe(false);
+    expect(onTopic("Who is Vitalik Buterin?", c("Ethereum", "Ethereum is a blockchain platform with a native cryptocurrency, ether."))).toBe(false);
+  });
+  it("on topic: the source has the year / the name", () => {
+    expect(onTopic("What happened in the 1906 earthquake?", c("1906 San Francisco earthquake", "At 05:12 on April 18, 1906, a major earthquake struck the coast of Northern California."))).toBe(true);
+    expect(onTopic("Who won the 1970 World Cup?", c("1970 FIFA World Cup", "The 1970 FIFA World Cup was held in Mexico. Brazil won the tournament, beating Italy 4-1 in the final."))).toBe(true);
+    expect(onTopic("Who is Vitalik Buterin?", c("Vitalik Buterin", "Vitalik Buterin is a Russian-Canadian programmer and co-founder of Ethereum."))).toBe(true);
+    expect(onTopic("What is dark matter?", c("Dark matter", "Dark matter is a hypothetical form of matter that does not interact with light."))).toBe(true);
+  });
+});
+
+describe("healthSourceIndex: Appropedia how-tos and the official source (EQ-2, pack v3)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title + body.slice(0, 9), docId: title, title, body, score: 1, matchType: "lexical" as const, action: true });
+  const quake = coreProcedure(healthTopicTerms("What should I do during an earthquake?", null));
+  it("Appropedia's Drop, Cover and Hold On beats Wikivoyage's 'If you are outdoors'", () => {
+    const sources = [
+      c("Wikivoyage: Earthquake safety", "During an earthquake > If you are outdoors: If outdoors, move away from buildings. Get down as soon as possible, cover yourself and hold on."),
+      c("Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! - Drop to the floor. - Take cover under a sturdy table. - Hold on until the shaking stops."),
+    ];
+    expect(healthSourceIndex(sources, quake)).toBe(1);
+  });
+  it("Ready.gov wins a tie on the core procedure", () => {
+    const sources = [
+      c("Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! - Drop to the floor. - Take cover under a sturdy table. - Hold on until the shaking stops."),
+      c("US government: Earthquakes (Ready.gov)", "During an Earthquake > Protect Yourself: - 1. Drop (or Lock): Drop where you are onto hands and knees. - 2. Cover: Cover your head and neck. - 3. Hold On: Hold until the shaking stops."),
+    ];
+    expect(healthSourceIndex(sources, quake)).toBe(1);
+  });
+  it("safety-005: disinfecting what got wet is not making water safe to drink", () => {
+    const water = coreProcedure(healthTopicTerms("After a flood the tap water might be contaminated. How do I make water safe to drink?", "safe drinking water flood"));
+    const sources = [
+      c("Appropedia: Are You Ready?/Floods", "Take Protective Measures: - Listen for news reports. - Clean and disinfect everything that got wet."),
+      c("Wikivoyage: Water", "Buy: If there is no trustworthy supply, boil the water before drinking."),
+    ];
+    expect(healthSourceIndex(sources, water)).toBe(1);
   });
 });

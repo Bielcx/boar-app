@@ -153,3 +153,16 @@ describe("classifyTask explanation questions", () => {
     expect(classifyTask("Who wrote Dom Casmurro?")).toBe("lookup");
   });
 });
+
+describe("classifyTask Portuguese questions (gate ea5978c)", () => {
+  it("classifies PT questions like their English forms", () => {
+    expect(classifyTask("Por que existem as estações do ano?")).toBe("research");
+    expect(classifyTask("Por que existem as estacoes do ano?")).toBe("research");
+    expect(classifyTask("Como funciona o efeito estufa?")).toBe("research");
+    expect(classifyTask("Quem pintou a Mona Lisa?")).toBe("lookup");
+    expect(classifyTask("O que é matéria escura?")).toBe("lookup");
+    expect(classifyTask("Qual a capital da Austrália?")).toBe("lookup");
+    expect(classifyTask("Qual a diferença entre fusão e fissão nuclear?")).toBe("compare");
+    expect(classifyTask("Obrigado pela ajuda")).toBe("chat");
+  });
+});

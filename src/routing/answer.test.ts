@@ -246,6 +246,20 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.text).toMatch(/^From the offline source:\nTreatment: (Most anterior nosebleeds .*)?Pinch the soft part of the nose and lean forward for 10 to 15 minutes\. \[\d\]\n\nIn an emergency, call your local emergency number/);
   });
 
+  it("EQ-2: the instant snippet of a health answer is the quoted excerpt, from the cited source", async () => {
+    const run = { ...chunk("wv", "Wikivoyage: Earthquake safety", "During an earthquake: Do not run during the quake! Running around during the quake is dangerous."), action: true };
+    const drop = { ...chunk("ap", "Appropedia: How to survive an earthquake", "During an earthquake: Drop, cover, and hold on! Drop to the floor. Take cover under a sturdy table. Hold on until the shaking stops."), action: true };
+    f.retrieved = [run, drop] as any;
+    const { events, result } = await collect("What should I do during an earthquake?");
+    const instants = events.filter((e) => e.type === "instant") as any[];
+    expect(instants).toHaveLength(1);
+    expect(instants[0].snippet.text).toMatch(/Drop, cover, and hold on!/);
+    expect(instants[0].snippet.text).not.toMatch(/Do not run/);
+    const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+    expect(sources[instants[0].snippet.sourceIndex].chunkId).toBe("ap");
+    expect(result.text).toContain(instants[0].snippet.text);
+  });
+
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
     const queries: string[] = [];
     f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
@@ -579,6 +593,91 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(sources.map((c) => c.title)).toEqual(["Wikivoyage: Hot weather"]);
     const instant = events.find((e) => e.type === "instant") as any;
     if (instant) expect(sources[instant.snippet.sourceIndex].title).toBe("Wikivoyage: Hot weather");
+  });
+
+  it("PT-1: a PT question is matched with the lexicon's English names, with or without accents", async () => {
+    const SEASON = chunk("se", "Season", "A season is a division of the year based on changes in weather. Seasons result from Earth's axial tilt relative to the plane of its orbit around the Sun.");
+    for (const q of ["Por que existem as estações do ano?", "Por que existem as estacoes do ano?"]) {
+      f = makeFake();
+      const HURRICANE = chunk("hs", "US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)", "Prepare before hurricane season starts. The Atlantic hurricane season starts June 1.");
+      f.retrieved = [HURRICANE, WALIPINI, SEASON];
+      const queries: string[] = [];
+      const retrieve = f.deps.retrieve;
+      f.deps.retrieve = (query, k) => (queries.push(query), retrieve(query, k));
+      f.deps.englishNames = (query) => (/esta(ç|c)(õ|o)es do ano/i.test(query) ? ["Season"] : []);
+      const { events, result } = await collect(q);
+      const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+      expect(sources.map((c) => c.title), q).toEqual(["Season"]);
+      expect(queries, q).toEqual([q]); // retrieve() translates a PT question itself
+      expect(result.receipt.reasonCodes).toContain("match:pt-en-names");
+      const instant = events.find((e) => e.type === "instant") as any;
+      expect(instant && sources[instant.snippet.sourceIndex].title, q).toBe("Season");
+    }
+    // Without the names, no English title is named by the PT words: the guard keeps nothing.
+    f = makeFake();
+    f.retrieved = [WALIPINI, { ...WALIPINI, chunkId: "se", title: "Season" }];
+    f.deps.englishNames = () => [];
+    const { events } = await collect("Por que existem as estacoes do ano?");
+    expect(events.find((e) => e.type === "instant")).toBeUndefined();
+  });
+
+  it("gate ea5978c: an answer that cites none of its sources opens with the not-from-the-library line (4B)", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async (o) => {
+      o.onToken?.("It was a compromise between Sydney and Melbourne.");
+      return "It was a compromise between Sydney and Melbourne.";
+    };
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.cited).toEqual([]);
+    expect(done.finalText).toBe("This answer is not from an offline source on this phone; check it before relying on it.\n\nIt was a compromise between Sydney and Melbourne.");
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-preface");
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
+  });
+
+  it("gate ea5978c: the compact model's uncited answer becomes the decline; answerAnyway keeps it with the line", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "It was a compromise.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect((events.find((e) => e.type === "done") as any).finalText).toBe("");
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-declined-compact");
+
+    f = makeFake();
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "A compromise.";
+    const events2: AnswerEvent[] = [];
+    await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
+  });
+
+  it("no source at all: a 4B answer that skipped the instruction still gets the line; one that said it doesn't twice", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    const first = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((first.events.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source on this phone/);
+    expect(first.events.filter((e) => e.type === "warning")).toHaveLength(1);
+    f = makeFake();
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "This answer is not from an offline source. It was a compromise.";
+    const second = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((second.events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+  });
+
+  it("an answer that cites its source gets no line", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "Canberra is the capital city of Australia [1].";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+    expect(result.receipt.reasonCodes.some((c) => c.startsWith("grounding:uncited"))).toBe(false);
   });
 
   it("only the incidental page: no snippet, and the model is told it's not from the library", async () => {

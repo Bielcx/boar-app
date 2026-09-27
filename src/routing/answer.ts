@@ -24,8 +24,10 @@ import {
   ACTION_INTENT,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
+  uncitedPreface,
   noHealthSourceAnswer,
   onTopic,
+  namedByLexicon,
   PT_QUESTION,
   healthExtract,
   healthSourceIndex,
@@ -38,6 +40,8 @@ import {
   termCoverage,
 } from "./context";
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
+import { englishNamesIn } from "../rag/ptLexicon";
+import { ptLexicon } from "../rag/ptLexiconAsset";
 import { checkCitations } from "./citations";
 import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
@@ -132,6 +136,12 @@ export interface AnswerDeps {
    * after the models load). A question asked meanwhile waits instead of searching an empty index.
    */
   knowledgeReady?(): Promise<void>;
+  /**
+   * English article names a Portuguese question mentions (Bramble's lexicon, src/rag/ptLexicon.ts
+   * englishNamesIn): "Por que existem as estações do ano?" -> ["Season"]. The grounding guard matches
+   * sources against them; without them a PT question never names an English title.
+   */
+  englishNames?(query: string): string[];
 }
 
 /** GPS budget: the first useful information must appear in under a second. */
@@ -231,6 +241,9 @@ export interface EffectiveAnswerModel {
   /** The user's saved model, not used here (low RAM without confirmation, or its load killed the app). */
   downgradedFrom?: { id: string; label: string; reason: "low-ram" | "load-crashed" };
 }
+
+/** The bundled PT->EN lexicon's names: every caller gets the PT topic guard (the eval runner passed no englishNames, gate ea5978c). */
+const defaultEnglishNames = (query: string) => englishNamesIn(query, ptLexicon());
 
 export function createAnswerer(deps: AnswerDeps) {
   let current: AnswerHandle | null = null;
@@ -581,11 +594,17 @@ export function createAnswerer(deps: AnswerDeps) {
       const pt = PT_QUESTION.test(req.query);
       const english = pt ? englishSearchTerms(req.query) : isHealthQuestion(req.query) ? canonicalHealthTerms(req.query) : null;
       if (english) reasonCodes.push("retrieve:pt-en-terms");
+      // Any other PT question: the English names it mentions, from the lexicon (PT-1, "estacoes do ano" -> Season).
+      const names = pt && !english ? (deps.englishNames ?? defaultEnglishNames)(req.query) : [];
+      if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
-      const matchQuery = english ?? req.query;
+      const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
+      // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
+      const onSubject = (c: RetrievedChunk) => (names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c));
       // The packs lift an article's Treatment/Management section only when the query asks what to
       // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
-      const searchQuery = english && ACTION_INTENT.test(req.query) ? `${english} what to do` : matchQuery;
+      // Lexicon names aren't searched here: retrieve() already adds them to a PT question's search.
+      const searchQuery = english ? (ACTION_INTENT.test(req.query) ? `${english} what to do` : english) : req.query;
       let raw: RetrievedChunk[] = req.reuseSources ?? [];
       let retrievalMs: number | undefined;
       if (plan.retrieve && gen?.mode !== "multipass") {
@@ -622,11 +641,12 @@ export function createAnswerer(deps: AnswerDeps) {
       reasonCodes.push(`context:${compressed.tokensBefore}->${compressed.tokensAfter}`);
 
       // Grounding: sources must be on topic in absolute terms, not just the best of what came back.
-      // A PT question without English words can't be matched word for word against English sources: no guard.
-      const guarded = gen?.mode !== "multipass" && (!pt || !!english);
+      // A PT question without English words (dictionary or lexicon names) can't be matched word for
+      // word against English sources: no guard.
+      const guarded = gen?.mode !== "multipass" && (!pt || !!english || names.length > 0);
       // Health has its own, stricter topic filter below (the condition, lay sources allowed).
       if (guarded && !health && sources.length) {
-        const kept = sources.filter((c) => onTopic(matchQuery, c));
+        const kept = sources.filter((c) => onSubject(c));
         if (kept.length < sources.length) reasonCodes.push(`grounding:off-topic-dropped-${sources.length - kept.length}`);
         if (!kept.length) reasonCodes.push("grounding:no-good-source");
         sources = kept;
@@ -653,15 +673,20 @@ export function createAnswerer(deps: AnswerDeps) {
         emit({ type: "sources", answerId, tier: plan.instant !== "off" ? "instant" : genTier, sources });
       }
 
-      // 2. Instant snippet (no LLM): only a sentence that covers the question.
-      if (plan.instant !== "off" && raw.length) {
-        const snip = selectInstant(matchQuery, raw);
-        const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === raw[snip.sourceIndex].chunkId) : -1;
+      // 2. Instant snippet (no LLM): only a sentence that covers the question. Not for an extractive
+      // health answer: its snippet is the excerpt below (EQ-2: the preview quoted "Do not run during
+      // the quake!" by word overlap, before the Drop, Cover and Hold On excerpt).
+      const healthExtractive = health && sources.length > 0 && req.tier !== "deep";
+      if (plan.instant !== "off" && raw.length && !healthExtractive) {
+        // Lexicon names: the sentence comes from a source titled by one (a one-word name is in many titles).
+        const pool = names.length ? raw.filter(onSubject) : raw;
+        const snip = pool.length ? selectInstant(matchQuery, pool) : null;
+        const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === pool[snip.sourceIndex].chunkId) : -1;
         // "From the source" only from an on-topic source (the same onTopic as the sources), and a sentence that covers the question.
         const covers =
           !!snip &&
-          onTopic(matchQuery, raw[snip.sourceIndex]) &&
-          termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
+          onSubject(pool[snip.sourceIndex]) &&
+          termCoverage(matchQuery, `${pool[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();
@@ -695,7 +720,7 @@ export function createAnswerer(deps: AnswerDeps) {
       // Health with a good source: the answer IS the source's text, not the model's
       // retelling (Sextant: the models misplaced the pinch point, iced snake bites,
       // put cream on burns). "Deeper answer" (tier deep) lets the model summarize it, strictly.
-      if (health && sources.length && req.tier !== "deep") {
+      if (healthExtractive) {
         reasonCodes.push("grounding:health-extractive");
         // Score on each source's full text: compression keeps the sentences matching the question
         // words, which can leave out a first-aid text's instructions.
@@ -704,6 +729,9 @@ export function createAnswerer(deps: AnswerDeps) {
         const i = healthSourceIndex(fullSources, rules.procedure ?? null);
         const text = healthExtract(fullSources[i], i + 1, pt, rules);
         markVisible();
+        // The snippet is the quoted excerpt itself, from the source the answer cites.
+        const quoted = text.split("\n")[1]?.replace(/\s*\[\d+\]$/, "") ?? text;
+        if (plan.instant !== "off") emit({ type: "instant", answerId, snippet: { text: quoted, sourceIndex: i }, confidence: 1 });
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
       }
@@ -875,6 +903,26 @@ export function createAnswerer(deps: AnswerDeps) {
         }
       }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
+
+      // Safety net (Boar, gate ea5978c): a knowledge answer that cites none of the sources it was
+      // given came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up front; the
+      // compact model declines, as with no source at all, unless asked to answer anyway.
+      const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
+      // Also with no source at all (the instruction asks for the line; a model may skip it).
+      const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
+      if (knowledge && text.trim() && !/\[\d+\]/.test(text) && !saysNotFromLibrary) {
+        if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
+          reasonCodes.push("grounding:uncited-declined-compact");
+          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
+          finalText = "";
+          return finish(genTier, "success", "", [], baseReceipt);
+        }
+        reasonCodes.push("grounding:uncited-preface");
+        // No source: the weak_sources warning already went out before generation.
+        if (sources.length) emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+        text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
+        finalText = text;
+      }
 
       // 4. Verification (complete answers only, distinct verifier).
       if (plan.verify && text.trim() && sources.length) {
