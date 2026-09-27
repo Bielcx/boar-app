@@ -53,6 +53,8 @@ describe("geoProvidersFrom", () => {
     expect(await p.resolvePlace("Atlantis")).toBeNull();
     // Portuguese names through the PT->EN lexicon (Boar, residual of PL-1).
     expect(await p.resolvePlace("Berlim")).toMatchObject({ name: "Berlin" });
+    // Cleaned like the gazetteer (cleanPlaceName): punctuation, a leading preposition, ", Country".
+    for (const n of ["Berlin?", "in Berlin", "Berlin, Germany", "em Berlim"]) expect(await p.resolvePlace(n), n).toMatchObject({ name: "Berlin" });
     // A failing gazetteer (missing file) falls back too.
     const broken = geoProvidersFrom(sources({ resolvePlace: () => Promise.reject(new Error("no such table")), cities }));
     expect(await broken.resolvePlace("Berlin")).toMatchObject({ name: "Berlin" });
