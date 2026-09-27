@@ -12,6 +12,8 @@
 import { defaultContextSize, llamaEngine } from "../inference/LlamaEngine";
 import { getDeviceTotalRamBytes } from "ram-monitor";
 import { retrieve } from "../rag/retrieve";
+import { englishNamesIn } from "../rag/ptLexicon";
+import { ptLexicon } from "../rag/ptLexiconAsset";
 import { seedKnowledgeBaseIfEmpty } from "../rag/seedCorpus";
 import { assemblePrompt, assembleChatMessages } from "../rag/pure";
 import { ModelManager } from "../models/ModelManager";
@@ -72,6 +74,7 @@ export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAn
   engine: llamaEngine,
   retrieve: (q, k) => retrieve(q, k),
   knowledgeReady,
+  englishNames: (query) => englishNamesIn(query, ptLexicon()),
   getSettings: getAnswerSettings,
   listInstalledLlms,
   getActiveModelId: () => getActiveModelId("llm"),
