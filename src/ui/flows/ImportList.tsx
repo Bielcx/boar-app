@@ -20,6 +20,8 @@ interface Props {
   onCancel?: () => void;
   /** Label of the pick button; "Choose files" by default. */
   pickLabel?: string;
+  /** The pick is the screen's main action (offline setup): primary, full width. */
+  primary?: boolean;
 }
 
 /**
@@ -27,7 +29,7 @@ interface Props {
  * verified as a catalog item, or why it was refused. Refusals stay on
  * screen with the file name until the next pick (Prism F8).
  */
-export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
+export function ImportList({ imports, onPick, onCancel, pickLabel, primary }: Props) {
   const { t } = useTranslation();
   const tokens = useTokens();
   const announce = useAnnounce();
@@ -120,7 +122,15 @@ export function ImportList({ imports, onPick, onCancel, pickLabel }: Props) {
           onPress={onCancel}
         />
       )}
-      <Button ref={pickRef} label={pickLabel ?? t("flows.import.pick")} icon="file-plus" variant="secondary" onPress={onPick} loading={busy} />
+      <Button
+        ref={pickRef}
+        label={pickLabel ?? t("flows.import.pick")}
+        icon="file-plus"
+        variant={primary ? "primary" : "secondary"}
+        fullWidth={primary}
+        onPress={onPick}
+        loading={busy}
+      />
     </View>
   );
 }
