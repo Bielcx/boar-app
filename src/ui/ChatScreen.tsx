@@ -675,7 +675,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         }}
         onNewChat={resetToNewChat}
       />
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      {/* automaticOffset: the view's onLayout y is relative to its parent (below the safe area and the
+          header), so without it the padding came out short and the composer sat behind the keyboard
+          (Prism K-1, Android offline 06f508b). The native window position fixes any offset above. */}
+      <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
         {items.length > 0 && loadError ? (
           <View style={{ paddingHorizontal: tk.space.gutter }}>
