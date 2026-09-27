@@ -14,6 +14,9 @@ function labelFor(assetId: string | undefined): string | undefined {
 }
 import type { FileImport } from "./useCatalog";
 
+/** Kinds whose message says it all (Ledger's empty-file, unreadable-file): no raw detail under them. */
+const SELF_EXPLAINED = new Set<string>(["empty-file", "unreadable-file"]);
+
 interface Props {
   imports: FileImport[];
   onPick: () => void;
@@ -113,31 +116,27 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
                   {t("flows.import.missingCities", { name: m.label, size: formatBytes(m.sizeBytes, i18n.language) })}
                 </Text>
               ))}
-            {f.status === "failed" &&
-              (f.sizeBytes === 0 ? (
-                // A 0 from the picker can be an empty file OR a >2 GiB file read wrong (IMP-2GB): say only what we know (Prism).
+            {f.status === "failed" && (
+              <>
+                {/* The error kind says it (Ledger 6f28763/7f57dad): empty-file, unreadable-file, unknown-file… */}
                 <Text variant="footnote" color="danger">
-                  {t("flows.import.sizeUnread")}
+                  {t(`flows.row.error.${f.errorKind ?? "unknown"}`)}
                 </Text>
-              ) : (
-                <>
-                  <Text variant="footnote" color="danger">
-                    {t(`flows.row.error.${f.errorKind ?? "unknown"}`)}
+                {f.errorKind === "unknown-file" ? (
+                  // What to do on the phone, not a path in the repository (Prism IM-3).
+                  <Text variant="caption" color="secondary">
+                    {t("flows.import.unknownHint")}
                   </Text>
-                  {f.errorKind === "unknown-file" ? (
-                    // What to do on the phone, not a path in the repository (Prism IM-3).
-                    <Text variant="caption" color="secondary">
-                      {t("flows.import.unknownHint")}
+                ) : (
+                  f.message &&
+                  !SELF_EXPLAINED.has(f.errorKind ?? "") && (
+                    <Text variant="caption" color="secondary" selectable>
+                      {readableErrorDetail(f.message, i18n.language)}
                     </Text>
-                  ) : (
-                    f.message && (
-                      <Text variant="caption" color="secondary" selectable>
-                        {readableErrorDetail(f.message, i18n.language)}
-                      </Text>
-                    )
-                  )}
-                </>
-              ))}
+                  )
+                )}
+              </>
+            )}
           </View>
         );
       })}
