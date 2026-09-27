@@ -42,6 +42,8 @@ describe("phaseAnnouncement", () => {
     // CT-2: the count follows the cited sources; nothing cited reads as no source.
     expect(phaseAnnouncement("done", { ...state, cited: [2] }, t)).toEqual({ message: 'chat.announce.ready{"count":1}' });
     expect(phaseAnnouncement("done", { ...state, cited: [] }, t)).toEqual({ message: "chat.announce.readyNoSource" });
+    // A calculation or a fixed answer: no sources, never "0 sources" (Tusk R12).
+    expect(phaseAnnouncement("done", { ...state, sources: [], cited: [] }, t)).toEqual({ message: "chat.announce.readyPlain" });
     expect(phaseAnnouncement("error", state, t)).toEqual({ message: "chat.error.generic", assertive: true });
     expect(phaseAnnouncement("reading", state, t)).toBeNull();
   });
@@ -86,6 +88,12 @@ describe("receiptLine", () => {
   it("names the engine's no-source answer in the app's language (I18N-2), never its English label", () => {
     expect(receiptLine({ ...receipt, modelId: "grounding-guard", modelLabel: "No offline source", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 200 }, "pt-BR", t)).toBe(
       'chat.receipt.answeredIn{"time":"0,2 s"} · chat.receipt.noOfflineSource · chat.receipt.offline'
+    );
+  });
+
+  it("names the exact conversion in the app's language (Tusk 7e9687a)", () => {
+    expect(receiptLine({ ...receipt, modelId: "calculator", modelLabel: "Calculator", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 10 }, "pt-BR", t)).toBe(
+      'chat.receipt.answeredIn{"time":"0 s"} · chat.receipt.calculator · chat.receipt.offline'
     );
   });
 
@@ -246,6 +254,7 @@ describe("offersAskModel (Prism CT-4)", () => {
   it("after a source passage, yes; after the engine's fixed current-events answer, no", () => {
     expect(offersAskModel(r("extractive"))).toBe(true);
     expect(offersAskModel(r("grounding-guard"))).toBe(false);
+    expect(offersAskModel(r("calculator"))).toBe(false);
   });
   it("never once the model answered, for places, or before the instant pass ends", () => {
     expect(offersAskModel({ ...r("extractive"), fast: {} })).toBe(false);
