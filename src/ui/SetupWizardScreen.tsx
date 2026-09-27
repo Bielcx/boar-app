@@ -41,6 +41,7 @@ import { networkAllowed } from "../config/variant";
 import { ImportList } from "./flows/ImportList";
 import { RadioRow } from "./flows/RadioRow";
 import { InstallCategory, installCategories } from "./flows/installGroups";
+import { likelyTarget } from "./flows/fileImport";
 
 interface Props {
   onReady: () => void;
@@ -1064,10 +1065,10 @@ function InstallStep({
         meta: [indexCounter, seedEta != null ? t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) }) : null].filter((x): x is string => !!x),
       };
   // One row per category, like the mockup (Iris, Prism): aggregated honestly, files one tap away.
-  // The file being copied belongs to an item only once verified; matching the picked file's name to the
-  // item's file lets its category read "Importing" in ember meanwhile (the mockup's STREAMING row).
-  const importingItem = (asset: CatalogModel) =>
-    !!activeImport && asset.filename.split("/").pop() === activeImport.name && !catalog.statuses[asset.id]?.present;
+  // The file being copied belongs to an item only once verified; its likely item (same size, or the same
+  // name without case/punctuation) lets that category read "Importing" in ember meanwhile (the mockup's STREAMING row).
+  const copyTarget = activeImport ? likelyTarget(activeImport, assets.filter((a) => !catalog.statuses[a.id]?.present)) : undefined;
+  const importingItem = (asset: CatalogModel) => !!copyTarget && copyTarget.id === asset.id;
   const categories = installCategories(
     states.map(({ asset, state }) => ({
       id: asset.id,
@@ -1189,8 +1190,8 @@ function InstallStep({
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
             ) : (
-              // "62%" is one run in the mockup (same size and colour), not a number with a small unit (Prism S3C-1).
-              <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={`${Math.floor(hero.fraction * 100)}%`} />
+              // "62%" is one run in the mockup; Stat draws unit="%" in the number's body (Iris 23a271b, Prism S3C-1).
+              <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
             )}
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />

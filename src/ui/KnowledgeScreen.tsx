@@ -164,7 +164,7 @@ export function KnowledgeScreen() {
 
       {seed && (
         <Card style={{ gap: tokens.space.md }}>
-          <Stat size="lg" label={t("flows.knowledge.indexingLabel")} value={`${Math.floor((seed.done / seed.total) * 100)}%`} />
+          <Stat size="lg" label={t("flows.knowledge.indexingLabel")} value={String(Math.floor((seed.done / seed.total) * 100))} unit="%" />
           <Progress
             label={t("flows.knowledge.indexingLabel")}
             value={seed.done / seed.total}
@@ -318,7 +318,7 @@ export function KnowledgeScreen() {
                 {importingName}
               </Text>
             </View>
-            {importValue != null && <Stat size="md" align="right" value={`${Math.round(importValue * 100)}%`} />}
+            {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
           </View>
           <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
           <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
