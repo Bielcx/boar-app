@@ -175,6 +175,15 @@ export function detectGeoIntent(query: string): GeoIntent | null {
   };
 }
 
+/** Great-circle distance in meters. */
+export function distanceMeters(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 export function toPlace(p: PoiRecord & { distanceM?: number }, sourceIndex: number, withDistance: boolean): Place {
   return {
     id: p.id,
