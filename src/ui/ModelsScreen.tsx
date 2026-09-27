@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Button, Card, EmptyState, ListRow, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
+import { Badge, Button, Card, EmptyState, ListRow, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
@@ -134,6 +134,8 @@ export function ModelsScreen() {
                   <OptionCard
                     key={m.id}
                     title={m.label}
+                    // Same risk as Use for answers on a low-RAM phone (CR-1).
+                    badge={catalog.view(m).mayCloseApp ? <Badge label={t("flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
                     trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
                     description={

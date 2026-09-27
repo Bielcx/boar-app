@@ -379,6 +379,12 @@
         "thrashing": "May be slow",
         "insufficient": "Won't fit"
       },
+      "mayClose": "May close the app",
+      "mayCloseWhy": "too big for this phone's memory; Compact is recommended here",
+      "mayCloseTitle": "Use {{name}}?",
+      "mayCloseBody": "BOAR may close when it loads this model. Compact is the recommended one here.",
+      "keepCompact": "Keep Compact",
+      "useAnyway": "Use anyway",
       "fitWhy": {
         "streaming": "larger than this phone's memory",
         "thrashing": "needs most of this phone's memory",

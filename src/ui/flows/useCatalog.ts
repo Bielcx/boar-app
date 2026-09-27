@@ -17,7 +17,7 @@ import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
 import { fitFor, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
-import { ModelRole, modelRowView, RowView } from "./modelRowState";
+import { mayCloseApp, ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
 import { FileImport, importFor } from "./fileImport";
 export type { FileImport };
@@ -119,6 +119,7 @@ export function useCatalog(): CatalogState {
         loading: loadingId === model.id,
         loadError: loadErrors[model.id] ?? null,
         fit: fitFor(model)?.verdict,
+        mayCloseApp: mayCloseApp(model, answerModelChoices(MODEL_CATALOG).compact?.sizeBytes, deviceRamBytes),
       });
     },
     // getDownloadState reads module state; the tick re-renders on each change.

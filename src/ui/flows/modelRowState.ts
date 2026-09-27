@@ -10,6 +10,7 @@
  */
 
 import type { DownloadErrorDetail, IntegrityErrorKind } from "../../models/integrity";
+import { COMPACT_ONLY_MAX_RAM_BYTES } from "../../routing/defaultModel";
 
 export type DownloadPhase = "downloading" | "copying" | "verifying" | "verified" | "error";
 /** The trust layer's error kinds (src/models/integrity.ts). */
@@ -43,6 +44,8 @@ export interface RowInput {
   /** Last load attempt failed with this message. */
   loadError?: string | null;
   fit?: FitVerdict;
+  /** Loading it can get the app killed on this phone (mayCloseApp). */
+  mayCloseApp?: boolean;
 }
 
 export type RowState =
@@ -70,6 +73,29 @@ export interface RowView {
   removeBlocked: boolean;
   /** Memory warning to show next to the row; "insufficient" only warns, never hides the row. */
   fitWarning: FitVerdict | null;
+  /** Loading it can get the app killed here: the row says so instead of "May be slow", and Use asks first (CR-1). */
+  mayCloseApp: boolean;
+}
+
+/**
+ * On a phone at or under the compact-only RAM limit (Tusk's
+ * COMPACT_ONLY_MAX_RAM_BYTES, the one the setup uses), a language model
+ * bigger than the compact one can get BOAR killed by the system when it
+ * loads (Piston: Qwen3-4B on 3.8 GB, lowmemorykiller). Unknown RAM (0) is
+ * not a reason to warn.
+ */
+export function mayCloseApp(
+  model: { kind: string; sizeBytes: number },
+  compactSizeBytes: number | undefined,
+  totalRamBytes: number
+): boolean {
+  return (
+    model.kind === "llm" &&
+    compactSizeBytes !== undefined &&
+    model.sizeBytes > compactSizeBytes &&
+    totalRamBytes > 0 &&
+    totalRamBytes <= COMPACT_ONLY_MAX_RAM_BYTES
+  );
 }
 
 function stateOf(input: RowInput): RowState {
@@ -101,8 +127,10 @@ function stateOf(input: RowInput): RowState {
 
 export function modelRowView(input: RowInput): RowView {
   const state = stateOf(input);
-  const fitWarning = input.fit && input.fit !== "resident" ? input.fit : null;
-  const base = { removeBlocked: state.kind === "in-use", fitWarning };
+  const closes = input.mayCloseApp ?? false;
+  // The stronger warning replaces "May be slow".
+  const fitWarning = !closes && input.fit && input.fit !== "resident" ? input.fit : null;
+  const base = { removeBlocked: state.kind === "in-use", fitWarning, mayCloseApp: closes };
   switch (state.kind) {
     case "not-installed":
       return { ...base, state, primary: fitWarning === "insufficient" ? "explain" : "download", tone: "neutral" };
