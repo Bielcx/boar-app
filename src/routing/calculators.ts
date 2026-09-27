@@ -5,7 +5,7 @@
  */
 import { temperatureConversion } from "./context";
 
-export type CalculatorKind = "temperature" | "fuel-economy" | "naismith" | "currency" | "battery";
+export type CalculatorKind = "temperature" | "fuel-economy" | "naismith" | "currency" | "battery" | "water";
 export interface Calculation {
   kind: CalculatorKind;
   text: string;
@@ -121,6 +121,30 @@ function battery(q: string, pt: boolean): string | null {
   return text;
 }
 
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  um: 1, uma: 1, dois: 2, duas: 2, "três": 3, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12,
+};
+const COUNT = String.raw`(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|um|uma|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)`;
+const count = (w: string, pt: boolean) => WORD_NUMBERS[w.toLowerCase()] ?? parseNumber(w, pt);
+
+// (f) Water for a trip: people × days × litres per person per day; 1 L of water weighs about 1 kg.
+function water(q: string, pt: boolean): string | null {
+  if (!/(?<![\p{L}])(water|[áa]gua)(?![\p{L}])/iu.test(q)) return null;
+  const perDay = new RegExp(`${NUM}\\s*(?:l|litros?|liters?|litres?)\\b[^.?!]{0,30}?(?:por dia|per day|a day|/dia|/day)`, "i").exec(q);
+  const people = new RegExp(`\\b(?:somos|we are|we're)\\s+${COUNT}\\b|\\b${COUNT}\\s+(?:of us|people|persons|pessoas|adultos|adults|hikers)\\b`, "i").exec(q);
+  const days = new RegExp(`\\b${COUNT}[\\s-]+(?:days?|dias?)\\b`, "i").exec(q);
+  if (!perDay || !people || !days) return null;
+  const l = parseNumber(perDay[1], pt);
+  const p = count(people[1] ?? people[2], pt);
+  const d = count(days[1], pt);
+  if (!(l > 0 && p > 0 && d > 0)) return null;
+  const total = l * p * d;
+  return pt
+    ? `${fmt(p, pt, 0)} pessoas × ${fmt(d, pt, 0)} dias × ${fmt(l, pt)} L = ${fmt(total, pt)} litros de água, que pesam cerca de ${fmt(total, pt)} kg (1 L de água ≈ 1 kg).`
+    : `${fmt(p, pt, 0)} people × ${fmt(d, pt, 0)} days × ${fmt(l, pt)} L = ${fmt(total, pt)} liters of water, weighing about ${fmt(total, pt)} kg (1 L of water ≈ 1 kg).`;
+}
+
 // (e) A temperature, plus the heat warning when the question asks if it's dangerous (or it clearly is).
 function temperature(q: string, pt: boolean): string | null {
   const base = temperatureConversion(q, pt);
@@ -147,6 +171,7 @@ export function calculate(query: string, pt: boolean): Calculation | null {
     ["fuel-economy", fuelEconomy],
     ["naismith", naismith],
     ["currency", currency],
+    ["water", water],
     ["temperature", temperature],
   ];
   for (const [kind, fn] of tries) {
