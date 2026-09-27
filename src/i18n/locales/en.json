@@ -630,10 +630,10 @@
       "categoryHint": "Shows the files",
       "categoryA11y": "{{name}}, {{done}} of {{total}} files, {{pct}}%",
       "openWhenReady": "Available when every file is on the phone",
-      "llmLabel": "Answer model",
+      "llmLabel": "LLM",
+      "chooseAnswerTitle": "Answer model",
+      "chooseAnswerHint": "Choose Standard or Compact",
       "workingMemory": "needs ~{{size}} of memory",
-      "useStandard": "Use Standard instead",
-      "useCompact": "Use Compact instead",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
       "keepOpenTitle": "Keep BOAR open",
       "stage": {

@@ -630,10 +630,10 @@
       "categoryHint": "Mostra os arquivos",
       "categoryA11y": "{{name}}, {{done}} de {{total}} arquivos, {{pct}}%",
       "openWhenReady": "Disponível quando todos os arquivos estiverem no celular",
-      "llmLabel": "Modelo de resposta",
+      "llmLabel": "LLM",
+      "chooseAnswerTitle": "Modelo de resposta",
+      "chooseAnswerHint": "Escolher Padrão ou Compacto",
       "workingMemory": "precisa de ~{{size}} de memória",
-      "useStandard": "Usar o Padrão",
-      "useCompact": "Usar o Compacto",
       "currentItem": "Item {{n}} de {{total}} — {{name}}",
       "keepOpenTitle": "Mantenha o BOAR aberto",
       "stage": {

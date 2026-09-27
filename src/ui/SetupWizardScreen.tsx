@@ -381,30 +381,11 @@ function Welcome({
             const selected = languageId === l.id;
             return (
               <View key={l.id} style={fontScale > LARGE_TEXT ? undefined : { flex: 1 }}>
-                <OptionCard
-                  title={l.name}
-                  indicator="check"
+                <LanguageCard
+                  name={l.name}
+                  code={l.id.toUpperCase()}
+                  monogram={monogram}
                   selected={selected}
-                  leading={
-                    monogram ? (
-                      <View
-                        style={{
-                          width: tokens.size.controlSm,
-                          height: tokens.size.controlSm,
-                          borderRadius: tokens.radius.full,
-                          alignItems: "center",
-                          justifyContent: "center",
-                          backgroundColor: selected ? tokens.color.accent.solid : tokens.color.bg.raised,
-                        }}
-                        importantForAccessibility="no-hide-descendants"
-                        accessibilityElementsHidden
-                      >
-                        <Text variant="caption" weight="semibold" color={selected ? "onAccent" : "primary"}>
-                          {l.id.toUpperCase()}
-                        </Text>
-                      </View>
-                    ) : undefined
-                  }
                   onPress={async () => {
                     await setLanguage(l.id);
                     announce(i18n.getFixedT(l.id)("flows.onboarding.languageAnnounce"));
@@ -513,6 +494,7 @@ function PackageStep({
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   // Computed from Tusk's estimate for this phone: the honest stand-in for the mockup's "Runs Great / RAM".
   const answerFit = answerModel ? fitFor(answerModel) : undefined;
+  const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
   const offline = !networkAllowed();
@@ -562,18 +544,29 @@ function PackageStep({
       <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
       {/* The mockup's model card on top: what will answer, with a computed fact in place of "Runs Great" (FIDELITY). */}
       {answerModel && (
-        <Card padding="compact" style={{ gap: tokens.space.sm }}>
+        <Card
+          padding="compact"
+          style={{ gap: tokens.space.sm }}
+          // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
+          onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
+          accessibilityLabel={[t(`flows.onboarding.answerTier.${answerTier}`), answerModel.label, formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
             <Badge label={t(`flows.onboarding.answerTier.${answerTier}`)} emphasis="outline" />
-            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" />}
             <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
           </View>
-          <Text variant="headline">{answerModel.label}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Text variant="headline" style={{ flex: 1 }}>
+              {answerModel.label}
+            </Text>
+            {choices.compact && choices.default && <Icon name="chevron-right" size="sm" color={tokens.color.text.secondary} />}
+          </View>
           {answerFit && (
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.xs + tokens.space.xxs }}>
               <Badge label={t(`flows.row.fitShort.${answerFit.verdict}`)} tone={ANSWER_FIT_TONE[answerFit.verdict]} dot caps={false} />
@@ -582,27 +575,41 @@ function PackageStep({
               </Text>
             </View>
           )}
-          {choices.compact && choices.default && (
-            <>
-              {compactSuggested && (
-                <Text variant="caption" color="secondary">
-                  {pick?.reason === "compact-low-ram"
-                    ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
-                    : t("flows.onboarding.compactWhy")}
-                </Text>
-              )}
-              {/* The standard/compact choice stays one tap away, without a second list on the screen. */}
-              <View style={{ alignSelf: "flex-start", marginLeft: -tokens.space.md }}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  label={t(answerTier === "compact" ? "flows.onboarding.useStandard" : "flows.onboarding.useCompact")}
-                  onPress={() => onUserAnswer(answerTier === "compact" ? "default" : "compact")}
-                />
-              </View>
-            </>
-          )}
         </Card>
+      )}
+      {choices.compact && choices.default && (
+        <Sheet
+          visible={modelSheetOpen}
+          onClose={() => setModelSheetOpen(false)}
+          title={t("flows.onboarding.chooseAnswerTitle")}
+          description={
+            compactSuggested
+              ? pick?.reason === "compact-low-ram"
+                ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                : t("flows.onboarding.compactWhy")
+              : undefined
+          }
+        >
+          <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
+            {(["default", "compact"] as const).map((tierId) => {
+              const m = choices[tierId]!;
+              return (
+                <OptionCard
+                  key={tierId}
+                  title={t(`flows.onboarding.answerTier.${tierId}`)}
+                  selected={answerTier === tierId}
+                  onPress={() => {
+                    onUserAnswer(tierId);
+                    setModelSheetOpen(false);
+                  }}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
+                  trailing={formatBytes(m.sizeBytes, lang)}
+                  meta={[m.label]}
+                />
+              );
+            })}
+          </View>
+        </Sheet>
       )}
       <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
         {plans.map((p) => {
@@ -1296,14 +1303,68 @@ function moving(state: RowState): boolean {
   return (state.kind === "downloading" && state.progress > 0) || state.kind === "verifying";
 }
 
+/**
+ * The mockup's language card (Setup 1): one centred row, the EN/PT monogram, the name 15/600 and a
+ * check only when selected, so "Português" never wraps in a 172 pt card (Harbor, iPhone 17).
+ */
+function LanguageCard({ name, code, monogram, selected, onPress }: { name: string; code: string; monogram: boolean; selected: boolean; onPress: () => void }) {
+  const tokens = useTokens();
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected, checked: selected }}
+      accessibilityLabel={name}
+      onPress={() => {
+        if (!selected) impact(ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: tokens.space.md - tokens.space.xxs,
+        minHeight: tokens.size.touch,
+        paddingVertical: tokens.space.md - tokens.space.xxs,
+        paddingHorizontal: tokens.space.md,
+        borderRadius: tokens.radius.card,
+        borderWidth: tokens.size.focusRing,
+        borderColor: selected ? tokens.color.accent.solid : "transparent",
+        backgroundColor: selected || pressed ? tokens.color.bg.raised : tokens.color.bg.surface,
+      })}
+    >
+      {monogram && (
+        <View
+          style={{
+            width: tokens.size.controlSm,
+            height: tokens.size.controlSm,
+            borderRadius: tokens.radius.full,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: selected ? tokens.color.accent.solid : tokens.color.bg.raised,
+          }}
+        >
+          <Text variant="caption" weight="semibold" color={selected ? "onAccent" : "primary"}>
+            {code}
+          </Text>
+        </View>
+      )}
+      <Text variant="callout" weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
+        {name}
+      </Text>
+      {selected && <Icon name="check" size="sm" color={tokens.color.accent.text} />}
+    </Pressable>
+  );
+}
+
 /** The mockup's back link: 13.5 text in mu with an arrow, not an accent button; touch >= 44 (Prism). */
 function BackLink({ label, onPress }: { label: string; onPress: () => void }) {
   const tokens = useTokens();
   return (
+    // Low like the mockup's text link; the 44 pt touch comes from hitSlop (Prism).
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={{ minHeight: tokens.size.touch, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.space.xs + tokens.space.xxs }}
+      hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
+      style={{ alignSelf: "center", paddingVertical: tokens.space.xs, flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}
     >
       <Icon name="arrow-left" size="sm" color={tokens.color.text.secondary} />
       <Text variant="subhead" color="secondary">
