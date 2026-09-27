@@ -6,7 +6,7 @@ import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, 
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
-import { formatBytes } from "./format";
+import { formatBytes, formatRam } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
@@ -176,6 +176,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Button
             size="sm"
             variant="ghost"
+            tone="danger"
             label={t("flows.row.remove")}
             accessibilityHint={view.removeBlocked ? t("flows.row.inUseHint") : undefined}
             onPress={() => (view.removeBlocked ? toast({ message: t("flows.row.inUseHint") }) : setConfirmOpen(true))}
@@ -206,9 +207,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         {fit && (
           <Text variant="callout" numeric>
             {t("flows.row.fitDetail", {
-              need: formatBytes(fit.anonBytes, i18n.language),
-              free: formatBytes(fit.availableBytes, i18n.language),
-              total: formatBytes(fit.totalBytes, i18n.language),
+              need: formatRam(fit.anonBytes, i18n.language),
+              free: formatRam(fit.availableBytes, i18n.language),
+              total: formatRam(fit.totalBytes, i18n.language),
             })}
           </Text>
         )}

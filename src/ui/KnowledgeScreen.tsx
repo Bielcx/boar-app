@@ -292,6 +292,7 @@ export function KnowledgeScreen() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  tone="danger"
                   label={t("flows.row.remove")}
                   accessibilityLabel={t("flows.knowledge.removeA11y", { name: c.name })}
                   onPress={() => setToRemove(c)}

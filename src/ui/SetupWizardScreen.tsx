@@ -28,7 +28,7 @@ import {
   storageShortfall,
   transferSeconds,
 } from "./flows/packages";
-import { formatBytes, formatCount, minutesLeft } from "./flows/format";
+import { formatBytes, formatCount, formatRam, minutesLeft } from "./flows/format";
 import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
@@ -310,8 +310,8 @@ function Welcome({
   ];
   // Measured on this phone; a value the OS would not give is left out, never guessed.
   const phone = [
-    { key: "phoneMemory", bytes: deviceRamBytes },
-    { key: "phoneFree", bytes: freeBytes },
+    { key: "phoneMemory", bytes: deviceRamBytes, ram: true },
+    { key: "phoneFree", bytes: freeBytes, ram: false },
   ].filter((r) => r.bytes > 0);
   return (
     <Screen
@@ -397,7 +397,7 @@ function Welcome({
                 {t(`flows.onboarding.${r.key}`)}
               </Text>
               <Text variant="mono" numeric>
-                {formatBytes(r.bytes, lang)}
+                {r.ram ? formatRam(r.bytes, lang) : formatBytes(r.bytes, lang)}
               </Text>
             </View>
           ))}
@@ -519,7 +519,7 @@ function PackageStep({
       <Text variant="mono" color="secondary" numeric>
         {deviceRamBytes > 0 || freeBytes > 0
           ? t("flows.onboarding.device", {
-              ram: deviceRamBytes > 0 ? formatBytes(deviceRamBytes, lang) : t("flows.onboarding.unknown"),
+              ram: deviceRamBytes > 0 ? formatRam(deviceRamBytes, lang) : t("flows.onboarding.unknown"),
               free: freeBytes > 0 ? formatBytes(freeBytes, lang) : t("flows.onboarding.unknown"),
             })
           : t("flows.onboarding.deviceUnknown")}
@@ -586,7 +586,7 @@ function PackageStep({
           <Text variant="footnote" color="secondary">
             {compactSuggested
               ? pick?.reason === "compact-low-ram"
-                ? t("flows.onboarding.compactLowRam", { ram: formatBytes(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
                 : t("flows.onboarding.compactWhy")
               : t("flows.onboarding.answerModelFooter")}
           </Text>
