@@ -15,7 +15,8 @@ import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
-import { fitFor, largeModelConfirmedIds, loadCrashedIds, missingRequirementsOf, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
+import { fitFor, forgetTileNames, installedPlaceTiles, largeModelConfirmedIds, loadCrashedIds, missingRequirementsOf, placeTileNames, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
+import { groupPlaceAreas, tileIdOf, type PlaceArea } from "./placeTiles";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { mayCloseApp, ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
@@ -35,6 +36,8 @@ export function canDownload(model: Pick<CatalogModel, "sourceUrl">): boolean {
 export interface CatalogState {
   loaded: boolean;
   discovered: CatalogModel[];
+  /** Places tiles on the phone, grouped by the city they were downloaded for. */
+  placeAreas: PlaceArea[];
   statuses: Record<string, AssetStatus>;
   activeLlmId?: string;
   activeEmbeddingId?: string;
@@ -70,6 +73,7 @@ function defaultId(kind: "llm" | "embedding"): string | undefined {
 export function useCatalog(): CatalogState {
   const [loaded, setLoaded] = useState(false);
   const [discovered, setDiscovered] = useState<CatalogModel[]>([]);
+  const [placeAreas, setPlaceAreas] = useState<PlaceArea[]>([]);
   const [statuses, setStatuses] = useState<Record<string, AssetStatus>>({});
   const [activeLlmId, setActiveLlmId] = useState<string>();
   const [activeEmbeddingId, setActiveEmbeddingId] = useState<string>();
@@ -89,9 +93,11 @@ export function useCatalog(): CatalogState {
 
   const refresh = useCallback(async () => {
     const found = await listDiscoveredModels();
-    const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...topicPacks().map((p) => p.entry)];
+    const tiles = await installedPlaceTiles();
+    const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...topicPacks().map((p) => p.entry), ...tiles.map((t) => t.entry)];
     const all = [...(await modelManager.statusAll()), ...(await Promise.all(extra.map((m) => modelManager.statusOf(m))))];
     setDiscovered(found);
+    setPlaceAreas(groupPlaceAreas(tiles, await placeTileNames()));
     setStatuses(Object.fromEntries(all.map((s) => [s.asset.id, s])));
     setActiveLlmId((await getActiveModelId("llm")) ?? defaultId("llm"));
     setActiveEmbeddingId((await getActiveModelId("embedding")) ?? defaultId("embedding"));
@@ -148,6 +154,8 @@ export function useCatalog(): CatalogState {
       await removePackIndex(model);
       await modelManager.deleteModel(model);
       if (model.id.startsWith("hf-")) await removeDiscoveredModel(model.id);
+      const tileId = tileIdOf(model);
+      if (tileId) await forgetTileNames([tileId]);
       await refresh();
     },
     [refresh]
@@ -243,6 +251,7 @@ export function useCatalog(): CatalogState {
   return {
     loaded,
     discovered,
+    placeAreas,
     statuses,
     activeLlmId,
     activeEmbeddingId,

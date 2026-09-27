@@ -658,7 +658,14 @@
       "continue": "Continue",
       "openSettings": "Open settings",
       "otherRegion": "Other region",
-      "vegan": "{{vegan}} with vegan options · {{vegetarian}} vegetarian"
+      "vegan": "{{vegan}} with vegan options · {{vegetarian}} vegetarian",
+      "cornerArea": "Area at {{corner}}",
+      "areaRemoved": "{{name}} removed",
+      "import": "Import places",
+      "importHint": "A places file (.sqlite) from a computer or another phone.",
+      "getCity": "Download {{city}} ({{size}})",
+      "gettingCity": "Downloading {{city}}",
+      "cityReady": "{{city}} is on the phone. Ask again to see its places."
     },
     "import": {
       "title": "Import files",

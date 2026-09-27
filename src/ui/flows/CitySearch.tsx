@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button, ListRow, Text, TextField, useAnnounce } from "../components";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
-import { cityAreaTiles, placesInstall, poiRegions, searchCities, worldPlacesEntry } from "./adapters";
+import { cityAreaTiles, nameTilesAfter, placesInstall, poiRegions, searchCities, worldPlacesEntry } from "./adapters";
 import { City, cityOptions, CityOption } from "./travel";
 import { formatBytes, formatCount } from "./format";
 import { canDownload, CatalogState } from "./useCatalog";
@@ -26,6 +26,8 @@ export function CitySearch({ catalog, onChoose }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<City[] | null>(null);
   const [city, setCity] = useState<City | null>(null);
+  // The tiles around the chosen city; undefined while the tile index is read.
+  const [areaTiles, setAreaTiles] = useState<CatalogModel[] | null | undefined>(undefined);
   const seq = useRef(0);
   const gazetteer = worldPlacesEntry();
   const gazetteerReady = !!catalog.statuses[gazetteer.id]?.present;
@@ -48,6 +50,16 @@ export function CitySearch({ catalog, onChoose }: Props) {
     return () => clearTimeout(timer);
   }, [query, gazetteerReady, announce, t]);
 
+  useEffect(() => {
+    setAreaTiles(undefined);
+    if (!city) return;
+    let live = true;
+    cityAreaTiles(city.lat, city.lon, AREA_RADIUS_KM).then((tiles) => live && setAreaTiles(tiles));
+    return () => {
+      live = false;
+    };
+  }, [city]);
+
   if (!gazetteerReady) {
     return (
       <View style={{ gap: tokens.space.sm }}>
@@ -65,22 +77,26 @@ export function CitySearch({ catalog, onChoose }: Props) {
     );
   }
 
-  const options: CityOption[] = city
-    ? cityOptions({
-        city,
-        regions: poiRegions(),
-        areaTiles: cityAreaTiles(city.lat, city.lon, AREA_RADIUS_KM),
-        radiusKm: AREA_RADIUS_KM,
-        regionAssets: placesInstall,
-        gazetteer,
-      })
-    : [];
+  // Both options at once, so the list doesn't reorder under a finger when the area arrives.
+  const options: CityOption[] | null =
+    city && areaTiles !== undefined
+      ? cityOptions({
+          city,
+          regions: poiRegions(),
+          areaTiles,
+          radiusKm: AREA_RADIUS_KM,
+          regionAssets: placesInstall,
+          gazetteer,
+        })
+      : null;
 
   const choose = (option: CityOption) => {
     const label =
       option.kind === "area"
         ? t("flows.travel.areaOf", { city: city!.name })
         : t("flows.travel.regionOf", { region: lang.startsWith("pt") ? option.region.name.pt : option.region.name.en });
+    // Knowledge names the tiles after the city they were chosen for.
+    if (option.kind === "area") nameTilesAfter(city!.name, option.assets).catch(() => {});
     if (onChoose) onChoose({ label, assets: option.assets });
     else catalog.install(option.assets);
   };
@@ -116,7 +132,7 @@ export function CitySearch({ catalog, onChoose }: Props) {
       {city && (
         <View style={{ gap: tokens.space.sm }}>
           <Text variant="subhead">{city.country ? `${city.name}, ${city.country}` : city.name}</Text>
-          {options.length === 0 ? (
+          {options === null ? null : options.length === 0 ? (
             <Text variant="footnote" color="secondary">
               {t("flows.travel.noPack")}
             </Text>

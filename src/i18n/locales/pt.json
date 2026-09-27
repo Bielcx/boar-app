@@ -658,7 +658,14 @@
       "continue": "Continuar",
       "openSettings": "Abrir ajustes",
       "otherRegion": "Outra região",
-      "vegan": "{{vegan}} com opção vegana · {{vegetarian}} vegetarianos"
+      "vegan": "{{vegan}} com opção vegana · {{vegetarian}} vegetarianos",
+      "cornerArea": "Área em {{corner}}",
+      "areaRemoved": "{{name}} removida",
+      "import": "Importar lugares",
+      "importHint": "Um arquivo de lugares (.sqlite) do computador ou de outro celular.",
+      "getCity": "Baixar {{city}} ({{size}})",
+      "gettingCity": "Baixando {{city}}",
+      "cityReady": "{{city}} está no celular. Pergunte de novo para ver os lugares."
     },
     "import": {
       "title": "Importar arquivos",
