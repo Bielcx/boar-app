@@ -260,6 +260,7 @@ export function ComponentCatalogScreen() {
           <ListRow title="Deep research" subtitle="Whole row is the switch" icon="layers" switch={{ value: on, onValueChange: setOn }} />
           <ListRow title="Standalone switch" trailing={<Switch label="Standalone switch" value={on} onValueChange={setOn} />} accessibilityLabel="Standalone switch row" />
           <ListRow title="Models" subtitle="Qwen2.5 1.5B in use · 3 installed" icon="cpu" onPress={() => {}} />
+          <ListRow title="Details" expanded={on} onPress={() => setOn(!on)} />
           <ListRow title="Erase all data" icon="trash-2" destructive onPress={() => {}} />
         </Section>
       </Group>

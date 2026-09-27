@@ -23,6 +23,11 @@ export interface ListRowProps {
   onPress?: () => void;
   /** Shows a chevron; defaults to true when the row navigates (`onPress` without `trailing`). */
   chevron?: boolean;
+  /**
+   * Disclosure row that folds content below it (Details, larger models): announces expanded/collapsed
+   * and swaps the chevron for one pointing down (collapsed) or up (expanded).
+   */
+  expanded?: boolean;
   destructive?: boolean;
   disabled?: boolean;
   /** Overrides the composed "title, value, subtitle" label. */
@@ -42,6 +47,7 @@ export function ListRow({
   trailing,
   onPress,
   chevron,
+  expanded,
   destructive,
   disabled,
   accessibilityLabel,
@@ -64,7 +70,9 @@ export function ListRow({
       </View>
     );
   }
-  const showChevron = chevron ?? (!!onPress && !trailing);
+  const disclosure = expanded !== undefined;
+  const showChevron = disclosure || (chevron ?? (!!onPress && !trailing));
+  const chevronName = disclosure ? (expanded ? "chevron-up" : "chevron-down") : "chevron-right";
   const label = accessibilityLabel ?? [title, value, subtitle].filter(Boolean).join(", ");
   const content = (
     <>
@@ -87,7 +95,7 @@ export function ListRow({
         )}
       </View>
       {trailing}
-      {showChevron && <Icon name="chevron-right" size="sm" color={t.color.text.tertiary} />}
+      {showChevron && <Icon name={chevronName} size="sm" color={t.color.text.tertiary} />}
     </>
   );
   const rowStyle = {
@@ -127,7 +135,7 @@ export function ListRow({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, ...(disclosure ? { expanded } : null) }}
       disabled={disabled}
       onPress={() => {
         impact(ImpactFeedbackStyle.Light);
