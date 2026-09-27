@@ -78,7 +78,7 @@ Last reviewed: 2026-09-26 (items 5, 10 and 14); 2026-09-25 for the rest. Test de
   a follow-up and the knowledge pack answering
   ([demo/](demo/README.md), 2026-09-24).
 
-### 5. No network requests during use — PARTIAL
+### 5. No network requests during use — PASS (offline build)
 Two Android builds exist ([BUILD_VARIANTS.md](BUILD_VARIANTS.md)):
 
 | Build | Network permissions | How models arrive |
@@ -154,18 +154,25 @@ The device-lab APK's manifest (`aapt2 dump xmltree`) has `allowBackup=false`,
 `dataExtractionRules=@xml/data_extraction_rules`.
 
 Network during use, offline build on the emulator (integration `06f508b`,
-2026-09-26, device lab, `shots/night-06f508b/net-*.txt`): with the app idle
-after setup and again while it answered "vegan restaurants near me" in Berlin
-from an imported places pack, the app's uid (10151) had **zero sockets** in
-`/proc/net/tcp`, `tcp6`, `udp` and `udp6`. The same readout lists the sockets
-of system processes (`adbd`, `mdnsd`), so it does see sockets when they exist.
-Every model and pack for that run (8 files) came in by file import, each with
-`sha256 ok` in the log. Without `INTERNET` the app's process isn't in Android's
-`inet` group, so the kernel refuses any socket it tries to open.
+2026-09-26, device lab, `shots/night-06f508b/`):
 
-Why PARTIAL: the capture is from the emulator, and it counts sockets. Per-uid
-byte counters (`dumpsys netstats`) and a capture on a real phone are still to
-be recorded.
+- **Zero sockets.** With the app idle after setup and again while it answered
+  "vegan restaurants near me" in Berlin from an imported places pack, the
+  app's uid (10151) had no socket in `/proc/net/tcp`, `tcp6`, `udp` or `udp6`.
+  The same readout shows the sockets of system processes (uids 0, 1000, 1020).
+- **Zero bytes.** `dumpsys netstats detail` over the app's whole life (emulator
+  booted 21:45, app installed 21:46, dump 22:20: setup, 8 file imports and 8
+  questions) has no traffic entry for uid 10151; it appears only in the
+  counter-set map. In the same dump, `mdnsd` (uid 1020) has `rb=43695 tb=17406`.
+- Every model and pack for that run came in by file import, following only
+  [OFFLINE_INSTALL.md](OFFLINE_INSTALL.md), each with `sha256 ok` in the log.
+
+Without `INTERNET` the app's process isn't in Android's `inet` group, so the
+kernel refuses any socket it tries to open; the capture shows it never tried
+successfully. PASS applies to the offline build. The downloader build uses the
+network by design, for downloads the user starts and for model search.
+
+Not yet recorded: the same capture on a real phone.
 
 ### 6. No Google Play Services — PASS
 - The release build's runtime dependencies contain no Play Services or Firebase
