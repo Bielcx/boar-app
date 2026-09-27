@@ -81,7 +81,7 @@ export interface InstalledLlm {
 }
 
 export interface AnswerEngine {
-  load(filename: string): Promise<LoadResult>;
+  load(filename: string, opts?: { meta?: { modelId?: string; label?: string } }): Promise<LoadResult>;
   generate(opts: GenerateOptions): Promise<string>;
   stop(): Promise<void>;
   getModelInfo(): { filename: string } | null;
@@ -417,11 +417,16 @@ export function createAnswerer(deps: AnswerDeps) {
       // user confirmed it: not as the saved pick, the default, a fallback, deep or verifier.
       const ram = deps.deviceRamBytes?.() ?? 0;
       const confirmed = new Set(settings.largeModelConfirmedIds ?? []);
-      const blocked = installed.filter((m) => tooBigForLowRam(m, ram) && !confirmed.has(m.id));
+      // CR-2: a model whose load killed the app is not loaded again on its own (crash loop);
+      // the crash withdrew its confirmation, so only a new one lets it run.
+      const crashed = new Set(settings.loadCrashedIds ?? []);
+      const blocked = installed.filter((m) => (tooBigForLowRam(m, ram) || crashed.has(m.id)) && !confirmed.has(m.id));
       if (blocked.length) {
         installed = installed.filter((m) => !blocked.includes(m));
         lowRamBlocked = installed.length === 0;
-        if (activeId && blocked.some((m) => m.id === activeId)) lowRamNote = `model:low-ram-unconfirmed-${activeId}`;
+        if (activeId && blocked.some((m) => m.id === activeId)) {
+          lowRamNote = crashed.has(activeId) ? `model:load-crashed-${activeId}` : `model:low-ram-unconfirmed-${activeId}`;
+        }
       }
       const byId = new Map(installed.map((m) => [m.id, m]));
       // The user's pick; without one (or if it was deleted), the device-dependent default:
@@ -649,7 +654,7 @@ export function createAnswerer(deps: AnswerDeps) {
         stage("loading_model", tier, m.id);
         const ls = deps.now();
         try {
-          const r = await deps.engine.load(m.filename);
+          const r = await deps.engine.load(m.filename, { meta: { modelId: m.id, label: m.label } });
           loadMs += deps.now() - ls;
           if (r.warning) emit({ type: "warning", answerId, code: "model_streams_from_storage", message: r.warning });
           if (r.backend?.kind === "cpu-fallback") reasonCodes.push("backend:cpu-fallback");

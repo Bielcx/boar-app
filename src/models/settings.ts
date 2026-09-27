@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { AssetKind } from "./manifest";
 import { PersonalityId, DEFAULT_PERSONALITY_ID } from "../constants/personalities";
 import { ModelRole, RoutingPreset } from "../routing/types";
+import type { CrashLedger, LoadCrash } from "../inference/loadMarker";
 
 export type ThemeId = "midnight" | "amber" | "frontier";
 export type FontScale = "compact" | "standard" | "large";
@@ -32,6 +33,10 @@ interface Settings {
   deepModelId?: string | null;
   /** Ids of models the user confirmed to run on a low-RAM phone (CR-1: above the compact size, risk of an OOM kill). */
   largeModelConfirmedIds?: string[];
+  /** CR-2: models whose last load killed the app (cleared by a successful load). */
+  loadCrashedIds?: string[];
+  /** The last load crash, until the chat shows it once (consumeLoadCrash). */
+  pendingLoadCrash?: LoadCrash | null;
 }
 
 export interface MemorySettings {
@@ -300,6 +305,8 @@ export interface AnswerSettings {
   deepModelId: string | null | undefined;
   /** Models the user confirmed for a low-RAM phone; anything else above the compact size is never chosen there. */
   largeModelConfirmedIds?: string[];
+  /** Models whose last load killed the app: not loaded again unless confirmed after the crash. */
+  loadCrashedIds?: string[];
 }
 
 export async function getAnswerSettings(): Promise<AnswerSettings> {
@@ -309,8 +316,48 @@ export async function getAnswerSettings(): Promise<AnswerSettings> {
     alwaysComplete: s.answerAlwaysComplete ?? s.deepResearchMode ?? false,
     deepModelId: s.deepModelId,
     largeModelConfirmedIds: s.largeModelConfirmedIds ?? [],
+    loadCrashedIds: s.loadCrashedIds ?? [],
   };
 }
+
+export async function getLargeModelConfirmedIds(): Promise<string[]> {
+  return (await readSettings()).largeModelConfirmedIds ?? [];
+}
+
+/** Models whose last load killed the app (Models screen: "Didn't open here"). */
+export async function getLoadCrashedIds(): Promise<string[]> {
+  return (await readSettings()).loadCrashedIds ?? [];
+}
+
+/**
+ * Crash bookkeeping for src/inference/loadMarker.ts. A crash also withdraws the
+ * user's low-RAM confirmation for that model, so it is not loaded again on its
+ * own (crash loop) until the user confirms once more.
+ */
+export const settingsCrashLedger: CrashLedger = {
+  async recordCrash(crash) {
+    const s = await readSettings();
+    s.loadCrashedIds = [...new Set([...(s.loadCrashedIds ?? []), crash.crashedModelId])];
+    s.largeModelConfirmedIds = (s.largeModelConfirmedIds ?? []).filter((id) => id !== crash.crashedModelId);
+    s.pendingLoadCrash = crash;
+    await writeSettings(s);
+  },
+  async recordSuccess(modelId) {
+    const s = await readSettings();
+    if (!(s.loadCrashedIds ?? []).includes(modelId)) return;
+    s.loadCrashedIds = (s.loadCrashedIds ?? []).filter((id) => id !== modelId);
+    await writeSettings(s);
+  },
+  async takePending() {
+    const s = await readSettings();
+    const crash = s.pendingLoadCrash ?? null;
+    if (crash) {
+      s.pendingLoadCrash = null;
+      await writeSettings(s);
+    }
+    return crash;
+  },
+};
 
 /** The UI's "run it anyway" on a low-RAM phone (Loom's confirmation). */
 export async function confirmLargeModel(id: string): Promise<void> {

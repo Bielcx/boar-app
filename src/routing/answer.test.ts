@@ -401,6 +401,29 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
   });
 });
 
+describe("answer(): CR-2 a model whose load killed the app", () => {
+  it("is not loaded again on its own; the next model answers, and the meta for the marker is passed", async () => {
+    const seen: any[] = [];
+    const load = f.deps.engine.load;
+    f.deps.engine.load = async (filename, opts) => (seen.push(opts?.meta), load(filename));
+    f.installed = [qwen15, lfm];
+    f.activeId = "lfm8";
+    f.settings = { ...f.settings, loadCrashedIds: ["lfm8"] };
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([qwen15.filename]);
+    expect(seen).toEqual([{ modelId: "qwen1.5", label: "Qwen 1.5B" }]);
+    expect(result.receipt.reasonCodes).toContain("model:load-crashed-lfm8");
+  });
+
+  it("runs again once the user confirms it after the crash", async () => {
+    f.installed = [qwen15, lfm];
+    f.activeId = "lfm8";
+    f.settings = { ...f.settings, loadCrashedIds: ["lfm8"], largeModelConfirmedIds: ["lfm8"] };
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([lfm.filename]);
+  });
+});
+
 describe("answer(): backend fallback", () => {
   it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
     const load = f.deps.engine.load;
