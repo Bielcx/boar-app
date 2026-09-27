@@ -14,7 +14,8 @@
 # per run plus the medians, also appended to $IOS_BOOT_OUT if set. With a build
 # made with IOS_RN_LOG_INFO=1, the app's "[boot] ..." console lines of each run
 # are appended to $IOS_BOOT_LINES; IOS_BOOT_WAIT (s, default 5) sets how long
-# each launch is recorded.
+# each launch is recorded; IOS_BOOT_MODELS=<dir> seeds bge + Qwen2.5-1.5B after
+# each fresh install so the app starts on the chat instead of setup.
 set -euo pipefail
 DEV="${1:?simulator udid}"; APP="${2:?path to the .app}"; RUNS="${3:-3}"
 BUNDLE=team.sopa.aoair
@@ -26,6 +27,11 @@ run() {  # run <cold|warm> <n>
   if [[ "$kind" == cold ]]; then
     xcrun simctl uninstall "$DEV" "$BUNDLE" 2>/dev/null || true
     xcrun simctl install "$DEV" "$APP"
+    if [[ -n "${IOS_BOOT_MODELS:-}" ]]; then   # open on the chat, not setup: bge + 1.5B as APFS clones
+      local d; d="$(xcrun simctl get_app_container "$DEV" "$BUNDLE" data)/Documents/models"; mkdir -p "$d"
+      cp -c "$IOS_BOOT_MODELS/bge-small-en-v1.5-q8_0.gguf" "$d/embedding.gguf"
+      cp -c "$IOS_BOOT_MODELS/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf" "$d/qwen2.5-1.5b-instruct-q4km.gguf"
+    fi
   fi
   sleep 2
   # JS console lines (needs a build with IOS_RN_LOG_INFO=1 for console.info):
