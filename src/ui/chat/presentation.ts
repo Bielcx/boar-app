@@ -1,5 +1,5 @@
 import { EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID, type AnswerReceipt } from "./answerEvents";
-import { answerPhase, type AnswerPhase, type AnswerState } from "./answerReducer";
+import { answerPhase, uncitedModelAnswer, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds, formatTokPerSec } from "./shareFormat";
 import { placesEmptyTitle } from "./placesFormat";
 import { answerSourceSplit } from "./sourceLabel";
@@ -262,4 +262,25 @@ export function bootEntranceTiming(
 export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fast?: unknown; places?: unknown }): boolean {
   if (!a.instantDone || a.fast || a.places) return false;
   return a.instantDone.receipt.modelId !== GROUNDING_GUARD_MODEL_ID;
+}
+
+/**
+ * The tag after the receipt's numbers (Iris): "general knowledge" only when nothing on the phone
+ * covered the question (weak_sources, true there); "no source cited" when passages on the topic
+ * were found but the model cited none (it may have used them, so "general knowledge" could be false).
+ */
+export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | null {
+  if (a.weakSources) return "chat.weak.receipt";
+  return uncitedModelAnswer(a) ? "chat.weak.receiptUncited" : null;
+}
+
+/**
+ * Which note sits in the sources' slot of a finished answer (the tag changes, the warning never
+ * goes, Prism): "weak" (nothing on the topic: note B), "uncited" (passages found, none cited:
+ * CT-5 note), or none. A declined answer has its own card, a places list its own card.
+ */
+export function noSourceNote(a: AnswerState, placesOnly: boolean): "weak" | "uncited" | null {
+  if (placesOnly || a.weakDeclined) return null;
+  if (a.weakSources) return "weak";
+  return uncitedModelAnswer(a) ? "uncited" : null;
 }
