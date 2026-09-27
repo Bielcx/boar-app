@@ -38,3 +38,15 @@ export function composerPlaceholderKey(status: ModelStatus): string {
   if (status === "indexing") return "chat.composer.placeholderIndexing";
   return "chat.composer.placeholder";
 }
+
+/**
+ * What tapping send does. Asking works as soon as the model loads have started (Tusk, boot P1: answer()
+ * waits for a load in progress; on a cold first boot the field used to stay locked ~49 s). With an empty
+ * field, send puts the focus there; off only on a model error or before the loads start.
+ */
+export type SendMode = "send" | "focus" | "disabled";
+
+export function sendMode(canSend: boolean, empty: boolean): SendMode {
+  if (!canSend) return "disabled";
+  return empty ? "focus" : "send";
+}

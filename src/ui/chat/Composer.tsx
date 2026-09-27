@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { IconButton, Text } from "../components";
 import { useTokens } from "../theme";
 import { VoiceInputButton } from "../VoiceInputButton";
-import { composerNotice, composerPlaceholderKey, type ModelStatus } from "./composerState";
+import { composerNotice, composerPlaceholderKey, sendMode, type ModelStatus } from "./composerState";
 
 interface Props {
   value: string;
@@ -18,6 +18,8 @@ interface Props {
   generating: boolean;
   stopping: boolean;
   voiceEnabled: boolean;
+  /** Asking works: the model loads have started (answer() waits for them) and there is no load error. */
+  canSend?: boolean;
 }
 
 /**
@@ -25,7 +27,7 @@ interface Props {
  * the next question can be written; only sending waits.
  */
 export const Composer = forwardRef<TextInput, Props>(function Composer(
-  { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled },
+  { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled, canSend = status === "ready" },
   ref
 ) {
   const t = useTokens();
@@ -34,6 +36,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   const field = useRef<TextInput>(null);
   useImperativeHandle(ref, () => field.current as TextInput);
   const empty = value.trim().length === 0;
+  const mode = sendMode(canSend, empty);
   const insets = useSafeAreaInsets();
   // The mockup ends the composer 30 pt above the screen's bottom (into the home-indicator inset by 4);
   // the screen leaves the bottom edge to the composer. Small insets (Android gestures) keep at least sm.
@@ -88,7 +91,8 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             value={value}
             onChangeText={onChange}
             accessibilityLabel={tr("chat.composer.label")}
-            placeholder={tr(composerPlaceholderKey(status))}
+            // Asking already works while loading (answer() waits), so the usual placeholder then.
+            placeholder={tr(canSend ? "chat.composer.placeholder" : composerPlaceholderKey(status))}
             placeholderTextColor={t.color.text.secondary}
             editable={!blocked}
             accessibilityState={{ disabled: blocked }}
@@ -137,9 +141,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             variant="filled"
             size="lg"
             label={tr("chat.composer.send")}
-            accessibilityHint={!ready ? hint : empty ? tr("chat.composer.focusHint") : undefined}
-            disabled={!ready}
-            onPress={() => (empty ? field.current?.focus() : onSend())}
+            accessibilityHint={mode === "focus" ? tr("chat.composer.focusHint") : mode === "disabled" ? hint : undefined}
+            disabled={mode === "disabled"}
+            onPress={() => (mode === "send" ? onSend() : field.current?.focus())}
           />
         )}
       </View>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { composerNotice, composerPlaceholderKey, modelStatus } from "./composerState";
+import { composerNotice, composerPlaceholderKey, modelStatus, sendMode } from "./composerState";
 
 describe("modelStatus", () => {
   it("puts a load error ahead of the loading flag (iOS shot e927016: both showed at once)", () => {
@@ -45,5 +45,17 @@ describe("indexing (Prism IX-1)", () => {
     expect(modelStatus(false, "boom", true)).toBe("error");
     expect(composerPlaceholderKey("indexing")).toBe("chat.composer.placeholderIndexing");
     expect(composerNotice("indexing")).toEqual({ line: null, hint: "chat.composer.indexing" });
+  });
+});
+
+describe("sendMode (Tusk boot P1, Harbor cold boot)", () => {
+  it("sends as soon as asking works (loads started), focuses an empty field", () => {
+    expect(sendMode(true, false)).toBe("send");
+    expect(sendMode(true, true)).toBe("focus");
+  });
+
+  it("is off before the loads start and on a model error", () => {
+    expect(sendMode(false, false)).toBe("disabled");
+    expect(sendMode(false, true)).toBe("disabled");
   });
 });

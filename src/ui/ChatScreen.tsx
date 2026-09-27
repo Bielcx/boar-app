@@ -118,8 +118,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [ready, setReady] = useState(false);
   // The model is loaded and the offline library is being indexed (first run): sending waits (IX-1).
   const [indexing, setIndexing] = useState(false);
+  // The model loads have been started (Tusk, boot P1): answer() waits for a load in progress, so asking
+  // doesn't wait for ready. Before this (resolving which model) and after a load error, it does.
+  const [modelsRequested, setModelsRequested] = useState(false);
   const [loadStatus, setLoadStatus] = useState<{ label: string; progress?: number }>({ label: t("chatScreen.initializingCore") });
   const [loadError, setLoadError] = useState<string | null>(null);
+  const canAsk = modelsRequested && !loadError;
   // The engine's own cause for a failed load (Tusk 9ec677e: ModelLoadError.kind), when it gives one.
   const [loadErrorKind, setLoadErrorKind] = useState<ModelErrorKind | undefined>(undefined);
   const [activeModel, setActiveModel] = useState<CatalogModel | null>(null);
@@ -225,11 +229,16 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     try {
       setLoadError(null);
       setReady(false);
+      setModelsRequested(false);
       const llm = await resolveActiveModel("llm");
       const emb = await resolveActiveModel("embedding");
       setActiveModel(llm);
       setLoadStatus({ label: t("chat.model.loading", { label: llm.label }) });
-      await Promise.all([llamaEngine.load(llm.filename), embeddingEngine.load(emb.filename)]);
+      // Both loads start here, before any question: the search's query vector waits in the embedder's queue
+      // behind its own load, and answer() waits for the model's (Tusk).
+      const loads = Promise.all([llamaEngine.load(llm.filename), embeddingEngine.load(emb.filename)]);
+      setModelsRequested(true);
+      await loads;
       startAppMemoryTracking();
       const stopProgress = onSeedProgress((p) =>
         setLoadStatus({
@@ -356,7 +365,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const ask = useCallback(
     async (rawQuery: string) => {
       const query = rawQuery.trim();
-      if (!query || activeRef.current || !ready) return;
+      if (!query || activeRef.current || !canAsk) return;
       // Claim the answer slot before the first await.
       const assistantId = `${Date.now()}-a`;
       activeRef.current = { messageId: assistantId, handle: null };
@@ -458,7 +467,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const followUp = useCallback(
     async (messageId: string, kind: "deep" | "fast" | { place?: string; answerAnyway?: boolean }) => {
       const item = itemsRef.current.find((m) => m.id === messageId);
-      if (!item || item.kind !== "assistant" || activeRef.current || !ready) return;
+      if (!item || item.kind !== "assistant" || activeRef.current || !canAsk) return;
       const sessionId = activeSessionId;
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
@@ -806,7 +815,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           </View>
         )}
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
-        {items.length > 0 && !loadError && !ready ? (
+        {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state. */}
+        {!loadError && !ready && (items.length > 0 || modelsRequested) ? (
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
             <Text variant="footnote" color="secondary">
               {loadStatus.label}
@@ -835,7 +845,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           ListEmptyComponent={
             loadError ? (
               <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel?.label} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-            ) : !ready ? (
+            ) : !modelsRequested ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
               <ChatEmptyState
@@ -882,6 +892,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           onSend={() => ask(input)}
           onStop={stopActive}
           status={modelStatus(ready, loadError, indexing)}
+          canSend={canAsk}
           generating={generating}
           stopping={stopping}
           voiceEnabled={voiceInputEnabled}
