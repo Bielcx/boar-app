@@ -81,7 +81,7 @@ government works, CC0 EIPs, MIT ethereum.org), every link pinned to a dataset co
 | Places: Biên Hòa | 0.6 MB | 3,206 (266 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/bien-hoa.sqlite) | `d9ce786f500286ac56584b06c4ba01c1d092254ded8d0e78c475d861540318d3` |
 | Places: Ciudad Nezahualcoyotl | 1.0 MB | 6,098 (60 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/ciudad-nezahualcoyotl.sqlite) | `7c0818b511f504a4bd824dd069b54d32445ddcf36200d1bc5dff54dbf08f2a6a` |
 | Emergency and preparedness (topic pack) | 19.6 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/topics/boar-preparedness.sqlite) | `65dff5d9988a6fe2bffe17a4d3ab096a1a8f580d20b1ab18d0ada41bbbc0b4e8` |
-| Ethereum and cryptography (topic pack) | 36.0 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/b309ba92d7392c6a36f0c186dbcb3ce67966a339/topics/boar-crypto.sqlite) | `fe75514ed407ea5f9c0310d3261407c9e779719b7787c2d8c4e7f584dae12c5e` |
+| Ethereum and cryptography (topic pack) | 36.1 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/a55c1ec8a5fe8bbda99c4197c33474637bef1958/topics/boar-crypto.sqlite) | `ae9fbd2c7a46a46a815d46d0283e7b192adb4c342b38a2adc4881e8f9d8831fb` |
 
 ```bash
 # Example: Berlin, from a computer
