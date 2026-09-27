@@ -289,7 +289,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f = makeFake();
     f.retrieved = [quality, contamination] as any;
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
-    expect(result.text).toMatch(/^From the offline source:\n(?:The offline library has no guidance specific to a flood; the passage below is general advice on the subject\.\n)?Water contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
+    expect(result.text).toMatch(/^(?:The offline library has no guidance specific to a flood; the passage below is general advice on the subject\.\n\n)?From the offline source:\nWater contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
   });
 
   it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
@@ -1272,13 +1272,26 @@ describe("answer(): dng-005, a flood question with only general water advice (ga
   it("says the library has nothing flood-specific, then quotes the general steps", async () => {
     f.retrieved = [chunk("w", "Wikivoyage: Water", "Buy: - Boil the water before drinking (several minutes) - Use iodine tablets (will kill bacteria) - Use a survival straw (probably best for remote areas) Consider drinking tea or bottled juices instead of unsafe water.")];
     const { result } = await collect("Depois de uma enchente, a água da torneira pode estar contaminada. Como deixo a água segura para beber?");
-    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nO acervo offline não tem orientação específica para enchente; o trecho abaixo é uma orientação geral sobre o assunto\.\nBuy: - Boil the water/);
+    expect(result.text).toMatch(/^O acervo offline não tem orientação específica para enchente; o trecho abaixo é uma orientação geral sobre o assunto\.\n\nDa fonte offline \(em inglês\):\nBuy: - Boil the water/);
     expect(result.receipt.reasonCodes).toContain("grounding:health-general-source");
   });
   it("a flood source gets no note", async () => {
     f.retrieved = [chunk("f", "US government: Floods (Ready.gov)", "After a Flood: Listen to authorities to find out if your water is safe to drink. Boil water for one minute before drinking it if it may be contaminated.")];
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
     expect(result.text).not.toMatch(/no guidance specific/);
+  });
+});
+
+describe("answer(): the answer language next to a PT question (gate bc7db6d: 8/29 PT answers in English)", () => {
+  it("a PT question gets the Portuguese line next to it, with English sources; an EN question doesn't", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    await collect("Por que Canberra foi escolhida como capital da Austrália?");
+    expect(f.generations[0].messages!.at(-1)!.content).toContain("Responda em português do Brasil, mesmo que as fontes estejam em inglês.");
+    f.generations.length = 0;
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.generations[0].messages!.at(-1)!.content).not.toContain("Responda em português");
   });
 });
 

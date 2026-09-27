@@ -22,6 +22,7 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  PT_ANSWER_LANGUAGE,
   situationNote,
   isPortugueseQuestion,
   healthSourceOrder,
@@ -846,8 +847,8 @@ export function createAnswerer(deps: AnswerDeps) {
           // A general passage for a specific situation says so (dng-005: a flood, and Wikivoyage's "Water › Buy").
           const note = situationNote(req.query, fullSources[k], pt);
           if (note) {
-            const nl = text.indexOf("\n");
-            text = nl >= 0 ? `${text.slice(0, nl)}\n${note}\n${text.slice(nl + 1)}` : `${note}\n${text}`;
+            // Before the source's label: the reader learns it's general advice before reading it (Boar).
+            text = `${note}\n\n${text}`;
             reasonCodes.push("grounding:health-general-source");
           }
           break;
@@ -887,6 +888,9 @@ export function createAnswerer(deps: AnswerDeps) {
           health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined,
           // "today"/"hoje": the model gets the device's date instead of guessing one (Prism TD-1).
           mentionsNow(req.query) ? todayLine(deps.today?.() ?? new Date(), pt) : undefined,
+          // A PT question, in Portuguese, next to it: with English sources the 4B answered 8 of 29 PT questions in
+          // English (gate bc7db6d) despite "Reply in the question's language" after </sources>.
+          pt ? PT_ANSWER_LANGUAGE : undefined,
         ]
           .filter(Boolean)
           .join("\n") || undefined;

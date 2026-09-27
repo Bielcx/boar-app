@@ -753,6 +753,9 @@ export function isPortugueseQuestion(query: string): boolean {
   return strong >= 2 || (strong >= 1 && accent);
 }
 
+/** Next to a PT question: answer in Portuguese even with English sources (the sources' language pulls the model). */
+export const PT_ANSWER_LANGUAGE = "Responda em português do Brasil, mesmo que as fontes estejam em inglês.";
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */
