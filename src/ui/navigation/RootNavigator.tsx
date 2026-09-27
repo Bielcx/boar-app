@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
-import { useWindowDimensions } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer, NavigationState, Theme, useNavigation } from "@react-navigation/native";
-import { fontScaleKey, saveNavState, savedNavState } from "./navState";
+import { saveNavState, savedNavState } from "./navState";
 import { createNativeStackNavigator, NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -118,15 +117,10 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
   const t = useTokens();
   const { t: tr } = useTranslation();
   const theme = useMemo(() => navigationTheme(t), [t]);
-  const { fontScale } = useWindowDimensions();
-  const navKey = fontScaleKey(fontScale);
-  // FS-1 diagnosis (read in logcat): tells "the remount never fired" apart from "Fabric kept the old text metrics".
-  console.info(`[fs1] navKey=${navKey}`);
   return (
-    // Remounted when the system font size changes, so every Text measures again (FS-1);
-    // the saved state puts the user back on the same screen.
+    // Restores the last screen when the tree mounts again, e.g. after Android recreates the
+    // Activity on a system font change (FS-1): the JS context survives, the React tree does not.
     <NavigationContainer
-      key={navKey}
       theme={theme}
       initialState={savedNavState<NavigationState>()}
       onStateChange={saveNavState}
