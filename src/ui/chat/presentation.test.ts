@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -353,5 +353,16 @@ describe("declineCopy (Tusk 237764a: the compact model's cited answer withheld)"
     const a = { answerIds: ["a"], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
     expect(declineCopy(a).title).toBe("chat.weak.declinedTitle");
     expect(declineCopy(a, true).title).toBe("chat.weak.declinedTitleIncomplete");
+  });
+});
+
+describe("showsAnswerBody (Tusk 05d1e6b: the decline's sentence in done.finalText)", () => {
+  it("hides the body on a decline, so the card's sentence isn't shown twice; the text stays in the state", () => {
+    const declined = { answerIds: ["a"], sources: [], weakSources: true, weakDeclined: true, fast: { text: "Não encontrei isso no acervo deste celular.", stage: null, outcome: "success" } } as AnswerState;
+    expect(showsAnswerBody(declined)).toBe(false);
+    expect(declined.fast?.text).toBe("Não encontrei isso no acervo deste celular.");
+  });
+  it("shows it otherwise, weak answers included", () => {
+    expect(showsAnswerBody({ answerIds: ["a"], sources: [], weakSources: true, fast: { text: "x", stage: null, outcome: "success" } } as AnswerState)).toBe(true);
   });
 });

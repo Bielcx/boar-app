@@ -330,3 +330,13 @@ export function declineCopy(a: AnswerState, libraryIncomplete = false): { title:
     ? { title: "chat.weak.declinedTitleIncomplete", body: "chat.weak.declinedBodyIncomplete" }
     : { title: "chat.weak.declinedTitle", body: "chat.weak.declinedBody" };
 }
+
+/**
+ * Whether the model tier's text shows as the answer body. Not on a decline (weak_sources declined):
+ * the engine now puts the decline's own sentence in done.finalText (Tusk 05d1e6b, "never an empty
+ * screen") for readers that don't know the card (history, share, screen runners); on screen the
+ * decline card already says it, so the body would repeat it.
+ */
+export function showsAnswerBody(a: AnswerState): boolean {
+  return !a.weakDeclined;
+}
