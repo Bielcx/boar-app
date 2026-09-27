@@ -42,6 +42,8 @@ describe("phaseAnnouncement", () => {
     // CT-2: the count follows the cited sources; nothing cited reads as no source.
     expect(phaseAnnouncement("done", { ...state, cited: [2] }, t)).toEqual({ message: 'chat.announce.ready{"count":1}' });
     expect(phaseAnnouncement("done", { ...state, cited: [] }, t)).toEqual({ message: "chat.announce.readyNoSource" });
+    // A calculation or a fixed answer: no sources, never "0 sources" (Tusk R12).
+    expect(phaseAnnouncement("done", { ...state, sources: [], cited: [] }, t)).toEqual({ message: "chat.announce.readyPlain" });
     expect(phaseAnnouncement("error", state, t)).toEqual({ message: "chat.error.generic", assertive: true });
     expect(phaseAnnouncement("reading", state, t)).toBeNull();
   });

@@ -67,6 +67,8 @@ export function phaseAnnouncement(
         // CT-2: count what the card shows, the cited sources; none cited reads as no source.
         const cited = answerSourceSplit(state)?.cited.length ?? state.sources.length;
         if (cited === 0 && state.sources.length > 0) return { message: t("chat.announce.readyNoSource") };
+        // No sources at all (a calculation, a fixed answer): just "ready", never "0 sources".
+        if (cited === 0) return { message: t("chat.announce.readyPlain") };
         return { message: t("chat.announce.ready", { count: cited }) };
       }
     case "stopped":

@@ -792,6 +792,7 @@
       "placesFound_other": "{{count}} places found",
       "placesFound_zero": "No places found",
       "locating": "Finding your location. You can also type the city.",
+      "readyPlain": "Answer ready",
       "readyNoSource": "Answer ready, without a source from this phone’s library"
     },
     "snippet": {
@@ -829,7 +830,7 @@
       "sourcePassage": "Source passage",
       "localModel": "Local model",
       "noOfflineSource": "No offline source",
-      "calculator": "Calculator",
+      "calculator": "Calculation",
       "started": "started in {{time}}",
       "offline": "offline",
       "details": "Performance details",
