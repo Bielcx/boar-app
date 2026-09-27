@@ -420,6 +420,12 @@ describe("namedByLexicon (PT-1: lexicon names are article titles)", () => {
     expect(namedByLexicon(["Greenhouse effect"], c("Runaway greenhouse effect"))).toBe(true);
     expect(namedByLexicon(["Georgia (country)"], c("Georgia (country)"))).toBe(true);
   });
+  it("two or more names: a passage whose first sentence names them all (PT suggestion q1)", () => {
+    const hot = c("Wikivoyage: Hot weather", "Understand: The Earth's axis is tilted by 23 degrees, and this causes the seasons of winter, spring, summer, and autumn.");
+    expect(namedByLexicon(["Season", "Earth"], hot)).toBe(true);
+    expect(namedByLexicon(["Season"], hot)).toBe(false);
+    expect(namedByLexicon(["Season", "Earth"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)", "Prepare before hurricane season starts."))).toBe(false);
+  });
 });
 
 describe("onTopic: a question's year and proper nouns (Sextant, gate a9f156c)", () => {
@@ -540,5 +546,19 @@ describe("onTopic: the article's own title (Sextant RF-1, plate boundaries)", ()
     expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology."))).toBe(false);
     expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
     expect(onTopic("Who won the 1970 World Cup?", c("Andy Roberts (cricketer)", "He won the 1975 Cricket World Cup."))).toBe(false);
+  });
+});
+
+describe("nosebleed core procedure includes direct pressure (RF-1, pt4)", () => {
+  it("'Most anterior nosebleeds can be stopped by applying direct pressure' beats 'Nasal packing'", () => {
+    const c = (id: string, body: string) => ({ chunkId: id, docId: id, title: "Nosebleed", body, score: 1, matchType: "lexical" as const, action: true });
+    const sources = [
+      c("pack", "Treatment > Nasal packing: Traditionally, nasal packing was accomplished by packing gauze into the nose. It is done by a clinician."),
+      c("press", "Treatment: Most anterior nosebleeds can be stopped by applying direct pressure, which helps by promoting blood clots."),
+    ];
+    const topic = healthTopicTerms("Como estancar um sangramento nasal?", "nosebleed nose bleed");
+    expect(healthSourceIndex(sources, coreProcedure(topic))).toBe(1);
+    const epistaxis = { ...c("ep", "External wound management > Pressure points > Epistaxis: The appropriate point here is on the soft fleshy part of the nose, which should constrict the capillaries sufficiently to stop bleeding."), title: "Emergency bleeding control" };
+    expect(healthSourceIndex([sources[0], epistaxis], coreProcedure(topic))).toBe(1);
   });
 });
