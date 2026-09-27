@@ -699,6 +699,24 @@ describe("answer(): a question asked while the knowledge base is still indexing 
   });
 });
 
+describe("answer(): cited sources on done (Prism CT-2)", () => {
+  it("an answer with no [n] cites nothing, so the chat shows no Sources card", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "I can't know yesterday's match results offline.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(events.find((e) => e.type === "done")).toMatchObject({ cited: [] });
+    expect(result.cited).toEqual([]);
+  });
+
+  it("a supported citation is listed", async () => {
+    f.retrieved = [CANBERRA];
+    const { events } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect((events.find((e) => e.type === "done") as any).cited).toEqual([1]);
+  });
+});
+
 describe("answer(): backend fallback", () => {
   it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
     const load = f.deps.engine.load;

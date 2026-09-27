@@ -554,8 +554,11 @@ export function createAnswerer(deps: AnswerDeps) {
         r: AnswerReceipt,
         error?: { code: AnswerErrorCode; message: string }
       ): AnswerResult => {
-        emit({ type: "done", answerId, tier, outcome, receipt: r, error, ...(finalText !== undefined ? { finalText } : {}) });
-        return { answerId, tier, outcome, text, sources, receipt: r };
+        // CT-2: which sources the final text really cites (after the CT-1 check); none -> the chat
+        // shows no "Sources" card for this answer.
+        const cited = [...new Set([...text.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))].filter((n) => n >= 1 && n <= sources.length);
+        emit({ type: "done", answerId, tier, outcome, receipt: r, error, cited, ...(finalText !== undefined ? { finalText } : {}) });
+        return { answerId, tier, outcome, text, sources, receipt: r, cited };
       };
 
       // 1. Sources. A Portuguese question searches the (English) packs with English words when it has known terms.
