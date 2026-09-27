@@ -484,6 +484,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [ready, runInto, finish, activeSessionId]
   );
 
+  // A model error below a conversation is its last item: bring it into view.
+  useEffect(() => {
+    if (!loadError || itemsRef.current.length === 0) return;
+    followBottom.current = true;
+    scrollToBottom(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadError]);
+
   // Installed knowledge, so the empty chat only suggests questions with an on-topic source here (RT-1).
   // Re-read when the model state changes (setup and the Knowledge screen run before the chat is ready).
   const [knowledge, setKnowledge] = useState<string[]>([]);
@@ -751,11 +759,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           (Prism K-1, Android offline 06f508b). The native window position fixes any offset above. */}
       <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
-        {items.length > 0 && loadError ? (
-          <View style={{ paddingHorizontal: tk.space.gutter }}>
-            <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-          </View>
-        ) : items.length > 0 && !ready ? (
+        {items.length > 0 && !loadError && !ready ? (
           <View style={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
             <Text variant="footnote" color="secondary">
               {loadStatus.label}
@@ -774,6 +778,13 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           contentContainerStyle={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
+          // With a conversation on screen, a model error comes in as the next message, above the composer: it
+          // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
+          ListFooterComponent={
+            items.length > 0 && loadError ? (
+              <ChatModelError compact error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+            ) : null
+          }
           ListEmptyComponent={
             loadError ? (
               <ChatModelError error={loadError} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
