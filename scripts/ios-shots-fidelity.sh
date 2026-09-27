@@ -317,12 +317,14 @@ EOF
 log "shot splash (from launch video)"
 maestri portal launch "$PORTAL" "$BUNDLE" >/dev/null
 wait_for "Get started" 60 && shot setup1-language
+if [[ "${IOS_FIDELITY_ONLY:-}" != "splash" ]]; then
 tap_orange 700 852
 wait_for "Choose what to install" 30 && sleep 0.5 && shot setup2-model
 tap_orange 700 852
 sleep 2; shot setup3-download
 xcrun simctl terminate "$DEV" "$BUNDLE"
 xcrun simctl uninstall "$DEV" "$BUNDLE"   # drop the partial download
+fi  # IOS_FIDELITY_ONLY=splash stops after setup 1
 
 # ---------- 5. compose ----------
 python3 "$REPO/scripts/ios-fidelity-compose.py" "$SCREENS" "$RAW" "$OUT" "$HASH"
