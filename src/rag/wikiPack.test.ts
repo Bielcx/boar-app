@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decompress } from "fzstd";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { WikiPack, countAtBoundary, coverage, instructionShare, nearDuplicate, sectionAt, sectionKind, titleCandidates } from "./wikiPack";
+import { ACTION_INTENT, WikiPack, countAtBoundary, coverage, instructionShare, nearDuplicate, sectionAt, sectionKind, stepsFirst, titleCandidates } from "./wikiPack";
 
 // A pack built by the real builder from a fixture of six made-up, test-only
 // articles (src/rag/testing/fixtures/mini-wiki.jsonl), read back with fzstd,
@@ -131,3 +131,26 @@ describe("instructionShare", () => {
     expect(instructionShare("If you are in bed, stay there and cover your head.")).toBe(1);
   });
 });
+
+describe("stepsFirst", () => {
+  const order = (items: Array<[string, number]>) => stepsFirst(items.map(([sec, s]) => ({ sec, s })), (x) => x.sec).map((x) => x.sec);
+  it("keeps the best section's own subsections together, a section before its subsections", () => {
+    expect(order([["After", 0.9], ["During > If you are indoors", 0.8], ["During", 0.95], ["After > Get out", 0.85]])).toEqual([
+      "During", "During > If you are indoors", "After", "After > Get out",
+    ]);
+    expect(order([["Treatment > Nasal packing", 0.9], ["Treatment", 0.7]])).toEqual(["Treatment", "Treatment > Nasal packing"]);
+  });
+  it("doesn't let shallow unrelated subsections jump ahead of the best one", () => {
+    expect(order([["Trip > Swimming", 0.6], ["Trip > Disease > Water contamination", 0.9], ["Trip > Animals", 0.5]])[0]).toBe(
+      "Trip > Disease > Water contamination"
+    );
+  });
+});
+
+describe("ACTION_INTENT", () => {
+  it("reads what-to-do questions, including canonical search terms ending in the action", () => {
+    for (const q of ["What should I do?", "How do I stop a nosebleed?", "O que eu faço?", "Como tratar uma queimadura?", "nosebleed nose bleed stop", "snakebite what to do"]) expect(ACTION_INTENT.test(q), q).toBe(true);
+    for (const q of ["Why do we have seasons?", "When did the war stop in 1945?", "What is Ethereum?"]) expect(ACTION_INTENT.test(q), q).toBe(false);
+  });
+});
+

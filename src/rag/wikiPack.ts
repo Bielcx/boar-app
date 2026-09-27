@@ -105,7 +105,7 @@ export const NAMED_MIN_SHARE = 0.5;
 /** Questions that read like travel planning: a same-named Wikivoyage guide goes before the encyclopedia article. */
 /** Questions asking what to do (first aid, emergencies), in English or Portuguese. */
 export const ACTION_INTENT =
-  /\b(what (do|should|can|must) (i|we|you) do|what to do|how (do|can|should) (i|we|you) (treat|stop|help|survive|make|purify|disinfect|respond|care)|how to (treat|stop|help|survive|make|purify|disinfect)|treat(ing|ment)?|first aid|stop (a|the)?\s*\w*\s*(bleed|nosebleed)|o que (eu )?(fa[cç]o|fazer|devo fazer)|como (tratar|parar|socorrer|fa[cç]o|agir|purificar|tornar)|primeiros socorros|socorr)/i;
+  /\b(what (do|should|can|must) (i|we|you) do|what to do|how (do|can|should) (i|we|you) (treat|stop|help|survive|make|purify|disinfect|respond|care)|how to (treat|stop|help|survive|make|purify|disinfect)|treat(ing|ment)?|first aid|stop (a|the)?\s*\w*\s*(bleed|nosebleed)|o que (eu )?(fa[cç]o|fazer|devo fazer)|como (tratar|parar|socorrer|fa[cç]o|agir|purificar|tornar)|primeiros socorros|socorr|\b(stop|treat|first aid)\s*[?.!]*$)/i;
 /** Section headings that tell what to do, for ACTION_INTENT questions. */
 export const ACTION_SECTION =
   /\b(treatment|treating|first aid|management|what to do|during|after|immediate|emergency (care|treatment|response)|how to|steps|response|survival|purification|disinfection|rescue|resuscitation|tratamento|primeiros socorros|o que fazer)\b/i;
@@ -126,6 +126,32 @@ export function instructionShare(text: string): number {
   const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((s) => s.replace(/^[-*•\d.)\s]+/, "").trim()).filter((s) => s.length > 3);
   return sentences.length ? sentences.filter((s) => IMPERATIVE.test(s)).length / sentences.length : 0;
 }
+
+/**
+ * For a what-to-do question: the best what-to-do section with its own subsections first, the section before its
+ * subsections ("During an earthquake", then "During > If you are indoors"; "Treatment", then "Treatment > Nasal
+ * packing"), then the next section's. Sections are grouped by their top heading, groups ordered by their best score.
+ */
+export function stepsFirst<T extends { s: number }>(items: T[], sectionOf: (x: T) => string): T[] {
+  const top = (x: T) => sectionOf(x).split(" > ")[0];
+  const best = new Map<string, number>();
+  for (const x of items) best.set(top(x), Math.max(best.get(top(x)) ?? -Infinity, x.s));
+  const byScore = [...items].sort((a, b) => best.get(top(b))! - best.get(top(a))! || b.s - a.s);
+  // Within a group the order is by score, except that a section listed here comes before its own subsections.
+  const out: T[] = [];
+  for (const x of byScore) {
+    const path = sectionOf(x).split(" > ");
+    for (let d = 1; d < path.length; d++) {
+      const ancestor = byScore.find((y) => sectionOf(y) === path.slice(0, d).join(" > "));
+      if (ancestor && !out.includes(ancestor)) out.push(ancestor);
+    }
+    if (!out.includes(x)) out.push(x);
+  }
+  return out;
+}
+
+/** Sources written for lay readers (first-aid manuals, government guidance, travel guides), not clinical articles. */
+const LAY_SOURCES = new Set<PackSource>(["enwikibooks", "usgov", "enwikivoyage"]);
 
 /** Share of imperative sentences above which a section with a neutral heading counts as steps (lay first-aid manuals). */
 const STEPS_SHARE = 0.35;
@@ -527,12 +553,12 @@ export class WikiPack {
       .sort((x, y) => y.s - x.s || y.r.start - x.r.start)
       // One passage per section (the best-scored, first after the sort): two chunks of "Intravenous fluids" would
       // crowd out another section.
-      .filter((x, i, all) => all.findIndex((y) => sectionAt(a.text, y.r.start) === sectionAt(a.text, x.r.start)) === i)
-      .slice(0, nSections)
-      .filter((x) => x.s > 0.15);
+      .filter((x, i, all) => all.findIndex((y) => sectionAt(a.text, y.r.start) === sectionAt(a.text, x.r.start)) === i);
+    const ordered = action ? stepsFirst(scored, (x) => sectionAt(a.text, x.r.start)) : scored;
+    const picked = ordered.slice(0, nSections).filter((x) => x.s > 0.15);
     return Promise.all([
       this.hit(articleId, lead.id, lead.start, lead.end, 1, "title", true),
-      ...scored.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
+      ...picked.map((x) => this.hit(articleId, x.r.id, x.r.start, x.r.end, x.s, "title")),
     ]);
   }
 
@@ -641,6 +667,7 @@ export class WikiPack {
       if (id !== null && !ids.includes(id)) ids.push(id);
     }
     const action = ACTION_INTENT.test(query);
+    let lay = 0;
     let hits = await this.titleHits(ids, stems, 5, action);
     const limit = Math.max(k, ids.length * 2);
     if (hits.length < limit) {
@@ -665,6 +692,10 @@ export class WikiPack {
         const h = await this.materialize(c);
         const relevant =
           coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5 || (sem?.get(c.articleId) ?? 0) >= SEMANTIC_KEEP;
+        // A what-to-do question: at most three passages per article, so a lay manual's steps (Wikibooks First Aid)
+        // get a place next to the clinical article's sections.
+        const perArticle = hits.filter((x) => x.articleId === c.articleId).length;
+        if (action && perArticle >= 3) continue;
         if (relevant && !hits.some((x) => nearDuplicate(x.text, h.text))) {
           // What-to-do question, passage from another section: the same article's action section instead, if it has one.
           // Up to three of them: a section's first chunk is often context ("Earthquakes are unpredictable…") and the
@@ -672,7 +703,7 @@ export class WikiPack {
           if (action) {
             const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId));
             if (acts.length && (!h.action || !acts.some((p) => p.chunkId === h.chunkId))) {
-              for (const act of acts.slice(0, 3)) {
+              for (const act of acts.slice(0, 3 - perArticle)) {
                 hits.push({ ...act, via: "bm25", score: h.score });
                 seen.add(act.chunkId);
               }
@@ -681,6 +712,20 @@ export class WikiPack {
           }
           hits.push(h);
           seen.add(c.chunkId);
+        }
+      }
+      // A what-to-do question answered only by clinical articles: add up to two lay sources from further down the
+      // keyword list (a first-aid manual, a government page, a travel guide's "Stay safe"), past the usual limit.
+      if (action && !hits.some((x) => LAY_SOURCES.has(x.source))) {
+        for (const c of keyword) {
+          if (lay >= 2) break;
+          if (seen.has(c.chunkId)) continue;
+          const h = await this.materialize(c);
+          if (!LAY_SOURCES.has(h.source) || coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) < 0.5) continue;
+          if (hits.some((x) => nearDuplicate(x.text, h.text))) continue;
+          hits.push(h);
+          seen.add(c.chunkId);
+          lay++;
         }
       }
     }
@@ -692,7 +737,7 @@ export class WikiPack {
         hits = [...hits, ...more.filter((h) => !seen.has(h.chunkId))];
       }
     }
-    return { hits: hits.slice(0, limit), stems };
+    return { hits: hits.slice(0, limit + lay), stems };
   }
 
   private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false): Promise<PackHit[]> {
