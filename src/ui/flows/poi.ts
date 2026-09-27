@@ -52,22 +52,44 @@ export interface PoiCity {
   region: string;
 }
 
+/** A place this close to a bigger one in the same pack is one of its districts (Kreuzberg in Berlin). */
+export const DISTRICT_RADIUS_KM = 10;
+
+function km(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 12_742 * Math.asin(Math.sqrt(h));
+}
+
 /**
- * The biggest cities (by food places nearby) across the installed region
- * packs, each name once. `installed` holds region ids whose file is on disk.
+ * Cities to offer as chips from the installed region packs. Each pack lists
+ * its places biggest first (GeoNames), so its first entry is the main city.
+ * Districts (within DISTRICT_RADIUS_KM of a bigger place in the same pack) are
+ * left out, and the slots go round-robin: every installed region's main city
+ * first, then the next ones, so a dense region can't take them all (Prism
+ * L-4: six Berlin districts and no Qujing). Each name once.
  */
 export function topInstalledCities(regions: Pick<PoiRegion, "id" | "cities">[], installed: Set<string>, limit = 6): PoiCity[] {
-  const all = regions
+  const perRegion = regions
     .filter((r) => installed.has(r.id))
-    .flatMap((r) => r.cities.map((c) => ({ name: c.name, region: r.id, pois: c.pois })))
-    .sort((a, b) => b.pois - a.pois);
+    .map((r) => {
+      const kept: PoiRegion["cities"] = [];
+      for (const c of r.cities) if (!kept.some((k) => km(k, c) < DISTRICT_RADIUS_KM)) kept.push(c);
+      return kept.map((c) => ({ name: c.name, region: r.id, pois: c.pois }));
+    });
   const seen = new Set<string>();
   const out: PoiCity[] = [];
-  for (const c of all) {
-    if (seen.has(c.name)) continue;
-    seen.add(c.name);
-    out.push({ name: c.name, region: c.region });
-    if (out.length >= limit) break;
+  for (let round = 0; out.length < limit && perRegion.some((l) => l.length > round); round++) {
+    // Within a round, regions with more food places around that city go first.
+    const picks = perRegion.map((l) => l[round]).filter(Boolean).sort((a, b) => b.pois - a.pois);
+    for (const c of picks) {
+      if (out.length >= limit) break;
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      out.push({ name: c.name, region: c.region });
+    }
   }
   return out;
 }
