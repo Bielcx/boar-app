@@ -21,8 +21,8 @@ import {
   isSafetyQuery,
   isCurrentEventQuery,
   currentEventAnswer,
-  temperatureConversion,
   mentionsNow,
+  sentenceNamesSubject,
   falseQuantumClaims,
   isSubstantive,
   identifiersIn,
@@ -53,6 +53,7 @@ import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
 import { englishNamesIn } from "../rag/ptLexicon";
 import { ptLexicon } from "../rag/ptLexiconAsset";
 import { attributeCitations, checkCitations } from "./citations";
+import { calculate } from "./calculators";
 import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
@@ -507,6 +508,21 @@ export function createAnswerer(deps: AnswerDeps) {
       const stage = (name: AnswerStageName, tier: AnswerTier, modelId?: string, detail?: { index?: number; count?: number }) =>
         emit({ type: "stage", answerId, stage: name, tier, modelId, detail, at: deps.now() });
 
+      // Arithmetic (temperature, fuel economy, Naismith, currency at a given rate, battery Wh) is answered
+      // exactly, before anything else: "Minha conta do jantar deu 2.450 baht…" is a sum, not a restaurant
+      // search (Sextant 3ccf7c0, mth-003-pt went to task:places).
+      if (!req.reuseSources && req.tier !== "deep") {
+        const calc = calculate(req.query, PT_QUESTION.test(req.query));
+        if (calc) {
+          markVisible();
+          const codes = [`answer:${calc.kind === "temperature" ? "temperature-conversion" : `calculator-${calc.kind}`}`];
+          const r: AnswerReceipt = { modelId: "calculator", modelLabel: "Calculator", tokens: 0, tokPerSec: 0, ttftMs: deps.now() - t0, totalMs: deps.now() - t0, reasonCodes: codes };
+          emit({ type: "token", answerId, tier: "instant", text: calc.text });
+          emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r, cited: [] });
+          return { answerId, tier: "instant", outcome: "success", text: calc.text, sources: [], receipt: r, cited: [] };
+        }
+      }
+
       // Places questions never touch a model: the answer is built from the
       // POI records alone, so no name can be invented and it lands in <1s.
       const geoIntent = req.place
@@ -607,15 +623,6 @@ export function createAnswerer(deps: AnswerDeps) {
       // CT-3 (Prism/Piston, 34efdf8): "Who won the football match yesterday?" -> "Meath won... [1]"
       // with [1] a 2021 final. A current-events question is about what an offline snapshot can't
       // know: a fixed, honest answer, no model, no sources.
-      // A temperature conversion is arithmetic: the exact result, no model, no sources (Prism RF-1).
-      const converted = temperatureConversion(req.query, PT_QUESTION.test(req.query));
-      if (converted) {
-        reasonCodes.push("answer:temperature-conversion");
-        markVisible();
-        emit({ type: "token", answerId, tier: "instant", text: converted });
-        return finish("instant", "success", converted, [], receipt({ modelId: "calculator", modelLabel: "Calculator" }));
-      }
-
       if (isCurrentEventQuery(req.query)) {
         reasonCodes.push("grounding:current-event");
         const text = currentEventAnswer(PT_QUESTION.test(req.query));
@@ -748,7 +755,9 @@ export function createAnswerer(deps: AnswerDeps) {
         const covers =
           !!snip &&
           onSubject(pool[snip.sourceIndex]) &&
-          termCoverage(matchQuery, `${pool[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
+          termCoverage(matchQuery, `${pool[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE &&
+          // The sentence itself names the subject, not only its page's title (Sextant q7, EN and PT).
+          sentenceNamesSubject(matchQuery, pool[snip.sourceIndex].title, snip.text);
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();
@@ -807,14 +816,11 @@ export function createAnswerer(deps: AnswerDeps) {
         // Product decision (Iris/Boar): the compact model doesn't answer from memory unless asked to.
         reasonCodes.push("grounding:declined-compact");
         markVisible();
-        emit({
-          type: "warning",
-          answerId,
-          code: "weak_sources",
-          declined: true,
-          message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
-        });
-        return finish(genTier, "success", "", [], receipt({ retrievalMs }));
+        const message = pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        // The decline is the answer's text too: a screen never shows an empty answer (Boar, gate 20e8c65).
+        finalText = message;
+        return finish(genTier, "success", message, [], receipt({ retrievalMs }));
       }
       if (fromMemory) {
         reasonCodes.push("grounding:no-source-memory");
@@ -975,12 +981,16 @@ export function createAnswerer(deps: AnswerDeps) {
           // Boar (A), s32 672bc41: the compact model cited, and no cited source supported it: 4 of 5 such
           // answers were confident errors ("Great Famine" from "Great Recession in Africa"). It declines,
           // as with no source, unless asked to answer anyway. The 4B keeps its (corrected) answer.
+          // Also across languages (a PT answer, English sources): the cross-language exception (5fa5d96) let
+          // 7 new confident crypto errors of the 1.5B through in PT (gate 20e8c65: "32 ETH" for EIP-7251), so
+          // it was reverted; the decline is right there.
           if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
             reasonCodes.push("grounding:all-citations-removed-declined-compact");
             // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
-            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer." });
-            finalText = "";
-            return finish(genTier, "success", "", [], baseReceipt);
+            const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
+            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+            finalText = message;
+            return finish(genTier, "success", message, [], baseReceipt);
           }
         }
       }
@@ -990,17 +1000,12 @@ export function createAnswerer(deps: AnswerDeps) {
       if (falseClaims.length) {
         if (isCompactModel(genLlm) && !req.answerAnyway) {
           reasonCodes.push("grounding:false-claim-declined-compact");
-          emit({
-            type: "warning",
-            answerId,
-            code: "weak_sources",
-            declined: true,
-            message: sources.length
-              ? pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer."
-              : pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.",
-          });
-          finalText = "";
-          return finish(genTier, "success", "", [], baseReceipt);
+          const message = sources.length
+            ? pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer."
+            : pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+          finalText = message;
+          return finish(genTier, "success", message, [], baseReceipt);
         }
         reasonCodes.push(`grounding:false-claim-removed-${falseClaims.length}`);
         for (const claim of falseClaims) text = text.replace(claim, "");
@@ -1034,9 +1039,10 @@ export function createAnswerer(deps: AnswerDeps) {
         if (onTopicSources > 0) reasonCodes.push("grounding:uncited-on-topic");
         else if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
           reasonCodes.push("grounding:uncited-declined-compact");
-          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
-          finalText = "";
-          return finish(genTier, "success", "", [], baseReceipt);
+          const message = pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library.";
+          emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+          finalText = message;
+          return finish(genTier, "success", message, [], baseReceipt);
         } else {
           reasonCodes.push("grounding:uncited-preface");
           // No source: the weak_sources warning already went out before generation.
