@@ -546,7 +546,8 @@ const CORE_PROCEDURE: Array<[RegExp, RegExp]> = [
   [/^bleed|^sangr|^hemorrag/, /\b(direct|firm|steady)\b[^.]{0,20}\bpressure\b|\b(apply|put|press)\w*\b[^.]{0,30}\b(pressure|firmly)\b|press[ãa]o (direta|firme)/i],
   [/^hypotherm|^hipoterm/, /\bshelter\b|\bwarm\w*|\bremove\b[^.]{0,30}\bwet\b|\bcold environment\b|abrigo|aquec/i],
   [/^snakebite|^snake/, /\b(keep|stay)\b[^.]{0,20}\b(still|calm)\b|\bimmobili\w*|\bantivenom\b|\bhospital\b|\bemergency\b/i],
-  [/^contaminat|^purif|^boil|^water/, /\bboil\w*|\bdisinfect\w*|\bbleach\b|ferv/i],
+  // Near "water": "Clean and disinfect everything that got wet" is about surfaces (safety-005, Appropedia Floods).
+  [/^contaminat|^purif|^boil|^water/, /\b(boil|disinfect|purif|treat)\w*\b[^.]{0,40}\bwater\b|\bwater\b[^.]{0,40}\b(boil|disinfect|purif)\w*|\bbleach\b[^.]{0,40}\bwater\b|\bwater\b[^.]{0,40}\bbleach\b|ferv/i],
   [/^chok|^engasg/, /\bback blows?\b|\babdominal thrusts?\b|\bheimlich\b/i],
   [/^flood|^enchent/, /\bhigher ground\b|\bavoid\b[^.]{0,20}\bflood ?water|\bdo not (walk|drive)\b[^.]{0,30}\bwater\b/i],
   [/^fire|^incendi/, /\bget out\b|\bstay low\b|\bcrawl\b|\bstop,? drop,? and roll\b/i],
@@ -569,8 +570,13 @@ export function healthSourceIndex(sources: RetrievedChunk[], procedure: RegExp |
     if (anyAction && flag(c) !== true && !LAY_SOURCE.test(c.title)) return;
     // Laypeople's first-aid text beats a clinical Treatment section ("Active external rewarming involves...").
     // Lay first-aid text that gives steps beats a clinical Treatment section.
-    const lay = LAY_SOURCE.test(c.title) ? (healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE ? 6 : 2) : 0;
-    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay + (procedure?.test(c.body) ? 8 : 0) - i * 0.05;
+    // Appropedia's how-to action sections are lay text too (EQ-2, pack v3: without it Wikivoyage's
+    // "If you are outdoors" beat "Drop, cover, and hold on!"); scoring only, not the topic rule.
+    const steps = healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE;
+    const lay = LAY_SOURCE.test(c.title) ? (steps ? 6 : 2) : /^Appropedia:/.test(c.title) && flag(c) === true && steps ? 6 : 0;
+    // The official source (Ready.gov) wins a tie between texts that give the core procedure.
+    const official = /^US government:/.test(c.title) && procedure?.test(c.body) ? 1 : 0;
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay + official + (procedure?.test(c.body) ? 8 : 0) - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;
