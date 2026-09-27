@@ -155,6 +155,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss. Tone = soft fill + icon; only `danger` gets a border | Live region (danger assertive) |
 | `Toast` | `useToast()({ message, tone, icon, actionLabel, onAction })` | Announced; ≥ 5s + 60ms/char (6s with action); sits above the composer |
 | `Sheet` | Confirmations and short tasks; `footer` actions listed safest first (Cancel, then Delete; drawn with the last on top); `returnFocusRef` = the trigger | Modal, focus to title and back to the trigger on close, Android back/scrim close, `accessibilityViewIsModal` |
+| `TextAction` | Quiet text action in `text.secondary` with an optional small glyph ("Show all", "Cancel", "Open settings", "Related…", "Back"): secondary moves that must not add an accent. `expanded` for expanders | role button, `expanded` state, touch raised to 44/48 by hitSlop |
 | `TextField` | Visible `label` (or `accessibilityLabel`), `helper`, `error`, `autoGrow` + `maxRows`, `leading`/`trailing` | Label is the name (not placeholder), error as hint + live |
 | `Progress` | Determinate (`value` 0..1, `valueText`) or indeterminate. Tone `accent` for any loading/download/indexing; `field` only if the bar itself is provenance (rare) | role progressbar with `accessibilityValue`; `busy` |
 | `Skeleton` | Loading placeholder | Hidden; the screen announces loading once |
