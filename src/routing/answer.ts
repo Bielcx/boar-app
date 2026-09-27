@@ -22,6 +22,7 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  stripModelDisclaimer,
   withSeekCare,
   PT_ANSWER_LANGUAGE,
   PT_ANSWER_LANGUAGE_NO_SOURCES,
@@ -1100,9 +1101,15 @@ export function createAnswerer(deps: AnswerDeps) {
         return finish(genTier, "success", message, [], baseReceipt);
       }
       const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
-      // Also with no source at all (the instruction asks for the line; a model may skip it).
-      const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
-      if (knowledge && text.trim() && !/\[\d+\]/.test(text) && !saysNotFromLibrary) {
+      // Also with no source at all. The app's line is the one notice: the model's own is stripped first (gate
+      // cd1478a: the 4B's translated "Esta resposta não está em um banco de dados offline." came after the app's).
+      if (knowledge && text.trim() && !/\[\d+\]/.test(text)) {
+        const stripped = stripModelDisclaimer(text, pt);
+        if (stripped.trim() && stripped !== text.trimStart()) {
+          reasonCodes.push("grounding:model-disclaimer-stripped");
+          text = stripped;
+          finalText = text;
+        }
         // Sources that passed the topic guard are on topic.
         const onTopicSources = guarded ? sources.length : 0;
         if (onTopicSources > 0) reasonCodes.push("grounding:uncited-on-topic");

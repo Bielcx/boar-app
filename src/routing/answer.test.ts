@@ -738,7 +738,8 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     f.retrieved = [];
     f.deps.engine.generate = async () => "This answer is not from an offline source. It was a compromise.";
     const second = await collect("Why was Canberra chosen as the capital of Australia?");
-    expect((second.events.find((e) => e.type === "done") as any).finalText).toBeUndefined();
+    // The app's line replaces the model's own (gate cd1478a): one notice, never two, never none.
+    expect((second.events.find((e) => e.type === "done") as any).finalText).toBe("This answer is not from an offline source on this phone; check it before relying on it.\n\nIt was a compromise.");
   });
 
   it("an answer that cites its source gets no line", async () => {
@@ -1336,6 +1337,28 @@ describe("answer(): dng-003, a child's scald gets the source's 'seek care' line 
     ];
     const { result } = await collect("Meu filho derramou água fervendo no braço. O que eu faço?");
     expect(result.text).toMatch(/cool running water for 10 to 15 minutes[^\n]*\[1\]\n\nThese burns require immediate medical attention\. \[2\]\n\nEm uma emergência/);
+  });
+});
+
+describe("answer(): one 'not from an offline source' notice (gate cd1478a, dup-disclaimer)", () => {
+  it("the 4B's translated notice is stripped; the app's line is the only one; the model isn't asked to say it", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    const seen: any[] = [];
+    f.deps.engine.generate = async (o) => (seen.push(o), "Esta resposta não está em um banco de dados offline. Em Portugal, não é estritamente esperado dar gorjeta.");
+    const { result } = await collect("É esperado dar gorjeta em restaurantes em Portugal?");
+    expect(result.text).toBe("Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nEm Portugal, não é estritamente esperado dar gorjeta.");
+    expect(result.text.match(/offline/g)).toHaveLength(1);
+    expect(JSON.stringify(seen[0].messages)).not.toMatch(/Begin by saying/);
+  });
+  it("EN: the model's exact opening is replaced by the app's line, not doubled", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    f.deps.engine.generate = async () => "This answer is not from an offline source. Brazil uses Type C and N plugs.";
+    const { result } = await collect("Which plug type does Brazil use?");
+    expect(result.text).toBe("This answer is not from an offline source on this phone; check it before relying on it.\n\nBrazil uses Type C and N plugs.");
   });
 });
 

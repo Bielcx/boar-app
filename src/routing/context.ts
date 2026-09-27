@@ -584,10 +584,31 @@ export function uncitedPreface(pt: boolean): string {
 }
 
 export const NO_SOURCE_INSTRUCTION =
-  "No source in the offline library covers this question. Begin by saying that this answer is not from an offline source. " +
+  // The app's own line is the one notice (gate cd1478a: asked to say it, the 4B translated it under "Responda em
+  // português" and the notice came out twice). The model isn't asked to say it, only told why.
+  "No source in the offline library covers this question; the app already tells the reader. Do not mention sources or the library. " +
   // s32 (ee1f2b7): "Only state what you are sure of" made the 4B drop list items (the Danube without
   // Moldova). The compact model no longer answers from memory unasked (6e5e9b7), so ask for a full answer.
-  "Then answer completely; if you are unsure of a specific detail, say which one.";
+  "Answer completely; if you are unsure of a specific detail, say which one.";
+
+// A model's own "not from an offline source" opening, EN and PT, as the gates saw it: "This answer is not from an
+// offline source.", "Esta resposta não está em um banco de dados offline.", "Essa resposta não está em uma fonte
+// offline.", "Esta resposta não vem de uma fonte offline.", "I don't have a source for this."
+const MODEL_DISCLAIMER =
+  /^\s*(?:(?:this|the) (?:answer|response|information) (?:is|was) not (?:from|in|based on|drawn from)(?: an?| any| the)? (?:offline )?(?:source|database|library|data)\b|(?:esta|essa) (?:resposta|informa[çc][ãa]o) n[ãa]o (?:vem|est[áa]|[ée]|foi tirada|se baseia)(?: baseada)?(?: em| de| d[aeo]| n[ao])?(?: uma?| nenhuma| um)? ?(?:fonte|banco de dados|base de dados|acervo|biblioteca)(?: offline)?|i (?:don'?t|do not) have (?:a|an|any) (?:offline |reliable )?source\b|n[ãa]o tenho (?:uma? |nenhuma )?fonte\b)[^.!?\n]*[.!?]?\s*/i;
+
+/** The answer without the model's own "not from an offline source" opening (and a copy of the app's line). */
+export function stripModelDisclaimer(text: string, pt: boolean): string {
+  let out = text.trimStart();
+  const app = uncitedPreface(pt);
+  for (let i = 0; i < 3; i++) {
+    const before = out;
+    if (out.startsWith(app)) out = out.slice(app.length).trimStart();
+    out = out.replace(MODEL_DISCLAIMER, "").trimStart();
+    if (out === before) break;
+  }
+  return out;
+}
 
 /** When the offline library was built (Wikipedia and the packs' dumps). Update with the packs. */
 export const LIBRARY_SNAPSHOT = { en: "September 2026", pt: "setembro de 2026" };

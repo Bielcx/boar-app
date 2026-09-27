@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  stripModelDisclaimer,
   isPortugueseQuestion,
   excerptRules,
   withAfterPart,
@@ -770,5 +771,22 @@ describe("namedByLexicon: a '… by country' list item is not the subject (trv-0
   it("the country heading under a by-country list doesn't count; the country's own page does", () => {
     expect(namedByLexicon(["Portugal"], c("Triage", "Specific triage systems and methods > Triage systems by country > Portugal: In Portugal, the Manchester Triage System is used."))).toBe(false);
     expect(namedByLexicon(["Portugal"], c("Wikivoyage: Portugal", "Buy > Tipping: Tipping is not expected but appreciated."))).toBe(true);
+  });
+});
+
+describe("stripModelDisclaimer (gate cd1478a: the notice twice)", () => {
+  it("removes the model's own opening notice, EN and PT, as the gate saw it", () => {
+    const cases: Array<[string, boolean, string]> = [
+      ["This answer is not from an offline source. Brazil uses Type C plugs.", false, "Brazil uses Type C plugs."],
+      ["Esta resposta não está em um banco de dados offline. Em Portugal, não é estritamente esperado dar gorjeta.", true, "Em Portugal, não é estritamente esperado dar gorjeta."],
+      ["Essa resposta não está em uma fonte offline. Você pode ir de ônibus do aeroporto.", true, "Você pode ir de ônibus do aeroporto."],
+      ["Esta resposta não vem de uma fonte offline. As estações do ano existem devido à inclinação do eixo.", true, "As estações do ano existem devido à inclinação do eixo."],
+      ["Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nEsta resposta não está em um banco de dados offline. O ABS detecta a rotação das rodas.", true, "O ABS detecta a rotação das rodas."],
+      ["I don't have a source for this. TCP is reliable; UDP is faster.", false, "TCP is reliable; UDP is faster."],
+    ];
+    for (const [input, pt, out] of cases) expect(stripModelDisclaimer(input, pt), input).toBe(out);
+  });
+  it("leaves an answer that doesn't open with a notice alone", () => {
+    for (const t of ["The offline library is a feature of this app.", "Esta resposta depende do país.", "RSA is broken by quantum computers."]) expect(stripModelDisclaimer(t, false)).toBe(t);
   });
 });
