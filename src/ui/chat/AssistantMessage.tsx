@@ -469,6 +469,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
   const receipt = useReceipt(topReceipt, locale);
+  const waitingForCity = answer.places?.coverage === "needs_place";
   return (
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
       <View style={{ gap: t.space.sm }}>
@@ -477,9 +478,10 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           <Text variant="headline" style={{ flexShrink: 1 }}>
             {tr("chat.assistantName")}
           </Text>
-          {active && !answer.deep && answer.places?.coverage !== "needs_place" ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
+          {waitingForCity ? null : active && !answer.deep ? <Elapsed locale={locale} /> : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
         </View>
-        {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
+        {receipt && !waitingForCity && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
 
       {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
