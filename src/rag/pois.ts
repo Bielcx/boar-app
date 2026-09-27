@@ -154,6 +154,8 @@ function gazetteer(): Promise<PackSql | null> {
 
 /** A city or town by name, from the world gazetteer; null when unknown or the gazetteer isn't installed. */
 export async function resolvePlace(name: string): Promise<PlaceMatch | null> {
+  // Without the gazetteer this returns null; the one fallback (the places packs' own cities) is the engine's
+  // (src/routing/geoWiring.ts cityByName), which cleans the name with the same cleanPlaceName.
   const db = await gazetteer();
   return db ? resolvePlaceIn(db, name) : null;
 }
