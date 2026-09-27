@@ -98,7 +98,10 @@ function flowHeader(t: Tokens, title: string, _large = true) {
     // No title in the bar on either platform: a transparent title still showed on Android and was read
     // twice by TalkBack (Prism DUP-2). The screen's name is the content title (first in reading order);
     // `title` stays on the route for the next screen's back button.
-    headerTitle: () => null,
+    // An empty string, not a null component: on Android `() => null` also dropped the back button
+    // (Prism BK-1). With "" the bar keeps the back button and has no title node to read.
+    headerTitle: "",
+    headerBackVisible: true,
     headerStyle: { backgroundColor: t.color.bg.canvas },
     headerBackButtonDisplayMode: "minimal" as const,
   };
