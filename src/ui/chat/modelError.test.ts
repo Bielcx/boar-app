@@ -79,10 +79,10 @@ describe("engine errors with the engine's device hint (Harbor, iOS dc63525)", ()
     expect(modelErrorKind(`failed to initialize MTL0 backend${hint}`)).toBe("engine");
   });
 
-  it("reads the full message LlamaEngine builds as engine (reconstructed by Harbor from LlamaEngine.ts:233-238)", () => {
+  it("reads the literal message from the iPhone 16 simulator as engine (Harbor, e06a447, corrupted same-size GGUF)", () => {
     const msg =
-      'Failed to load "models/qwen2.5-1.5b-instruct-q4km.gguf": Failed to load model (this device has ~16GB RAM, ~9GB free; ' +
-      '"models/qwen2.5-1.5b-instruct-q4km.gguf" needs ~1GB of buffers plus ~1GB of weights per token — likely the cause if those are close)';
+      'Failed to load "models/qwen2.5-1.5b-instruct-q4km.gguf": Failed to load model (this device has ~16.0GB RAM, ~13.7GB free; ' +
+      '"models/qwen2.5-1.5b-instruct-q4km.gguf" needs ~0.3GB of buffers plus ~0.9GB of weights per token — likely the cause if those are close)';
     expect(modelErrorKind(msg)).toBe("engine");
   });
 

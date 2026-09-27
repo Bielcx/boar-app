@@ -832,7 +832,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           }
           ListEmptyComponent={
             loadError ? (
-              <ChatModelError error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel?.label} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : !ready ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
