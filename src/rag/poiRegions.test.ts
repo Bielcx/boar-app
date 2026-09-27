@@ -3,7 +3,7 @@ import { allAssets } from "../models/assetRegistry";
 import { POI_REGIONS, WORLD_PLACES, poiCatalogEntries, regionForPoint, regionsForTimeZone, worldPlacesEntry } from "./poiRegions";
 import { preparednessEntry } from "./preparedness";
 import { cryptoEntry } from "./cryptoPack";
-import { WIKI_EN_SHARDS, wikiEnEntries } from "./wikiEnPacks";
+import { WIKI_EN_SHARDS, wikiEnEntries, wikivoyageEnEntry } from "./wikiEnPacks";
 
 describe("poiRegions", () => {
   it("finds the region containing a point, and none in the ocean", () => {
@@ -54,7 +54,7 @@ describe("tiles", () => {
 
 describe("hosted pack URLs", () => {
   it("pin every hosted file to an upload commit, never a branch", () => {
-    const entries = [...poiCatalogEntries(), worldPlacesEntry(), preparednessEntry(), cryptoEntry(), ...wikiEnEntries()].filter((e) => e.sourceUrl);
+    const entries = [...poiCatalogEntries(), worldPlacesEntry(), preparednessEntry(), cryptoEntry(), ...wikiEnEntries(), wikivoyageEnEntry()].filter((e) => e.sourceUrl);
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) {
       expect(e.sourceUrl).toMatch(/^https:\/\/huggingface\.co\/datasets\/r4topunk\/boar-packs\/resolve\/[0-9a-f]{40}\/[\w./-]+\.sqlite$/);

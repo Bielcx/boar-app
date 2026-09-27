@@ -31,4 +31,17 @@ describe("geoProvidersFrom", () => {
     await p.searchPois(q);
     expect(searchPois).toHaveBeenCalledWith(q);
   });
+
+  it("names the nearest known city within 50 km of an old fix, or none", async () => {
+    const p = geoProvidersFrom(sources({ cities: () => [{ name: "Berlin", lat: 52.52, lon: 13.4 }, { name: "Qujing", lat: 25.49, lon: 103.8 }] }));
+    expect(await p.nearestCity!({ lat: 52.45, lon: 13.3 })).toEqual({ name: "Berlin" });
+    expect(await p.nearestCity!({ lat: 40, lon: 0 })).toBeNull();
+    expect(await geoProvidersFrom(sources()).nearestCity!({ lat: 52.5, lon: 13.4 })).toBeNull();
+  });
+
+  it("passes getLocationFix through when the app has it", async () => {
+    const getLocationFix = async () => ({ error: "stale" as const, last: { lat: 1, lon: 2, ageS: 900 } });
+    expect(geoProvidersFrom(sources({ getLocationFix })).getLocationFix).toBe(getLocationFix);
+    expect(geoProvidersFrom(sources()).getLocationFix).toBeUndefined();
+  });
 });

@@ -147,4 +147,31 @@ export function wikiEnEntries(shards: WikiEnShard[] = WIKI_EN_SHARDS): CatalogMo
   });
 }
 
-registerAssetProvider("wiki-en", () => wikiEnEntries());
+/** English Wikivoyage as its own pack (the Wikipedia shards carry no Wikivoyage). */
+export const WIKIVOYAGE_EN = {
+  id: "boar-wikivoyage-en",
+  filename: "corpus/boar-wikivoyage-en.sqlite",
+  sizeBytes: 351092736,
+  sha256: "ff8595e32f56b8b84e20464afd8bf88532d47d2d82d799e3df8489440004b66e",
+  /** Pinned to the upload commit on the Hugging Face dataset r4topunk/boar-packs. */
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/9557c7b2a50a1c37fdf36d41db4cd0fdc8c33c0b/wiki/en/boar-wikivoyage-en.sqlite",
+  guides: 34002,
+};
+
+export function wikivoyageEnEntry(): CatalogModel {
+  return {
+    id: WIKIVOYAGE_EN.id,
+    kind: "corpus",
+    format: "sqlite-pack",
+    label: "English Wikivoyage",
+    filename: WIKIVOYAGE_EN.filename,
+    sizeBytes: WIKIVOYAGE_EN.sizeBytes,
+    sha256: WIKIVOYAGE_EN.sha256,
+    sourceUrl: WIKIVOYAGE_EN.sourceUrl,
+    license: "CC BY-SA 4.0 (Wikivoyage)",
+    description: `${WIKIVOYAGE_EN.guides.toLocaleString("en-US")} travel guides (see, do, eat, drink, stay safe), searchable offline`,
+    required: false,
+  };
+}
+
+registerAssetProvider("wiki-en", () => [...wikiEnEntries(), wikivoyageEnEntry()]);

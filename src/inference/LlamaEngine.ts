@@ -13,6 +13,9 @@ import {
   contextSizeForRam,
 } from "./memoryFit";
 import { BackendInfo, cpuDeviceNames, initWithCpuFallback } from "./initFallback";
+import type { LoadGuard, LoadMeta } from "./loadMarker";
+import { classifyLoadFailure, ModelLoadError } from "./loadError";
+import { loadGuard as appLoadGuard } from "./loadGuard";
 
 export { contextSizeForRam };
 
@@ -113,6 +116,13 @@ export function thinkingTagsFor(arch: string | null): { start: string; end: stri
 /** Injected before the forced end tag when the budget runs out, so the model moves on to the answer. */
 const THINKING_BUDGET_MESSAGE = "\nI have thought enough; answering now.\n";
 
+export interface LoadOptions {
+  nCtx?: number;
+  nThreads?: number;
+  /** Who this model is, for the crash marker (CR-2): shown as "<label> closed the app". */
+  meta?: { modelId?: string; label?: string };
+}
+
 export interface LoadResult {
   /** Memory estimate taken right before loading; null when the RAM readouts were unavailable. */
   fit: MemoryFit | null;
@@ -129,7 +139,12 @@ export interface LoadResult {
  * file size. No network access anywhere in this module.
  */
 export class LlamaEngine {
+  /** guard: the CR-2 crash marker around initLlama (null = none, e.g. in tests). */
+  constructor(private readonly guard: LoadGuard | null = appLoadGuard) {}
+
   private context: LlamaContext | null = null;
+  /** Who is loaded, for the next crash marker's "previous" (the model the app falls back to). */
+  private loadedMeta: LoadMeta | null = null;
   private modelInfo: LoadedModelInfo | null = null;
   // load()/unload() run one at a time. Concurrent loads (e.g. switching
   // models and closing Settings quickly) used to both release, both create a
@@ -159,14 +174,14 @@ export class LlamaEngine {
   private arch: string | null = null;
   private lastHeaderArch: string | null = null;
 
-  load(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }): Promise<LoadResult> {
+  load(modelFilename: string, opts?: LoadOptions): Promise<LoadResult> {
     let result: LoadResult = { fit: null, warning: null };
     return this.enqueue(async () => {
       result = await this.loadNow(modelFilename, opts);
     }).then(() => result);
   }
 
-  private async loadNow(modelFilename: string, opts?: { nCtx?: number; nThreads?: number }): Promise<LoadResult> {
+  private async loadNow(modelFilename: string, opts?: LoadOptions): Promise<LoadResult> {
     const nCtx = opts?.nCtx ?? defaultContextSize();
     const nThreads = opts?.nThreads ?? 4;
 
@@ -186,15 +201,15 @@ export class LlamaEngine {
     const modelPath = `${FileSystem.documentDirectory}${modelFilename}`;
     const info = await FileSystem.getInfoAsync(modelPath);
     if (!info.exists) {
-      throw new Error(
-        `Model not found at ${modelPath}. Run the setup wizard to install it first.`
-      );
+      const message = `Model not found at ${modelPath}. Run the setup wizard to install it first.`;
+      throw new ModelLoadError(message, "missing", message);
     }
     const fileSizeBytes = (info as { size?: number }).size ?? 0;
 
     // Release any previously loaded model first (e.g. actually switching
     // models from Settings) so we don't leak the old context's native memory,
     // and so the RAM readouts below no longer count the old model.
+    const previous = this.loadedMeta;
     await this.unloadNow();
 
     // Pre-flight check, mmap-aware (see memoryFit.ts): only the KV cache and
@@ -203,10 +218,15 @@ export class LlamaEngine {
     // storage). Best-effort — missing readouts skip the check.
     const fit = await this.estimateFitAt(modelPath, fileSizeBytes, nCtx);
     if (fit?.verdict === "insufficient") {
-      throw new Error(describeFit(modelFilename, fit)!);
+      const message = describeFit(modelFilename, fit)!;
+      throw new ModelLoadError(message, "memory", message);
     }
 
     let backend: BackendInfo = { kind: "default" };
+    const meta: LoadMeta = { filename: modelFilename, ...opts?.meta };
+    // Marker on disk while initLlama runs: if the OS kills the app here, the next start knows (CR-2).
+    await this.guard?.begin(meta, previous).catch((e: any) => console.warn("[engine] load marker:", e?.message ?? e));
+    let loadedOk = false;
     try {
       const loaded = await initWithCpuFallback(
         initLlama,
@@ -223,19 +243,23 @@ export class LlamaEngine {
       this.context = loaded.context;
       backend = loaded.backend;
       this.modelInfo = { filename: modelFilename, nCtx, nThreads, backend };
+      this.loadedMeta = meta;
+      loadedOk = true;
       this.arch = fit ? this.lastHeaderArch : await this.readArch(modelPath);
     } catch (e: any) {
-      // The native error here (from llama.rn/llama.cpp) is often terse
-      // ("Failed to initialize context" with no further detail) — append
-      // our own RAM estimate so the user (and future debugging) has an
-      // actual hypothesis instead of a dead end.
+      // The native error (llama.rn/llama.cpp) is terse ("Failed to load model"). The cause goes in
+      // `kind`, and our RAM estimate in `hint`, NOT in the message: appended there it made the
+      // chat call a Metal failure "not enough memory" (Harbor, iOS dc63525).
       const nativeMessage = e?.message ?? String(e);
       const hint = fit
-        ? ` (this device has ~${toGb(fit.totalBytes)}GB RAM, ~${toGb(fit.availableBytes)}GB free; ` +
-          `"${modelFilename}" needs ~${toGb(fit.anonBytes)}GB of buffers plus ~${toGb(fit.hotWeightBytes)}GB ` +
-          `of weights per token — likely the cause if those are close)`
-        : "";
-      throw new Error(`Failed to load "${modelFilename}": ${nativeMessage}${hint}`);
+        ? `this device has ~${toGb(fit.totalBytes)}GB RAM, ~${toGb(fit.availableBytes)}GB free; ` +
+          `"${modelFilename}" needs ~${toGb(fit.anonBytes)}GB of buffers plus ~${toGb(fit.hotWeightBytes)}GB of weights per token`
+        : undefined;
+      if (hint) console.warn(`[engine] load failed (${nativeMessage}); ${hint}`);
+      throw new ModelLoadError(`Failed to load "${modelFilename}": ${nativeMessage}`, classifyLoadFailure(nativeMessage, fit?.verdict), nativeMessage, hint);
+    } finally {
+      // Returned (loaded or failed in JS): the app survived this load.
+      await this.guard?.end(meta, loadedOk).catch((e: any) => console.warn("[engine] load marker:", e?.message ?? e));
     }
     this.lastLoad = { fit, warning: fit ? describeFit(modelFilename, fit) : null, backend };
     return this.lastLoad;
@@ -306,6 +330,7 @@ export class LlamaEngine {
     const context = this.context;
     this.context = null;
     this.modelInfo = null;
+    this.loadedMeta = null;
     this.lastLoad = { fit: null, warning: null };
     this.arch = null;
     await context?.release();

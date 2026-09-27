@@ -59,6 +59,17 @@ export interface GeoProviders {
   hasPlaces?(): Promise<boolean>;
   /** Device position; must not prompt for permission (the UI asks in context). */
   getLocation(opts: { timeoutMs: number }): Promise<GeoPoint | { error: "denied" | "unavailable" | "timeout" | "prompt" }>;
+  /**
+   * Like getLocation, but a fix older than 5 minutes is never returned as
+   * the position: it comes back as { error: "stale", last } when no fresh one
+   * arrived in time (src/services/location.ts getLocationFix). Optional:
+   * without it, getLocation is used and there is no "last location" prompt.
+   */
+  getLocationFix?(opts: { timeoutMs: number }): Promise<
+    GeoPoint | { error: "denied" | "unavailable" | "timeout" | "prompt" } | { error: "stale"; last: GeoPoint & { ageS: number } }
+  >;
+  /** The best-known city near a point (for "your last location was in X"); null when none is known. */
+  nearestCity?(point: { lat: number; lon: number }): Promise<{ name: string; country?: string } | null>;
   resolvePlace(name: string): Promise<{ name: string; lat: number; lon: number; country?: string; kind: string } | null>;
   searchPois(q: {
     center: { lat: number; lon: number };
@@ -329,6 +340,19 @@ export function needsPlaceAnswer(intent: GeoIntent): string {
   return intent.lang === "pt"
     ? "Não consegui sua localização (permissão negada ou GPS indisponível). Em que cidade você está?"
     : "I couldn't get your location (permission denied or GPS unavailable). Which city are you in?";
+}
+
+/** No fresh fix, only an old one: name it and ask, never list it by itself. */
+export function staleLocationAnswer(intent: GeoIntent, city: string | null, ageS: number): string {
+  const min = Math.max(1, Math.round(ageS / 60));
+  if (intent.lang === "pt") {
+    return city
+      ? `Não consegui uma localização atual. A última foi em ${city}, há ${min} min. Você ainda está lá, ou em que cidade está?`
+      : `Não consegui uma localização atual (a última tem ${min} min). Em que cidade você está?`;
+  }
+  return city
+    ? `I couldn't get a current location. The last one was in ${city}, ${min} min ago. Are you still there, or which city are you in?`
+    : `I couldn't get a current location (the last one is ${min} min old). Which city are you in?`;
 }
 
 export function noPackAnswer(intent: GeoIntent): string {

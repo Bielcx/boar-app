@@ -15,6 +15,7 @@ import {
 import { clearCollectionIndexStatus, setCollectionIndexStatus } from "../rag/indexStatus";
 import { checkImportSize, importKindOfDocument } from "../models/importLimits";
 import { discardPickerCopies } from "./pickerCache";
+import { isStopped, trackWork } from "../rag/cancellation";
 
 /**
  * User-supplied document import for the local knowledge base (Settings >
@@ -184,8 +185,10 @@ export async function importDocuments(
   signal?: AbortSignal
 ): Promise<CustomCollection> {
   const collectionId = `custom-${Date.now()}-${slug(collectionName)}`;
+  // The caller's signal, or a reset (RS-1), stops the import.
+  const work = trackWork(signal);
   const checkCancelled = () => {
-    if (signal?.aborted) throw new ImportCancelledError();
+    if (work.signal.aborted) throw new ImportCancelledError();
   };
   let created = false;
 
@@ -242,6 +245,12 @@ export async function importDocuments(
     const [collection] = (await listCustomCollections()).filter((c) => c.id === collectionId);
     return collection;
   } catch (e: any) {
+    // Stopped by a reset (RS-1): the knowledge base is being deleted, so there is nothing to undo and nothing to
+    // report; the caller sees a cancellation.
+    if ((work.signal.aborted && !signal?.aborted) || isStopped(e)) {
+      clearCollectionIndexStatus(collectionId);
+      throw new ImportCancelledError();
+    }
     if (created) await deleteCustomCollection(collectionId).catch((err) => console.warn("[import] cleanup failed:", err));
     if (e instanceof ImportCancelledError) {
       clearCollectionIndexStatus(collectionId);
@@ -250,6 +259,7 @@ export async function importDocuments(
     }
     throw e;
   } finally {
+    work.done();
     // The picker's cache copy of a private document must not outlive the import, whatever its outcome.
     await discardPickerCopies(files);
   }
