@@ -41,7 +41,7 @@ export function AboutScreen() {
       <View style={{ alignItems: "center", gap: tokens.space.sm }}>
         <Mascot size="brand" />
         <Text variant="title2" align="center">
-          BOAR
+          boar
         </Text>
         <Text variant="callout" color="secondary" align="center">
           {t("flows.about.tagline")}

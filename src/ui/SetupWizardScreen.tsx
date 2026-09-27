@@ -326,8 +326,9 @@ function Welcome({
       <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
         <Mascot size="brand" />
         <View style={{ flex: 1, gap: tokens.space.xxs }}>
+          {/* The identity's wordmark is lowercase (chat header, splash). */}
           <Text ref={titleRef} variant="title1" header>
-            BOAR
+            boar
           </Text>
           <Text variant="footnote" color="field">
             {t("flows.onboarding.brandSub")}
@@ -512,7 +513,7 @@ function PackageStep({
         </>
       }
     >
-      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t("flows.onboarding.step2Sub")} />
+      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
       <Text variant="mono" color="secondary" numeric>
         {deviceRamBytes > 0 || freeBytes > 0
           ? t("flows.onboarding.device", {
@@ -541,7 +542,9 @@ function PackageStep({
               description={t(`flows.onboarding.package.${p.id}.body`)}
               meta={[
                 p.plan.downloadBytes === 0 && t("flows.onboarding.alreadyDownloaded"),
-                t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
+                // Only when it differs from the figure on the right (import, part already downloaded).
+                formatBytes(p.plan.installedBytes, lang) !== formatBytes(p.plan.downloadBytes, lang) &&
+                  t("flows.onboarding.meta.onDisk", { size: formatBytes(p.plan.installedBytes, lang) }),
                 !offline &&
                   p.seconds != null &&
                   p.plan.downloadBytes > 0 &&
@@ -571,7 +574,7 @@ function PackageStep({
                   title={t(`flows.onboarding.answerTier.${tierId}`)}
                   selected={answerTier === tierId}
                   onPress={() => onUserAnswer(tierId)}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggestedHere")} tone="accent" emphasis="solid" /> : undefined}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
                   meta={[m.label]}
                 />
@@ -877,7 +880,7 @@ function InstallStep({
   const quarter = totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 4) : 0;
   const lastQuarter = useRef(quarter);
   useEffect(() => {
-    if (quarter > lastQuarter.current && quarter < 4) announce(t("flows.onboarding.percentAnnounce", { pct: quarter * 25 }));
+    if (quarter > lastQuarter.current && quarter < 4) announce(t(offline ? "flows.onboarding.percentImportedAnnounce" : "flows.onboarding.percentAnnounce", { pct: quarter * 25 }));
     lastQuarter.current = quarter;
   }, [quarter, announce, t]);
 
@@ -936,13 +939,24 @@ function InstallStep({
   const indexing = indexPhase === "building" || indexPhase === "error";
   const { fontScale } = useWindowDimensions();
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
+  const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
+  // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
-    ? {
-        label: t("flows.onboarding.totalLabel"),
-        fraction: totalBytes > 0 ? doneBytes / totalBytes : 0,
-        meta: [t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })],
-      }
+    ? offline
+      ? {
+          label: t("flows.onboarding.importedLabel"),
+          fraction: assets.length > 0 ? presentCount / assets.length : 0,
+          figure: { value: formatCount(presentCount, lang), unit: t("flows.onboarding.ofFiles", { count: assets.length, total: formatCount(assets.length, lang) }) },
+          meta: [t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })],
+        }
+      : {
+          label: t("flows.onboarding.totalLabel"),
+          fraction: totalBytes > 0 ? doneBytes / totalBytes : 0,
+          figure: undefined,
+          meta: [t("flows.onboarding.totalValue", { done: formatBytes(doneBytes, lang), total: formatBytes(totalBytes, lang) })],
+        }
     : {
+        figure: undefined,
         label: t("flows.onboarding.indexRow"),
         fraction: seed && seed.total > 0 ? seed.done / seed.total : 0,
         meta: [indexCounter, seedEta != null ? t("flows.onboarding.minutesLeft", { count: minutesLeft(seedEta) }) : null].filter((x): x is string => !!x),
@@ -962,7 +976,7 @@ function InstallStep({
       ]
     : states.map(({ asset, state }) => ({
         key: asset.id,
-        icon: <PhaseIcon state={state} />,
+        icon: <PhaseIcon state={state} model={asset} />,
         // Grouped under a MODELS / KNOWLEDGE overline, so each row is just the name (Prism S3-3).
         group: asset.kind === "corpus" ? t("flows.onboarding.groupKnowledge") : t("flows.onboarding.groupModels"),
         title: asset.label,
@@ -996,7 +1010,8 @@ function InstallStep({
               {t("flows.onboarding.importPlacesNote")}
             </Text>
           )}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
+          {/* In the offline build choosing files is the step's action: primary, the one accent (Iris, Prism N-8). */}
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} primary={offline} />
           <Text variant="footnote" color="secondary" selectable>
             {t("flows.onboarding.importHow")}
           </Text>
@@ -1004,13 +1019,20 @@ function InstallStep({
       )}
 
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
-      {(!allPresent || (indexing && seed)) && (
-        <Card style={{ gap: tokens.space.md }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
-            {/* xl only for the download, the one figure of the setup; the index stays lg (Iris). */}
-            <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
-            {/* 110 + 128 fit in 288dp at 1.0; larger text would squeeze the figure (Iris). */}
+      {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
+        // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
+        <Card style={{ gap: tokens.space.md, overflow: "hidden" }}>
+          {/* The boar sits in the corner like the mockup; the content sets the card's height (Iris, Prism N-6). */}
+          <View style={{ position: "absolute", top: 0, right: 0 }}>
             {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
+          </View>
+          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base }}>
+            {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
+            {hero.figure ? (
+              <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
+            ) : (
+              <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
+            )}
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
           <MetaLine items={hero.meta} />
@@ -1024,7 +1046,7 @@ function InstallStep({
             key: "index",
             icon: (
               <Icon
-                name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "circle"}
+                name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "clock"}
                 color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.secondary}
               />
             ),
@@ -1044,7 +1066,10 @@ function InstallStep({
             tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
             group: t("flows.onboarding.groupIndex"),
           },
-        ].map((row, i, rows) => (
+        ]
+          // While the hero shows the index, its row would repeat it (Prism N-10).
+          .filter((row) => !(row.key === "index" && indexing && seed))
+          .map((row, i, rows) => (
           <React.Fragment key={row.key}>
           {row.group && row.group !== rows[i - 1]?.group && (
             <View style={{ paddingHorizontal: tokens.space.base, paddingTop: tokens.space.md }}>
@@ -1121,7 +1146,7 @@ function InstallStep({
         <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
       )}
 
-      {stalled && (
+      {stalled && !offline && (
         <Button
           variant="secondary"
           icon="refresh-cw"
@@ -1141,7 +1166,7 @@ function InstallStep({
             </Text>
           </View>
           <Text variant="footnote" color="secondary">
-            {t("flows.onboarding.keepOpen")}
+            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
         </Card>
       )}
@@ -1154,10 +1179,11 @@ function moving(state: RowState): boolean {
   return (state.kind === "downloading" && state.progress > 0) || state.kind === "verifying";
 }
 
-function PhaseIcon({ state }: { state: RowState }) {
+function PhaseIcon({ state, model }: { state: RowState; model: CatalogModel }) {
   const tokens = useTokens();
   if (state.kind === "installed" || state.kind === "in-use") return <Icon name="check-circle" color={tokens.color.status.success.solid} />;
   if (state.kind === "failed") return <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />;
   if (moving(state)) return <Icon name="download" color={tokens.color.accent.text} />;
-  return <Icon name="circle" color={tokens.color.text.secondary} />;
+  // Not a ring: an empty circle read as the radio of step 2 (Prism N-7).
+  return <Icon name={state.kind === "not-installed" && !canDownload(model) ? "file-plus" : "clock"} color={tokens.color.text.secondary} />;
 }
