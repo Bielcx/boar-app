@@ -27,6 +27,8 @@ interface Props {
   details?: string[];
   /** Memory estimate, for the numbers in the "won't fit" explanation. */
   fit?: MemoryFit;
+  /** The kind overline; off where the whole screen is one kind (Knowledge, Prism KN-3). */
+  showKind?: boolean;
 }
 
 type Seal = { label: string; tone: Tone; emphasis: "solid" | "soft" | "outline"; icon?: IconName };
@@ -55,7 +57,7 @@ function seal(state: RowState, t: TFunction): Seal {
 
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -89,9 +91,13 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
       {/* The mockup's catalog card: kind overline and status seal, then the name with its size, then one metadata line. */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-        <Text variant="label" color="field" style={{ flex: 1 }}>
-          {t(`flows.row.kind.${model.kind}`)}
-        </Text>
+        <View style={{ flex: 1 }}>
+          {showKind && (
+            <Text variant="label" color="field">
+              {t(`flows.row.kind.${model.kind}`)}
+            </Text>
+          )}
+        </View>
         <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
       </View>
       <View style={{ gap: tokens.space.xs }}>
