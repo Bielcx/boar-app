@@ -322,6 +322,9 @@ function RelevanceBar({ band }: { band: RelevanceBand | null }) {
             color={band === "low" ? "secondary" : "field"}
             numberOfLines={1}
             style={b === band ? undefined : { height: 0, opacity: 0 }}
+            // Sizing only: never read (the row's label already says "relevance high").
+            accessibilityElementsHidden={b !== band}
+            importantForAccessibility={b === band ? "auto" : "no-hide-descendants"}
           >
             {tr(`chat.sources.band.${b}`)}
           </Text>
