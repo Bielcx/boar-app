@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Dimensions, Platform } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer, NavigationState, Theme, useNavigation } from "@react-navigation/native";
 import { saveNavState, savedNavState } from "./navState";
 import { createNativeStackNavigator, NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -122,10 +123,26 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
   const t = useTokens();
   const { t: tr } = useTranslation();
   const theme = useMemo(() => navigationTheme(t), [t]);
+  // iOS: a live Dynamic Type change keeps the old text measurements (Prism FS-3, Harbor 51f9863:
+  // clipped descenders, cut phrases; a cold launch at the same size is clean). Remount the tree on a
+  // font-scale change; navState below puts the user back on the same screen. Android recreates the
+  // Activity instead (FS-1 plan B), so this is iOS-only.
+  const [fontEpoch, setFontEpoch] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let scale = Dimensions.get("window").fontScale;
+    const sub = Dimensions.addEventListener("change", ({ window }) => {
+      if (Math.abs(window.fontScale - scale) < 0.01) return;
+      scale = window.fontScale;
+      setFontEpoch((e) => e + 1);
+    });
+    return () => sub.remove();
+  }, []);
   return (
     // Restores the last screen when the tree mounts again, e.g. after Android recreates the
     // Activity on a system font change (FS-1): the JS context survives, the React tree does not.
     <NavigationContainer
+      key={fontEpoch}
       theme={theme}
       initialState={savedNavState<NavigationState>()}
       onStateChange={saveNavState}
