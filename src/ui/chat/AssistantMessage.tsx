@@ -9,6 +9,8 @@ import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, type AnswerState, type TierState } from "./answerReducer";
 import { receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
+import { groupSources, sourceParts } from "./sourceLabel";
+import { needsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -19,6 +21,8 @@ export interface AssistantMessageProps {
   active: boolean;
   /** Asked in this run (not restored from history): it may take focus, e.g. the city prompt. */
   fresh?: boolean;
+  /** The question this answers (health questions get the emergency note). */
+  question?: string;
   stopping: boolean;
   /** Stopped because the app went to the background. */
   interrupted?: boolean;
@@ -240,14 +244,17 @@ function Receipt({
 }
 
 /**
- * The answer's sources as the mockup's card: a header with the count, then
- * numbered rows that expand in place into a well with where the passage comes
- * from and its first lines. The full passage opens in the source sheet.
+ * The answer's sources as the mockup's card: a header with the count, then one
+ * row per article (passages of the same article are grouped, Iris) that
+ * expands in place into a well: the source's name as the overline, its URL in
+ * normal case (Prism S-2), and each passage with its citation number and first
+ * lines. The full passage opens in the source sheet.
  */
 function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSource: (i: number) => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const groups = groupSources(answer.sources);
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingHorizontal: t.space.xs }}>
@@ -257,12 +264,16 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
         </Text>
         <Badge label={String(answer.sources.length)} tone="field" />
       </View>
-      {answer.sources.map((s, i) => {
-        const open = expanded === i;
-        const origin = s.collectionId ? tr("chat.sources.myDocuments") : s.source || tr("chat.sources.corpus");
+      {groups.map((g) => {
+        const open = expanded === g.key;
+        const first = answer.sources[g.indexes[0]];
+        const parts = sourceParts(first.source);
+        const origin = first.collectionId ? tr("chat.sources.myDocuments") : parts.name ?? tr("chat.sources.corpus");
+        const numbers = g.indexes.map((i) => i + 1).join(", ");
+        const passages = g.indexes.length;
         return (
           <View
-            key={s.chunkId}
+            key={g.key}
             style={{
               borderRadius: t.radius.md,
               borderWidth: t.size.border,
@@ -271,9 +282,9 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
             }}
           >
             <Pressable
-              onPress={() => setExpanded(open ? null : i)}
+              onPress={() => setExpanded(open ? null : g.key)}
               accessibilityRole="button"
-              accessibilityLabel={tr("chat.sources.chip", { n: i + 1, title: s.title })}
+              accessibilityLabel={tr("chat.sources.groupLabel", { numbers, title: g.title, origin, count: passages })}
               accessibilityHint={tr("chat.sources.expandHint")}
               accessibilityState={{ expanded: open }}
               style={({ pressed }) => ({
@@ -282,6 +293,7 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
                 gap: t.space.sm,
                 minHeight: t.size.touch,
                 paddingHorizontal: t.space.sm,
+                paddingVertical: t.space.xs,
                 borderRadius: t.radius.md,
                 backgroundColor: pressed ? t.color.bg.sunken : undefined,
               })}
@@ -298,36 +310,69 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
                 }}
               >
                 <Text variant="caption" color="field" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
-                  {i + 1}
+                  {g.indexes[0] + 1}
                 </Text>
               </View>
-              <Text variant="subhead" numberOfLines={open ? undefined : 1} style={{ flex: 1 }}>
-                {s.title}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text variant="subhead" numberOfLines={open ? undefined : 1}>
+                  {g.title}
+                </Text>
+                <MetaLine items={[origin, passages > 1 && tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />
+              </View>
               <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
             </Pressable>
             {open && (
-              <View style={{ gap: t.space.xs, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
-                <Text variant="label" color="field" numberOfLines={1}>
-                  {origin}
-                </Text>
-                <Text variant="footnote" numberOfLines={4}>
-                  {s.body}
-                </Text>
-                <Button
-                  label={tr("chat.sources.fullPassage")}
-                  variant="ghost"
-                  size="sm"
-                  icon="maximize-2"
-                  style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
-                  onPress={() => onOpenSource(i)}
-                />
+              <View style={{ gap: t.space.sm, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
+                <View style={{ gap: t.space.xxs }}>
+                  <Text variant="label" color="field" numberOfLines={1}>
+                    {origin}
+                  </Text>
+                  {parts.url && (
+                    <Text variant="mono" color="secondary" numberOfLines={1} ellipsizeMode="middle" selectable>
+                      {parts.url}
+                    </Text>
+                  )}
+                </View>
+                {g.indexes.map((i) => (
+                  <View key={answer.sources[i].chunkId} style={{ gap: t.space.xxs }}>
+                    <Text variant="footnote" numberOfLines={4}>
+                      {passages > 1 ? `[${i + 1}] ${answer.sources[i].body}` : answer.sources[i].body}
+                    </Text>
+                    <Button
+                      label={tr("chat.sources.fullPassage")}
+                      variant="ghost"
+                      size="sm"
+                      icon="maximize-2"
+                      accessibilityLabel={tr("chat.sources.fullPassageN", { n: i + 1 })}
+                      style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
+                      onPress={() => onOpenSource(i)}
+                    />
+                  </View>
+                ))}
               </View>
             )}
           </View>
         );
       })}
     </Card>
+  );
+}
+
+/** "Not a substitute for emergency services": under health and preparedness answers (Boar E-1). */
+function EmergencyNote() {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  return (
+    <View
+      accessible
+      accessibilityLabel={tr("chat.safety.emergencyNote")}
+      style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm, paddingHorizontal: t.space.xs }}
+    >
+      <Icon name="alert-circle" size="sm" color={t.color.text.secondary} />
+      <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
+        {tr("chat.safety.emergencyNote")}
+      </Text>
+    </View>
   );
 }
 
@@ -374,7 +419,7 @@ function InstantSnippet({
   const autoCollapsed = answer.fast?.outcome === "success" && !isFinal;
   const expanded = userExpanded ?? !autoCollapsed;
   return (
-    <Card level={0} padding="sm" style={{ gap: t.space.xs, backgroundColor: t.color.field.soft, borderColor: t.color.field.soft }}>
+    <Card padding="sm" style={{ gap: t.space.xs }}>
       <Text variant="caption" color="field" weight="semibold" numberOfLines={1}>
         {source ? `${tr("chat.snippet.fromSource")} · ${source.title}` : tr("chat.snippet.fromSource")}
       </Text>
@@ -488,6 +533,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
 
       {answer.sources.length > 0 && !placesOnly && <SourceList answer={answer} onOpenSource={onOpenSource} />}
+      {hasText && !placesOnly && needsEmergencyNote(props.question ?? "", answer.sources) && <EmergencyNote />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, marginLeft: -t.space.sm }}>

@@ -755,7 +755,12 @@
       "openHint": "Abre o trecho",
       "heading": "Fontes deste celular",
       "expandHint": "Mostra de onde vem o trecho",
-      "fullPassage": "Trecho completo"
+      "fullPassage": "Trecho completo",
+      "passages_one": "{{count}} trecho",
+      "passages_other": "{{count}} trechos",
+      "fullPassageN": "Trecho completo {{n}}",
+      "groupLabel_one": "Fonte {{numbers}}: {{title}}, {{origin}}",
+      "groupLabel_other": "Fontes {{numbers}}: {{title}}, {{origin}}, {{count}} trechos"
     },
     "receipt": {
       "sourcePassage": "Trecho da fonte",
@@ -1011,6 +1016,9 @@
         "body": "O arquivo do modelo está neste celular, mas o motor não conseguiu iniciá-lo aqui (primeiro na GPU, depois na CPU).",
         "hint": "Tente de novo. Se continuar, tente um modelo menor em Ajustes (também pode ser falta de memória). O motor disse:"
       }
+    },
+    "safety": {
+      "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."
     }
   },
   "location": {
