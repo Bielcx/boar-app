@@ -43,6 +43,9 @@ SplashScreen.setOptions({ fade: false });
 // Boot timing (splash decision): how long the native splash covers the JS start. Read in logcat / Xcode.
 const BOOT_T0 = Date.now();
 console.info(`[boot] js-start t=${BOOT_T0}`);
+// The JS context survives an Activity recreation (font scale change), so later mounts of the tree are
+// not boots: they are timed from their own mount and tagged via=recreate (Piston PERF-4).
+let bootMounts = 0;
 
 function AppContent() {
   const t = useTokens();
@@ -65,18 +68,25 @@ function AppContent() {
   // same art + tagline + bar) was measured on screen for 0-90 ms on iOS and Android (Harbor, Piston,
   // 1c09215): too short to read, it only flashed the tagline. Kept in src/ui/flows for a slower boot.
   const nativeHidden = useRef(false);
+  const mount = useRef<{ t0: number; recreate: boolean } | null>(null);
+  if (!mount.current) {
+    const recreate = bootMounts++ > 0;
+    mount.current = { t0: recreate ? Date.now() : BOOT_T0, recreate };
+  }
   // `via` says which path released the native splash: "image" (BootSplash drew) or "ready" (the app was
   // ready first, so BootSplash never showed). Ready minus hide = how long BootSplash was on screen.
   const hideNative = useCallback((via: "image" | "ready") => {
     if (nativeHidden.current) return;
     nativeHidden.current = true;
     // Boot timing for Tusk's measurements (the native splash is released here).
-    console.info(`[boot] hide after=${Date.now() - BOOT_T0}ms via=${via}`);
+    const m = mount.current!;
+    console.info(`[boot] hide after=${Date.now() - m.t0}ms via=${m.recreate ? "recreate" : via}`);
     SplashScreen.hideAsync().catch(() => {});
   }, []);
   useEffect(() => {
     if (!ready) return;
-    console.info(`[boot] ready after=${Date.now() - BOOT_T0}ms`);
+    const m = mount.current!;
+    console.info(`[boot] ready after=${Date.now() - m.t0}ms${m.recreate ? " via=recreate" : ""}`);
     hideNative("ready");
   }, [ready, hideNative]);
 
