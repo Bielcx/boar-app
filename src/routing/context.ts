@@ -291,12 +291,16 @@ export function healthSourceIndex(sources: RetrievedChunk[]): number {
 
 /** How much a source tells what to do: an instructions section, action words, minus description and hedging. */
 export function healthActionScore(c: RetrievedChunk): number {
-  const section = c.body.split(":")[0];
+  // Pack chunks start with "Section > Subsection: "; anything else has no section.
+  const colon = c.body.indexOf(":");
+  const section = colon > 0 && colon <= 80 ? c.body.slice(0, colon) : "";
   return (
     (ACTION_SECTION.test(section) ? 2 : 0) +
     Math.min(2, (c.body.match(ACTION_WORD)?.length ?? 0) * 0.25) -
     (HEDGE.test(c.body) ? 1 : 0) -
-    (DESCRIPTIVE_SECTION.test(section) ? 1.5 : 0)
+    (DESCRIPTIVE_SECTION.test(section) ? 1.5 : 0) -
+    // A caption or a heading alone ("Image") is not an answer.
+    (c.body.length - section.length < 120 ? 3 : 0)
   );
 }
 

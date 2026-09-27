@@ -54,12 +54,6 @@ const PT_EN: Array<[RegExp, string]> = [
   [/prevenir|evitar/i, "prevent"],
 ];
 
-const DISASTER = new Set(["earthquake", "flood", "hurricane", "fire", "evacuation", "safe drinking water", "contaminated water", "boiling water"]);
-const GENERIC = new Set(["nose", "child", "stop", "treat", "prevent"]);
-
-/** "O que faço?", "como tratar": the question wants steps, so search the first-aid sections too. */
-const WANTS_STEPS = /\bo que (eu )?(fa[çc]o|fazer|devo fazer)\b|\bcomo (tratar|socorrer|ajudar|agir)\b|\bprimeiros socorros\b/i;
-
 export function englishSearchTerms(query: string): string | null {
   const out: string[] = [];
   let rest = query;
@@ -69,8 +63,24 @@ export function englishSearchTerms(query: string): string | null {
       if (!out.includes(en)) out.push(en);
     }
   }
-  // Medical cases only: for an earthquake or a flood, "first aid" pulls in the wrong sections.
-  const medical = out.some((t) => !DISASTER.has(t) && !GENERIC.has(t));
-  if (medical && WANTS_STEPS.test(query) && !out.includes("first aid")) out.push("first aid");
   return out.length ? out.join(" ") : null;
+}
+
+// English first-aid questions phrased as a story ("I just got bitten by a snake while hiking")
+// share few words with the articles (Snakebite, Burn, Hypothermia): search with their names.
+const EN_CANONICAL: Array<[RegExp, string]> = [
+  [/\b(bitten|bit) by (a |an )?(snake|viper|rattlesnake|cobra)|\bsnake ?bites?\b/i, "snakebite"],
+  [/\b(spill\w*|splash\w*|scald\w*|pour\w*)\b[^.]{0,40}\b(boiling|hot) (water|oil|coffee|tea)|\b(boiling|hot) (water|oil)[^.]{0,40}\b(spill\w*|scald\w*|burn\w*)|\bscalds?\b/i, "burn scald"],
+  [/\bshiver\w*[^.]{0,80}\bcold\b|\bcold\b[^.]{0,80}\bshiver\w*/i, "hypothermia"],
+  [/\bnose ?bleeds?\b|\bbleeding (from )?(the |my |his |her )?nose\b/i, "nosebleed"],
+  [/\bchok(e|ing)\b/i, "choking"],
+  // Earthquakes and floods: the question's own words find the "During an earthquake" sections better.
+];
+// No "first aid" added: it pulls in generic first-aid articles ("Mental health first aid").
+
+/** Canonical English search words for an English first-aid question, or null. */
+export function canonicalHealthTerms(query: string): string | null {
+  const out = EN_CANONICAL.filter(([re]) => re.test(query)).map(([, t]) => t);
+  if (!out.length) return null;
+  return out.join(" ");
 }

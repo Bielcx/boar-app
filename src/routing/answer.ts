@@ -29,7 +29,7 @@ import {
   riskyHealthInstruction,
   termCoverage,
 } from "./context";
-import { englishSearchTerms } from "./ptQuery";
+import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { pickDefaultAnswerModel } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
@@ -506,7 +506,7 @@ export function createAnswerer(deps: AnswerDeps) {
 
       // 1. Sources. A Portuguese question searches the (English) packs with English words when it has known terms.
       const pt = PT_QUESTION.test(req.query);
-      const english = pt ? englishSearchTerms(req.query) : null;
+      const english = pt ? englishSearchTerms(req.query) : isHealthQuestion(req.query) ? canonicalHealthTerms(req.query) : null;
       if (english) reasonCodes.push("retrieve:pt-en-terms");
       /** What the sources are matched against: the English words for a translated PT question. */
       const matchQuery = english ?? req.query;
