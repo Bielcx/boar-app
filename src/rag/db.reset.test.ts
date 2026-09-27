@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { DbClosedError } from "./guardedDb";
 
 const { log, conns } = vi.hoisted(() => ({ log: [] as string[], conns: [] as any[] }));
 vi.mock("expo-sqlite", () => ({
@@ -9,40 +8,62 @@ vi.mock("expo-sqlite", () => ({
     const conn = {
       n,
       finishRead: () => release(),
-      execAsync: async () => {},
+      execAsync: async (sql: string) => void (/DELETE|VACUUM|defer_foreign_keys/.test(sql) && log.push(sql.trim())),
       runAsync: async () => ({ changes: 0 }),
-      getAllAsync: async () => [],
+      getAllAsync: async (sql: string) =>
+        /sqlite_master/.test(sql)
+          ? [
+              { name: "chunks_fts", sql: "CREATE VIRTUAL TABLE chunks_fts USING fts5(title, body)" },
+              { name: "chunks_fts_data", sql: "CREATE TABLE 'chunks_fts_data'(id INTEGER PRIMARY KEY, block BLOB)" },
+              { name: "chunks", sql: "CREATE TABLE chunks (chunk_id TEXT PRIMARY KEY)" },
+              { name: "chat_messages", sql: "CREATE TABLE chat_messages (id TEXT PRIMARY KEY)" },
+            ]
+          : [],
       getFirstAsync: (sql: string) =>
-        /slow/.test(sql)
-          ? new Promise((resolve) => (release = () => (log.push(`read ${n} done`), resolve({ ok: 1 }))))
-          : Promise.resolve(null),
-      withTransactionAsync: async (task: () => Promise<void>) => task(),
+        /slow/.test(sql) ? new Promise((resolve) => (release = () => (log.push("read done"), resolve({ ok: 1 })))) : Promise.resolve({ ok: 1 }),
+      withTransactionAsync: async (task: () => Promise<void>) => {
+        log.push("BEGIN");
+        await task();
+        log.push("COMMIT");
+      },
       closeAsync: async () => void log.push(`close ${n}`),
     };
-    log.push(`open ${n}`);
     conns.push(conn);
     return conn;
   },
-  deleteDatabaseAsync: async () => void log.push("delete"),
+  deleteDatabaseAsync: async () => void log.push("deleteDatabase"),
 }));
 
-import { getDb, resetDatabase } from "./db";
+import { getDb, resetDatabase, wipeDatabase } from "./db";
+import { runResetHooks } from "../services/resetOrder";
 
-describe("resetDatabase", () => {
-  it("closes once after the reads in flight, then deletes; old handles reject in JS; getDb() opens a new one", async () => {
+describe("wipeDatabase (RS-1 v2)", () => {
+  it("empties every data table on the open connection, never closes or deletes it, and the kept handle still works", async () => {
     const db = await getDb();
-    const slow = db.getFirstAsync("SELECT slow");
-    const first = resetDatabase();
+    const read = db.getFirstAsync("SELECT slow");
+    const first = wipeDatabase();
     const second = resetDatabase();
-    await Promise.resolve();
-    expect(log.filter((l) => l.startsWith("close") || l === "delete")).toEqual([]);
     conns[0].finishRead();
-    await Promise.all([first, second, slow]);
-    expect(log.filter((l) => /^(read|close|delete)/.test(l))).toEqual(["read 1 done", "close 1", "delete"]);
-    // The handle the caller kept (like the seed's loop) never reaches the closed native connection.
-    await expect(db.getFirstAsync("SELECT 1")).rejects.toBeInstanceOf(DbClosedError);
-    const fresh = await getDb();
-    expect(fresh).not.toBe(db);
-    expect(log).toContain("open 2");
+    await Promise.all([first, second, read]);
+    expect(log).toEqual([
+      "read done",
+      "BEGIN",
+      "PRAGMA defer_foreign_keys = ON",
+      'DELETE FROM "chunks_fts"',
+      'DELETE FROM "chunks"',
+      'DELETE FROM "chat_messages"',
+      "COMMIT",
+      "VACUUM",
+    ]);
+    expect(log.some((l) => /close|deleteDatabase/.test(l))).toBe(false);
+    expect(await db.getFirstAsync("SELECT 1")).toEqual({ ok: 1 });
+    expect(await getDb()).toBe(db);
+    expect(conns).toHaveLength(1);
+  });
+
+  it("is the required 'knowledge-base' wipe hook", async () => {
+    log.length = 0;
+    await runResetHooks("wipe", ["knowledge-base"]);
+    expect(log).toContain('DELETE FROM "chunks"');
   });
 });
