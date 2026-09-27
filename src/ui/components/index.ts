@@ -22,7 +22,7 @@ export { Icon } from "./Icon";
 export type { IconName, IconProps } from "./Icon";
 export { IconButton } from "./IconButton";
 export type { IconButtonProps } from "./IconButton";
-export { ListRow } from "./ListRow";
+export { LARGE_TEXT_SCALE, ListRow } from "./ListRow";
 export type { ListRowProps } from "./ListRow";
 export { Mascot } from "./Mascot";
 export type { MascotProps } from "./Mascot";

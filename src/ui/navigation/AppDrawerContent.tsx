@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { DrawerContentComponentProps, useDrawerStatus } from "@react-navigation/drawer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getMemorySettings } from "../../models/settings";
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
-import { Button, IconButton, IconName, ListRow, Mascot, Sheet, Text, useToast } from "../components";
+import { Button, IconButton, IconName, LARGE_TEXT_SCALE, ListRow, Mascot, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import { useChatBridge } from "./chatBridge";
 import type { RootStackParamList } from "./types";
@@ -25,6 +25,10 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const insets = useSafeAreaInsets();
+  // Large text: a pinned footer of three tall rows covered the end of the list (Prism AX-4), so the
+  // destinations scroll with it instead.
+  const { fontScale } = useWindowDimensions();
+  const pinFooter = fontScale < LARGE_TEXT_SCALE;
   const toast = useToast();
   const status = useDrawerStatus();
   const chat = useChatBridge();
@@ -56,6 +60,27 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
     fn();
   };
 
+  const footer = (
+    <View
+      style={{
+        borderTopWidth: t.size.hairline,
+        borderTopColor: t.color.line.hairline,
+        paddingBottom: pinFooter ? insets.bottom : 0,
+        marginTop: pinFooter ? 0 : t.space.base,
+      }}
+    >
+      {destinations.map((d) => (
+        <ListRow
+          key={d.route}
+          title={d.label}
+          icon={d.icon}
+          chevron={false}
+          onPress={() => go(() => navigation.getParent()?.navigate(d.route))}
+        />
+      ))}
+    </View>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: t.color.bg.surface, paddingTop: insets.top }}>
       <View style={[styles.brand, { paddingHorizontal: t.space.base, paddingVertical: t.space.md, gap: t.space.md }]}>
@@ -74,7 +99,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
         <Button ref={newChatRef} label={tr("nav.newChat")} icon="edit-3" variant="secondary" fullWidth onPress={() => go(chat.newChat)} />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: t.space.base }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: pinFooter ? t.space.base : insets.bottom }}>
         <Text variant="label" color="tertiary" header style={{ paddingHorizontal: t.space.base, paddingVertical: t.space.sm }}>
           {tr("nav.recent")}
         </Text>
@@ -133,25 +158,10 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
             {tr("nav.keepingLast", { count: maxSessions })}
           </Text>
         )}
+        {!pinFooter && footer}
       </ScrollView>
 
-      <View
-        style={{
-          borderTopWidth: t.size.hairline,
-          borderTopColor: t.color.line.hairline,
-          paddingBottom: insets.bottom,
-        }}
-      >
-        {destinations.map((d) => (
-          <ListRow
-            key={d.route}
-            title={d.label}
-            icon={d.icon}
-            chevron={false}
-            onPress={() => go(() => navigation.getParent()?.navigate(d.route))}
-          />
-        ))}
-      </View>
+      {pinFooter && footer}
 
       <Sheet
         visible={pendingDelete !== null}
