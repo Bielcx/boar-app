@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   chunkArticle,
   cleanWikivoyage,
+  normalizeUrl,
   infoboxText,
   isTable,
   leadChunkIndex,
@@ -119,5 +120,14 @@ describe("cleanWikivoyage", () => {
   it("drops image links whose captions hold nested links", () => {
     const wikitext = "[[File:Trail.jpg|thumb|A trail in [[Jotunheimen]], [[Norway]]]]\nHiking is walking in [[nature]].";
     expect(cleanWikivoyage(wikitext)).toBe("Hiking is walking in nature.");
+  });
+});
+
+describe("normalizeUrl", () => {
+  it("encodes raw titles and leaves encoded URLs alone", () => {
+    expect(normalizeUrl("https://en.wikipedia.org/wiki/Quantum cryptography")).toBe("https://en.wikipedia.org/wiki/Quantum_cryptography");
+    expect(normalizeUrl("https://en.wikipedia.org/wiki/Diffie–Hellman key exchange")).toBe("https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange");
+    expect(normalizeUrl("https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange")).toBe("https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange");
+    expect(normalizeUrl("https://www.ready.gov/some page")).toBe("https://www.ready.gov/some%20page");
   });
 });

@@ -140,8 +140,22 @@ const SOURCE_LABEL: Record<PackHit["source"], string> = {
 };
 
 /** URL of a pack article: its recorded URL, else the Wikipedia/Wikivoyage/Wikibooks page for its title. */
+/**
+ * A recorded page URL made safe to show and open: a raw title with spaces ("…/wiki/Quantum cryptography") gets
+ * underscores on wiki paths and %20 elsewhere, then any other unencoded character is encoded (already-encoded
+ * URLs are left as they are).
+ */
+export function normalizeUrl(url: string): string {
+  const spaced = /\/wiki\//.test(url) ? url.replace(/ /g, "_") : url.replace(/ /g, "%20");
+  try {
+    return encodeURI(decodeURI(spaced));
+  } catch {
+    return spaced;
+  }
+}
+
 export function articleUrl(title: string, source: PackHit["source"], url?: string): string {
-  if (url) return url;
+  if (url) return normalizeUrl(url);
   const host = source === "enwikivoyage" ? "en.wikivoyage.org" : source === "enwikibooks" ? "en.wikibooks.org" : "en.wikipedia.org";
   return `https://${host}/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 }

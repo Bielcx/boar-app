@@ -300,3 +300,16 @@ export function parseIndexLine(line) {
   if (a < 0 || b < 0) return null;
   return [Number(line.slice(a + 1, b)), line.slice(b + 1)];
 }
+
+/**
+ * A page URL safe to store in a pack: spaces become underscores on wiki paths and %20 elsewhere, other unencoded
+ * characters are encoded, already-encoded URLs stay as they are. Same rule as normalizeUrl in src/rag/packs.ts.
+ */
+export function normalizeUrl(url) {
+  const spaced = /\/wiki\//.test(url) ? url.replace(/ /g, "_") : url.replace(/ /g, "%20");
+  try {
+    return encodeURI(decodeURI(spaced));
+  } catch {
+    return spaced;
+  }
+}
