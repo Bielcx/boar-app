@@ -216,21 +216,21 @@ export function ChatModelError({
       )}
       <Card
         accessibilityRole="alert"
-        style={{ gap: t.space.md, borderWidth: t.size.border * 1.5, borderColor: t.color.status.danger.solid }}
+        style={{ gap: t.space.md, borderWidth: t.size.border, borderColor: t.color.status.danger.solid }}
       >
         <View style={{ alignSelf: "flex-start" }}>
           <Badge label={tr("chat.modelError.overline")} tone="danger" icon="alert-triangle" />
         </View>
         <View style={{ gap: t.space.xs }}>
-          <Text variant="title3" header>
+          <Text variant="title2" header>
             {tr(`chat.modelError.${kind}.title`)}
           </Text>
-          <Text variant="footnote" color="secondary">
+          <Text variant="subhead" weight="regular">
             {tr(`chat.modelError.${kind}.body`)}
           </Text>
         </View>
-        <View style={{ gap: t.space.sm, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.raised }}>
-          <Text variant="footnote">{tr(`chat.modelError.${kind}.hint`)}</Text>
+        <View style={{ gap: t.space.sm, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.canvas }}>
+          <Text variant="footnote" color="secondary">{tr(`chat.modelError.${kind}.hint`)}</Text>
           {/* The engine's own words, whole and selectable, so a user can report them. */}
           {showsRawError(kind) && error.trim().length > 0 && (
             <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error })}>

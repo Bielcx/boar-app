@@ -1,15 +1,15 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { Animated, Easing, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text } from "../components";
+import { Badge, Banner, Button, Card, Icon, IconButton, Mascot, MetaLine, Text, type IconName } from "../components";
 import { MarkdownMessage } from "../components/MarkdownMessage";
-import { useTokens } from "../theme";
+import { useTheme, useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
-import { previewText, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
-import { groupSources, sourceParts } from "./sourceLabel";
+import { previewText, receiptDetails, receiptLine, receiptShort, stageIcon, stageLine } from "./presentation";
+import { groupSources, relevancePercents, sourceParts } from "./sourceLabel";
 import { showsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
@@ -53,42 +53,83 @@ function useElapsedSeconds(running: boolean): number {
   return seconds;
 }
 
-/**
- * What the answer is doing, as the mockup's step list: earlier steps checked
- * off above the current one, which spins. Visual only; the reader hears stage
- * changes through the screen's announcer.
- */
-function Stage({ label }: { label: string }) {
+/** The mockup's step indicator: an ember ring turning (static under reduce motion). */
+function StepSpinner() {
   const t = useTokens();
-  const trail = useRef<string[]>([]);
-  if (trail.current[trail.current.length - 1] !== label) trail.current = [...trail.current.filter((l) => l !== label), label];
-  const done = trail.current.slice(0, -1);
+  const { reduceMotion } = useTheme();
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) return;
+    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [reduceMotion, spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const side = t.size.iconSm - t.space.xxs;
+  return (
+    <Animated.View
+      style={{
+        width: side,
+        height: side,
+        borderRadius: t.radius.full,
+        borderWidth: t.size.focusRing,
+        borderColor: t.color.accent.solid,
+        borderTopColor: "transparent",
+        transform: [{ rotate }],
+      }}
+    />
+  );
+}
+
+/**
+ * What the answer is doing, as the mockup's step card: each step with its icon on the left, and on
+ * the right a check when done or the turning ring on the current one. Visual only; the reader hears
+ * stage changes through the screen's announcer.
+ */
+function Stage({ label, icon }: { label: string; icon: IconName }) {
+  const t = useTokens();
+  const trail = useRef<{ label: string; icon: IconName }[]>([]);
+  const last = trail.current[trail.current.length - 1];
+  if (last?.label !== label) trail.current = [...trail.current.filter((s) => s.label !== label), { label, icon }];
   return (
     <Card padding="sm" style={{ gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      {done.map((l) => (
-        <View key={l} style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <Icon name="check" size="sm" color={t.color.text.field} />
-          <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
-            {l}
-          </Text>
-        </View>
-      ))}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-        <ActivityIndicator size="small" color={t.color.field.solid} />
-        <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
-          {label}
-        </Text>
-      </View>
+      {trail.current.map((s, i) => {
+        const current = i === trail.current.length - 1;
+        return (
+          <View key={s.label} style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+            <Icon name={s.icon} size="sm" color={current ? t.color.accent.solid : t.color.text.secondary} />
+            <Text variant="footnote" weight={current ? "semibold" : "regular"} style={{ flex: 1 }}>
+              {s.label}
+            </Text>
+            {current ? <StepSpinner /> : <Icon name="check" size="sm" color={t.color.status.success.solid} />}
+          </View>
+        );
+      })}
     </Card>
   );
 }
 
-/** Seconds since the answer started, next to the name while it runs (the receipt takes its place when done). */
+/** Seconds since the answer started, as the mockup's pill at the right of the name (the receipt takes its place when done). */
 function Elapsed({ locale }: { locale: string }) {
+  const t = useTokens();
   const seconds = useElapsedSeconds(true);
   return (
-    <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      <MetaLine items={[formatSeconds(seconds * 1000, locale)]} />
+    <View
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{
+        marginLeft: "auto",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: t.space.xs,
+        paddingHorizontal: t.space.sm,
+        paddingVertical: t.space.xs,
+        borderRadius: t.radius.full,
+        backgroundColor: t.color.bg.surface,
+      }}
+    >
+      <Icon name="loader" size="sm" color={t.color.text.secondary} />
+      <MetaLine items={[formatSeconds(seconds * 1000, locale)]} variant="caption" />
     </View>
   );
 }
@@ -192,7 +233,7 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
       accessibilityElementsHidden={hidden}
       hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
     >
-      <MetaLine items={r.short} numberOfLines={1} />
+      <MetaLine items={r.short} variant="caption" numberOfLines={1} />
     </Pressable>
   );
 }
@@ -243,6 +284,23 @@ function Receipt({
   );
 }
 
+/** The mockup's relevance bar and percentage; nothing when there is no measured value. */
+function RelevanceBar({ pct }: { pct: number | null }) {
+  const t = useTokens();
+  if (pct == null) return null;
+  const track = t.space.xxl + t.space.xs;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <View style={{ width: track, height: t.space.xs, borderRadius: t.radius.full, backgroundColor: t.color.bg.raised, overflow: "hidden" }}>
+        <View style={{ width: (track * pct) / 100, height: "100%", borderRadius: t.radius.full, backgroundColor: t.color.field.solid }} />
+      </View>
+      <Text variant="caption" weight="semibold" color="field" numeric>
+        {`${pct}%`}
+      </Text>
+    </View>
+  );
+}
+
 /**
  * The answer's sources as the mockup's card: a header with the count, then one
  * row per article (passages of the same article are grouped, Iris) that
@@ -255,14 +313,16 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
   const groups = groupSources(answer.sources);
+  // Measured relevance only (Boar): 0-100 within the answer; a row without it has no bar.
+  const pct = relevancePercents(answer.sources);
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm, paddingHorizontal: t.space.xs }}>
         <Icon name="book-open" size="sm" color={t.color.text.field} />
-        <Text variant="label" color="field" header style={{ flex: 1 }}>
+        <Text variant="label" header style={{ flex: 1 }}>
           {tr("chat.sources.heading")}
         </Text>
-        <Badge label={String(answer.sources.length)} tone="field" />
+        <Badge label={String(answer.sources.length)} tone="field" emphasis="solid" />
       </View>
       {groups.map((g) => {
         const open = expanded === g.key;
@@ -271,6 +331,7 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
         const origin = first.collectionId ? tr("chat.sources.myDocuments") : parts.name ?? tr("chat.sources.corpus");
         const numbers = g.indexes.map((i) => i + 1).join(", ");
         const passages = g.indexes.length;
+        const groupPct = Math.max(0, ...g.indexes.map((i) => pct[i] ?? 0)) || null;
         return (
           <View
             key={g.key}
@@ -278,25 +339,30 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
               borderRadius: t.radius.md,
               borderWidth: t.size.border,
               borderColor: open ? t.color.field.solid : "transparent",
-              backgroundColor: open ? t.color.bg.raised : undefined,
+              // The mockup's source rows sit in canvas wells inside the card.
+              backgroundColor: t.color.bg.canvas,
             }}
           >
             <Pressable
               onPress={() => setExpanded(open ? null : g.key)}
               accessibilityRole="button"
-              accessibilityLabel={tr("chat.sources.groupLabel", { numbers, title: g.title, origin, count: passages })}
+              accessibilityLabel={
+                tr("chat.sources.groupLabel", { numbers, title: g.title, origin, count: passages }) +
+                (groupPct ? `, ${tr("chat.sources.relevance", { pct: groupPct })}` : "")
+              }
               accessibilityHint={tr("chat.sources.expandHint")}
               accessibilityState={{ expanded: open }}
               style={({ pressed }) => ({
                 flexDirection: "row",
                 alignItems: "center",
                 gap: t.space.sm,
-                minHeight: t.size.touch,
+                minHeight: t.size.controlSm,
                 paddingHorizontal: t.space.sm,
                 paddingVertical: t.space.xs,
                 borderRadius: t.radius.md,
                 backgroundColor: pressed ? t.color.bg.sunken : undefined,
               })}
+              hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
             >
               <View
                 style={{
@@ -306,19 +372,20 @@ function SourceList({ answer, onOpenSource }: { answer: AnswerState; onOpenSourc
                   borderRadius: t.radius.full,
                   alignItems: "center",
                   justifyContent: "center",
-                  backgroundColor: t.color.field.soft,
+                  backgroundColor: t.color.bg.raised,
                 }}
               >
-                <Text variant="caption" color="field" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
+                <Text variant="caption" weight="semibold" numeric maxFontSizeMultiplier={1.5}>
                   {g.indexes[0] + 1}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text variant="subhead" numberOfLines={open ? undefined : 1}>
+                <Text variant="footnote" numberOfLines={open ? undefined : 1}>
                   {g.title}
                 </Text>
-                <MetaLine items={[origin, passages > 1 && tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />
+                {passages > 1 && <MetaLine items={[tr("chat.sources.passages", { count: passages })]} variant="caption" numberOfLines={1} />}
               </View>
+              <RelevanceBar pct={groupPct} />
               <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
             </Pressable>
             {open && (
@@ -476,7 +543,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       <View style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Mascot size="avatarSm" />
-          <Text variant="headline" style={{ flexShrink: 1 }}>
+          {/* The mockup's name in ember (Boar: the artifact wins over "one accent per screen"). */}
+          <Text variant="headline" color="accent" style={{ flexShrink: 1 }}>
             {tr("chat.assistantName")}
           </Text>
           {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
@@ -506,7 +574,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {answer.fast && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}
-      {!answer.deep && stage && <Stage label={stage} />}
+      {!answer.deep && stage && <Stage label={stage} icon={stageIcon(answerPhase(answer))} />}
       <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
 
       {answer.deep && (
@@ -515,7 +583,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             {tr("chat.deep.title")}
           </Text>
           <TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
-          {stage && <Stage label={stage} />}
+          {stage && <Stage label={stage} icon={stageIcon(answerPhase(answer))} />}
           <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
           {answer.deep.receipt && (
             <Receipt receipt={answer.deep.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
@@ -547,9 +615,11 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       }) && <EmergencyNote />}
 
       {done && hasText && (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.xs, marginLeft: -t.space.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <IconButton
             icon="thumbs-up"
+            variant="surface"
+            size="sm"
             label={tr("chat.actions.helpful")}
             selected={feedback === "up"}
             accessibilityState={{ selected: feedback === "up" }}
@@ -557,13 +627,15 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           />
           <IconButton
             icon="thumbs-down"
+            variant="surface"
+            size="sm"
             label={tr("chat.actions.unhelpful")}
             selected={feedback === "down"}
             accessibilityState={{ selected: feedback === "down" }}
             onPress={() => props.onRate("down")}
           />
+          <IconButton icon="share-2" variant="surface" size="sm" label={tr("chat.actions.share")} onPress={props.onShare} />
           <View style={{ flex: 1 }} />
-          <IconButton icon="share-2" label={tr("chat.actions.share")} onPress={props.onShare} />
           <Button label={tr("chat.actions.copyAnswer")} variant="secondary" size="sm" icon="copy" onPress={props.onCopy} />
         </View>
       )}

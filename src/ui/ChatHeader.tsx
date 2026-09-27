@@ -66,8 +66,8 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer }: Pro
             boar
           </Text>
           {activeModelLabel && (
-            // The mockup's model line: caps, secondary (its 9.5 px rises to the 12 pt floor).
-            <Text variant="caption" color="secondary" numberOfLines={1} style={{ textTransform: "uppercase" }}>
+            // The mockup's model line, secondary, raised from 9.5 px to the 12 pt floor; the app's own case (Prism).
+            <Text variant="caption" color="secondary" numberOfLines={1}>
               {activeModelLabel}
             </Text>
           )}

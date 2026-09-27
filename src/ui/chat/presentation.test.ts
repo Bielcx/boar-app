@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -129,5 +129,14 @@ describe("previewText", () => {
 describe("locating announcement", () => {
   it("says once that the app is finding the position and the city can be typed", () => {
     expect(phaseAnnouncement("locating", { answerIds: [], sources: [] } as AnswerState, t)).toEqual({ message: "chat.announce.locating" });
+  });
+});
+
+describe("stageIcon", () => {
+  it("gives each step the mockup's kind of icon", () => {
+    expect(stageIcon("searching")).toBe("search");
+    expect(stageIcon("generating")).toBe("zap");
+    expect(stageIcon("locating")).toBe("map-pin");
+    expect(stageIcon("done")).toBe("circle");
   });
 });

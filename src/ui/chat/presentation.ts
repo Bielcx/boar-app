@@ -126,3 +126,25 @@ export function previewText(text: string, max = 110): string {
   const space = cut.lastIndexOf(" ");
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.\-–—]+$/u, "")}…`;
 }
+
+/** The icon at the left of a step in the generating card (mockup: search, reasoning spark, streaming bolt). */
+export function stageIcon(phase: AnswerPhase): "search" | "cpu" | "book-open" | "zap" | "check-circle" | "layers" | "map-pin" | "circle" {
+  switch (phase) {
+    case "searching":
+      return "search";
+    case "loading_model":
+      return "cpu";
+    case "reading":
+      return "book-open";
+    case "generating":
+      return "zap";
+    case "verifying":
+      return "check-circle";
+    case "synthesizing":
+      return "layers";
+    case "locating":
+      return "map-pin";
+    default:
+      return "circle";
+  }
+}

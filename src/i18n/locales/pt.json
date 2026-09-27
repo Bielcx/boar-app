@@ -765,7 +765,8 @@
       "passages_other": "{{count}} trechos",
       "fullPassageN": "Trecho completo {{n}}",
       "groupLabel_one": "Fonte {{numbers}}: {{title}}, {{origin}}",
-      "groupLabel_other": "Fontes {{numbers}}: {{title}}, {{origin}}, {{count}} trechos"
+      "groupLabel_other": "Fontes {{numbers}}: {{title}}, {{origin}}, {{count}} trechos",
+      "relevance": "relevância {{pct}}%"
     },
     "receipt": {
       "sourcePassage": "Trecho da fonte",

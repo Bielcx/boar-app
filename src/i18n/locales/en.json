@@ -765,7 +765,8 @@
       "passages_other": "{{count}} passages",
       "fullPassageN": "Full passage {{n}}",
       "groupLabel_one": "Source {{numbers}}: {{title}}, {{origin}}",
-      "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages"
+      "groupLabel_other": "Sources {{numbers}}: {{title}}, {{origin}}, {{count}} passages",
+      "relevance": "relevance {{pct}}%"
     },
     "receipt": {
       "sourcePassage": "Source passage",
