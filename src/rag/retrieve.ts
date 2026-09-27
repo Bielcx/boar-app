@@ -11,7 +11,7 @@ import {
 import type { RetrievedChunk } from "./retrieve.types";
 import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
 import { englishNamesIn, looksPortuguese, type Lexicon } from "./ptLexicon";
-import { ACTION_INTENT } from "./wikiPack";
+import { ACTION_INTENT, LAY_SOURCES } from "./wikiPack";
 import { ptLexicon } from "./ptLexiconAsset";
 
 export type { RetrievedChunk } from "./retrieve.types";
@@ -159,7 +159,17 @@ async function retrieveOne(
   const wikiLexical = wiki.flatMap((w) => w.hits.filter((h) => h.via !== "title").map((h) => packHitToChunk(w.packId, h)));
   const fused = fuseRetrievalResults([...lexical, ...packs.lexical, ...wikiLexical], [...semantic, ...packs.semantic], topK);
   const seen = new Set(named.map((c) => c.chunkId));
-  return [...named, ...fused.filter((c) => !seen.has(c.chunkId))].slice(0, Math.max(topK, named.length));
+  const result = [...named, ...fused.filter((c) => !seen.has(c.chunkId))].slice(0, Math.max(topK, named.length));
+  // A what-to-do question: the lay sources the pack search added past its limit (a first-aid manual next to the
+  // clinical article) must reach the answer, not be cut here with the rest of the keyword hits.
+  if (ACTION_INTENT.test(query)) {
+    const inResult = new Set(result.map((c) => c.chunkId));
+    const lay = wiki
+      .flatMap((w) => w.hits.filter((h) => LAY_SOURCES.has(h.source)).map((h) => packHitToChunk(w.packId, h)))
+      .filter((c) => !inResult.has(c.chunkId));
+    result.push(...lay.slice(0, 2));
+  }
+  return result;
 }
 
 export { assemblePrompt } from "./pure";

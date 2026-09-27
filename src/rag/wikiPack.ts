@@ -151,7 +151,7 @@ export function stepsFirst<T extends { s: number }>(items: T[], sectionOf: (x: T
 }
 
 /** Sources written for lay readers (first-aid manuals, government guidance, travel guides), not clinical articles. */
-const LAY_SOURCES = new Set<PackSource>(["enwikibooks", "usgov", "enwikivoyage"]);
+export const LAY_SOURCES = new Set<PackSource>(["enwikibooks", "usgov", "enwikivoyage"]);
 
 /** Share of imperative sentences above which a section with a neutral heading counts as steps (lay first-aid manuals). */
 const STEPS_SHARE = 0.35;
