@@ -253,15 +253,15 @@ const INJURY_DESCRIBED =
   /(^|[^\p{L}])(spill\p{L}*|splash\p{L}*|scald\p{L}*|burn\p{L}*|boiling|blister\p{L}*|bit|bitten|stung|sting\p{L}*|bleed\p{L}*|faint\p{L}*|passed out|chok\p{L}*|cut (my|his|her|their|him|herself|himself|myself)|fell (off|down|from)|broke (my|his|her|their)|twist\p{L}*|sprain\p{L}*|swallow\p{L}*|electrocut\p{L}*|derram\p{L}*|escald\p{L}*|queim\p{L}*|fervend\p{L}*|fervent\p{L}*|bolha\p{L}*|mord\p{L}*|picou|picad\p{L}*|sangr\p{L}*|desmai\p{L}*|engasg\p{L}*|cortou|caiu d\p{L}*|bateu a cabe[çc]a|torceu|quebrou|engoliu|choque el[ée]trico)(?![\p{L}])/iu;
 
 export function isHealthQuestion(query: string): boolean {
-  // A request to translate a phrase ("How do I say 'I am allergic to peanuts' in French?", Sextant lng-009) is a
-  // language question, not a health one, even when the phrase names a condition. "What do I do if I'm allergic
-  // to peanuts?" still is.
-  if (isTranslationRequest(query)) return false;
   return (
     HEALTH.test(query) ||
     HEALTH_PT.test(query) ||
     (DISASTER.test(query) && ACTION_INTENT.test(query)) ||
-    (INJURY_DESCRIBED.test(query) && ACTION_INTENT.test(query))
+    (INJURY_DESCRIBED.test(query) && ACTION_INTENT.test(query)) ||
+    // Health for the content, translation for the form (Sextant lng-009, gate 52a2310: the 4B wrote "Je suis
+    // allergique au peanut" for a phrase the traveller shows a waiter): a phrase to translate that carries
+    // health content stays on the health path, and without a source it declines.
+    (PHRASE_ASK.test(query) && PHRASE_HEALTH_CONTENT.test(query))
   );
 }
 
@@ -1115,6 +1115,9 @@ export function wrongScriptSentences(query: string, answer: string): string[] {
 
 const LANGUAGE_NAMES =
   "thai|japanese|korean|chinese|mandarin|cantonese|arabic|russian|greek|hebrew|hindi|khmer|lao|vietnamese|indonesian|malay|turkish|spanish|french|german|italian|portuguese|tailand[êe]s|japon[êe]s|coreano|chin[êe]s|mandarim|[áa]rabe|russo|grego|hebraico|vietnamita|indon[ée]sio|turco|espanhol|franc[êe]s|alem[ãa]o|italiano|portugu[êe]s";
+// Health content in a phrase to translate: allergy, medicine, illness, symptom, blood, medical emergency.
+const PHRASE_HEALTH_CONTENT =
+  /(?<![\p{L}])(al[ée]rg\p{L}*|allerg\p{L}*|anaphyla\p{L}*|epipen|insulin\p{L}*|diabet\p{L}*|epilep\p{L}*|asthma|asma|medicine|medication|pills?|rem[ée]dios?|medicamentos?|rem[ée]dio|disease|illness|sick|doen[çc]a|doente|symptoms?|sintomas?|pain|hurts?|dor(es)?|d[óo]i|blood|sangue|sangr\p{L}*|bleed\p{L}*|doctor|m[ée]dic[oa]|hospital|ambulance|ambul[âa]ncia|pregnant|gr[áa]vida|heart|cora[çc][ãa]o|emergency|emerg[êe]ncia)(?![\p{L}])/iu;
 const PHRASE_ASK = new RegExp(
   `\\b(how (do|would|can|should) (i|you|we) say|how to say|how do (you|i) greet|what('s| is| are) [^?]{1,40} in (${LANGUAGE_NAMES})|translate)\\b|(?<![\\p{L}])(como (se )?diz|como (eu )?(falo|digo|cumprimento)|como se fala|como se escreve|como [ée] [^?]{1,40} em (${LANGUAGE_NAMES}))(?![\\p{L}])`,
   "iu"
@@ -1126,12 +1129,6 @@ const PHRASE_ASK = new RegExp(
  * does: khop khun khrap / kha), one in Khmer script. A phrase or translation question with no source is declined
  * by both models instead of being answered from memory.
  */
-/** "How do I say X in <language>?", "Como se diz X em <língua>?", "Translate X": a phrase to translate. */
-export function isTranslationRequest(query: string): boolean {
-  return PHRASE_ASK.test(query) && !ACTION_INTENT_WHAT_DO.test(query);
-}
-const ACTION_INTENT_WHAT_DO = /\bwhat (should|do|can) (i|we) do\b|o que (eu )?(fa[çc]o|fazer|devo fazer)/i;
-
 export function isPhraseQuestion(query: string): boolean {
   // Narrowed to what the models invent: whether a phrase changes with the speaker's gender (politeness particles).
   // Every phrase question would also decline lng-001/006/009/010 on s32 (4B refusals, limit 2/32).
