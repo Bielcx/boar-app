@@ -2,7 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as BundledAssets from "bundled-assets";
 import { networkAllowed } from "../config/variant";
 import { checkStorageForDownload } from "./storageBudget";
-import { copyWithSha256, sha256OfFile, sizeOfFile, HashProgress } from "./fileHash";
+import { copyWithSha256, measureFile, sha256OfFile, HashProgress } from "./fileHash";
 import { AssetIntegrityError, candidatesBySize, digestsEqual, DownloadError, matchByDigest, throwIfAborted } from "./integrity";
 import { allAssets } from "./assetRegistry";
 import { checkImportSize, formatBytes, importKindOfAsset, MAX_ASSET_IMPORT_BYTES } from "./importLimits";
@@ -293,10 +293,14 @@ export class ModelManager {
     catalog = catalog.filter((a) => /^[0-9a-f]{64}$/i.test(a.sha256));
     throwIfAborted(signal);
     // Not getInfoAsync: it measured a content:// file over 2 GB as 0 bytes (IMP-2GB).
-    const size = await sizeOfFile(srcUri);
-    if (size === null) {
+    const measured = await measureFile(srcUri);
+    if (measured.kind === "empty") {
+      throw new AssetIntegrityError("empty-file", "The selected file is empty (0 bytes). Copy it to the phone again.", true);
+    }
+    if (measured.kind === "unreadable") {
       throw new AssetIntegrityError("unknown-file", "The selected file could not be read.", true);
     }
+    const size = measured.bytes;
     // Before anything is copied: nothing installable is this big.
     if (size > MAX_ASSET_IMPORT_BYTES) {
       throw new AssetIntegrityError(

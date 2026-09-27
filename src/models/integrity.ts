@@ -10,6 +10,8 @@ export type IntegrityErrorKind =
   | "hash-mismatch"
   | "size-mismatch"
   | "unknown-file"
+  /** The picked file really is 0 bytes (measured natively): copy it again. */
+  | "empty-file"
   | "network"
   | "storage"
   | "offline-variant"
