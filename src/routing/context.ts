@@ -738,6 +738,17 @@ export function titleHasIdentifier(title: string, ids: string[]): boolean {
   return ids.some((id) => own.includes(id));
 }
 
+/** A Portuguese question: its interrogatives (PT_QUESTION) or, failing those, its function words ("É esperado dar
+ * gorjeta em restaurantes em Portugal?" has neither "como" nor "o que", and was answered in English, trv-009). */
+const PT_ONLY = /(?<![\p{L}])(é|são|não|em|uma|umas|dos|das|nos|nas|pelo|pela|com|sem|isso|isto|está|estão|também|você|vocês|meu|minha|seus|suas|dar|fazer|que|para|da|lá|alguns|algumas)(?![\p{L}])/giu;
+export function isPortugueseQuestion(query: string): boolean {
+  if (PT_QUESTION.test(query)) return true;
+  // Words English doesn't use ("do", "a", "no" are both): two, or one plus an accent in a lowercase word.
+  const strong = query.match(PT_ONLY)?.length ?? 0;
+  const accent = /(^|[^\p{L}])[a-zà-ÿ]*[ãõçâêôáéíóú]/u.test(query);
+  return strong >= 2 || (strong >= 1 && accent);
+}
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */
@@ -848,16 +859,25 @@ export interface ExcerptRules {
   procedure?: RegExp | null;
   /** Stop before the first sentence that matches (burn remedies). */
   cutAt?: RegExp | null;
+  /** Cut inside that sentence, at its last list item or clause before the match (a list is one "sentence"). */
+  cutInside?: boolean;
   /** Append the source's sentence that matches, if the excerpt lacks it (seek care). */
   mustInclude?: RegExp | null;
 }
 
 /** Excerpt rules for a health question and its topic terms. */
+// Making water safe to drink: the excerpt stops at drinking something else instead ("Consider drinking tea, soft
+// drinks or bottled juices… Milk… Coffee and alcoholic drinks… Never drink sea water", Wikivoyage Water › Buy;
+// Sextant dng-005: generic travel advice after the steps).
+const WATER_ASIDE = /\b(tea|soft drinks?|juices?|milk|yog(h)?urt|dairy|coffee|alcohol\w*|sea ?water)\b/i;
+
 export function excerptRules(query: string, topic: Iterable<string>): ExcerptRules {
   const burn = [...topic].some((t) => /^(burn|scald|queimad)/.test(t));
+  const water = [...topic].some((t) => /^(contaminat|purif|disinfect|boil)/.test(t));
   return {
     procedure: coreProcedure(topic),
-    cutAt: burn ? BURN_REMEDY : null,
+    cutAt: burn ? BURN_REMEDY : water ? WATER_ASIDE : null,
+    cutInside: water && !burn,
     mustInclude: burn && HIGH_RISK_BURN.test(query) ? SEEK_CARE : null,
   };
 }
@@ -927,7 +947,18 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
   const start = picked > 0 && /^[-•*]?\s*\d+[.)]$/.test(sentences[picked - 1].trim()) ? picked - 1 : picked;
   let text = heading ? `${heading}:` : "";
   for (const s of sentences.slice(start)) {
-    if (rules.cutAt?.test(s)) break;
+    const hit = rules.cutAt ? rules.cutAt.exec(s) : null;
+    if (hit) {
+      if (rules.cutInside) {
+        // "- Boil … - Use iodine tablets … - Use a survival straw (…) Consider drinking tea…": keep what comes
+        // before the last item/clause boundary preceding the aside.
+        const before = s.slice(0, hit.index);
+        const boundary = Math.max(before.lastIndexOf(" - "), before.lastIndexOf(") ") + 1, before.lastIndexOf("; "));
+        const kept = boundary > 0 ? before.slice(0, boundary).trim() : "";
+        if (kept.split(/\s+/).length >= 3) text = text ? `${text} ${kept}` : kept;
+      }
+      break;
+    }
     if (text.length > heading.length + 1 && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
     text = text ? `${text} ${s}` : s;
   }

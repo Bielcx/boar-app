@@ -166,3 +166,15 @@ describe("classifyTask Portuguese questions (gate ea5978c)", () => {
     expect(classifyTask("Obrigado pela ajuda")).toBe("chat");
   });
 });
+
+describe("classifyTask yes/no questions (Sextant trv-009)", () => {
+  it("a yes/no question about the world is a lookup, EN and PT", () => {
+    for (const q of ["Is tipping expected in restaurants in Portugal?", "É esperado dar gorjeta em restaurantes em Portugal?", "Did the 20th century begin on January 1, 1900 or January 1, 1901?", "Posso beber água da torneira na Cidade do México?"]) expect(classifyTask(q), q).toBe("lookup");
+  });
+  it("not greetings, not statements", () => {
+    expect(classifyTask("Is it going well?")).toBe("lookup");
+    expect(classifyTask("hi")).toBe("greeting");
+    expect(classifyTask("Obrigado pela ajuda")).toBe("chat");
+    expect(classifyTask("Can you help me")).toBe("chat");
+  });
+});
