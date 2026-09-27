@@ -109,7 +109,8 @@ export function ChatEmptyState({
     <View style={{ flexGrow: 1, justifyContent: "center", gap: t.space.xxl, paddingVertical: t.space.xl }}>
       <View style={{ alignItems: "center", gap: t.space.xs }}>
         <Mascot glow />
-        <Text variant="display" align="center" header accessibilityLabel={tr("chat.empty.title")}>
+        {/* Starts with the visible word, then the screen's title (Prism, in the spirit of WCAG 2.5.3). */}
+        <Text variant="display" align="center" header accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}>
           {tr("chat.assistantName")}
         </Text>
         <Text variant="subhead" color="field" align="center">
