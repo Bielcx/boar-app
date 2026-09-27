@@ -535,11 +535,16 @@ export function isTodayInHistory(query: string): boolean {
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** The date as the sources write it: search words ("September 27") and what an on-topic source must contain. */
-export function historyDate(date: Date): { search: string; mentioned: RegExp } {
+/**
+ * The date as the sources write it: search words ("September 27") and the on-topic test. Only the date's
+ * own article ("September 27": events, births, deaths) is on topic: a text that merely mentions the date
+ * ("Recorded September 27, 2011", a Ready.gov webinar) was quoted as what happened today (E2E, corpus + pack v3).
+ */
+export function historyDate(date: Date): { search: string; isDateArticle: (title: string) => boolean } {
   const month = MONTHS[date.getMonth()];
   const day = date.getDate();
-  return { search: `${month} ${day}`, mentioned: new RegExp(`\\b(${month} ${day}|${day} ${month})\\b`, "i") };
+  const title = new RegExp(`^(\\w[\\w .]*:\\s*)?(${month} ${day}|${day} ${month})$`, "i");
+  return { search: `${month} ${day}`, isDateArticle: (t) => title.test(t.trim()) };
 }
 
 export function isCurrentEventQuery(query: string): boolean {

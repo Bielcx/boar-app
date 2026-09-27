@@ -493,7 +493,9 @@ describe("isTodayInHistory / historyDate (Boar R3)", () => {
   it("the date as sources write it", () => {
     const d = historyDate(new Date(2026, 8, 27));
     expect(d.search).toBe("September 27");
-    expect(d.mentioned.test("On 27 September 1825 the railway opened")).toBe(true);
-    expect(d.mentioned.test("September 2 and 7")).toBe(false);
+    expect(d.isDateArticle("September 27")).toBe(true);
+    expect(d.isDateArticle("Wikipedia: 27 September")).toBe(true);
+    expect(d.isDateArticle("US government: The Community Preparedness Webinar Series: Quake Prep (Ready.gov)")).toBe(false);
+    expect(d.isDateArticle("September 2")).toBe(false);
   });
 });
