@@ -143,7 +143,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Badge` | Status seal, pill, caps: `solid` = ACTIVE, `soft` = CACHED, `outline` = DOWNLOADING (tone) / NOT ON DISK (neutral); `dot` + `caps={false}` for compatibility seals | Text always present |
 | `OfflineSeal` | `pill` (ember, crossed wifi, header; keep the visible label to one word, "OFFLINE", and put the full sentence in `accessibilityLabel`), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
 | `Ambient` | Light pattern behind hero screens (usually via `Screen ambient`) | Hidden from readers |
-| `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss | Live region (danger assertive) |
+| `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss. Tone = soft fill + icon; only `danger` gets a border | Live region (danger assertive) |
 | `Toast` | `useToast()({ message, tone, icon, actionLabel, onAction })` | Announced; ≥ 5s + 60ms/char (6s with action); sits above the composer |
 | `Sheet` | Confirmations and short tasks; `footer` actions listed safest first (Cancel, then Delete; drawn with the last on top); `returnFocusRef` = the trigger | Modal, focus to title and back to the trigger on close, Android back/scrim close, `accessibilityViewIsModal` |
 | `TextField` | Visible `label` (or `accessibilityLabel`), `helper`, `error`, `autoGrow` + `maxRows`, `leading`/`trailing` | Label is the name (not placeholder), error as hint + live |
