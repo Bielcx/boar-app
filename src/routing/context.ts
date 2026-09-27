@@ -715,8 +715,14 @@ const IDENTIFIER = /\b(EIP|ERC|BIP|RFC)[-\s]?(\d{1,5})\b/gi;
  */
 export function sentenceNamesSubject(matchQuery: string, title: string, sentence: string): boolean {
   const q = new Set(tokenizeTerms(matchQuery));
-  const subject = tokenizeTerms(mainTitle(title)).filter((t) => [...q].some((x) => sameTerm(x, t)));
-  if (!subject.length) return true;
+  const shared = tokenizeTerms(mainTitle(title)).filter((t) => [...q].some((x) => sameTerm(x, t)));
+  if (!shared.length) return true;
+  // An identifier's page ("EIP-4844: Shard Blob Transactions") is also named by its title's name: "Shard Blob
+  // Transactions scale data-availability of Ethereum…" is about EIP-4844 (Sextant cry-004-pt, gate a11d730).
+  const named = identifiersIn(title).length
+    ? tokenizeTerms(title.replace(/^(Wikipedia|Wikibooks|Wikivoyage|US government|Appropedia|ethereum\.org|Ethereum EIPs\/ERCs|Ethereum specs|Bitcoin BIPs):\s*/, "")).filter((t) => t.length >= 4 && !/^\d+$/.test(t))
+    : [];
+  const subject = [...shared, ...named];
   const words = tokenizeTerms(sentence);
   return subject.some((t) => words.some((w) => sameTerm(w, t)));
 }

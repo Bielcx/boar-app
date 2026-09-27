@@ -701,4 +701,9 @@ describe("sentenceNamesSubject (Sextant q7)", () => {
     expect(sentenceNamesSubject("Greenhouse effect", "Greenhouse effect", "The greenhouse effect occurs when heat-trapping gases prevent the planet from losing heat.")).toBe(true);
     expect(sentenceNamesSubject("What is the capital of Australia?", "Canberra", "Canberra is the capital city of Australia.")).toBe(true);
   });
+  it("cry-004-pt: an EIP page's sentence may name it by its title's name, not only its number", () => {
+    const t = "Ethereum EIPs/ERCs: EIP-4844: Shard Blob Transactions";
+    expect(sentenceNamesSubject("Ethereum EIP-4844", t, "Shard Blob Transactions scale data-availability of Ethereum in a simple, forwards-compatible manner.")).toBe(true);
+    expect(sentenceNamesSubject("Ethereum EIP-4844", t, "Throughout this proposal we use cryptographic methods and classes defined in the corresponding consensus specs.")).toBe(false);
+  });
 });
