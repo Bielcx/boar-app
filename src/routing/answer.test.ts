@@ -690,16 +690,38 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     }
   });
 
-  it("Boar (B): the compact model with an on-topic source answers uncited, and the chat gets weak_sources", async () => {
+  it("gate 1724fd5: the compact model with a source in its prompt and no [n] declines (was Boar (B)); answerAnyway keeps it", async () => {
     f.retrieved = [CANBERRA];
     f.deps.engine.generate = async () => "It was chosen by a referendum in 1911.";
     const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
-    expect(result.text).toBe("It was chosen by a referendum in 1911.");
-    expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["grounding:uncited-on-topic", "grounding:uncited-warning"]));
-    const warning = events.find((e) => e.type === "warning") as any;
-    expect(warning).toMatchObject({ code: "weak_sources" });
-    expect(warning.declined).toBeUndefined();
-    expect(types(events).indexOf("warning")).toBeLessThan(types(events).indexOf("done"));
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "The passages found don't support this answer." });
+    expect(result.text).toBe("The passages found don't support this answer.");
+    expect(result.receipt.reasonCodes).toContain("grounding:uncited-with-sources-declined-compact");
+    f = makeFake();
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "It was chosen by a referendum in 1911.";
+    const events2: AnswerEvent[] = [];
+    const r2 = await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect(r2.text).toMatch(/referendum/);
+  });
+
+  it("gate 1724fd5, cry-011 PT: no [n] -> the decline; a valid [n] -> the answer stays", async () => {
+    const EIP = chunk("e", "Ethereum EIPs/ERCs: EIP-1559: Fee market change for ETH 1.0 chain", "Abstract: A transaction pricing mechanism that includes fixed-per-block network fee that is burned and dynamically expands/contracts block sizes to deal with transient congestion.");
+    const q = "O que a EIP-1559 muda nas taxas de transação do Ethereum, e o que acontece com a taxa base?";
+    f.retrieved = [EIP];
+    f.deps.englishNames = () => ["Ethereum"];
+    f.deps.engine.generate = async () => "A EIP-1559 introduz uma taxa base que é queimada e ajusta o tamanho dos blocos.";
+    const without = await collect(q);
+    expect(without.result.text).toBe("Os trechos encontrados não sustentam esta resposta.");
+    expect(without.result.receipt.reasonCodes).toContain("grounding:uncited-with-sources-declined-compact");
+    f = makeFake();
+    f.retrieved = [EIP];
+    f.deps.englishNames = () => ["Ethereum"];
+    // A [n] CT-1 can verify (the sentence shares the source's key words) stays: the answer is kept.
+    f.deps.engine.generate = async () => "EIP-1559 introduces a transaction pricing mechanism with a fixed-per-block network fee that is burned [1].";
+    const withCite = await collect(q);
+    expect(withCite.result.text).toMatch(/\[1\]/);
+    expect(withCite.result.receipt.reasonCodes.some((c) => /declined/.test(c))).toBe(false);
   });
 
   it("no source at all: a 4B answer that skipped the instruction still gets the line; one that said it doesn't twice", async () => {
@@ -1288,7 +1310,7 @@ describe("answer(): the answer language next to a PT question (gate bc7db6d: 8/2
     f.activeId = "lfm8";
     f.retrieved = [CANBERRA];
     await collect("Por que Canberra foi escolhida como capital da Austrália?");
-    expect(f.generations[0].messages!.at(-1)!.content).toContain("Responda em português do Brasil, mesmo que as fontes estejam em inglês.");
+    expect(f.generations[0].messages!.at(-1)!.content).toContain("Responda em português do Brasil, mesmo que as fontes estejam em inglês, e cite cada afirmação com o número da fonte, como [1].");
     f.generations.length = 0;
     await collect("Why was Canberra chosen as the capital of Australia?");
     expect(f.generations[0].messages!.at(-1)!.content).not.toContain("Responda em português");

@@ -1092,6 +1092,17 @@ export function createAnswerer(deps: AnswerDeps) {
       // front; the compact model declines unless asked to answer anyway. With an on-topic source it
       // answers as written (s32: the line cost the 4B 4 right answers per wrong one caught, and the
       // compact model declined 21 of 28 knowledge questions); the chat still gets weak_sources (finish).
+      // Boar, gate 1724fd5: with the PT language line the models stopped writing [n]; without [n], CT-1 removed
+      // nothing, (A) never fired and the compact model's PT confident errors went 5 -> 9. A compact answer with
+      // sources in its prompt and no [n] at all (after attribution) is treated like "every citation removed":
+      // the decline, unless asked to answer anyway. The 4B is unchanged.
+      if (!health && gen.mode !== "multipass" && sources.length && text.trim() && !/\[\d+\]/.test(text) && isCompactModel(genLlm) && !req.answerAnyway) {
+        reasonCodes.push("grounding:uncited-with-sources-declined-compact");
+        const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        finalText = message;
+        return finish(genTier, "success", message, [], baseReceipt);
+      }
       const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
       // Also with no source at all (the instruction asks for the line; a model may skip it).
       const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
