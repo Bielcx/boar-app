@@ -239,7 +239,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       // Preload the model answer() will really use (Tusk, CR-1/CR-2): on a low-RAM phone the saved large model
       // may be skipped, or one that crashed the app; loading the saved one would risk the very OOM it avoids.
       const effective = await effectiveAnswerModel();
-      const llm = effective ? (await catalogModelById(effective.id, "llm")) ?? (await resolveActiveModel("llm")) : null;
+      // Not found in the catalog: no preload rather than the saved model (it may be the one CR-1 skips);
+      // answer() loads the right one on demand.
+      const llm = effective ? (await catalogModelById(effective.id, "llm")) ?? null : null;
       const emb = await resolveActiveModel("embedding");
       if (llm) setActiveModel(llm);
       const loadingLabel = llm ? t("chat.model.loading", { label: llm.label }) : t("chatScreen.initializingCore");
