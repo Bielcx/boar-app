@@ -2,6 +2,7 @@
 
 // Files and storage: the app-wide formatter (src/models/units.ts, Ledger), decimal
 // like Android and iOS show them (Prism N-14), with the locale's separators.
+import { formatBytes } from "../../models/units";
 export { formatBytes, formatBytesParts } from "../../models/units";
 
 // Memory (RAM) in binary units, as phones advertise it: a "16 GB" phone has 16 GiB.
@@ -28,6 +29,20 @@ export function formatSeconds(ms: number, locale: string): string {
 
 export function formatRate(tokPerSec: number, locale: string): string {
   return number(tokPerSec, locale, 1);
+}
+
+/**
+ * A failure's technical detail made readable: byte counts formatted
+ * ("783 MB of 2.5 GB") and the exception text in parentheses dropped (it goes
+ * to the log, not the screen; Prism MD-1). The rest of the sentence stays.
+ */
+export function readableErrorDetail(message: string, locale: string): string {
+  return message
+    .replace(/(\d{4,}) of (\d{4,}) bytes/g, (_, a, b) => `${formatBytes(Number(a), locale)} of ${formatBytes(Number(b), locale)}`)
+    .replace(/(\d{4,}) bytes/g, (_, a) => formatBytes(Number(a), locale))
+    .replace(/expected (\d{4,})/g, (_, a) => `expected ${formatBytes(Number(a), locale)}`)
+    .replace(/\s*\([^)]*\)/g, "")
+    .trim();
 }
 
 /** Minutes, rounded up, for time-left estimates; at least 1. */

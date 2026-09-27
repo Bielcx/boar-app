@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatBytesParts, formatRam, formatSeconds, minutesAbout, minutesLeft } from "./format";
+import { formatBytes, formatBytesParts, formatRam, formatSeconds, minutesAbout, minutesLeft, readableErrorDetail } from "./format";
 
 describe("formatBytes", () => {
   it("uses the locale's decimal separator", () => {
@@ -52,5 +52,26 @@ describe("minutesAbout", () => {
     expect(minutesAbout(200)).toBe(3); // 1.0 GB
     expect(minutesAbout(240)).toBe(4); // 1.2 GB
     expect(minutesAbout(10)).toBe(1);
+  });
+});
+
+describe("readableErrorDetail (Prism MD-1)", () => {
+  it("formats byte counts and drops the exception text", () => {
+    expect(
+      readableErrorDetail(
+        "Download of Qwen3-4B was interrupted at 782790059 of 2497281120 bytes (Software caused connection abort). Retry to continue from there.",
+        "en"
+      )
+    ).toBe("Download of Qwen3-4B was interrupted at 783 MB of 2.5 GB. Retry to continue from there.");
+  });
+
+  it("formats a lone byte count and an expected size", () => {
+    expect(readableErrorDetail("failed verification — got 1200000 bytes, expected 2497281120.", "en")).toBe(
+      "failed verification — got 1.2 MB, expected 2.5 GB."
+    );
+  });
+
+  it("leaves a message without sizes as it is", () => {
+    expect(readableErrorDetail("The file is not in the catalog.", "en")).toBe("The file is not in the catalog.");
   });
 });

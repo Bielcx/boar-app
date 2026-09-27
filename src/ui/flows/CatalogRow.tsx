@@ -6,7 +6,7 @@ import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, 
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
-import { formatBytes, formatRam } from "./format";
+import { formatBytes, formatRam, readableErrorDetail } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
@@ -50,7 +50,8 @@ function seal(state: RowState, t: TFunction): Seal {
     case "failed":
       return { label: t("flows.row.failed"), tone: "danger", emphasis: "soft" };
     case "in-use":
-      return { label: state.roles.map((r) => t(`flows.row.role.${r}`)).join(" · "), tone: "accent", emphasis: "solid" };
+      // A solid seal is a status (Active); the role goes in the metadata, the kind is already the overline (Iris).
+      return { label: t("flows.row.active"), tone: "accent", emphasis: "solid" };
     case "installed":
       return state.verified
         ? { label: t("flows.row.verified"), tone: "field", emphasis: "soft" }
@@ -112,7 +113,14 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             {size}
           </Text>
         </View>
-        <MetaLine items={meta ? [meta] : [model.license]} />
+        <MetaLine
+          items={[
+            state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
+            // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
+            view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
+            meta ?? model.license,
+          ]}
+        />
         {details?.map((d) => (
           <Text key={d} variant="footnote" color="secondary">
             {d}
@@ -133,19 +141,13 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         />
       )}
 
-      {view.fitWarning && (
-        <Text variant="footnote" color={view.fitWarning === "insufficient" ? "danger" : "warning"}>
-          {t(`flows.row.fit.${view.fitWarning}`)}
-        </Text>
-      )}
-
       {state.kind === "failed" && (
         <View style={{ gap: tokens.space.xxs }}>
           <Text variant="footnote" color="danger">
             {t(`flows.row.error.${state.errorKind}`)}
           </Text>
           <Text variant="caption" color="secondary" selectable>
-            {state.message}
+            {readableErrorDetail(state.message, i18n.language)}
           </Text>
         </View>
       )}
@@ -172,8 +174,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       )}
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
+        {/* One primary per screen: a catalog row's action is secondary, the seal carries the state (Iris, Prism MD-2). */}
         {view.primary === "download" && (
-          <Button size="sm" label={getLabel} icon={getIcon} onPress={onDownload} />
+          <Button size="sm" variant="secondary" label={getLabel} icon={getIcon} onPress={onDownload} />
         )}
         {view.primary === "explain" && (
           <Button
@@ -188,6 +191,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         {view.primary === "retry" && (
           <Button
             size="sm"
+            variant="secondary"
             label={t("flows.row.retry")}
             icon="refresh-cw"
             onPress={state.kind === "failed" && state.errorKind === "load" ? onUse : onDownload}

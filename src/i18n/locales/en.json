@@ -324,6 +324,8 @@
       "importChecking": "Checking {{name}}",
       "importOther": "{{name}} is a different item, not this one. Choose this item's file.",
       "unverified": "Installed, not verified",
+      "active": "Active",
+      "usedFor": "Used for: {{roles}}",
       "role": {
         "answer": "Answers",
         "deep": "Deep answers",
@@ -371,6 +373,11 @@
         "streaming": "Reads from storage",
         "thrashing": "May be slow",
         "insufficient": "Won't fit"
+      },
+      "fitWhy": {
+        "streaming": "larger than this phone's memory",
+        "thrashing": "needs most of this phone's memory",
+        "insufficient": "not enough free memory on this phone"
       }
     },
     "models": {
