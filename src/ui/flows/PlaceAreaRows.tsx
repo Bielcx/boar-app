@@ -44,7 +44,10 @@ export function PlaceAreaRows({ catalog }: { catalog: CatalogState }) {
             icon="map-pin"
             title={nameOf(a)}
             value={formatBytes(a.bytes, lang)}
-            subtitle={a.pois != null ? t("flows.places.count", { places: formatCount(a.pois, lang) }) : undefined}
+            subtitle={
+              [a.pois != null && t("flows.places.count", { places: formatCount(a.pois, lang) }), a.updateAvailable && t("flows.places.updateAvailable")].filter(Boolean).join(" · ") ||
+              undefined
+            }
           />
           <View style={{ flexDirection: "row", paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.md }}>
             <Button

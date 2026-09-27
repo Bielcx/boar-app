@@ -21,6 +21,21 @@ export interface AssetStatus {
   checksumOk: boolean | null;
   /** Bytes of an interrupted download kept on disk; the next download resumes from here. */
   partialBytes?: number;
+  /**
+   * An installed places tile that differs (size or sha256) from the current
+   * tile index: kept and still searched; downloading again replaces it.
+   */
+  updateAvailable?: boolean;
+}
+
+/**
+ * Places tiles (poi-t-*) are re-published by the tile index: a file that no
+ * longer matches the index is the previous version of the area, not a broken
+ * download, so it is kept (updateAvailable) instead of deleted. Only a tile
+ * that fails to open is deleted (src/rag/pois.ts).
+ */
+export function keptAcrossIndexUpdates(asset: Pick<CatalogModel, "id" | "format">): boolean {
+  return asset.format === "poi-pack" && asset.id.startsWith("poi-t-");
 }
 
 export interface DownloadProgress {
@@ -198,6 +213,14 @@ export class ModelManager {
       return { asset, present: false, sizeOnDiskBytes: 0, checksumOk: null };
     }
     const sizeOnDisk = info.size ?? 0;
+    if (keptAcrossIndexUpdates(asset) && !downloadsOwningFile.has(asset.id)) {
+      const record = (await loadVerified())[asset.filename];
+      const installed = !!record && record.size === sizeOnDisk && record.mtime === (info.modificationTime ?? 0);
+      // A verified earlier version, or an unverified file too big to be a partial download of this one.
+      if ((installed && (sizeOnDisk !== asset.sizeBytes || !digestsEqual(record.sha256, asset.sha256))) || (!installed && sizeOnDisk > asset.sizeBytes)) {
+        return { asset, present: true, sizeOnDiskBytes: sizeOnDisk, checksumOk: installed ? true : null, updateAvailable: true };
+      }
+    }
     if (sizeOnDisk !== asset.sizeBytes) {
       // Smaller = an interrupted download: keep it, the next download resumes
       // from its last byte (Range request) and the sha256 check at the end
@@ -468,7 +491,12 @@ export class ModelManager {
     // restart) is the resume point: its length goes out as `Range: bytes=N-`.
     const pausedResumable = this.pausedDownloads.get(asset.id);
     let resumeFrom = 0;
-    if (!pausedResumable && partial?.exists) {
+    // The previous version of a places tile is not a partial of this one: start over instead of resuming onto it.
+    if (!pausedResumable && partial?.exists && keptAcrossIndexUpdates(asset) && (await this.statusOf(asset)).updateAvailable) {
+      dlog(asset.id, "previous version of the tile on disk — replacing it");
+      await FileSystem.deleteAsync(destPath, { idempotent: true }).catch(() => {});
+      await forgetVerified(asset);
+    } else if (!pausedResumable && partial?.exists) {
       const size = partial.size ?? 0;
       if (size === asset.sizeBytes) {
         dlog(asset.id, "complete file already on disk — verifying instead of downloading");

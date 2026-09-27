@@ -83,13 +83,10 @@ export function CityMapOffer({ city, onGetMap }: Props) {
           {t("flows.row.error.unknown")}
         </Text>
       )}
-      <Button
-        size="sm"
-        variant="primary"
-        icon="download"
-        label={t("flows.places.getCity", { city: city.name, size: formatBytes(bytes, i18n.language) })}
-        onPress={download}
-      />
+      <Button size="sm" variant="primary" icon="download" label={t("flows.places.getCity", { city: city.name })} onPress={download} />
+      <Text variant="footnote" color="secondary">
+        {t("flows.places.getCityHint", { size: formatBytes(bytes, i18n.language) })}
+      </Text>
     </View>
   );
 }

@@ -663,7 +663,9 @@
       "areaRemoved": "{{name}} removed",
       "import": "Import places",
       "importHint": "A places file (.sqlite) from a computer or another phone.",
-      "getCity": "Download {{city}} ({{size}})",
+      "getCity": "Download {{city}}",
+      "getCityHint": "Offline map of places · {{size}}",
+      "updateAvailable": "Update available",
       "gettingCity": "Downloading {{city}}",
       "cityReady": "{{city}} is on the phone. Ask again to see its places."
     },

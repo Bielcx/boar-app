@@ -13,6 +13,8 @@ export interface InstalledTile {
   bytes: number;
   /** From the tile index; absent for a file the index doesn't list. */
   pois?: number;
+  /** The index lists a newer file for this tile; the installed one keeps working. */
+  updateAvailable?: boolean;
 }
 
 export interface PlaceArea {
@@ -25,6 +27,7 @@ export interface PlaceArea {
   bytes: number;
   /** Sum of the tiles' places, when every tile's count is known. */
   pois?: number;
+  updateAvailable: boolean;
 }
 
 /** "t-N41E012" from a tile's catalog entry (id "poi-t-N41E012"); null for anything else. */
@@ -56,6 +59,7 @@ export function groupPlaceAreas(tiles: InstalledTile[], names: Record<string, st
     tiles: group,
     bytes: group.reduce((n, t) => n + t.bytes, 0),
     pois: group.every((t) => t.pois != null) ? group.reduce((n, t) => n + (t.pois ?? 0), 0) : undefined,
+    updateAvailable: group.some((t) => t.updateAvailable),
   });
   const cities = [...byCity.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([city, group]) => area(`city:${city}`, group, { city }));
   const corners = loose

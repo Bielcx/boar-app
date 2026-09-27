@@ -114,7 +114,7 @@ vi.mock("./fileHash", () => ({
   },
 }));
 
-import { clearVerifiedRecords, ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
+import { clearVerifiedRecords, keptAcrossIndexUpdates, ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
 import { registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
 import * as manifestModule from "./manifest";
 import { AssetIntegrityError, DownloadError } from "./integrity";
@@ -363,6 +363,58 @@ describe("interrupted downloads resume from the last byte", () => {
     put(DEST, Buffer.concat([body, Buffer.from("extra")]));
     expect(await new ModelManager([a]).statusOf(a)).toMatchObject({ present: false });
     expect(files.has(DEST)).toBe(false);
+  });
+});
+
+describe("places tiles re-published by the tile index", () => {
+  const TILE = "file:///doc/poi/t-N41E012.sqlite";
+  const v1 = Buffer.from("rome tile, osm 2026-09-26");
+  const tileAsset = (data: Buffer) =>
+    asset({ id: "poi-t-N41E012", kind: "corpus", format: "poi-pack", filename: "poi/t-N41E012.sqlite", sizeBytes: data.length, sha256: sha(data), sourceUrl: "https://example/t-N41E012.sqlite" });
+  const installV1 = async () => {
+    put(TILE, v1);
+    expect(await new ModelManager([tileAsset(v1)]).verifyChecksum(tileAsset(v1))).toBe(true);
+  };
+
+  it("applies to tiles only", () => {
+    expect(keptAcrossIndexUpdates(tileAsset(v1))).toBe(true);
+    expect(keptAcrossIndexUpdates({ id: "poi-europe-south", format: "poi-pack" })).toBe(false);
+    expect(keptAcrossIndexUpdates(asset())).toBe(false);
+  });
+
+  it.each([
+    ["bigger", Buffer.from("rome tile, osm 2026-10-15, more places")],
+    ["smaller", Buffer.from("rome tile, osm 10-15")],
+    ["same size, other sha256", Buffer.from("rome tile, osm 2026-10-15")],
+  ])("keeps the installed version when the index lists a %s file, marked update available", async (_, v2) => {
+    await installV1();
+    const status = await new ModelManager([]).statusOf(tileAsset(v2));
+    expect(status).toMatchObject({ present: true, checksumOk: true, updateAvailable: true, sizeOnDiskBytes: v1.length });
+    expect(files.get(TILE)).toEqual(v1);
+  });
+
+  it("keeps an unverified tile bigger than the index, and still treats a smaller unverified one as a partial download", async () => {
+    const v2 = Buffer.from("rome tile");
+    put(TILE, v1);
+    expect(await new ModelManager([]).statusOf(tileAsset(v2))).toMatchObject({ present: true, checksumOk: null, updateAvailable: true });
+    expect(files.has(TILE)).toBe(true);
+    put(TILE, v2.subarray(0, 4));
+    expect(await new ModelManager([]).statusOf(tileAsset(v1))).toMatchObject({ present: false, partialBytes: 4 });
+  });
+
+  it("an up-to-date tile has no update", async () => {
+    await installV1();
+    expect((await new ModelManager([]).statusOf(tileAsset(v1))).updateAvailable).toBeUndefined();
+  });
+
+  it("downloading the new version starts over instead of resuming onto the old file", async () => {
+    await installV1();
+    const v2 = Buffer.from("rome tile, osm 2026-10-15, more places");
+    serverBody = v2;
+    await new ModelManager([]).downloadCatalogModel(tileAsset(v2));
+    expect(requestedOffsets).toEqual([0]);
+    expect(files.get(TILE)).toEqual(v2);
+    expect(await new ModelManager([]).statusOf(tileAsset(v2))).toMatchObject({ present: true, checksumOk: true });
   });
 });
 

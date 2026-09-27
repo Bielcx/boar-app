@@ -42,4 +42,10 @@ describe("placeTiles", () => {
     const [rome] = groupPlaceAreas([tile("t-N41E012", 100, 900), tile("t-N41E011", 50)], { "t-N41E012": "Rome", "t-N41E011": "Rome" });
     expect(rome.pois).toBeUndefined();
   });
+
+  it("an area has an update when any of its tiles has one", () => {
+    const [rome] = groupPlaceAreas([{ ...tile("t-N41E012", 100, 900), updateAvailable: true }, tile("t-N41E011", 50, 10)], { "t-N41E012": "Rome", "t-N41E011": "Rome" });
+    expect(rome.updateAvailable).toBe(true);
+    expect(groupPlaceAreas([tile("t-N41E012", 1, 1)], {})[0].updateAvailable).toBe(false);
+  });
 });

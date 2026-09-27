@@ -663,7 +663,9 @@
       "areaRemoved": "{{name}} removida",
       "import": "Importar lugares",
       "importHint": "Um arquivo de lugares (.sqlite) do computador ou de outro celular.",
-      "getCity": "Baixar {{city}} ({{size}})",
+      "getCity": "Baixar {{city}}",
+      "getCityHint": "Mapa offline de lugares · {{size}}",
+      "updateAvailable": "Atualização disponível",
       "gettingCity": "Baixando {{city}}",
       "cityReady": "{{city}} está no celular. Pergunte de novo para ver os lugares."
     },

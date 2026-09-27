@@ -96,9 +96,12 @@ export function useCatalog(): CatalogState {
     const tiles = await installedPlaceTiles();
     const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...topicPacks().map((p) => p.entry), ...tiles.map((t) => t.entry)];
     const all = [...(await modelManager.statusAll()), ...(await Promise.all(extra.map((m) => modelManager.statusOf(m))))];
+    const byId = Object.fromEntries(all.map((s) => [s.asset.id, s]));
     setDiscovered(found);
-    setPlaceAreas(groupPlaceAreas(tiles, await placeTileNames()));
-    setStatuses(Object.fromEntries(all.map((s) => [s.asset.id, s])));
+    // A tile the index doesn't list (no sha256) has nothing newer to update to.
+    const withUpdates = tiles.map((t) => ({ ...t, updateAvailable: !!t.entry.sha256 && !!byId[t.entry.id]?.updateAvailable }));
+    setPlaceAreas(groupPlaceAreas(withUpdates, await placeTileNames()));
+    setStatuses(byId);
     setActiveLlmId((await getActiveModelId("llm")) ?? defaultId("llm"));
     setActiveEmbeddingId((await getActiveModelId("embedding")) ?? defaultId("embedding"));
     setCrashedIds(await loadCrashedIds());
