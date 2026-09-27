@@ -1089,6 +1089,11 @@ function InstallStep({
     }))
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Verified files that are not part of this setup (an optional pack picked with the others) are listed
+  // in the list card, never as a loose line under it (Prism A3-2).
+  const extras = catalog.imports
+    .filter((f) => f.status === "verified" && f.assetId && !assets.some((a) => a.id === f.assetId))
+    .map((f) => findAsset(f.assetId!)?.label ?? f.name);
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
@@ -1251,6 +1256,24 @@ function InstallStep({
             importing={offline}
           />
         ))}
+        {extras.length > 0 && (
+          <View
+            accessible
+            accessibilityLabel={`${t("flows.onboarding.category.extras")}: ${extras.join(", ")}`}
+            style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
+          >
+            <Icon name="plus-circle" size="sm" color={tokens.color.status.success.solid} />
+            <View style={{ flex: 1 }}>
+              <Text variant="subhead">{t("flows.onboarding.category.extras")}</Text>
+              <Text variant="caption" color="secondary" numberOfLines={2}>
+                {extras.join(", ")}
+              </Text>
+            </View>
+            <Text variant="label" color="secondary">
+              {t("flows.onboarding.categoryStatus.ready")}
+            </Text>
+          </View>
+        )}
         {[
           {
             key: "index",
@@ -1345,7 +1368,7 @@ function InstallStep({
             </Text>
           )}
           {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} />
+          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} hideVerified />
           {!activeImport && (
             <Text variant="footnote" color="secondary" selectable>
               {t("flows.onboarding.importHow")}
