@@ -7,6 +7,9 @@ import { IconSlot, useOpticalLine } from "./IconText";
 import { switchColors } from "./Switch";
 import { Text } from "./Text";
 
+/** From this OS text scale, rows stack their value under the title (and the drawer scrolls its destinations). */
+export const LARGE_TEXT_SCALE = 1.2;
+
 export interface ListRowProps {
   title: string;
   subtitle?: string;
@@ -59,7 +62,7 @@ export function ListRow({
   // At large text, the value goes under the title (left-aligned) instead of beside it: beside it, a long
   // single word in the title was broken mid-word ('Conversati/on history', Harbor 51f9863 at 1.3).
   const { fontScale } = useWindowDimensions();
-  const stacked = fontScale >= 1.2;
+  const stacked = fontScale >= LARGE_TEXT_SCALE;
   // Leading icons form one column (title size, grown with the text) on the title's first line.
   const line = useOpticalLine("body", "title");
   if (toggle) {
@@ -83,7 +86,8 @@ export function ListRow({
         {icon && <IconSlot name={icon} line={line} color={destructive ? t.color.status.danger.solid : t.color.text.secondary} />}
         <View style={styles.body}>
           <View style={stacked ? styles.titleStack : styles.titleLine}>
-            <Text variant="body" color={destructive ? "danger" : "primary"} style={styles.title}>
+            {/* flex: 1 only beside the value: in the stacked column it collapses the title to 0 height (Prism AX-4). */}
+            <Text variant="body" color={destructive ? "danger" : "primary"} style={stacked ? undefined : styles.title}>
               {title}
             </Text>
             {value && !trailing && (

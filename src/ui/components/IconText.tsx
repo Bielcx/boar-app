@@ -2,7 +2,7 @@ import React from "react";
 import { Platform, StyleProp, TextStyle, useWindowDimensions, View, ViewStyle } from "react-native";
 import { icon as iconTokens, opticalOffset, useTokens, variantShape } from "../theme";
 import type { TextVariant } from "../theme";
-import { Icon, IconName } from "./Icon";
+import { endBearing, Icon, IconName } from "./Icon";
 import { Text, TextColor, TextProps } from "./Text";
 
 const TITLE_VARIANTS: TextVariant[] = ["hero", "wordmark", "display", "title1", "title2", "title3", "headline", "cardTitle", "buttonLg"];
@@ -48,20 +48,38 @@ export function useOpticalLine(variant: TextVariant, role: IconRole = iconRoleFo
   return { lineHeight, offset, iconSize };
 }
 
+export interface LineSlotProps {
+  line: OpticalLine;
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * A box one text line tall, nudged onto the line's optical centre, for anything that is not a glyph
+ * (spinner, dot, radio, badge). Put it in a row with alignItems "flex-start".
+ */
+export function LineSlot({ line, children, style }: LineSlotProps) {
+  return (
+    <View style={[{ height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }, style]}>{children}</View>
+  );
+}
+
 export interface IconSlotProps {
   name: IconName;
   line: OpticalLine;
   color?: string;
   size?: number;
+  /** Trailing icon: aligns its stroke, not its box, with the row's right edge (see Icon `edge`). */
+  edge?: "end";
 }
 
 /** An icon in a box one text line tall, nudged onto the line's optical centre. For custom rows. */
-export function IconSlot({ name, line, color, size }: IconSlotProps) {
+export function IconSlot({ name, line, color, size, edge }: IconSlotProps) {
   const px = size ?? line.iconSize;
   return (
-    <View style={{ height: line.lineHeight, width: px, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
+    <LineSlot line={line} style={{ width: px, marginRight: edge === "end" ? -endBearing(name, px) : undefined }}>
       <Icon name={name} size={px} color={color} />
-    </View>
+    </LineSlot>
   );
 }
 

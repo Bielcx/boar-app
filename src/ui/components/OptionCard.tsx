@@ -2,8 +2,7 @@ import React from "react";
 import { Pressable, View, ViewStyle } from "react-native";
 import { selection } from "../../services/haptics";
 import { useTokens } from "../theme";
-import { endBearing } from "./Icon";
-import { IconSlot, useOpticalLine } from "./IconText";
+import { IconSlot, LineSlot, useOpticalLine } from "./IconText";
 import { MetaLine } from "./MetaLine";
 import { Text } from "./Text";
 
@@ -81,9 +80,9 @@ export function OptionCard({
       style={({ pressed }) => frame(pressed)}
     >
       {indicator === "radio" && (
-        <View style={{ height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
+        <LineSlot line={line}>
           <Radio on={selected} />
-        </View>
+        </LineSlot>
       )}
       {leading}
       <View style={{ flex: 1, gap: t.space.xxs }}>
@@ -123,9 +122,7 @@ export function OptionCard({
       </View>
       {/* Mockup: only the selected card shows the check, so an unselected title keeps the full width. */}
       {indicator === "check" && selected && (
-        <View style={{ marginRight: -endBearing("check", line.iconSize) }}>
-          <IconSlot name="check" line={line} color={t.color.accent.text} />
-        </View>
+        <IconSlot name="check" line={line} color={t.color.accent.text} edge="end" />
       )}
     </Pressable>
   );
