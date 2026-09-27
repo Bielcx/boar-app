@@ -224,3 +224,15 @@ describe("weak sources (Tusk weak_sources, Iris spec)", () => {
     expect(answerReducer(base, { type: "warning", answerId: "a", code: "weak_sources", message: "" } as never).weakDeclined).toBeUndefined();
   });
 });
+
+describe("CT-1 finalText", () => {
+  it("replaces the streamed text when the engine dropped unsupported citations, and keeps it otherwise", () => {
+    const base = { answerIds: ["a"], sources: [] } as AnswerState;
+    const streamed = answerReducer(base, { type: "token", answerId: "a", tier: "fast", text: "Canberra [3]." } as never);
+    const receipt = { modelId: "q", modelLabel: "Q", tokens: 3, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+    const cleaned = answerReducer(streamed, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText: "Canberra." } as never);
+    expect(cleaned.fast?.text).toBe("Canberra.");
+    const kept = answerReducer(streamed, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt } as never);
+    expect(kept.fast?.text).toBe("Canberra [3].");
+  });
+});
