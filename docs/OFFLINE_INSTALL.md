@@ -106,7 +106,7 @@ published.
 
 ## English Wikipedia (optional, 15 packs)
 
-The whole English Wikipedia (plus Wikivoyage), split into 15 packs of about
+The whole English Wikipedia, split into 15 packs of about
 1.2 GB (18.0 GB and 6,124,620 articles in all). The app searches every pack
 that is installed, so any subset works, and each one installs by file import
 like the others. Built from FineWiki
