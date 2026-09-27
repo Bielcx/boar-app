@@ -641,11 +641,15 @@ export class WikiPack {
           coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5 || (sem?.get(c.articleId) ?? 0) >= SEMANTIC_KEEP;
         if (relevant && !hits.some((x) => nearDuplicate(x.text, h.text))) {
           // What-to-do question, passage from another section: the same article's action section instead, if it has one.
-          if (action && !h.action) {
-            const act = (await this.articlePassages(c.articleId, stems, 1, true)).find((p) => p.action);
-            if (act && !seen.has(act.chunkId)) {
-              hits.push({ ...act, via: "bm25", score: h.score });
-              seen.add(act.chunkId);
+          // Up to three of them: a section's first chunk is often context ("Earthquakes are unpredictable…") and the
+          // steps ("Drop, Cover and Hold") sit in the next one or in a subsection.
+          if (action) {
+            const acts = (await this.articlePassages(c.articleId, stems, 3, true)).filter((p) => p.action && !seen.has(p.chunkId));
+            if (acts.length && (!h.action || !acts.some((p) => p.chunkId === h.chunkId))) {
+              for (const act of acts.slice(0, 3)) {
+                hits.push({ ...act, via: "bm25", score: h.score });
+                seen.add(act.chunkId);
+              }
               continue;
             }
           }

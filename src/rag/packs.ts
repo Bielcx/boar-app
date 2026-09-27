@@ -171,6 +171,7 @@ export function packHitToChunk(packId: string, h: PackHit): RetrievedChunk {
     source: `${label} — ${articleUrl(h.title, h.source, h.url)}${h.license ? ` (${h.license})` : ""}`,
     score: h.score,
     matchType: "lexical",
+    action: h.action,
   };
 }
 

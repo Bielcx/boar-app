@@ -9,7 +9,7 @@ import type { Passage, PassageOptions, PassageRetrieval } from "./passages.types
 import { articleUrl, searchWikiPacks } from "./packs";
 import { retrieve } from "./retrieve";
 import { embeddingEngine } from "./embed";
-import { LONG_TAIL_VIEWS, prefixOf, type Stem } from "./wikiPack";
+import { ACTION_INTENT, LONG_TAIL_VIEWS, prefixOf, sectionKind, type Stem } from "./wikiPack";
 
 export type { Passage, PassageOptions, PassageRetrieval } from "./passages.types";
 
@@ -22,6 +22,10 @@ function lexicalTerms(query: string): WeightedTerm[] {
 
 // A passage from an article the question names is relevant even where its sentences don't repeat the question's words.
 const NAMED_BONUS = 0.2;
+// A what-to-do question: the passages are re-ranked by their sentences, so the section's purpose must count here
+// too, or a symptoms sentence that repeats the question's words beats the Treatment section (gate 5e70bbd).
+const ACTION_BONUS = 0.3;
+const BACKGROUND_PENALTY = 0.3;
 
 export async function retrievePassages(query: string, opts: PassageOptions = {}): Promise<PassageRetrieval> {
   const { k = 6, charBudget = 4800, maxSentencesPerPassage = 3, titles, expand } = opts;
@@ -34,6 +38,9 @@ export async function retrievePassages(query: string, opts: PassageOptions = {})
   const t1 = Date.now();
 
   const passages: Passage[] = [];
+  const actionQuestion = ACTION_INTENT.test(query);
+  const purpose = (h: { action: boolean; lead: boolean; section: string }) =>
+    !actionQuestion ? 0 : h.action ? ACTION_BONUS : !h.lead && sectionKind(h.section) === "background" ? -BACKGROUND_PENALTY : 0;
   for (const w of wiki) {
     const terms = stemTerms(w.stems);
     for (const h of w.hits) {
@@ -44,7 +51,7 @@ export async function retrievePassages(query: string, opts: PassageOptions = {})
         id: `pack:${w.packId}:${h.chunkId}`,
         text: sentences.map((s) => s.text).join(" "),
         sentences,
-        score: Math.min(1, best + (h.via === "title" ? NAMED_BONUS : 0)),
+        score: Math.max(0, Math.min(1, best + (h.via === "title" ? NAMED_BONUS : 0) + purpose(h))),
         source: {
           title: h.title,
           section: h.section,
@@ -54,6 +61,7 @@ export async function retrievePassages(query: string, opts: PassageOptions = {})
         },
         views: h.views,
         via: h.via,
+        action: h.action,
       });
     }
   }
