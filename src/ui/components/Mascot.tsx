@@ -6,7 +6,8 @@ import { discImage } from "./mascotFrame";
 
 export interface MascotProps {
   /**
-   * Whole boar: hero 170 (chat empty state), md 120 (model loading/error, download hero).
+   * Whole boar: hero = 170×150 box with a 200 pt image overflowing it (chat empty state),
+   * md 120 (model loading/error, download hero).
    * Face in an accent disc: brand 48 (setup brand line), avatar 42 (chat header), avatarSm 26 (message row).
    */
   size?: "hero" | "md" | "brand" | "avatar" | "avatarSm";
@@ -46,6 +47,37 @@ export function Mascot({ size = "hero", glow, dim }: MascotProps) {
         <Image
           source={SOURCE}
           style={{ position: "absolute", width: img.size, height: img.size, left: img.left, top: img.top }}
+          accessibilityIgnoresInvertColors
+        />
+      </View>
+    );
+  }
+
+  if (size === "hero") {
+    // Mockup: a 170×150 layout box with the 200 pt boar overflowing it at (-15, -25) on purpose,
+    // so whatever follows (the wordmark) sits 6 pt under the box and overlaps the feet slightly.
+    const img = t.size.mascotImage;
+    const dx = (img - side) / 2;
+    const dy = (img - t.size.mascotBoxHeight) / 2;
+    return (
+      <View {...hidden} style={{ width: side, height: t.size.mascotBoxHeight, opacity: dim ? 0.7 : 1 }}>
+        {glow && !dim && (
+          // Mockup: the glow box is 10 pt wider each side and sinks 30 pt below the layout box.
+          <View
+            style={{
+              position: "absolute",
+              left: -t.space.sm - t.space.xxs,
+              right: -t.space.sm - t.space.xxs,
+              bottom: -t.space.xxl + t.space.xxs,
+              height: t.size.mascotBoxHeight * 0.8,
+              experimental_backgroundImage: mascotGlow(t.color.glow),
+            }}
+          />
+        )}
+        <Image
+          source={SOURCE}
+          style={{ position: "absolute", left: -dx, top: -dy, width: img, height: img }}
+          resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
       </View>
