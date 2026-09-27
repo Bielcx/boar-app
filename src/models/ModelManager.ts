@@ -127,6 +127,12 @@ async function forgetVerified(asset: Pick<CatalogModel, "filename">): Promise<vo
   await FileSystem.writeAsStringAsync(VERIFIED_PATH(), JSON.stringify(records)).catch(() => {});
 }
 
+/** "Erase everything": forget every verified file, on disk and in memory (the files themselves are deleted too). */
+export async function clearVerifiedRecords(): Promise<void> {
+  verifiedCache = {};
+  await FileSystem.deleteAsync(VERIFIED_PATH(), { idempotent: true });
+}
+
 /** For tests: drop the in-memory copy of integrity.json. */
 export function resetVerifiedCacheForTests(): void {
   verifiedCache = null;

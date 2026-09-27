@@ -1,12 +1,13 @@
-import React, { memo, useState } from "react";
-import { Pressable, View } from "react-native";
+import React, { memo, useEffect, useRef, useState } from "react";
+import { Animated, Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Icon, Mascot, Progress, Sheet, Text, useToast } from "../components";
-import { useTokens } from "../theme";
+import { useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
 import { showsKnowledgeHint } from "./suggestions";
+import { bootEntranceTiming } from "./presentation";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
@@ -109,6 +110,10 @@ export function ChatEmptyState({
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
+  // First mount after launch only: the hero enters like the loading state's, not straight after the splash.
+  const [firstAfterBoot] = useState(() => !bootHeroShown);
+  bootHeroShown = true;
+  const heroAppear = useBootEntrance(firstAfterBoot);
   return (
     // The mockup's layout (spec-chat-vazio): mascot, wordmark, tagline, then the suggestions.
     <View
@@ -123,7 +128,9 @@ export function ChatEmptyState({
       {/* The mockup's hero block: padding 18 above and 6 below, then the column's 14 gap before the section label
           (Prism/Iris, 9b56912 and 6e71f9c). */}
       <View style={{ alignItems: "center", paddingTop: t.space.base + t.space.xxs, paddingBottom: t.space.xs + t.space.xxs }}>
-        <Mascot glow />
+        <Animated.View style={{ opacity: heroAppear }}>
+          <Mascot glow />
+        </Animated.View>
         {/* The wordmark sits 6 below the hero box (the mascot image spills over the box, as in the mockup). Starts with the
             visible word, then the
             screen's title for readers (Prism, in the spirit of WCAG 2.5.3). */}
@@ -194,12 +201,43 @@ export function ChatEmptyState({
   );
 }
 
+// Module scope: the empty chat's hero uses the boot entrance only on its first mount after launch (Iris).
+let bootHeroShown = false;
+
+/**
+ * The hero's entrance right after boot (bootEntranceTiming): wait motion.duration.slow, then fade in over
+ * base, so the boar never overlaps or jumps from the native splash's (Iris 8cbfddd cuts the splash; this
+ * spaces the two boars). Under reduce motion: the wait, no fade. Off: shown at once.
+ */
+function useBootEntrance(on: boolean): Animated.Value {
+  const t = useTokens();
+  const { reduceMotion } = useTheme();
+  const timing = bootEntranceTiming(on, reduceMotion, t.motion.duration);
+  const appear = useRef(new Animated.Value(timing ? 0 : 1)).current;
+  useEffect(() => {
+    if (!timing) return;
+    const anim = Animated.sequence([
+      Animated.delay(timing.delay),
+      Animated.timing(appear, { toValue: 1, duration: timing.fade, easing: t.motion.easing.enter, useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+    // Once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return appear;
+}
+
 /** The model is still loading: the dimmed mascot with what is happening, centred where the answers will be. */
 export function ChatModelLoading({ label, progress }: { label: string; progress?: number }) {
   const t = useTokens();
+  // The mascot comes in after the native splash's cut: two boars crossed on Android (Prism, 8dc234e).
+  const appear = useBootEntrance(true);
   return (
     <View style={{ flexGrow: 1, justifyContent: "center", alignItems: "center", gap: t.space.md }}>
-      <Mascot size="md" dim />
+      <Animated.View style={{ opacity: appear }}>
+        <Mascot size="md" dim />
+      </Animated.View>
       <Text variant="footnote" color="secondary" align="center">
         {label}
       </Text>

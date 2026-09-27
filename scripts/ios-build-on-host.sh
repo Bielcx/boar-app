@@ -21,6 +21,8 @@
 #   IOS_DEVICE         device id for device-run (CoreDevice id or UDID, `xcrun devicectl list devices`)
 #   IOS_NO_QUEUE       1 = do not go through ~/boar/bin/heavy (on a Mac without the queue
 #                      it is skipped automatically)
+#   IOS_XCODEBUILD_JOBS  cap xcodebuild -jobs and run it under nice
+#   IOS_RN_LOG_INFO    1 = keep console.info in the Release build (timing marks)
 #   IOS_STRIP_ENTITLEMENTS  comma list of entitlement keys to drop before a device
 #                      build, e.g. com.apple.developer.kernel.increased-memory-limit
 #                      when the signing team cannot get that capability
@@ -60,6 +62,11 @@ if [[ "${IOS_SKIP_DEPS:-0}" != "1" ]]; then
   npx expo prebuild -p ios --no-install --clean
   (cd ios && heavy pod install)
 fi
+# The Xcode project is named after the app ("BOAR", or "BOAROffline" for
+# EXPO_PUBLIC_BOAR_VARIANT=offline, plugins/withBuildVariant.js).
+WS=$(ls -d ios/*.xcworkspace 2>/dev/null | head -1)
+[[ -n "$WS" ]] || { echo "no ios/*.xcworkspace: run without IOS_SKIP_DEPS" >&2; exit 2; }
+SCHEME=$(basename "$WS" .xcworkspace)
 
 case "$MODE" in
   sim|sim-run)
@@ -88,7 +95,7 @@ case "$MODE" in
     : "${IOS_TEAM:?set IOS_TEAM to the Apple team id (Xcode > Settings > Accounts)}"
     SDK=iphoneos; DEST_ARGS=(-destination "generic/platform=iOS")
     SIGN_ARGS=(-allowProvisioningUpdates DEVELOPMENT_TEAM="$IOS_TEAM" CODE_SIGN_STYLE=Automatic)
-    ENT=ios/BOAR/BOAR.entitlements
+    ENT="ios/$SCHEME/$SCHEME.entitlements"
     IFS=',' read -ra STRIP <<< "${IOS_STRIP_ENTITLEMENTS:-}"
     for key in ${STRIP[@]+"${STRIP[@]}"}; do
       [[ -n "$key" ]] || continue
@@ -99,18 +106,37 @@ case "$MODE" in
   *) echo "unknown mode $MODE" >&2; exit 2 ;;
 esac
 
+# IOS_RN_LOG_INFO=1: measurement builds only. Release React Native drops
+# console.info/log (log threshold = error), so "[boot]"-style marks never reach
+# the device log; this lowers the threshold in the generated AppDelegate. Without
+# the variable the line is removed again (a reused prebuild must not keep it).
+AD="ios/$SCHEME/AppDelegate.swift"
+if [[ -f "$AD" ]]; then
+  sed -i '' '/RCTSetLogThreshold(RCTLogLevel.info)  \/\/ IOS_RN_LOG_INFO/d' "$AD"
+  if [[ "${IOS_RN_LOG_INFO:-0}" == "1" ]]; then
+    sed -i '' 's|^    let delegate = ReactNativeDelegate()$|    RCTSetLogThreshold(RCTLogLevel.info)  // IOS_RN_LOG_INFO\
+    let delegate = ReactNativeDelegate()|' "$AD"
+    grep -q 'IOS_RN_LOG_INFO' "$AD" || { echo "IOS_RN_LOG_INFO: AppDelegate anchor not found" >&2; exit 2; }
+    log "React Native log threshold lowered to info (measurement build)"
+  fi
+fi
+
+# IOS_XCODEBUILD_JOBS=N caps xcodebuild's parallelism and runs it under nice
+# (a shared Mac: the fidelity rounds build next to other jobs).
+JOBS=(); NICE=()
+if [[ -n "${IOS_XCODEBUILD_JOBS:-}" ]]; then JOBS=(-jobs "$IOS_XCODEBUILD_JOBS"); NICE=(nice -n 10); fi
 log "xcodebuild $CONFIG $SDK"
-heavy xcodebuild -workspace ios/BOAR.xcworkspace -scheme BOAR -configuration "$CONFIG" \
+heavy ${NICE[@]+"${NICE[@]}"} xcodebuild ${JOBS[@]+"${JOBS[@]}"} -workspace "$WS" -scheme "$SCHEME" -configuration "$CONFIG" \
   -sdk "$SDK" ${DEST_ARGS[@]+"${DEST_ARGS[@]}"} -derivedDataPath ios/build "${SIGN_ARGS[@]}" \
   > build.log 2>&1 || { grep -E "error:|BUILD FAILED" build.log | head -40; exit 65; }
-APP="$ROOT/ios/build/Build/Products/$CONFIG-$SDK/BOAR.app"
+APP="$ROOT/ios/build/Build/Products/$CONFIG-$SDK/$SCHEME.app"
 log "built $APP ($(du -sh "$APP" | cut -f1))"
 
 if [[ -n "${IOS_OUT_DIR:-}" ]]; then
   mkdir -p "$IOS_OUT_DIR/$SDK"
-  rm -rf "$IOS_OUT_DIR/$SDK/BOAR.app"
+  rm -rf "$IOS_OUT_DIR/$SDK/$SCHEME.app"
   cp -R "$APP" "$IOS_OUT_DIR/$SDK/"
-  APP="$IOS_OUT_DIR/$SDK/BOAR.app"
+  APP="$IOS_OUT_DIR/$SDK/$SCHEME.app"
   # ios/build/generated holds the codegen written by pod install; keep it so
   # an IOS_SKIP_DEPS=1 rebuild still finds it.
   find ios/build -mindepth 1 -maxdepth 1 ! -name generated -exec rm -rf {} +

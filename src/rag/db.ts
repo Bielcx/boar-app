@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { abortAllWork } from "./cancellation";
+import { registerResetHook } from "../services/resetOrder";
 import { DbClosedError, guard, type Guarded } from "./guardedDb";
 
 const DB_NAME = "aoair_knowledge.db";
@@ -46,31 +47,45 @@ export function writeTransaction(
 }
 
 /**
- * Closes and deletes the on-disk database (chat history, the whole
- * knowledge base — bundled corpus, downloaded packs, and custom imported
- * collections all live in this one file) and clears the cached connection
- * so the next getDb() call creates a fresh one. Used by appReset.ts's
- * "Clear All Data" — not called during normal operation.
+ * Empties the knowledge base on the connection that is already open (RS-1: expo-sqlite 57's native close crashes on
+ * a connection that used FTS5, so "Erase everything" never closes or deletes the database file). Stops indexing and
+ * imports first (their next call finds the data gone or aborts), lets queued writes finish or fail, then deletes every
+ * row of every data table — chat history, the bundled corpus, custom collections, telemetry — in one transaction with
+ * foreign keys checked at commit, and compacts the file. The connection stays open and ready for the setup.
+ * Concurrent calls share one run.
  */
-export function resetDatabase(): Promise<void> {
-  // Two resets at once share one: the connection is closed and the file deleted once.
+export function wipeDatabase(): Promise<void> {
   resetting ??= (async () => {
-    // Indexing and imports stop first; their next call on the connection rejects in JS.
     abortAllWork();
-    const current = dbPromise;
-    if (current) {
-      const conn = await current.catch(() => null);
-      // Writes queued before the reset finish (or fail) first, then the calls still running.
-      await writeChain.catch(() => {});
-      await conn?.close();
-    }
-    dbPromise = null;
-    await SQLite.deleteDatabaseAsync(DB_NAME);
+    await writeChain.catch(() => {});
+    // Opened here if nothing opened it yet in this process ("Erase everything" right after launch): an unopened
+    // database still holds the old data. Not through getDb(), which waits for this very reset.
+    const { db } = await (dbPromise ??= openAndMigrate().then((d) => guard(d, "knowledge base")));
+    const tables = await db.getAllAsync<{ name: string; sql: string | null }>(
+      "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    );
+    // FTS5 keeps its data in shadow tables (chunks_fts_data, …); deleting from the virtual table empties them.
+    const virtual = tables.filter((t) => /^CREATE VIRTUAL TABLE/i.test(t.sql ?? "")).map((t) => t.name);
+    const data = tables.map((t) => t.name).filter((n) => !virtual.some((v) => n.startsWith(`${v}_`)));
+    await db.withTransactionAsync(async () => {
+      await db.execAsync("PRAGMA defer_foreign_keys = ON");
+      for (const name of data) await db.execAsync(`DELETE FROM "${name.replace(/"/g, '""')}"`);
+    });
+    await db.execAsync("VACUUM").catch((e) => console.warn("[db] VACUUM after wipe failed:", e?.message ?? e));
+    // journal_mode is WAL: pages with the erased text can sit in the -wal file until a checkpoint.
+    await db
+      .execAsync("PRAGMA wal_checkpoint(TRUNCATE)")
+      .catch((e) => console.warn("[db] WAL checkpoint after wipe failed:", e?.message ?? e));
   })().finally(() => {
     resetting = null;
   });
   return resetting;
 }
+
+/** @deprecated "Erase everything" empties the database (wipeDatabase); kept for callers of the first contract. */
+export const resetDatabase = wipeDatabase;
+
+registerResetHook("wipe", "knowledge-base", wipeDatabase);
 
 async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);

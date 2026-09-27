@@ -1,4 +1,4 @@
-.PHONY: help setup install check-android start run-android build-eas test typecheck clean knowledge-pack knowledge-pack-small apk-offline apk-downloader apk-both audit-apk
+.PHONY: shots-fidelity help setup install check-android start run-android build-eas test typecheck clean knowledge-pack knowledge-pack-small apk-offline apk-downloader apk-both audit-apk
 
 help:
 	@echo "BOAR - Adaptive Local Intelligence"
@@ -14,6 +14,7 @@ help:
 	@echo "make audit-apk APK=path.apk - Fail if an APK declares INTERNET or ships network/cloud libs"
 	@echo "make test         - Run unit tests"
 	@echo "make typecheck    - Run TypeScript type checking"
+	@echo "make shots-fidelity [REF=<git-ref>] [VARIANT=offline] - iOS simulator shots of the 8 mockup screens + side-by-sides (macOS, Xcode)"
 	@echo "make clean        - Remove generated native folders & build caches"
 	@echo "make knowledge-pack        - Build the Wikipedia Vital Articles pack (~50k articles, hours)"
 	@echo "make knowledge-pack-small  - Build a smaller pack (Vital Articles level 4, ~10k articles)"
@@ -93,3 +94,10 @@ knowledge-pack:
 
 knowledge-pack-small:
 	npm run pack:build -- --level 4
+
+# Fidelity sprint (review/ui-qa/FIDELITY.md): build REF, shoot the 8 mockup
+# screens on an iPhone 16 simulator and compose mockup | app | overlay.
+REF ?= origin/integration
+VARIANT ?= offline
+shots-fidelity:
+	@bash scripts/ios-shots-fidelity.sh $(REF) $(VARIANT)

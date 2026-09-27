@@ -16,6 +16,7 @@ import type { RetrievedChunk } from "./retrieve.types";
 import { decompress } from "fzstd";
 import { WikiPack, type PackHit, type PackSearchOptions, type Stem } from "./wikiPack";
 import { guard, type Guarded } from "./guardedDb";
+import { registerResetHook } from "../services/resetOrder";
 
 const PACK_CANDIDATES = 400;
 const EMBEDDING_SHA256 = MODEL_CATALOG.find((m) => m.kind === "embedding" && m.required)!.sha256;
@@ -59,20 +60,29 @@ export async function knowledgePacks(): Promise<CatalogModel[]> {
   return [...catalog, ...extra];
 }
 
-/** Closes a pack's connection once the searches running on it finish; later calls on it reject in JS. Idempotent. */
+/**
+ * Stops using a pack (before its file is deleted): later calls on its connection reject in JS. The native connection
+ * is NOT closed: expo-sqlite 57's close crashes on connections that used FTS5 (RS-1); it goes when the app exits,
+ * and deleting the file under it is fine on Android and iOS. Idempotent.
+ */
 export async function closePack(id: string): Promise<void> {
   const conn = openPacks.get(id);
   openPacks.delete(id);
   wikiPacks.delete(id);
-  await conn?.close().catch(() => {});
+  conn?.retire();
 }
 
-/** Closes every pack (before a reset deletes corpus/), including ones still being opened. Idempotent. */
-export async function closeAllPacks(): Promise<void> {
+/** Forgets every pack (reset), including ones still being opened, without closing them natively. Idempotent. */
+export async function forgetAllPacks(): Promise<void> {
   generation++;
   await Promise.all([...opening.values()].map((p) => p.catch(() => null)));
   await Promise.all([...openPacks.keys()].map(closePack));
 }
+
+/** @deprecated The reset forgets packs (forgetAllPacks); kept for callers of the first reset contract. */
+export const closeAllPacks = forgetAllPacks;
+
+registerResetHook("forget", "packs", forgetAllPacks);
 
 /** The pack's database if it's fully downloaded and built for this app's embedding model, else null. */
 async function openPack(pack: CatalogModel): Promise<SQLite.SQLiteDatabase | null> {
@@ -106,7 +116,7 @@ async function openPackFile(pack: CatalogModel, uri: string, started: number): P
   const embeddingsOk = meta.embeddingModelSha256 === EMBEDDING_SHA256 || (meta.formatVersion === "2" && !meta.embeddingModelSha256);
   if (meta.format !== "boar-knowledge-pack" || !embeddingsOk) {
     console.warn(`[packs] ${pack.filename} isn't a knowledge pack for this app's embedding model; skipping it`);
-    await db.closeAsync().catch(() => {});
+    conn.retire();
     return null;
   }
   if (meta.formatVersion === "2") {
@@ -114,14 +124,14 @@ async function openPackFile(pack: CatalogModel, uri: string, started: number): P
       wikiPacks.set(pack.id, await WikiPack.open(db, decompress));
     } catch (e: any) {
       console.warn(`[packs] ${pack.filename} failed to open:`, e?.message ?? e);
-      await db.closeAsync().catch(() => {});
+      conn.retire();
       return null;
     }
   }
   if (generation !== started) {
     // closeAllPacks() ran while this pack was opening (a reset): don't keep a connection to a file about to go.
     wikiPacks.delete(pack.id);
-    await conn.close().catch(() => {});
+    conn.retire();
     return null;
   }
   openPacks.set(pack.id, conn);
