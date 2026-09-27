@@ -27,6 +27,8 @@ import {
   PT_QUESTION,
   healthExtract,
   healthSourceIndex,
+  coreProcedure,
+  emergencyLine,
   healthTopicTerms,
   onHealthTopic,
   riskyHealthInstruction,
@@ -609,7 +611,7 @@ export function createAnswerer(deps: AnswerDeps) {
         // first-aid book's section loses to the clinical article's wording. Bring it back.
         const pool = raw.filter((c) => onHealthTopic(topic, c));
         if (pool.length) {
-          const best = pool[healthSourceIndex(pool)];
+          const best = pool[healthSourceIndex(pool, coreProcedure(topic))];
           if (!sources.some((c) => c.chunkId === best.chunkId)) {
             sources = [...sources, best];
             reasonCodes.push("grounding:health-best-restored");
@@ -666,8 +668,9 @@ export function createAnswerer(deps: AnswerDeps) {
         // Score on each source's full text: compression keeps the sentences matching the question
         // words, which can leave out a first-aid text's instructions.
         const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
-        const i = healthSourceIndex(fullSources);
-        const text = healthExtract(fullSources[i], i + 1, pt);
+        const procedure = coreProcedure(healthTopicTerms(req.query, english));
+        const i = healthSourceIndex(fullSources, procedure);
+        const text = healthExtract(fullSources[i], i + 1, pt, procedure);
         markVisible();
         emit({ type: "token", answerId, tier: "instant", text });
         return finish("instant", "success", text, sources, receipt({ modelId: "extractive", modelLabel: "Source excerpt", retrievalMs }));
@@ -798,8 +801,12 @@ export function createAnswerer(deps: AnswerDeps) {
             if (risky && sources.length) {
               reasonCodes.push(`grounding:health-unsafe-${risky}`);
               const fullSources = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
-              const i = healthSourceIndex(fullSources);
-              text = healthExtract(fullSources[i], i + 1, pt);
+              const procedure = coreProcedure(healthTopicTerms(req.query, english));
+              const i = healthSourceIndex(fullSources, procedure);
+              text = healthExtract(fullSources[i], i + 1, pt, procedure);
+            } else if (!/emergency number|emerg[êe]ncia/i.test(text)) {
+              // A model-written health answer ends with the emergency line too.
+              text = `${text.trim()}\n\n${emergencyLine(pt)}`;
             }
             markVisible();
             emit({ type: "token", answerId, tier: genTier, text });

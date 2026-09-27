@@ -461,7 +461,30 @@ const DESCRIPTIVE_SECTION = /^(cause|causes|mechanics|mechanism|pathophysiology|
 export const HEALTH_ACTION_MIN_SCORE = 0.5;
 
 /** Which source to quote for a health question: the most instructive on-topic one (index into `sources`). */
-export function healthSourceIndex(sources: RetrievedChunk[]): number {
+/**
+ * The core procedure per condition (Ready.gov, NHS, CDC), as the words a passage that
+ * gives it contains, EN and PT. Among action sources, the one with the core procedure is
+ * quoted, and the excerpt starts at it (safety-008: "Drop, Cover and Hold" over "Do not run").
+ */
+const CORE_PROCEDURE: Array<[RegExp, RegExp]> = [
+  [/^earthquak|^terremot|^sismo/, /\bdrop\b[^.]{0,40}\bcover\b|\bhold on\b|drop,? cover|abaixe|proteja-se|segure-se/i],
+  [/^burn|^scald|^queimad/, /\b(cool|cold|lukewarm)\b[^.]{0,30}\b(running )?water\b|[áa]gua (corrente|fria)/i],
+  [/^nosebleed|^nose|^sangram/, /\bpinch\w*|\blean\w* forward|\btilt\w*[^.]{0,20}forward|inclin\w*[^.]{0,20}frente|apert/i],
+  [/^hypotherm|^hipoterm/, /\bshelter\b|\bwarm\w*|\bremove\b[^.]{0,30}\bwet\b|\bcold environment\b|abrigo|aquec/i],
+  [/^snakebite|^snake/, /\b(keep|stay)\b[^.]{0,20}\b(still|calm)\b|\bimmobili\w*|\bantivenom\b|\bhospital\b|\bemergency\b/i],
+  [/^contaminat|^purif|^boil|^water/, /\bboil\w*|\bdisinfect\w*|\bbleach\b|ferv/i],
+  [/^chok|^engasg/, /\bback blows?\b|\babdominal thrusts?\b|\bheimlich\b/i],
+  [/^flood|^enchent/, /\bhigher ground\b|\bavoid\b[^.]{0,20}\bflood ?water|\bdo not (walk|drive)\b[^.]{0,30}\bwater\b/i],
+  [/^fire|^incendi/, /\bget out\b|\bstay low\b|\bcrawl\b|\bstop,? drop,? and roll\b/i],
+];
+
+/** The core-procedure pattern for a health topic, or null. */
+export function coreProcedure(topic: Iterable<string>): RegExp | null {
+  for (const [topicRe, procedure] of CORE_PROCEDURE) if ([...topic].some((t) => topicRe.test(t))) return procedure;
+  return null;
+}
+
+export function healthSourceIndex(sources: RetrievedChunk[], procedure: RegExp | null = null): number {
   let best = 0;
   let bestScore = -Infinity;
   // The packs mark action sections (RetrievedChunk.action, Bramble b4becc5): when any is marked,
@@ -473,7 +496,7 @@ export function healthSourceIndex(sources: RetrievedChunk[]): number {
     // Laypeople's first-aid text beats a clinical Treatment section ("Active external rewarming involves...").
     // Lay first-aid text that gives steps beats a clinical Treatment section.
     const lay = LAY_SOURCE.test(c.title) ? (healthActionScore(c) >= HEALTH_ACTION_MIN_SCORE ? 6 : 2) : 0;
-    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay - i * 0.05;
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + lay + (procedure?.test(c.body) ? 8 : 0) - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;
@@ -498,13 +521,22 @@ export function healthActionScore(c: RetrievedChunk): number {
  * A health answer taken word for word from one source (its full text, not
  * the compressed one), cut at a sentence end and cited by its number.
  */
-export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean): string {
+/** Always under a health or disaster answer, whatever the excerpt says (Boar, safety-008). */
+export function emergencyLine(pt: boolean): string {
+  return pt
+    ? "Em uma emergência, ligue para o serviço de emergência local (192 SAMU, 193 Bombeiros no Brasil, 112 na Europa, 911 nos EUA)."
+    : "In an emergency, call your local emergency number (911 in the US, 112 in Europe).";
+}
+
+export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean, procedure: RegExp | null = null): string {
   // Steps first: start at the first sentence that tells what to do, keeping the section heading
   // ("Treatment > First aid: Snakebite first aid recommendations vary..." opens with background).
   const colon = source.body.indexOf(":");
   const heading = colon > 0 && colon <= 120 ? source.body.slice(0, colon) : "";
   const sentences = splitSentences(heading ? source.body.slice(colon + 1).replace(/^[:\s]+/, "") : source.body);
-  const firstStep = sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
+  // Start at the core procedure when the passage has it ("Drop, Cover and Hold..."), else at the first step.
+  const core = procedure ? sentences.findIndex((x) => procedure.test(x)) : -1;
+  const firstStep = core >= 0 ? core : sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
   const from = firstStep > 0 ? sentences.slice(firstStep) : sentences;
   let text = heading ? `${heading}:` : "";
   for (const s of from) {
@@ -521,7 +553,8 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
     : pt
       ? "A fonte offline não traz os passos de socorro para isso. Em uma emergência, ligue para o serviço de emergência local (192 SAMU, 193 Bombeiros). O que a fonte diz (em inglês):"
       : "The offline source doesn't give first-aid steps for this. In an emergency, call your local emergency number. What the source says:";
-  return `${lead}\n${text} [${sourceNumber}]`;
+  // The emergency line closes every health answer; the "no steps" lead already says it.
+  return steps ? `${lead}\n${text} [${sourceNumber}]\n\n${emergencyLine(pt)}` : `${lead}\n${text} [${sourceNumber}]`;
 }
 
 // First-aid instructions the sources call wrong (NHS, CDC, Ready.gov), as a model might phrase them.

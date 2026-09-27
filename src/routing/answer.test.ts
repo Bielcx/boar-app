@@ -228,7 +228,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.receipt.modelId).toBe("extractive");
     expect(result.text).toBe(
       // Steps first: the definition sentence is skipped.
-      "From the offline source:\nPinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back. [1]"
+      "From the offline source:\nPinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back. [1]\n\nIn an emergency, call your local emergency number (911 in the US, 112 in Europe)."
     );
     expect(result.receipt.reasonCodes).toContain("grounding:health-extractive");
   });
@@ -242,7 +242,8 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     );
     f.retrieved = [lead, treatment];
     const { result } = await collect("How do I stop a nosebleed?");
-    expect(result.text).toMatch(/^From the offline source:\nTreatment: Most anterior nosebleeds .* lean forward for 10 to 15 minutes\. \[\d\]$/);
+    // Starts at the core procedure (pinch, lean forward), then the emergency line.
+    expect(result.text).toMatch(/^From the offline source:\nTreatment: Pinch the soft part of the nose and lean forward for 10 to 15 minutes\. \[\d\]\n\nIn an emergency, call your local emergency number/);
   });
 
   it("E-1 PT nosebleed: searches the English packs with English words and answers from the source", async () => {
@@ -269,11 +270,11 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f.retrieved = [stayHealthy, quality] as any;
     const first = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
     // Topic named by the section heading, not the article title (gate 5e70bbd, safety-005).
-    expect(first.result.text).toMatch(/Water contamination: After a flood, boil water .* \[\d\]$/);
+    expect(first.result.text).toMatch(/Water contamination: After a flood, boil water .* \[\d\]\n\nIn an emergency/);
     f = makeFake();
     f.retrieved = [quality, contamination] as any;
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
-    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[\d\]$/);
+    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[\d\]\n\nIn an emergency/);
   });
 
   it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
@@ -415,6 +416,22 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     ] as any;
     const { result } = await collect("I just got bitten by a snake while hiking. What do I do right now?");
     expect(result.text).toMatch(/Before you start treating a snakebite, keep the victim still/);
+  });
+
+  it("safety-008 (real pack text): quotes Drop, Cover and Hold over 'Do not run', and always ends with the emergency line", async () => {
+    const LABEL_US = "US government: Earthquakes (Ready.gov)";
+    for (const q of ["What should I do during an earthquake?", "O que eu faço durante um terremoto?"]) {
+      f = makeFake();
+      f.retrieved = [
+        { ...chunk("r", LABEL_US, "During an Earthquake > Protect Yourself During Earthquakes: Image"), action: true },
+        { ...chunk("d", "Wikivoyage: Earthquake safety", "During an earthquake: Do not run during the quake! Standing up, walking and, most of all, running are things that you should avoid, as you are likely to fall over and thereby injure yourself. Crawling may be the only way of getting around if you absolutely have to.\n\nA moderate-to-large earthquake usually persists less than a minute (though the exceptionally powerful 2011 Japan earthquake lasted for six minutes), but that is more than long enough to cause damage. Often it will be followed by aftershocks. Do not be complacent after an earthquake seems to be over\u2014get to safety!"), action: true },
+        { ...chunk("i", "Wikivoyage: Earthquake safety", "During an earthquake > If you are indoors: The U.S. FEMA and the New Zealand Civil Defence give the advice \"Drop, Cover and Hold\" in the case of an earthquake.\n\nStay indoors. Get down on the floor on your knees and bow down, cover your head and neck, and take cover under a table, desk, or some other sturdy furniture if possible. Hold on to the table to prevent the shaking from separating you from your cover. If possible, shelter under furniture that is next to interior walls, away from windows and tall furniture (such as wardrobes and tall shelves), which could topple over on you. You are far safer if you stay indoors: falling roof tiles, chimney bricks, power lines, and other falling objects outside usually present the deadliest hazards. Doorways in modern buildings are not strong or safe places."), action: true },
+      ] as any;
+      const { result } = await collect(q);
+      expect(result.text, q).toMatch(/Drop, Cover and Hold/);
+      expect(result.text, q).toMatch(/emergency number|serviço de emergência/);
+      expect(f.generations, q).toHaveLength(0);
+    }
   });
 
   it("gate 2329dc0: a disaster answer never cites an article about one event (Marash, Kamchatka)", async () => {
