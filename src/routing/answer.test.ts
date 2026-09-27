@@ -308,6 +308,47 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
   });
 });
 
+describe("answer(): CR-1 low-RAM phone (3.8 GB)", () => {
+  const qwen4: InstalledLlm = { id: "qwen4", label: "Qwen3 4B", filename: "models/q4.gguf", sizeBytes: 2.5 * GB, roles: ["fast"], answerTier: "default", isDefault: true };
+  const compact: InstalledLlm = { ...qwen15, answerTier: "compact", isDefault: false };
+  beforeEach(() => {
+    f.deps.deviceRamBytes = () => 3.8 * GB;
+  });
+
+  it("a saved 4B that the user never confirmed is not loaded; the compact one answers", async () => {
+    f.installed = [qwen4, compact];
+    f.activeId = "qwen4";
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([compact.filename]);
+    expect(result.receipt.reasonCodes).toContain("model:low-ram-unconfirmed-qwen4");
+  });
+
+  it("the user's confirmation lets it run", async () => {
+    f.installed = [qwen4, compact];
+    f.activeId = "qwen4";
+    f.settings = { ...f.settings, largeModelConfirmedIds: ["qwen4"] };
+    await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([qwen4.filename]);
+  });
+
+  it("no automatic deep model or verifier above the compact size", async () => {
+    f.installed = [compact, { ...moe, sizeBytes: 11 * GB }, qwen7];
+    f.activeId = compact.id;
+    await collect("Why was Canberra chosen as the capital of Australia?", "deep");
+    expect(f.loads.every((l) => l === compact.filename)).toBe(true);
+  });
+
+  it("only big models installed: a clear error instead of an OOM kill", async () => {
+    f.installed = [qwen4];
+    f.activeId = null;
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(f.loads).toEqual([]);
+    expect(result.outcome).toBe("error");
+    expect(result.receipt).toBeDefined();
+    expect((await collect("Why was Canberra chosen?")).events.at(-1)).toMatchObject({ type: "done", error: { code: "no_model", message: expect.stringMatching(/too large for this phone's memory/) } });
+  });
+});
+
 describe("answer(): backend fallback", () => {
   it("records in the receipt that the model loaded on CPU after the GPU backend failed", async () => {
     const load = f.deps.engine.load;

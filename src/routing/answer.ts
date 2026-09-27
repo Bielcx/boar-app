@@ -31,7 +31,7 @@ import {
 } from "./context";
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
-import { pickDefaultAnswerModel } from "./defaultModel";
+import { pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
 import { buildVerificationInput, parseVerificationVerdict, VERIFICATION_INSTRUCTION } from "./verify";
 import { taskRequest } from "../inference/format";
 import {
@@ -404,12 +404,24 @@ export function createAnswerer(deps: AnswerDeps) {
           : detectGeoIntent(req.query);
       if (geoIntent) return runGeo(geoIntent as GeoIntent, t0, markVisible, () => firstVisibleAt);
 
-      const [settings, installed, activeId, speeds] = await Promise.all([
+      let lowRamNote: string | null = null;
+      let lowRamBlocked = false;
+      let [settings, installed, activeId, speeds] = await Promise.all([
         deps.getSettings(),
         deps.listInstalledLlms(),
         deps.getActiveModelId(),
         deps.getModelSpeeds ? deps.getModelSpeeds().catch(() => new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
       ]);
+      // CR-1: on a low-RAM phone, a model above the compact size is never used unless the
+      // user confirmed it: not as the saved pick, the default, a fallback, deep or verifier.
+      const ram = deps.deviceRamBytes?.() ?? 0;
+      const confirmed = new Set(settings.largeModelConfirmedIds ?? []);
+      const blocked = installed.filter((m) => tooBigForLowRam(m, ram) && !confirmed.has(m.id));
+      if (blocked.length) {
+        installed = installed.filter((m) => !blocked.includes(m));
+        lowRamBlocked = installed.length === 0;
+        if (activeId && blocked.some((m) => m.id === activeId)) lowRamNote = `model:low-ram-unconfirmed-${activeId}`;
+      }
       const byId = new Map(installed.map((m) => [m.id, m]));
       // The user's pick; without one (or if it was deleted), the device-dependent default:
       // Qwen3-4B where it stays resident, the compact 1.5B on 4 GB phones.
@@ -429,7 +441,7 @@ export function createAnswerer(deps: AnswerDeps) {
             };
           })
         );
-        const pick = pickDefaultAnswerModel(candidates, deps.deviceRamBytes?.() ?? 0);
+        const pick = pickDefaultAnswerModel(candidates, ram);
         fastLlm = pick ? byId.get(pick.id) : undefined;
         fastLlm ??= installed.find((m) => m.isDefault) ?? installed[0];
       }
@@ -465,7 +477,7 @@ export function createAnswerer(deps: AnswerDeps) {
         verifiers: depthModels.filter((m) => m.roles.includes("verifier") && deepAutoIneligibility(m) === null),
         hasReusedSources: !!req.reuseSources?.length,
       });
-      const reasonCodes = [`task:${taskType}`, ...plan.reasonCodes];
+      const reasonCodes = [`task:${taskType}`, ...plan.reasonCodes, ...(lowRamNote ? [lowRamNote] : [])];
       if (!deepModel && !settings.deepModelId) {
         for (const m of depthModels.filter((d) => d.roles.includes("reasoning"))) {
           const why = deepAutoIneligibility(m);
@@ -616,7 +628,9 @@ export function createAnswerer(deps: AnswerDeps) {
       if (!gen || !genLlm) {
         return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
           code: "no_model",
-          message: "No language model is installed.",
+          message: lowRamBlocked
+            ? "The installed models are too large for this phone's memory. Install the Compact model, or confirm one in Models to run it anyway."
+            : "No language model is installed.",
         });
       }
 

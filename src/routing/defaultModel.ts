@@ -17,6 +17,20 @@
 import type { FitVerdict } from "../inference/memoryFit";
 
 export const COMPACT_ONLY_MAX_RAM_BYTES = 4.5 * 1024 ** 3;
+/**
+ * On a phone with at most COMPACT_ONLY_MAX_RAM_BYTES, nothing bigger than the
+ * compact model is chosen automatically (Piston, CR-1: the 4B on 3.8 GB was
+ * OOM-killed). The compact 1.5B is ~1.1 GB; this leaves margin for its peers.
+ */
+export const LOW_RAM_MAX_MODEL_BYTES = 1.6e9;
+
+/** True when a model may not be picked automatically on this device (only after the user confirms it). */
+export function tooBigForLowRam(m: { answerTier?: "default" | "compact"; sizeBytes?: number }, totalRamBytes: number): boolean {
+  const lowRam = totalRamBytes > 0 && totalRamBytes <= COMPACT_ONLY_MAX_RAM_BYTES;
+  if (!lowRam || m.answerTier === "compact") return false;
+  return m.answerTier === "default" || (m.sizeBytes ?? Number.POSITIVE_INFINITY) > LOW_RAM_MAX_MODEL_BYTES;
+}
+
 /** Measured median decode speed under which a model is too slow to be the automatic default. */
 export const DEFAULT_MIN_TOK_PER_SEC = 6;
 
@@ -84,7 +98,7 @@ export function rankAnswerModels(candidates: AnswerModelCandidate[], totalRamByt
   const others = candidates.filter((c) => !c.answerTier);
 
   const notPicked = (c: AnswerModelCandidate): NotPickedReason => {
-    if (c.answerTier === "default" && lowRam) return "low-ram";
+    if (tooBigForLowRam(c, totalRamBytes)) return "low-ram";
     if (!fits(c)) return "wont-fit";
     if (tooSlow(c)) return "too-slow";
     if (!c.answerTier && c.tokPerSec === undefined) return "unmeasured";
@@ -97,20 +111,23 @@ export function rankAnswerModels(candidates: AnswerModelCandidate[], totalRamByt
     const reason: PickReason = !def || lowRam ? "compact-low-ram" : tooSlow(def) && fits(def) ? "compact-default-too-slow" : "compact-does-not-fit";
     pick = { id: compact.id, reason };
   } else {
-    const fast = others.filter((c) => fits(c) && c.tokPerSec !== undefined && !tooSlow(c)).sort((a, b) => size(b) - size(a))[0];
+    const allowed = (c: AnswerModelCandidate) => !tooBigForLowRam(c, totalRamBytes);
+    const fast = others.filter((c) => allowed(c) && fits(c) && c.tokPerSec !== undefined && !tooSlow(c)).sort((a, b) => size(b) - size(a))[0];
     if (fast) pick = { id: fast.id, reason: "largest-fast" };
     else {
-      const smallest = [...candidates].sort((a, b) => Number(fits(b)) - Number(fits(a)) || size(a) - size(b))[0];
-      pick = { id: smallest.id, reason: "smallest-fallback" };
+      // On a low-RAM phone, nothing above the compact size: no pick rather than an OOM kill.
+      const smallest = candidates.filter(allowed).sort((a, b) => Number(fits(b)) - Number(fits(a)) || size(a) - size(b))[0];
+      pick = smallest ? { id: smallest.id, reason: "smallest-fallback" } : null;
     }
   }
 
   // Preference order for the rest: default, compact, then the others largest first.
   const order = [def, compact, ...[...others].sort((a, b) => size(b) - size(a))].filter((c): c is AnswerModelCandidate => !!c);
   for (const c of candidates) if (!order.includes(c)) order.push(c);
+  const chosen = pick;
   const ranked: RankedAnswerModel[] = [
-    { id: pick.id, picked: true, reason: pick.reason },
-    ...order.filter((c) => c.id !== pick!.id).map((c) => ({ id: c.id, picked: false, reason: notPicked(c) })),
+    ...(chosen ? [{ id: chosen.id, picked: true, reason: chosen.reason }] : []),
+    ...order.filter((c) => c.id !== chosen?.id).map((c) => ({ id: c.id, picked: false, reason: notPicked(c) })),
   ];
   return { pick, ranked };
 }

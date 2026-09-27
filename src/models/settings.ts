@@ -30,6 +30,8 @@ interface Settings {
   answerAlwaysComplete?: boolean;
   /** null = explicitly no deep model; undefined = pick automatically (see src/routing/depth.ts). */
   deepModelId?: string | null;
+  /** Ids of models the user confirmed to run on a low-RAM phone (CR-1: above the compact size, risk of an OOM kill). */
+  largeModelConfirmedIds?: string[];
 }
 
 export interface MemorySettings {
@@ -296,6 +298,8 @@ export interface AnswerSettings {
   quickFirst: boolean;
   alwaysComplete: boolean;
   deepModelId: string | null | undefined;
+  /** Models the user confirmed for a low-RAM phone; anything else above the compact size is never chosen there. */
+  largeModelConfirmedIds?: string[];
 }
 
 export async function getAnswerSettings(): Promise<AnswerSettings> {
@@ -304,7 +308,15 @@ export async function getAnswerSettings(): Promise<AnswerSettings> {
     quickFirst: s.answerQuickFirst ?? s.adaptiveRoutingEnabled ?? true,
     alwaysComplete: s.answerAlwaysComplete ?? s.deepResearchMode ?? false,
     deepModelId: s.deepModelId,
+    largeModelConfirmedIds: s.largeModelConfirmedIds ?? [],
   };
+}
+
+/** The UI's "run it anyway" on a low-RAM phone (Loom's confirmation). */
+export async function confirmLargeModel(id: string): Promise<void> {
+  const s = await readSettings();
+  s.largeModelConfirmedIds = [...new Set([...(s.largeModelConfirmedIds ?? []), id])];
+  await writeSettings(s);
 }
 
 export async function setAnswerSettings(patch: Partial<AnswerSettings>): Promise<void> {
