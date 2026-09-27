@@ -922,9 +922,9 @@
       "q2": "What is the difference between a pandemic and an epidemic?",
       "q3": "What is 30 °C in Fahrenheit?",
       "q4": "How do I stop a nosebleed?",
-      "q5": "What causes the monsoon?",
-      "q6": "Why do earthquakes happen near plate boundaries?",
-      "q7": "What causes the greenhouse effect?"
+      "q7": "What causes the greenhouse effect?",
+      "q8": "What is a monsoon?",
+      "q9": "What is plate tectonics?"
     },
     "header": {
       "menu": "Open menu",
@@ -1085,9 +1085,9 @@
       "q2": "Health",
       "q3": "Quick math",
       "q4": "First aid",
-      "q5": "Weather",
-      "q6": "Earth science",
-      "q7": "Climate"
+      "q7": "Climate",
+      "q8": "Weather",
+      "q9": "Earth science"
     },
     "modelError": {
       "overline": "Action needed",

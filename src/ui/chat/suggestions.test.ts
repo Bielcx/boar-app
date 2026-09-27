@@ -7,14 +7,23 @@ const ALL = ["wiki-vital5", "boar-preparedness"];
 
 describe("suggestionsFor", () => {
   it("offers only what each model passed in each language (with every corpus installed)", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ALL)).toEqual(["q2", "q3", "q4", "q5", "q7"]);
-    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q2", "q3", "q4", "q5", "q7"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ALL)).toEqual(["q2", "q3", "q4", "q7"]);
+    expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q2", "q3", "q4", "q7"]);
   });
 
   it("in Portuguese offers only what passed both checks (source in PT + answer), Sextant 27/09", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt", ALL)).toEqual(["q4", "q6"]);
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt")).toEqual(["q6"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt", ALL)).toEqual(["q4"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt")).toEqual([]);
     expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "pt-BR", ALL)).toEqual([]);
+  });
+
+  it("v3: the retired q5/q6 are gone, and q8/q9 wait for Sextant (no model offers them yet)", () => {
+    for (const m of ["qwen3-4b-instruct-2507-q4km", "qwen2.5-1.5b-instruct-q4km"])
+      for (const lang of ["en", "pt"]) {
+        const offered = suggestionsFor(m, lang, ALL);
+        for (const k of ["q5", "q6", "q8", "q9"]) expect(offered, `${m} ${lang} ${k}`).not.toContain(k);
+      }
+    expect(SUGGESTION_SOURCES.map((x) => x.key).sort()).toEqual(["q1", "q2", "q3", "q4", "q7", "q8", "q9"]);
   });
 
   it("offers nothing for a model that wasn't validated", () => {
@@ -25,8 +34,8 @@ describe("suggestionsFor", () => {
 
 describe("coveredSuggestions (RT-1)", () => {
   it("hides a question whose on-topic source isn't installed ('seasons' on the builtin base)", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en")).toEqual(["q2", "q5", "q7"]);
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ["boar-preparedness"])).toEqual(["q2", "q4", "q5", "q7"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en")).toEqual(["q2", "q7"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "en", ["boar-preparedness"])).toEqual(["q2", "q4", "q7"]);
   });
 
   it("keeps unknown keys out", () => {
