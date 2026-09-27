@@ -3,7 +3,7 @@
 TL;DR
 - Import primitives from `src/ui/components` and tokens from `useTheme()` / `useTokens()`. No hex, no `fontSize`, no emoji icons in screens.
 - Direction: **"Fogueira & Luar"**, the user's identity (Claude Design, `review/ui-ref/`). Fogueira = ember on charcoal (default), Luar = amber on night blue. Dark is the default mode; light variants exist. Baloo 2 for titles and actions, Lexend for reading. The mascot is the signature.
-- Palette: **Fogueira / Luar**. Appearance: **system / light / dark**. The three old dark themes (Ocean, Amber, Matrix) are gone.
+- Palette: **Fogueira / Luar**. Appearance: **dark (default, `DEFAULT_APPEARANCE`) / light / system**; the OS setting is opt-in. The three old dark themes (Ocean, Amber, Matrix) are gone.
 - **Accessibility floors win over the mockup**: 12pt minimum text (the mockup uses 9–11px labels), 44/48 targets (mockup controls are 40–42px), AA contrast (light variants are adjusted, §2). Use the mockup's layout and components, **not its copy**: its texts ("Verified", "Runs Great", "Under 12GB Limit", fixed tiers) break the honesty rule. Only measured or computed numbers.
 - Every interactive primitive already sets role, label, state and a 44pt (iOS) / 48dp (Android) target. Don't re-wrap them in another `Pressable`.
 - Gate before a UI PR: `npx tsc --noEmit`, `npx vitest run <affected files>`, Prism's `ui-lint.mjs` shows no regression in touched files, screenshots light + dark + 200% text.
@@ -123,7 +123,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 
 | Primitive | Use | Built-in a11y (Prism I5) |
 |---|---|---|
-| `Screen` | Scaffold: canvas, safe area (bottom+sides by default; the native header owns the top), keyboard-aware scroll (`keyboardShouldPersistTaps="handled"`), optional sticky `footer` | Title announced by the native stack |
+| `Screen` | Scaffold: canvas, safe area (bottom+sides by default; the native header owns the top), keyboard-aware scroll (`keyboardShouldPersistTaps="handled"`), optional sticky `footer`; `space.gutter` (20) on the sides; `center` centres short content vertically (welcome, error states) | Title announced by the native stack |
 | `Text` | All text. `variant`, `color`, `numeric`, `weight`, `align`, `header` | Headers for titles; OS font scale on |
 | `Icon` | Feather glyph | Hidden unless `label` |
 | `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
@@ -135,18 +135,18 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `SegmentedControl` | 2-4 exclusive options; `size="compact"` for forms | radiogroup + radio `checked`; turns vertical at ≥ 1.35 font scale; compact keeps the touch target through `hitSlop` |
 | `OptionCard` | One choice among sibling cards (install tier, model, language): `title`, `badge` (on the title line), `trailing` (the deciding figure, right), `description`, `meta`, `leading`, `indicator` radio/check/none | role radio + `selected`/`checked`; selection = accent border + `raised` surface + filled indicator (a soft accent wash would hide soft accent badges) |
 | `Stat` | The number that leads a card: `value`, `unit`, `label` overline, `size` lg 34 / md 26 / sm 17 | One focus stop "label: value unit"; tabular |
-| `Mascot` | The boar, transparent background: `size` hero 128 / brand 56 / avatar 32 / avatarSm 24, `dim`. Use it instead of `assets/boar.png` (opaque square) | Decorative, hidden |
+| `Mascot` | The boar from the identity file (transparent asset). `hero` 128 = whole boar, `glow` adds the ember ellipse under it (empty state; AA for primary text over it is in `ambient.test.ts`), `dim` while waiting. `brand` 56 / `avatar` 32 / `avatarSm` 24 = the face framed in an accent disc (mockup: 192% at 72% 40%; geometry in `mascotFrame.ts`). Don't wrap it in another circle; never use `assets/boar.png` (opaque square) | Decorative, hidden |
 | `MetaLine` | One line of secondary facts, "978 MB · ~4 min"; falsy items dropped | Read with commas; tabular |
 | `Stepper` | Linear flow progress: bar + short label per step | One progressbar stop with the caller's "Step 2 of 4: Model"; value is text ("2/4"), never a numeric range (iOS would speak a percentage) |
 | `Chip` | Filter/toggle/tag; `size="inline"` for citation `[n]` inside text | Button + `selected` when pressable; inline chip keeps a 44/48-tall hit area (horizontal slop is limited so adjacent citations stay separate) |
 | `Badge` | Status seal, pill, caps: `solid` = ACTIVE, `soft` = CACHED, `outline` = DOWNLOADING (tone) / NOT ON DISK (neutral); `dot` + `caps={false}` for compatibility seals | Text always present |
-| `OfflineSeal` | `pill` (ember, crossed wifi, header), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
+| `OfflineSeal` | `pill` (ember, crossed wifi, header; keep the visible label to one word, "OFFLINE", and put the full sentence in `accessibilityLabel`), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
 | `Ambient` | Light pattern behind hero screens (usually via `Screen ambient`) | Hidden from readers |
 | `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss | Live region (danger assertive) |
 | `Toast` | `useToast()({ message, tone, icon, actionLabel, onAction })` | Announced; ≥ 5s + 60ms/char (6s with action); sits above the composer |
 | `Sheet` | Confirmations and short tasks; `footer` actions listed safest first (Cancel, then Delete; drawn with the last on top); `returnFocusRef` = the trigger | Modal, focus to title and back to the trigger on close, Android back/scrim close, `accessibilityViewIsModal` |
 | `TextField` | Visible `label` (or `accessibilityLabel`), `helper`, `error`, `autoGrow` + `maxRows`, `leading`/`trailing` | Label is the name (not placeholder), error as hint + live |
-| `Progress` | Determinate (`value` 0..1, `valueText`) or indeterminate | role progressbar with `accessibilityValue`; `busy` |
+| `Progress` | Determinate (`value` 0..1, `valueText`) or indeterminate. Tone `accent` for any loading/download/indexing; `field` only if the bar itself is provenance (rare) | role progressbar with `accessibilityValue`; `busy` |
 | `Skeleton` | Loading placeholder | Hidden; the screen announces loading once |
 | `EmptyState` | Empty (`neutral`) and error (`tone="error"`) states with one primary action | Title is a header |
 | `useAnnounce()` | `announce(msg, { assertive })` for state changes (answer ready, download failed) | iOS `announceForAccessibilityWithOptions`; Android < 16 `announceForAccessibility` (no priority there: `assertive` is ignored); Android 16+ a 1×1 live-region node in the viewport (UNKNOWN until verified on device, Prism A1) |
@@ -159,7 +159,8 @@ Patterns:
   4. Card hierarchy: title (`headline`) → one leading number (`Stat` or `trailing`) → one `MetaLine`. Never a stack of equal-weight "Label: value" lines. At most 3 sizes and 2 text tones per card.
   5. Two surface levels per screen: `canvas` + `surface`. `raised` only for wells inside a card, the user's bubble, sheets.
   6. One accent per screen: ember on the primary action and the selection. `field` amber only for provenance / OFFLINE / verified facts.
-  7. Done = a dark screenshot next to the mockup crop (`review/ui-ref/screens/`, compose with `review/ui-ref/side-by-side.py`), the same screen at font scale 1.3 without clipping, Prism review.
+  7. One badge style per meaning: a recommendation (RECOMMENDED, SUGGESTED FOR THIS PHONE) is `Badge tone="accent" emphasis="solid"`; status seals follow the Badge row above.
+  8. Done = a dark screenshot next to the mockup crop (`review/ui-ref/screens/`, compose with `review/ui-ref/side-by-side.py`), the same screen at font scale 1.3 without clipping, Prism review.
 - **Destructive = confirm or undo.** Irreversible (delete model, erase data, delete chat): `Sheet` with a `destructive` Button and a ghost Cancel. Reversible: act immediately and offer Undo in a toast.
 - **Settings rows show their current value** (`ListRow value`). Toggle only for immediate effect; 3+ options → subscreen or `SegmentedControl`.
 - **Errors** say what happened, why if known, and the next action (`EmptyState tone="error"` or `Banner tone="danger"`). No raw "Error: …" strings.
