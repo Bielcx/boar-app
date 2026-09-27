@@ -13,8 +13,8 @@
 #
 # Env: IOS_BUILD_HOST (r4toMacMini), IOS_REMOTE_DIR (boar-ios-build),
 # IOS_OUT_DIR (/Users/r4to/Script/boar/builds/ios), plus everything
-# ios-build-on-host.sh reads (IOS_TEAM, IOS_DEVICE, IOS_CONFIG, ...), which
-# is forwarded to the remote. Nothing secret is stored in the repo.
+# ios-build-on-host.sh reads (IOS_TEAM, IOS_DEVICE, IOS_CONFIG, ...) and
+# EXPO_PUBLIC_BOAR_VARIANT (inlined into the JS bundle), which is forwarded to the remote. Nothing secret is stored in the repo.
 set -euo pipefail
 
 MODE="${1:-sim}"
@@ -42,7 +42,7 @@ rsync -a --delete \
 
 # Forward the IOS_* settings; values are single-quoted for the remote shell.
 ENV_ARGS=""
-for var in IOS_XCODE_APP IOS_CONFIG IOS_SKIP_DEPS IOS_SIM_DEVICE IOS_MODELS_DIR IOS_TEAM IOS_DEVICE IOS_STRIP_ENTITLEMENTS; do
+for var in IOS_XCODE_APP IOS_CONFIG IOS_SKIP_DEPS IOS_SIM_DEVICE IOS_MODELS_DIR IOS_TEAM IOS_DEVICE IOS_STRIP_ENTITLEMENTS EXPO_PUBLIC_BOAR_VARIANT; do
   [[ -n "${!var:-}" ]] && ENV_ARGS+="$var=$(printf '%q' "${!var}") "
 done
 
@@ -50,7 +50,8 @@ done
 log "remote: ios-build-on-host.sh $REMOTE_MODE"
 ssh "$HOST" "bash -lc \"cd $REMOTE_DIR && $ENV_ARGS scripts/ios-build-on-host.sh $REMOTE_MODE\""
 
-APP_REMOTE="$REMOTE_DIR/ios/build/Build/Products/$CONFIG-$SDK/BOAR.app"
+# BOAR.app, or BOAROffline.app for the offline variant; fetched as BOAR.app.
+APP_REMOTE=$(ssh "$HOST" "ls -d $REMOTE_DIR/ios/build/Build/Products/$CONFIG-$SDK/*.app | head -1")
 DEST="$OUT_DIR/$SDK/BOAR.app"
 mkdir -p "$DEST"
 log "fetch BOAR.app -> $DEST"
