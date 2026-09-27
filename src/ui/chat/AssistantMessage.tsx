@@ -11,6 +11,7 @@ import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } 
 import { generatingSteps, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
+import { weakNoteShowsBody } from "./uncitedPreface";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -515,26 +516,31 @@ function WeakSourceNote({ answer, incomplete }: { answer: AnswerState; incomplet
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const groups = groupSources(answer.sources);
+  // The engine's text already opens with "not from an offline source" (Tusk 4375d76): keep only the
+  // marker where the sources would be, not the same sentence twice (Iris).
+  const saidInText = !weakNoteShowsBody((answer.deep ?? answer.fast)?.text);
+  const body = tr(incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body");
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
-      <View accessible accessibilityLabel={`${tr("chat.weak.title")}. ${tr(incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body")}`} style={{ gap: t.space.sm }}>
+      {/* The marker is read, never decorative (Iris/Prism): "No strong source on this phone". */}
+      <View accessible accessibilityRole="text" accessibilityLabel={saidInText ? tr("chat.weak.title") : `${tr("chat.weak.title")}. ${body}`} style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Icon name="book" size="sm" color={t.color.text.secondary} />
           <Text variant="label" color="secondary" style={{ flex: 1 }}>
             {tr("chat.weak.title")}
           </Text>
         </View>
-        <Text variant="footnote" color="secondary">
-          {tr(incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body")}
-        </Text>
+        {!saidInText && (
+          <Text variant="footnote" color="secondary">
+            {body}
+          </Text>
+        )}
       </View>
       {groups.length > 0 && (
-        <Button
+        <TextAction
           label={tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
-          variant="ghost"
-          size="sm"
-          accessibilityState={{ expanded: open }}
-          style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
+          icon={open ? "chevron-up" : "chevron-down"}
+          expanded={open}
           onPress={() => setOpen((o) => !o)}
         />
       )}
