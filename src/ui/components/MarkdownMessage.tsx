@@ -112,10 +112,13 @@ function BlockView({
   block,
   sourceTitles,
   onCitationPress,
+  caret,
 }: {
   block: Block;
   sourceTitles: string[];
   onCitationPress?: (n: number) => void;
+  /** Streaming cursor drawn inline at the end of this block's text (the last block). */
+  caret?: React.ReactNode;
 }) {
   const t = useTokens();
   const inl = (inlines: Inline[]) => (
@@ -126,10 +129,16 @@ function BlockView({
       return (
         <Text variant={block.level === 1 ? "title3" : "headline"} header style={{ marginTop: t.space.xs }}>
           {inl(block.inlines)}
+          {caret}
         </Text>
       );
     case "paragraph":
-      return <Text selectable>{inl(block.inlines)}</Text>;
+      return (
+        <Text selectable>
+          {inl(block.inlines)}
+          {caret}
+        </Text>
+      );
     case "bullet":
     case "ordered":
       return (
@@ -139,6 +148,7 @@ function BlockView({
           </Text>
           <Text selectable style={{ flex: 1 }}>
             {inl(block.inlines)}
+            {caret}
           </Text>
         </View>
       );
@@ -174,18 +184,30 @@ export const MarkdownMessage = memo(function MarkdownMessage({
 }: Props) {
   const t = useTokens();
   const blocks = useMemo(() => parseMarkdown(content, sourceTitles.length), [content, sourceTitles.length]);
+  // The mockup's streaming cursor: a 9x17 ember bar right after the last word ("…treatment▌"). An inline View
+  // inside the last text block, hidden from screen readers (they hear stage changes, never tokens).
+  const caret = isStreaming ? (
+    <View
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{ width: t.space.sm + 1, height: t.space.base + 1, borderRadius: t.space.xxs, marginLeft: t.space.xxs, backgroundColor: t.color.accent.solid }}
+    />
+  ) : null;
+  const last = blocks[blocks.length - 1];
+  const inlineCaret = !!caret && !!last && last.type !== "code" && last.type !== "table";
   return (
     <View style={{ gap: t.space.sm }}>
       {blocks.map((block, i) => (
-        <BlockView key={i} block={block} sourceTitles={sourceTitles} onCitationPress={onCitationPress} />
-      ))}
-      {isStreaming && (
-        <View
-          importantForAccessibility="no-hide-descendants"
-          accessibilityElementsHidden
-          style={{ width: 8, height: 18, borderRadius: 2, backgroundColor: t.color.accent.solid }}
+        <BlockView
+          key={i}
+          block={block}
+          sourceTitles={sourceTitles}
+          onCitationPress={onCitationPress}
+          caret={inlineCaret && i === blocks.length - 1 ? caret : undefined}
         />
-      )}
+      ))}
+      {/* Nothing streamed yet, or the last block is code/table: the cursor on its own line. */}
+      {caret && !inlineCaret && caret}
     </View>
   );
 });
