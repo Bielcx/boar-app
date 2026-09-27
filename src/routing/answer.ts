@@ -45,7 +45,7 @@ import {
   termCoverage,
 } from "./context";
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
-import { checkCitations } from "./citations";
+import { attributeCitations, checkCitations } from "./citations";
 import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
@@ -939,6 +939,17 @@ export function createAnswerer(deps: AnswerDeps) {
         if (checked.removed.length) {
           reasonCodes.push(`citations:removed-${checked.removed.join("-")}`);
           text = checked.text;
+          finalText = text;
+        }
+      }
+      // Its inverse (Boar, gate 9ef80f9): a sentence without [n] that an on-topic source supports, by
+      // the same measure, gets that source's [n]. Never without support.
+      // Health answers are the source's excerpt or checked for risky lines: not here.
+      if (guarded && !health && sources.length && text.trim() && !stopRequested) {
+        const attributed = attributeCitations(text, sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c));
+        if (attributed.added.length) {
+          reasonCodes.push(`citations:added-${attributed.added.join("-")}`);
+          text = attributed.text;
           finalText = text;
         }
       }

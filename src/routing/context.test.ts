@@ -530,3 +530,15 @@ describe("Prism RF-1: the suggested questions", () => {
     expect(temperatureConversion("Why is 30 °C hot?", false)).toBeNull();
   });
 });
+
+describe("onTopic: the article's own title (Sextant RF-1, plate boundaries)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("'Plate tectonics' for plate boundaries; a subtitle word still needs coverage", () => {
+    const plates = c("Plate tectonics", "Plate tectonics is the scientific theory that Earth's lithosphere comprises a number of large tectonic plates.");
+    expect(onTopic("Why do earthquakes happen near plate boundaries?", plates)).toBe(true);
+    expect(onTopic("earthquake plate tectonics plate boundary", plates)).toBe(true);
+    expect(onTopic("What is the latest theory about dark matter?", c("Scary Stories: Dark Web", "Scary Stories: Dark Web is a 2020 supernatural horror anthology."))).toBe(false);
+    expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
+    expect(onTopic("Who won the 1970 World Cup?", c("Andy Roberts (cricketer)", "He won the 1975 Cricket World Cup."))).toBe(false);
+  });
+});
