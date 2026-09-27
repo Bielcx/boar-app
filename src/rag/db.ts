@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { abortAllWork } from "./cancellation";
-import { guard, type Guarded } from "./guardedDb";
+import { DbClosedError, guard, type Guarded } from "./guardedDb";
 
 const DB_NAME = "aoair_knowledge.db";
 
@@ -35,6 +35,9 @@ export function writeTransaction(
   work: (db: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   const run = writeChain.then(async () => {
+    // A write that reaches the front of the queue during a reset fails instead of waiting for it: the reset waits
+    // for this queue, so waiting here would deadlock (and the write would land in the fresh database).
+    if (resetting) throw new DbClosedError("knowledge base");
     const db = await getDb();
     await db.withTransactionAsync(() => work(db));
   });
