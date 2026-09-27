@@ -21,6 +21,8 @@ import {
   isSafetyQuery,
   isCurrentEventQuery,
   currentEventAnswer,
+  mentionsNow,
+  todayLine,
   ACTION_INTENT,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
@@ -123,6 +125,8 @@ export interface AnswerDeps {
   assemblePrompt(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): string;
   assembleChatMessages(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): ChatMessage[];
   now(): number;
+  /** The device's calendar date (tests pass a fixed one). */
+  today?(): Date;
   /** Context window the model will be loaded with (LlamaEngine defaultContextSize). */
   contextSize?(): number;
   /** Total device RAM (0 = unknown), for the device-dependent default model. */
@@ -756,7 +760,14 @@ export function createAnswerer(deps: AnswerDeps) {
         emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
       }
       const styleReminder =
-        [ctx.styleReminder, health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined].filter(Boolean).join("\n") || undefined;
+        [
+          ctx.styleReminder,
+          health ? HEALTH_GROUNDING_INSTRUCTION : fromMemory ? NO_SOURCE_INSTRUCTION : undefined,
+          // "today"/"hoje": the model gets the device's date instead of guessing one (Prism TD-1).
+          mentionsNow(req.query) ? todayLine(deps.today?.() ?? new Date(), pt) : undefined,
+        ]
+          .filter(Boolean)
+          .join("\n") || undefined;
 
       // 3. Generation.
       if (!gen || !genLlm) {
@@ -917,11 +928,18 @@ export function createAnswerer(deps: AnswerDeps) {
           finalText = "";
           return finish(genTier, "success", "", [], baseReceipt);
         }
-        reasonCodes.push("grounding:uncited-preface");
-        // No source: the weak_sources warning already went out before generation.
-        if (sources.length) emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
-        text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
-        finalText = text;
+        // 4B+: the line only when no source was on topic (Boar, s32: on every uncited answer it cost
+        // 4 right answers per wrong one caught). Sources that passed the topic guard count as on topic;
+        // an unguarded PT question's (no English words) don't.
+        const onTopicSources = guarded ? sources.length : 0;
+        // The compact model asked to answer anyway keeps the line: it errs even with a source (Mauritania, 1970).
+        if (onTopicSources === 0 || isCompactModel(genLlm)) {
+          reasonCodes.push("grounding:uncited-preface");
+          // No source: the weak_sources warning already went out before generation.
+          if (sources.length) emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+          text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
+          finalText = text;
+        } else reasonCodes.push("grounding:uncited-on-topic");
       }
 
       // 4. Verification (complete answers only, distinct verifier).
