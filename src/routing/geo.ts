@@ -77,6 +77,12 @@ export interface GeoIntent {
   text?: string;
   wantsBest: boolean;
   lang: "en" | "pt";
+  /**
+   * Possible city names written without a capital or after "de" ("in berlin",
+   * "veganos de Roma"), longest first. Only a gazetteer match makes them the
+   * place (answer.ts); otherwise the device location is used.
+   */
+  placeCandidates?: string[];
 }
 
 const DIET_PATTERNS: [Diet, RegExp][] = [
@@ -106,6 +112,31 @@ const NEAR_DEVICE =
 const IN_PLACE =
   /\b(?:in|at|around|em|no|na|nos|nas|perto do|perto da)\s+((?:[A-ZÀ-Ý][\p{L}'’.-]*)(?:\s+(?:de|da|do|dos|das|del|la|los|am|an|der|[A-ZÀ-Ý][\p{L}'’.-]*))*)/u;
 
+// With a diet, these nouns mean places to eat ("best vegan places in Tokyo"); alone they don't ("historic places in Rome").
+const DIET_PLACE_NOUN = /\b(places?|spots?|options|eater(y|ies)|joints?|lugares?|op[cç][oõ]es|s[ií]tios?)\b/i;
+
+// Any-case place phrase after a preposition, checked against the gazetteer before it is used.
+const PLACE_PHRASE = /\b(?:in|at|around|em|no|na|nos|nas|de|da|do|dos|das)\s+([^,.;:!?()[\]]+)/giu;
+const NOT_A_PLACE = new Set(
+  "the a an my your our his her their this that these those here there town city area country world me us it i o um uma os as meu minha seu sua nosso nossa este esta esse essa aqui ali cidade rua casa comida lugar lugares restaurante restaurantes perto frente downtown center centre centro central asia europe africa america americas oceania".split(" ")
+);
+const MAX_PLACE_WORDS = 4;
+
+function placeCandidates(q: string): string[] {
+  const out: string[] = [];
+  for (const m of q.matchAll(PLACE_PHRASE)) {
+    const words = m[1].trim().split(/\s+/).slice(0, MAX_PLACE_WORDS);
+    if (!words.length || NOT_A_PLACE.has(words[0].toLowerCase())) continue;
+    for (let n = words.length; n >= 1; n--) {
+      const last = words[n - 1].toLowerCase();
+      if (/^(de|da|do|of|and|e|the|in|em)$/.test(last)) continue;
+      const c = words.slice(0, n).join(" ");
+      if (c.length >= 3 && !out.includes(c)) out.push(c);
+    }
+  }
+  return out.sort((a, b) => b.split(" ").length - a.split(" ").length);
+}
+
 const PT_HINT = /\b(onde|comer|comida|restaurantes?|perto|melhores?|vegan[oa]s?|vegetarian[oa]s?|cidade|estou|padaria|almo[cç]o|jantar)\b/i;
 
 /**
@@ -118,22 +149,21 @@ export function detectGeoIntent(query: string): GeoIntent | null {
   const q = query.trim();
   const diet = DIET_PATTERNS.filter(([, re]) => re.test(q)).map(([d]) => d);
   const nearDevice = NEAR_DEVICE.test(q);
-  const namedPlace = IN_PLACE.test(q);
+  const capital = nearDevice ? null : q.match(IN_PLACE)?.[1]?.replace(/[.?!,;:]+$/, "").trim();
+  const namedPlace = !!capital && !/^(the|a|an|o|a|um|uma)$/i.test(capital);
+  const candidates = nearDevice || namedPlace ? [] : placeCandidates(q);
   const placeWord = FOOD_PLACE.test(q);
-  const located = nearDevice || namedPlace;
+  const located = nearDevice || namedPlace || candidates.length > 0;
   const isPlaces =
     (placeWord && !(EXPLANATORY.test(q) && !located)) ||
     (FOOD.test(q) && !EXPLANATORY.test(q) && (located || diet.length > 0)) ||
     // "vegan near me": a diet plus a location is a places question even without a food word.
-    (diet.length > 0 && nearDevice);
+    (diet.length > 0 && nearDevice) ||
+    // "best vegan places in Tokyo", "vegan spots": a diet plus a place noun.
+    (diet.length > 0 && DIET_PLACE_NOUN.test(q));
   if (!isPlaces) return null;
 
-  let near: GeoIntent["near"] = { kind: "device" };
-  if (!NEAR_DEVICE.test(q)) {
-    const m = q.match(IN_PLACE);
-    const name = m?.[1]?.replace(/[.?!,;:]+$/, "").trim();
-    if (name && !/^(the|a|an|o|a|um|uma)$/i.test(name)) near = { kind: "place", name };
-  }
+  const near: GeoIntent["near"] = namedPlace ? { kind: "place", name: capital! } : { kind: "device" };
   const cuisine = [...new Set((q.match(CUISINE_TERMS) ?? []).map((t) => t.toLowerCase()))];
   return {
     near,
@@ -141,6 +171,7 @@ export function detectGeoIntent(query: string): GeoIntent | null {
     text: cuisine.length ? cuisine.join(" ") : undefined,
     wantsBest: /\b(best|top|good|great|melhor(es)?|bons|boas)\b/i.test(q),
     lang: PT_HINT.test(q) ? "pt" : "en",
+    ...(candidates.length ? { placeCandidates: candidates } : {}),
   };
 }
 
