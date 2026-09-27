@@ -27,7 +27,9 @@ export function Switch({ value, onValueChange, label, disabled }: SwitchProps) {
       }}
       trackColor={{ false: t.color.line.strong, true: t.color.accent.solid }}
       ios_backgroundColor={t.color.line.strong}
-      thumbColor={Platform.OS === "android" ? t.color.bg.raised : undefined}
+      // Android paints the thumb from this: a dark thumb read as a blob on the ember track. Light when on,
+      // muted when off (Material); iOS keeps its native white thumb.
+      thumbColor={Platform.OS === "android" ? (value ? t.color.text.primary : t.color.text.secondary) : undefined}
     />
   );
 }
