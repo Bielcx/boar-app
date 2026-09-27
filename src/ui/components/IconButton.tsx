@@ -36,8 +36,13 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
   const c = t.color;
   const visual = size === "sm" ? t.size.controlSm : t.size.touch;
   const slop = Math.max(0, (t.size.touch - visual) / 2);
+  // A disabled filled button drops the accent entirely (raised disc, muted icon): at 45% opacity an
+  // ember disc still read as "ready" on the dark canvas (Prism IX-1).
+  const mutedFilled = variant === "filled" && !!disabled;
   const bg =
-    variant === "filled"
+    mutedFilled
+      ? c.bg.raised
+      : variant === "filled"
       ? c.accent.solid
       : variant === "tonal" || selected
         ? c.accent.soft
@@ -45,7 +50,7 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
           ? c.bg.surface
           : "transparent";
   const fg =
-    color ?? (variant === "filled" ? c.accent.on : selected ? c.accent.text : variant === "surface" ? c.text.primary : c.text.secondary);
+    color ?? (mutedFilled ? c.text.secondary : variant === "filled" ? c.accent.on : selected ? c.accent.text : variant === "surface" ? c.text.primary : c.text.secondary);
   // A surface disc lifts when pressed (dark planes read by lightness); the others sink.
   const pressedBg = variant === "filled" ? c.accent.pressed : variant === "surface" ? c.bg.raised : c.bg.sunken;
 
@@ -69,7 +74,7 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: pressed ? pressedBg : bg,
-          opacity: disabled ? 0.45 : 1,
+          opacity: disabled && !mutedFilled ? 0.45 : 1,
           ...(variant === "filled" && !disabled ? (t.elevation.glow as object) : null),
         },
         style,

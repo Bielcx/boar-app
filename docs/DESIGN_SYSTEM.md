@@ -128,7 +128,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Text` | All text. `variant`, `color`, `numeric`, `weight`, `align`, `header` | Headers for titles; OS font scale on |
 | `Icon` | Feather glyph | Hidden unless `label` |
 | `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `tone="danger"` on `ghost`/`outline` for a destructive entry point whose confirmation comes next (Remove → Sheet); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
-| `IconButton` | Icon-only; `plain` / `surface` (neutral disc: header chrome) / `tonal` (soft accent: counts as the screen's accent) / `filled`; `selected` | `label` required, `selected` state |
+| `IconButton` | Icon-only; `plain` / `surface` (neutral disc: header chrome) / `tonal` (soft accent: counts as the screen's accent) / `filled` (disabled = raised disc + muted icon, no accent); `selected` | `label` required, `selected` state |
 | `Card` | Grouped content; `level`, `onPress` | Button role when pressable |
 | `Section` | Titled group; `inset` draws the grouped surface with hairlines; `footer` explains effect | Title is a header |
 | `ListRow` | Settings/navigation row: `title`, `value`, `subtitle`, `icon`, `trailing` (non-interactive), `switch={{ value, onValueChange }}`, `destructive` | One focus stop reading "title, value, subtitle"; with `switch` the whole row is role switch + `checked`; title/value wrap instead of truncating |
