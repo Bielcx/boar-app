@@ -364,6 +364,9 @@ export interface SetupProgress {
   packageId: string;
   travelRegionId?: string;
   answerTier?: "default" | "compact";
+  /** The user picked these; absent = still the automatic recommendation, which may be recomputed. */
+  packageChosen?: boolean;
+  answerChosen?: boolean;
 }
 
 export async function getSetupProgress(): Promise<SetupProgress | null> {

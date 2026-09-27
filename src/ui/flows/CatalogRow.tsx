@@ -21,7 +21,7 @@ interface Props {
   busy?: boolean;
   /** Overrides the catalog label (e.g. a translated region name). */
   title?: string;
-  /** Replaces the kind · size · license line. */
+  /** Replaces the license line (the size always sits on the right of the name). */
   meta?: string;
   /** Extra lines under the meta line (e.g. cities covered). */
   details?: string[];
@@ -99,11 +99,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Text variant="headline" style={{ flex: 1 }}>
             {title ?? model.label}
           </Text>
-          {!meta && (
-            <Text variant="headline" numeric>
-              {size}
-            </Text>
-          )}
+          <Text variant="headline" numeric>
+            {size}
+          </Text>
         </View>
         <MetaLine items={meta ? [meta] : [model.license]} />
         {details?.map((d) => (
