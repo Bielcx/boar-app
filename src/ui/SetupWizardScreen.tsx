@@ -585,7 +585,7 @@ function PackageStep({
           style={{ gap: tokens.space.sm }}
           // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
           onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
-          accessibilityLabel={[t(`flows.onboarding.answerTier.${answerTier}`), answerModel.label, formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          accessibilityLabel={[t(`flows.onboarding.answerTier.${answerTier}`), catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
           accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
@@ -599,7 +599,7 @@ function PackageStep({
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
             <Text variant="headline" style={{ flex: 1 }}>
-              {answerModel.label}
+              {catalogLabel(answerModel, t)}
             </Text>
             {choices.compact && choices.default && <Icon name="chevron-right" size="sm" color={tokens.color.text.secondary} />}
           </View>
@@ -813,16 +813,20 @@ function TravelCard({
       {trip ? (
         <ListRow
           icon="navigation"
-          title={t("flows.travel.tripChosen", { label: trip.label })}
-          value={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
+          title={trip.label}
+          // The size goes under the name: a row with a switch has no room for a value (the switch says "include").
+          subtitle={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
           switch={{ value: true, onValueChange: (v) => !v && onTrip(null) }}
         />
       ) : (
-        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base, gap: tokens.space.xs }}>
           <Button ref={tripRef} size="sm" variant="outline" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
+          <Text variant="footnote" color="secondary">
+            {t("flows.travel.goingToHint")}
+          </Text>
         </View>
       )}
-      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingTo")} returnFocusRef={tripRef}>
+      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingToTitle")} returnFocusRef={tripRef}>
         <CitySearch
           catalog={catalog}
           onChoose={(choice) => {
@@ -934,7 +938,7 @@ function InstallStep({
     if (failedKey && failedKey !== lastFailedKey.current) {
       const first = failed[0];
       const reason = first.state.kind === "failed" ? failureLines(first.state, t, lang).cause : "";
-      announce(`${t("flows.onboarding.downloadFailed")}. ${first.asset.label}: ${reason}`, { assertive: true });
+      announce(`${t("flows.onboarding.downloadFailed")}. ${catalogLabel(first.asset, t)}: ${reason}`, { assertive: true });
       setTimeout(() => {
         const node = retryRef.current && findNodeHandle(retryRef.current);
         if (node) AccessibilityInfo.setAccessibilityFocus(node);
@@ -1101,7 +1105,7 @@ function InstallStep({
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
     const summary = [
-      answerModel && { key: "doneAnswer", value: answerModel.label },
+      answerModel && { key: "doneAnswer", value: catalogLabel(answerModel, t) },
       collections > 0 && { key: "doneKnowledge", value: t("flows.onboarding.doneCollections", { count: collections, value: formatCount(collections, lang) }) },
       placesLabel && { key: "donePlaces", value: placesLabel },
       seed && seed.total > 0 && { key: "doneIndex", value: t("flows.onboarding.doneArticles", { count: seed.total, value: formatCount(seed.total, lang) }) },
@@ -1412,7 +1416,7 @@ function InstallStep({
             return (
               <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
                 <Text variant="callout">
-                  {f.asset.label}: {lines.cause}
+                  {catalogLabel(f.asset, t)}: {lines.cause}
                 </Text>
                 <Text variant="caption" color="secondary" selectable>
                   {lines.detail}
@@ -1430,6 +1434,10 @@ function InstallStep({
       )}
 
       {stalled && !offline && (
+        <View style={{ gap: tokens.space.xs }}>
+        <Text variant="footnote" color="secondary">
+          {t("flows.onboarding.restartHint")}
+        </Text>
         <Button
           variant="secondary"
           icon="refresh-cw"
@@ -1438,6 +1446,7 @@ function InstallStep({
             for (const { asset, state } of states) if (state.kind !== "installed" && state.kind !== "in-use") restartDownload(asset).finally(() => catalog.refresh());
           }}
         />
+        </View>
       )}
 
     </Screen>
@@ -1538,10 +1547,10 @@ function CategoryRow({
               style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, paddingLeft: tokens.space.xl, paddingBottom: tokens.space.sm }}
             >
               <Text variant="footnote" color="secondary" style={{ flex: 1 }} numberOfLines={2}>
-                {asset.label}
+                {catalogLabel(asset, t)}
               </Text>
               {it.state.kind === "failed" ? (
-                <Button size="sm" variant="secondary" label={t("flows.row.retry")} accessibilityLabel={`${t("flows.row.retry")}: ${asset.label}`} onPress={() => onRetry(asset)} />
+                <Button size="sm" variant="secondary" label={t("flows.row.retry")} accessibilityLabel={`${t("flows.row.retry")}: ${catalogLabel(asset, t)}`} onPress={() => onRetry(asset)} />
               ) : (
                 <Text variant="caption" color={moving(it.state) ? "accent" : "secondary"} numeric>
                   {shortStatus(it.state, asset, t)}

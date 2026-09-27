@@ -275,7 +275,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <>
             <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setExplainOpen(false)} />
             <Button
-              label={offline ? t("flows.row.importAnyway", { size }) : t("flows.row.downloadAnyway", { size })}
+              label={offline ? t("flows.row.importAnyway") : t("flows.row.downloadAnyway")}
               variant="secondary"
               fullWidth
               onPress={() => {
@@ -295,6 +295,10 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             })}
           </Text>
         )}
+        {/* The size and the risk sit here, so the button stays a verb (copy-wrap). */}
+        <Text variant="footnote" color="secondary" numeric>
+          {t("flows.row.anywayHint", { size })}
+        </Text>
       </Sheet>
 
       <Sheet

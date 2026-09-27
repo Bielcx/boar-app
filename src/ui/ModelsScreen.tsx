@@ -20,6 +20,7 @@ import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatBytesParts, formatCount, formatRate } from "./flows/format";
+import { tokPerSecBand } from "./flows/perfBands";
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -80,7 +81,7 @@ export function ModelsScreen() {
 
   const use = async (m: CatalogModel) => {
     const ok = await catalog.use(m);
-    if (ok) toast({ message: t("flows.models.nowAnswering", { name: m.label }), tone: "success" });
+    if (ok) toast({ message: t("flows.models.nowAnswering", { name: catalogLabel(m, t) }), tone: "success" });
   };
 
   const renderGroup = (list: CatalogModel[]) => (
@@ -131,7 +132,7 @@ export function ModelsScreen() {
               selected={answer.deepModelId === undefined}
               onPress={() => chooseDeep(undefined)}
             />
-            <OptionCard title={t("flows.models.deepNone")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
+            <OptionCard title={t("flows.models.deepNone")} description={t("flows.models.deepNoneSub")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
             {models
               .filter((m) => m.kind === "llm" && catalog.statuses[m.id]?.present && m.id !== catalog.activeLlmId)
               .map((m) => {
@@ -139,11 +140,11 @@ export function ModelsScreen() {
                 return (
                   <OptionCard
                     key={m.id}
-                    title={m.label}
+                    title={catalogLabel(m, t)}
                     // Same risk as Use for answers on a low-RAM phone (CR-1).
                     badge={catalog.view(m).mayCloseApp ? <Badge label={t(catalog.view(m).didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
-                    trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
+                    trailing={sp ? t(`flows.performance.band.${tokPerSecBand(sp.medianTokPerSec)}`) : undefined}
                     description={
                       // Too big for this phone first: no number of answers will make it automatic here (Prism CR-2).
                       catalog.view(m).mayCloseApp
@@ -158,6 +159,8 @@ export function ModelsScreen() {
                           : t("flows.models.tooSlow")
                     }
                     meta={[
+                      // Words, not tokens: a token is about three quarters of a word.
+                      sp && t("flows.models.wordsRate", { rate: formatCount(Math.round(sp.medianTokPerSec * 0.75), i18n.language) }),
                       sp
                         ? t("flows.models.samples", { count: sp.samples, date: sp.lastAt ? new Date(sp.lastAt).toLocaleDateString(i18n.language) : "—" })
                         : t("flows.models.notMeasured"),

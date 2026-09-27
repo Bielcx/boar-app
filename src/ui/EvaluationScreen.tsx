@@ -11,6 +11,7 @@ import { exportEvalResults, listInstalledEvalModels, runEvaluation, EvalProgress
 import { runDeviceEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { Button, Icon, Progress, Screen, Section, Skeleton, Text, useToast } from "./components";
+import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import type { TextColor } from "./components";
 import { useTokens } from "./theme";
@@ -65,7 +66,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   }, []);
 
   const configs: EvalConfig[] = [
-    ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: m.label })),
+    ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: catalogLabel(m, t) })),
     { kind: "adaptive", label: t("evaluation.adaptiveConfig", { preset }) },
   ];
   const chosen = configs.filter((c) => selected.has(evalConfigId(c)));
