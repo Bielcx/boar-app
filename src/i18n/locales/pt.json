@@ -379,6 +379,12 @@
         "thrashing": "Pode ficar lento",
         "insufficient": "Não cabe"
       },
+      "mayClose": "Pode fechar o app",
+      "mayCloseWhy": "grande demais para a memória deste celular; o Compacto é o recomendado aqui",
+      "mayCloseTitle": "Usar {{name}}?",
+      "mayCloseBody": "O BOAR pode fechar ao carregar este modelo. O Compacto é o recomendado aqui.",
+      "keepCompact": "Manter Compacto",
+      "useAnyway": "Usar mesmo assim",
       "fitWhy": {
         "streaming": "maior que a memória deste celular",
         "thrashing": "usa quase toda a memória deste celular",

@@ -68,6 +68,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const announce = useAnnounce();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
+  const [closeRiskOpen, setCloseRiskOpen] = useState(false);
+  // On a low-RAM phone, a model bigger than the compact one asks before loading (CR-1).
+  const requestUse = onUse && (view.mayCloseApp ? () => setCloseRiskOpen(true) : onUse);
   const [removing, setRemoving] = useState(false);
   const { state } = view;
   const b = seal(state, t);
@@ -117,7 +120,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           items={[
             state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
             // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
-            view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
+            view.mayCloseApp ? t("flows.row.mayCloseWhy") : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
             meta ?? model.license,
           ]}
         />
@@ -127,11 +130,15 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           </Text>
         ))}
       </View>
-      {view.fitWarning && (
+      {view.mayCloseApp ? (
+        <View style={{ flexDirection: "row" }}>
+          <Badge label={t("flows.row.mayClose")} tone="danger" dot caps={false} />
+        </View>
+      ) : view.fitWarning ? (
         <View style={{ flexDirection: "row" }}>
           <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
         </View>
-      )}
+      ) : null}
 
       {(state.kind === "downloading" || state.kind === "verifying") && (
         <Progress
@@ -198,11 +205,11 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             variant="secondary"
             label={t("flows.row.retry")}
             icon="refresh-cw"
-            onPress={state.kind === "failed" && state.errorKind === "load" ? onUse : onDownload}
+            onPress={state.kind === "failed" && state.errorKind === "load" ? requestUse : onDownload}
           />
         )}
         {view.primary === "use" && onUse && (
-          <Button size="sm" variant="secondary" label={t("flows.row.use")} onPress={onUse} disabled={busy} />
+          <Button size="sm" variant="secondary" label={t("flows.row.use")} onPress={requestUse} disabled={busy} />
         )}
         {removable && (
           <Button
@@ -246,6 +253,28 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           </Text>
         )}
       </Sheet>
+
+      <Sheet
+        visible={closeRiskOpen}
+        onClose={() => setCloseRiskOpen(false)}
+        title={t("flows.row.mayCloseTitle", { name: title ?? model.label })}
+        description={t("flows.row.mayCloseBody")}
+        footer={
+          <>
+            {/* Compact is the default here: the safe choice first (the Sheet stacks the footer bottom-up). */}
+            <Button label={t("flows.row.keepCompact")} variant="primary" fullWidth onPress={() => setCloseRiskOpen(false)} />
+            <Button
+              label={t("flows.row.useAnyway")}
+              variant="secondary"
+              fullWidth
+              onPress={() => {
+                setCloseRiskOpen(false);
+                onUse?.();
+              }}
+            />
+          </>
+        }
+      />
 
       <Sheet
         visible={confirmOpen}
