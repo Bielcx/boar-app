@@ -240,3 +240,13 @@ export function placesEmptyTitle(
     ? t(filter ? "chat.places.noneInCityFiltered" : "chat.places.noneInCity", { city, filter })
     : t(filter ? "chat.places.noneNearFiltered" : "chat.places.noneNear", { filter });
 }
+
+/**
+ * Whether the phone's clock can say open/closed for this list. Opening hours
+ * carry no time zone, so only when the phone is where the places are: near
+ * me, or a named city the engine found the phone inside (deviceInside).
+ * Absent means unknown or outside: no open/closed.
+ */
+export function deviceClockApplies(area: { kind: "near" | "city"; deviceInside?: boolean }): boolean {
+  return area.kind === "near" || area.deviceInside === true;
+}
