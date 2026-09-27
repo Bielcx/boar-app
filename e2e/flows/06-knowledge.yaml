@@ -1,5 +1,4 @@
 appId: ${APP_ID || "team.sopa.aoair"}
-name: knowledge base
 ---
 - launchApp
 - tapOn: "Open menu"

@@ -35,10 +35,18 @@ Toolchain and emulator setup: `docs/DEVICE_LAB.md`.
 | `06-knowledge` | topic packs listed |
 | `99-reset` | erase all data → onboarding |
 
-Status: every flow passes `maestro check-syntax`. The selectors come from the screens as
-they rendered on the emulator (integration 06f508b → 54202b7). **UNKNOWN: the flows have
-not been run end to end with `maestro test` yet**; the same paths were exercised with the
-adb scripts below.
+Status (first `maestro test` run, integration 54202b7 downloader, AVD 3.8 GB, 2026-09-27):
+
+| Flow | Result |
+|---|---|
+| `01-setup-downloader` | PASS (7 min, real download) |
+| `06-knowledge` | PASS |
+| `05-switch-model` | failed with one answer model installed → now logs `SKIP` instead |
+| `99-reset` | FAIL: after "Erase everything" the app closes itself instead of opening setup (RS-1, app bug) |
+| `02`, `03`, `04`, `01-setup-offline-import` | UNKNOWN: not run end to end yet (run interrupted to free the machine) |
+
+The first run also hit a native crash in expo-sqlite (`closeDatabase` → `sqlite3_finalize`,
+Scudo "corrupted chunk header") when the app was stopped and relaunched between flows.
 
 ## Scripts (`e2e/scripts/`), used for the evidence
 

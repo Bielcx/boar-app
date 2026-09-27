@@ -1,6 +1,5 @@
 # Answers must work with no network at all.
 appId: ${APP_ID || "team.sopa.aoair"}
-name: airplane mode
 ---
 - setAirplaneMode: enabled
 - launchApp:

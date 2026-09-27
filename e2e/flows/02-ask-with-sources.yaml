@@ -1,5 +1,4 @@
 appId: ${APP_ID || "team.sopa.aoair"}
-name: question with sources
 ---
 - launchApp
 - runFlow:

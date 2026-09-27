@@ -1,6 +1,5 @@
 # Erase all data -> the app goes back to onboarding.
 appId: ${APP_ID || "team.sopa.aoair"}
-name: reset
 ---
 - launchApp
 - runFlow: common/open-settings.yaml

@@ -1,22 +1,32 @@
-# Switch the answer model to another installed one. On a 4 GB phone only switch to
-# a model that fits (the 4B was killed by lmkd on a 3.8 GB emulator, CR-1).
+# Switch the answer model to another installed one. Needs a second answer model
+# installed (Models > Download); with only one, the flow logs SKIP instead of failing.
+# On a 4 GB phone only switch to a model that fits (the 4B was killed by lmkd on a
+# 3.8 GB emulator, CR-1), which is why this suite does not download one.
 appId: ${APP_ID || "team.sopa.aoair"}
-name: switch model
 ---
 - launchApp
 - runFlow: common/open-settings.yaml
 - tapOn: "Models"
-- scrollUntilVisible:
-    element: "Use for answers"
-- tapOn: "Use for answers"
-- extendedWaitUntil:
-    visible:
-      text: ".* now writes your answers"
-    timeout: 120000
-- back
-- back
+- scroll
+- scroll
 - runFlow:
-    file: common/ask.yaml
-    env:
-      QUESTION: "What is a Merkle tree?"
-- takeScreenshot: shots/05-switched-model-answer
+    when:
+      notVisible: "Use for answers"
+    commands:
+      - evalScript: "${console.log('SKIP switch-model - only one answer model installed; install a second one in Models to test switching')}"
+- runFlow:
+    when:
+      visible: "Use for answers"
+    commands:
+      - tapOn: "Use for answers"
+      - extendedWaitUntil:
+          visible:
+            text: ".* now writes your answers"
+          timeout: 120000
+      - back
+      - back
+      - runFlow:
+          file: common/ask.yaml
+          env:
+            QUESTION: "What is a Merkle tree?"
+      - takeScreenshot: shots/05-switched-model-answer
