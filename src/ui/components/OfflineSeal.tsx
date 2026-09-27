@@ -2,6 +2,8 @@ import React from "react";
 import { View } from "react-native";
 import { useTokens } from "../theme";
 import { Icon } from "./Icon";
+import { IconText } from "./IconText";
+import { icon as iconTokens } from "../theme";
 import { Text } from "./Text";
 
 export interface OfflineSealProps {
@@ -77,7 +79,7 @@ export function OfflineSeal({ label, sublabel, variant = "pill", accessibilityLa
         flexDirection: "row",
         alignItems: "center",
         alignSelf: "flex-start",
-        gap: t.space.xs + 2,
+        gap: iconTokens.gapTight,
         paddingVertical: variant === "moon" ? 4 : 6,
         paddingLeft: variant === "moon" ? 4 : t.space.sm + 2,
         paddingRight: t.space.md,
@@ -86,10 +88,11 @@ export function OfflineSeal({ label, sublabel, variant = "pill", accessibilityLa
         ...(t.elevation.glow as object),
       }}
     >
-      {variant === "moon" ? moonDisc : <Icon name="wifi-off" size="sm" color={t.color.accent.on} />}
-      <Text variant="seal" style={{ color: t.color.accent.on }} maxFontSizeMultiplier={1.5}>
+      {variant === "moon" && moonDisc}
+      {/* iOS draws the Baloo caps ~2 pt high in their box; centerOnBox puts them on the seal's middle. */}
+      <IconText icon={variant === "moon" ? undefined : "wifi-off"} variant="seal" gap="tight" tint={t.color.accent.on} maxFontSizeMultiplier={1.5} centerOnBox>
         {label}
-      </Text>
+      </IconText>
     </View>
   );
 }

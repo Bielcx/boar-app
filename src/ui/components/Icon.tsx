@@ -22,14 +22,38 @@ export interface IconProps {
    * `label` is required.
    */
   label?: string;
+  /**
+   * Trailing icon (chevron, check, x): pulls the glyph out by its empty side bearing so the visible
+   * stroke, not the 24-grid box, lines up with the row's right edge. Icons at the end of rows share
+   * one edge that way.
+   */
+  edge?: "end";
 }
 
-export function Icon({ name, size = "md", color, label }: IconProps) {
+/**
+ * Empty space right of the stroke, in 24-grid units (Feather paths + half the 2-unit stroke).
+ * Only the glyphs we put at a trailing edge.
+ */
+const END_BEARING: Partial<Record<IconName, number>> = {
+  "chevron-right": 8,
+  "chevron-down": 5,
+  "chevron-up": 5,
+  "chevron-left": 8,
+  check: 3,
+  x: 5,
+  "external-link": 2,
+};
+
+export function endBearing(name: IconName, px: number): number {
+  return ((END_BEARING[name] ?? 0) / 24) * px;
+}
+
+export function Icon({ name, size = "md", color, label, edge }: IconProps) {
   const t = useTokens();
   const px = typeof size === "number" ? size : { sm: t.size.iconSm, md: t.size.icon, lg: t.size.iconLg }[size];
   const a11y = iconA11yProps(label);
   return (
-    <View {...a11y.wrapper} pointerEvents="none" style={{ width: px, height: px, alignItems: "center", justifyContent: "center" }}>
+    <View {...a11y.wrapper} pointerEvents="none" style={{ width: px, height: px, alignItems: "center", justifyContent: "center", marginRight: edge === "end" ? -endBearing(name, px) : undefined }}>
       <Feather name={name} size={px} color={color ?? t.color.text.secondary} {...a11y.glyph} />
     </View>
   );

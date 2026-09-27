@@ -2,8 +2,8 @@ import React from "react";
 import { Pressable, View } from "react-native";
 import { selection } from "../../services/haptics";
 import { toneColors, Tone, useTokens } from "../theme";
-import { Icon, IconName } from "./Icon";
-import { Text } from "./Text";
+import type { IconName } from "./Icon";
+import { IconText } from "./IconText";
 
 export interface ChipProps {
   label: string;
@@ -27,24 +27,24 @@ export function Chip({ label, icon, tone = "neutral", selected, onPress, size = 
   const height = size === "inline" ? 20 : size === "sm" ? 30 : 36;
   const slop = Math.max(0, (t.size.touch - height) / 2);
   const body = (
-    <>
-      {icon && <Icon name={icon} size={size === "md" ? "sm" : 12} color={tc.fg} />}
-      <Text
-        variant={size === "inline" ? "caption" : size === "sm" ? "footnote" : "subhead"}
-        weight={size === "inline" ? "semibold" : "medium"}
-        numeric={size === "inline"}
-        style={{ color: tc.fg }}
-        maxFontSizeMultiplier={size === "inline" ? 1.5 : undefined}
-      >
-        {label}
-      </Text>
-    </>
+    <IconText
+      icon={icon}
+      variant={size === "inline" ? "caption" : size === "sm" ? "footnote" : "subhead"}
+      iconRole={size === "md" ? "body" : "seal"}
+      gap="tight"
+      weight={size === "inline" ? "semibold" : "medium"}
+      numeric={size === "inline"}
+      tint={tc.fg}
+      maxFontSizeMultiplier={size === "inline" ? 1.5 : undefined}
+      centerOnBox
+    >
+      {label}
+    </IconText>
   );
   const style = {
     flexDirection: "row" as const,
     alignItems: "center" as const,
     alignSelf: "flex-start" as const,
-    gap: t.space.xs,
     minHeight: height,
     paddingHorizontal: size === "inline" ? t.space.xs + 2 : t.space.md,
     borderRadius: size === "inline" ? t.radius.xs : t.radius.full,
