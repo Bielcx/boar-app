@@ -903,15 +903,18 @@ export function createAnswerer(deps: AnswerDeps) {
       // given came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up front; the
       // compact model declines, as with no source at all, unless asked to answer anyway.
       const knowledge = !health && plan.retrieve && gen.mode !== "multipass" && ["lookup", "research", "compare", "extract"].includes(taskType);
-      if (knowledge && sources.length && text.trim() && !/\[\d+\]/.test(text)) {
-        if (isCompactModel(genLlm) && !req.answerAnyway) {
+      // Also with no source at all (the instruction asks for the line; a model may skip it).
+      const saysNotFromLibrary = /not (come )?from (an |any |the )?offline|n[ãa]o (vem|é|e) de (uma |nenhuma )?fonte offline/i.test(text.slice(0, 300));
+      if (knowledge && text.trim() && !/\[\d+\]/.test(text) && !saysNotFromLibrary) {
+        if (sources.length && isCompactModel(genLlm) && !req.answerAnyway) {
           reasonCodes.push("grounding:uncited-declined-compact");
           emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
           finalText = "";
           return finish(genTier, "success", "", [], baseReceipt);
         }
         reasonCodes.push("grounding:uncited-preface");
-        emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
+        // No source: the weak_sources warning already went out before generation.
+        if (sources.length) emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source covers this question." });
         text = `${uncitedPreface(pt)}\n\n${text.trim()}`;
         finalText = text;
       }
