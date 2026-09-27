@@ -13,7 +13,7 @@ import { tileBbox, tileEntry, tileIdsFor, type PoiTile } from "./poiRegions";
 import type { PlaceMatch, PoiQuery, PoiSearchResult } from "./pois.types";
 import type { PackSql } from "./wikiPack";
 import { guard, type Guarded } from "./guardedDb";
-import { registerStoreCloser } from "../services/resetOrder";
+import { registerResetHook } from "../services/resetOrder";
 
 export type { Diet, DietLevel, PlaceMatch, Poi, PoiQuery, PoiSearchResult } from "./pois.types";
 export type { PlaceSuggestion } from "./poiPack";
@@ -36,15 +36,16 @@ async function open(file: string): Promise<SQLite.SQLiteDatabase> {
   const path = `${FileSystem.documentDirectory}${POI_DIR}${file}`.replace(/^file:\/\//, "");
   const slash = path.lastIndexOf("/");
   const conn = guard(await SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash)), `places ${file}`);
-  await conns.get(file)?.close().catch(() => {});
+  conns.get(file)?.retire();
   conns.set(file, conn);
   return conn.db;
 }
 
+/** Stops using a connection without closing it natively (expo-sqlite 57 crashes closing an FTS5 connection, RS-1). */
 async function closeConn(file: string): Promise<void> {
   const conn = conns.get(file);
   conns.delete(file);
-  await conn?.close().catch(() => {});
+  conn?.retire();
 }
 
 function openPack(file: string): Promise<PoiPack | null> {
@@ -99,7 +100,7 @@ export async function installedPoiAreas(): Promise<PoiArea[]> {
   return areas;
 }
 
-/** Closes an open pack before its file is deleted, once the searches running on it finish. */
+/** Stops using an open pack before its file is deleted (not closed natively; see closeConn). */
 export async function closePoiPack(filename: string): Promise<void> {
   const file = filename.replace(/^.*\//, "");
   opened.delete(file);
@@ -108,10 +109,10 @@ export async function closePoiPack(filename: string): Promise<void> {
 }
 
 /**
- * Closes every places pack and the gazetteer (a reset deletes poi/ next), including ones still being opened, and
- * forgets the caches. Idempotent; registered with the reset order below.
+ * Forgets every places pack and the gazetteer (a reset deletes poi/ next), including ones still being opened, and
+ * the caches, without closing connections natively. Idempotent; registered with the reset order below.
  */
-export async function closeAllPoiPacks(): Promise<void> {
+export async function forgetAllPoiPacks(): Promise<void> {
   generation++;
   await Promise.all([...opening.values(), placesOpening].map((p) => p?.catch(() => null)));
   opened.clear();
@@ -121,7 +122,10 @@ export async function closeAllPoiPacks(): Promise<void> {
   await Promise.all([...conns.keys()].map(closeConn));
 }
 
-registerStoreCloser("places", closeAllPoiPacks);
+/** @deprecated Kept for callers of the first reset contract. */
+export const closeAllPoiPacks = forgetAllPoiPacks;
+
+registerResetHook("forget", "places", forgetAllPoiPacks);
 
 export async function searchPois(q: PoiQuery): Promise<PoiSearchResult> {
   return searchPoiPacks(await installedPoiAreas(), q);

@@ -24,7 +24,7 @@ describe("guard", () => {
     const g = guard(f.db);
     const read = g.db.getAllAsync("SELECT 1");
     const closing = g.close();
-    const again = g.db.closeAsync();
+    const again = g.close();
     expect(g.closing).toBe(true);
     expect(f.log).toEqual(["start SELECT 1"]);
     f.finish();
@@ -40,5 +40,16 @@ describe("guard", () => {
     await g.close();
     await expect(saved.getFirstAsync("SELECT 2")).rejects.toBeInstanceOf(DbClosedError);
     expect(f.log).toEqual(["close"]);
+  });
+
+  it("retire() and the handle's closeAsync() stop the connection in JS without closing it natively (RS-1)", async () => {
+    const f = fakeDb();
+    const a = guard(f.db);
+    a.retire();
+    await expect(a.db.getFirstAsync("SELECT 3")).rejects.toBeInstanceOf(DbClosedError);
+    const b = guard(fakeDb().db);
+    await b.db.closeAsync();
+    await expect(b.db.getFirstAsync("SELECT 4")).rejects.toBeInstanceOf(DbClosedError);
+    expect(f.log).not.toContain("close");
   });
 });
