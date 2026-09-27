@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
-import { DarkTheme, DefaultTheme, NavigationContainer, Theme, useNavigation } from "@react-navigation/native";
+import { useWindowDimensions } from "react-native";
+import { DarkTheme, DefaultTheme, NavigationContainer, NavigationState, Theme, useNavigation } from "@react-navigation/native";
+import { fontScaleKey, saveNavState, savedNavState } from "./navState";
 import { createNativeStackNavigator, NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -132,8 +134,16 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
   const t = useTokens();
   const { t: tr } = useTranslation();
   const theme = useMemo(() => navigationTheme(t), [t]);
+  const { fontScale } = useWindowDimensions();
   return (
-    <NavigationContainer theme={theme}>
+    // Remounted when the system font size changes, so every Text measures again (FS-1);
+    // the saved state puts the user back on the same screen.
+    <NavigationContainer
+      key={fontScaleKey(fontScale)}
+      theme={theme}
+      initialState={savedNavState<NavigationState>()}
+      onStateChange={saveNavState}
+    >
       <StatusBar style={t.scheme === "dark" ? "light" : "dark"} />
       <Stack.Navigator
         initialRouteName={initialRoute}
