@@ -1163,18 +1163,7 @@ function InstallStep({
         // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
         // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
         <Card style={{ gap: tokens.space.md - tokens.space.xxs, borderRadius: tokens.radius.hero }}>
-          {offline && activeImport ? (
-            // The copy's Cancel takes the boar's corner, never over the figure (Iris S3C-1).
-            <View style={{ position: "absolute", top: tokens.space.sm, right: tokens.space.xs }}>
-              <Button
-                size="sm"
-                variant="ghost"
-                label={t("common.cancel")}
-                accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
-                onPress={catalog.cancelImports}
-              />
-            </View>
-          ) : fontScale > LARGE_TEXT ? (
+          {fontScale > LARGE_TEXT ? (
             // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
             <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
               <Mascot size="brand" />
@@ -1204,9 +1193,23 @@ function InstallStep({
               {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
             </Text>
           )}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: tokens.space.md }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: tokens.space.md }}>
             <MetaLine items={hero.meta} />
             {!allPresent && etaS != null && <MetaLine items={[t("flows.onboarding.minutesLeft", { count: minutesLeft(etaS) })]} />}
+            {offline && activeImport && (
+              // The copy's Cancel sits in the mockup's ETA slot, next to the progress it stops; neutral, not ember,
+              // so it doesn't compete with the bar; 44 pt touch from hitSlop (Iris, Prism).
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
+                onPress={catalog.cancelImports}
+                hitSlop={{ top: tokens.space.md, bottom: tokens.space.md, left: tokens.space.base, right: tokens.space.base }}
+              >
+                <Text variant="footnote" color="secondary">
+                  {t("common.cancel")}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </Card>
       )}
