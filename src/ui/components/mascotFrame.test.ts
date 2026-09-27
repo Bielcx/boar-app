@@ -1,0 +1,25 @@
+import { describe, expect, it } from "vitest";
+import { CROP, discImage, OPAQUE } from "./mascotFrame";
+
+describe("discImage", () => {
+  it("matches the mockup window (192% at 72% 40%) with the cropped asset", () => {
+    const { size, left, top } = discImage(100);
+    expect(size).toBeCloseTo(138.4, 1);
+    expect(left).toBeCloseTo(-44.9, 1);
+    expect(top).toBeCloseTo(-12.1, 1);
+  });
+
+  it("scales linearly with the diameter", () => {
+    const a = discImage(32);
+    const b = discImage(64);
+    expect(b.size).toBeCloseTo(a.size * 2, 5);
+    expect(b.left).toBeCloseTo(a.left * 2, 5);
+  });
+
+  it("crops without losing any opaque pixel (outside the crop the disc shows its accent, as in the mockup)", () => {
+    expect(CROP.x).toBeLessThanOrEqual(OPAQUE.x0);
+    expect(CROP.y).toBeLessThanOrEqual(OPAQUE.y0);
+    expect(CROP.x + CROP.side).toBeGreaterThanOrEqual(OPAQUE.x1);
+    expect(CROP.y + CROP.side).toBeGreaterThanOrEqual(OPAQUE.y1);
+  });
+});

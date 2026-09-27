@@ -13,3 +13,13 @@ export function emberGradient(glowRgb: string, peak = EMBER_PEAK_ALPHA): string 
   const mid = (peak * 0.25).toFixed(3);
   return `radial-gradient(ellipse at 50% 100%, rgba(${glowRgb}, ${peak}) 0%, rgba(${glowRgb}, ${mid}) 45%, rgba(${glowRgb}, 0) 70%)`;
 }
+
+/**
+ * Glow under the hero mascot (mockup: .45 → 0 at 68%). The wordmark sits on
+ * its upper edge, so it is held to AA for primary text in ambient.test.ts.
+ */
+export const MASCOT_GLOW_ALPHA = 0.45;
+
+export function mascotGlow(glowRgb: string, peak = MASCOT_GLOW_ALPHA): string {
+  return `radial-gradient(ellipse at 50% 100%, rgba(${glowRgb}, ${peak}) 0%, rgba(${glowRgb}, 0) 68%)`;
+}

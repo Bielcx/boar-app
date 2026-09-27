@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { DrawerContentComponentProps, useDrawerStatus } from "@react-navigation/drawer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getMemorySettings } from "../../models/settings";
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
-import { Button, IconButton, IconName, ListRow, Sheet, Text, useToast } from "../components";
+import { Button, IconButton, IconName, ListRow, Mascot, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import { useChatBridge } from "./chatBridge";
 import type { RootStackParamList } from "./types";
@@ -59,12 +59,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
   return (
     <View style={{ flex: 1, backgroundColor: t.color.bg.surface, paddingTop: insets.top }}>
       <View style={[styles.brand, { paddingHorizontal: t.space.base, paddingVertical: t.space.md, gap: t.space.md }]}>
-        <Image
-          source={require("../../../assets/boar.png")}
-          style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.color.accent.solid }}
-          accessibilityIgnoresInvertColors
-          accessible={false}
-        />
+        <Mascot size="brand" />
         <View style={{ flex: 1 }} accessible accessibilityRole="header">
           <Text variant="title2" accessibilityLabel="BOAR">
             boar
