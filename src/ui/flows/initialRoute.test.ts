@@ -55,4 +55,5 @@ describe("decideInitialRoute", () => {
       expect(decideInitialRoute({ ...base, requiredPresent: true, installedLlms: [{ ...DEFAULT, fit: "insufficient" }, COMPACT] }).setActiveLlmId).toBe(COMPACT.id);
     });
   });
+
 });

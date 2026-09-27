@@ -380,9 +380,12 @@
         "insufficient": "Won't fit"
       },
       "mayClose": "May close the app",
-      "mayCloseWhy": "too big for this phone's memory; Compact is recommended here",
-      "mayCloseTitle": "Use {{name}}?",
-      "mayCloseBody": "BOAR may close when it loads this model. Compact is the recommended one here.",
+      "mayCloseWhy": "too big for this phone's memory",
+      "mayCloseTitle": "Use this model?",
+      "mayCloseBefore": "BOAR may close when it loads ",
+      "mayCloseAfter": ". Compact is the recommended one here.",
+      "showAll": "Show all",
+      "showLess": "Show less",
       "keepCompact": "Keep Compact",
       "useAnyway": "Use anyway",
       "fitWhy": {

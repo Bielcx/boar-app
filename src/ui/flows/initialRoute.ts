@@ -33,5 +33,7 @@ export function decideInitialRoute(s: BootState): BootDecision {
   // Nothing the chat could load: setup, never a chat that opens on an error.
   if (!s.installedLlms.length) return { route: "Setup" };
   const pick = rankAnswerModels(s.installedLlms, s.totalRamBytes).pick;
-  return { route: "Main", setActiveLlmId: pick?.id ?? s.installedLlms[0].id };
+  // No pick = only models too big for this phone's memory (Tusk, CR-1): save nothing. Opening
+  // the chat on one would get the app killed; the engine says to install Compact or confirm one.
+  return pick ? { route: "Main", setActiveLlmId: pick.id } : { route: "Main" };
 }

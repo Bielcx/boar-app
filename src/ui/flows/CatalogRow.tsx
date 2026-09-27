@@ -59,6 +59,9 @@ function seal(state: RowState, t: TFunction): Seal {
   }
 }
 
+/** A detail line longer than this may wrap past two lines: it folds, with Show all. */
+const DETAIL_FOLD_CHARS = 90;
+
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
 export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true, fileImport }: Props) {
@@ -69,8 +72,11 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
   const [closeRiskOpen, setCloseRiskOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   // On a low-RAM phone, a model bigger than the compact one asks before loading (CR-1).
   const requestUse = onUse && (view.mayCloseApp ? () => setCloseRiskOpen(true) : onUse);
+  // A ghost Remove that opens the actions row lines its text up with the column above (Iris).
+  const leadsActions = !(view.primary === "download" || view.primary === "explain" || view.primary === "retry" || (view.primary === "use" && onUse));
   const [removing, setRemoving] = useState(false);
   const { state } = view;
   const b = seal(state, t);
@@ -97,16 +103,14 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   return (
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
       {/* The mockup's catalog card: kind overline and status seal, then the name with its size, then one metadata line. */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-        <View style={{ flex: 1 }}>
-          {showKind && (
-            <Text variant="label" color="field">
-              {t(`flows.row.kind.${model.kind}`)}
-            </Text>
-          )}
+      {showKind && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+          <Text variant="label" color="field" style={{ flex: 1 }}>
+            {t(`flows.row.kind.${model.kind}`)}
+          </Text>
+          <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
         </View>
-        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
-      </View>
+      )}
       <View style={{ gap: tokens.space.xs }}>
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
           <Text variant="headline" style={{ flex: 1 }}>
@@ -116,19 +120,31 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             {size}
           </Text>
         </View>
-        <MetaLine
-          items={[
-            state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
-            // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
-            view.mayCloseApp ? t("flows.row.mayCloseWhy") : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
-            meta ?? model.license,
-          ]}
-        />
+        {/* Without the kind overline, the seal sits on the metadata line, not alone above the title (Prism KN-6). */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+          <View style={{ flex: 1 }}>
+            <MetaLine
+              items={[
+                state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
+                // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
+                view.mayCloseApp ? t("flows.row.mayCloseWhy") : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
+                meta ?? model.license,
+              ]}
+            />
+          </View>
+          {!showKind && <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />}
+        </View>
         {details?.map((d) => (
-          <Text key={d} variant="footnote" color="secondary">
+          // Long lines (a pack's sources) fold to two lines (Iris).
+          <Text key={d} variant="footnote" color="secondary" numberOfLines={showAll ? undefined : 2}>
             {d}
           </Text>
         ))}
+        {details?.some((d) => d.length > DETAIL_FOLD_CHARS) && (
+          <View style={{ alignSelf: "flex-start", marginLeft: -tokens.space.md }}>
+            <Button size="sm" variant="ghost" label={t(showAll ? "flows.row.showLess" : "flows.row.showAll")} onPress={() => setShowAll((v) => !v)} />
+          </View>
+        )}
       </View>
       {view.mayCloseApp ? (
         <View style={{ flexDirection: "row" }}>
@@ -212,6 +228,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Button size="sm" variant="secondary" label={t("flows.row.use")} onPress={requestUse} disabled={busy} />
         )}
         {removable && (
+          <View style={leadsActions ? { marginLeft: -tokens.space.md } : undefined}>
           <Button
             size="sm"
             variant="ghost"
@@ -220,6 +237,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             accessibilityHint={view.removeBlocked ? t("flows.row.inUseHint") : undefined}
             onPress={() => (view.removeBlocked ? toast({ message: t("flows.row.inUseHint") }) : setConfirmOpen(true))}
           />
+          </View>
         )}
       </View>
 
@@ -257,8 +275,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       <Sheet
         visible={closeRiskOpen}
         onClose={() => setCloseRiskOpen(false)}
-        title={t("flows.row.mayCloseTitle", { name: title ?? model.label })}
-        description={t("flows.row.mayCloseBody")}
+        title={t("flows.row.mayCloseTitle")}
         footer={
           <>
             {/* Compact is the default here: the safe choice first (the Sheet stacks the footer bottom-up). */}
@@ -274,7 +291,16 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             />
           </>
         }
-      />
+      >
+        {/* A short title; the model's full name goes in the body, in bold (Iris). */}
+        <Text variant="callout">
+          {t("flows.row.mayCloseBefore")}
+          <Text variant="callout" weight="semibold">
+            {title ?? model.label}
+          </Text>
+          {t("flows.row.mayCloseAfter")}
+        </Text>
+      </Sheet>
 
       <Sheet
         visible={confirmOpen}
