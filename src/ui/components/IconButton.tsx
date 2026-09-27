@@ -3,6 +3,7 @@ import { Pressable, PressableProps, StyleProp, View, ViewStyle } from "react-nat
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
 import { useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
+import { touchSlop } from "./touchTarget";
 
 export interface IconButtonProps extends Omit<PressableProps, "children" | "style" | "accessibilityLabel"> {
   icon: IconName;
@@ -37,7 +38,7 @@ export const IconButton = forwardRef<View, IconButtonProps>(function IconButton(
   const c = t.color;
   const visual =
     size === "sm" ? t.size.controlSm : size === "header" ? t.size.headerDisc : size === "lg" ? t.size.composer : t.size.touch;
-  const slop = Math.max(0, (t.size.touch - visual) / 2);
+  const slop = touchSlop(visual, t.size.touch);
   // A disabled filled button drops the accent entirely (raised disc, muted icon): at 45% opacity an
   // ember disc still read as "ready" on the dark canvas (Prism IX-1).
   const mutedFilled = variant === "filled" && !!disabled;
