@@ -69,6 +69,8 @@ export interface PackHit {
   /** Monthly pageviews of the article (0 when unknown). */
   views: number;
   lead: boolean;
+  /** The passage's section tells what to do (Treatment, First aid, During an earthquake…): see ACTION_SECTION. */
+  action: boolean;
   /** The source page and its license, when the pack records them (otherwise derive from title and source). */
   url?: string;
   license?: string;
@@ -101,6 +103,31 @@ const SOURCES: PackSource[] = ["enwiki", "enwikivoyage", "enwikibooks", "apprope
 export const NAMED_MIN_SHARE = 0.5;
 
 /** Questions that read like travel planning: a same-named Wikivoyage guide goes before the encyclopedia article. */
+/** Questions asking what to do (first aid, emergencies), in English or Portuguese. */
+export const ACTION_INTENT =
+  /\b(what (do|should|can|must) (i|we|you) do|what to do|how (do|can|should) (i|we|you) (treat|stop|help|survive|make|purify|disinfect|respond|care)|how to (treat|stop|help|survive|make|purify|disinfect)|treat(ing|ment)?|first aid|stop (a|the)?\s*\w*\s*(bleed|nosebleed)|o que (eu )?(fa[cç]o|fazer|devo fazer)|como (tratar|parar|socorrer|fa[cç]o|agir|purificar|tornar)|primeiros socorros|socorr)/i;
+/** Section headings that tell what to do, for ACTION_INTENT questions. */
+export const ACTION_SECTION =
+  /\b(treatment|treating|first aid|management|what to do|during|after|immediate|emergency (care|treatment|response)|how to|steps|response|survival|purification|disinfection|rescue|resuscitation|tratamento|primeiros socorros|o que fazer)\b/i;
+/** Background sections that don't say what to do; ranked below everything else for ACTION_INTENT questions. */
+export const BACKGROUND_SECTION =
+  /\b(prevent(ion|ing)?|signs?|symptoms?|epidemiology|history|causes?|pathophysiology|diagnosis|society|culture|research|etymology|statistics|by country|quality by|in (fiction|popular culture)|terminology|classification|see also|preparation|preparedness|prepare|before|forecast\w*|predict\w*|regulation|testing)\b/i;
+
+/**
+ * What a section is for, from its heading path ("Management > Intravenous fluids"). The last heading decides first:
+ * "Management > Forecasting" is background. "action" when the last heading itself says what to do, "action-sub"
+ * when only a parent does.
+ */
+export function sectionKind(section: string): "action" | "action-sub" | "background" | "other" {
+  const path = section.split(" > ");
+  const leaf = path[path.length - 1];
+  if (BACKGROUND_SECTION.test(leaf)) return "background";
+  if (ACTION_SECTION.test(leaf)) return "action";
+  const parents = path.slice(0, -1).join(" > ");
+  if (ACTION_SECTION.test(parents)) return "action-sub";
+  return BACKGROUND_SECTION.test(parents) ? "background" : "other";
+}
+
 const TRAVEL_INTENT = /\b(visit|visiting|things to (see|do)|what (can|should) (i|we) (see|do)|see and do|travel|trip|get (to|there|around)|getting (to|around)|stay|hotel|hostel|eat|restaurants?|sights?|tourists?|itinerary|by (train|bus|car|ferry)|airport)\b/i;
 
 /** Cosine (bge-small) of a lead that's about the question even without its words. */
@@ -446,13 +473,14 @@ export class WikiPack {
       source: a.source,
       views: a.views,
       lead,
+      action: !lead && sectionKind(sectionAt(a.text, start)).startsWith("action"),
       ...(a.url ? { url: a.url } : {}),
       ...(a.license ? { license: a.license } : {}),
     };
   }
 
   /** The article's lead chunk plus its `nSections` chunks that best cover the question. */
-  async articlePassages(articleId: number, stems: Stem[], nSections = 2): Promise<PackHit[]> {
+  async articlePassages(articleId: number, stems: Stem[], nSections = 2, action = false): Promise<PackHit[]> {
     const a = await this.article(articleId);
     const rows = await this.db.getAllAsync<{ id: number; start: number; end: number }>(
       "SELECT id, start, end FROM chunks WHERE article_id = ? ORDER BY id",
@@ -463,8 +491,17 @@ export class WikiPack {
     const lead = a.text.startsWith("Key facts:", rows[0].start) && rows.length > 1 ? rows[1] : rows[0];
     const scored = rows
       .filter((r) => r !== lead)
-      .map((r) => ({ r, s: this.passageScore(a.text, r.start, r.end, stems) }))
+      .map((r) => {
+        const s = this.passageScore(a.text, r.start, r.end, stems);
+        if (!action) return { r, s };
+        // A what-to-do question wants the article's Treatment/First aid/During section, not its Prevention or History.
+        const kind = sectionKind(sectionAt(a.text, r.start));
+        return { r, s: kind === "action" ? s + 0.5 : kind === "action-sub" ? s + 0.25 : kind === "background" ? s * 0.3 : s };
+      })
       .sort((x, y) => y.s - x.s || y.r.start - x.r.start)
+      // One passage per section (the best-scored, first after the sort): two chunks of "Intravenous fluids" would
+      // crowd out another section.
+      .filter((x, i, all) => all.findIndex((y) => sectionAt(a.text, y.r.start) === sectionAt(a.text, x.r.start)) === i)
       .slice(0, nSections)
       .filter((x) => x.s > 0.15);
     return Promise.all([
@@ -577,7 +614,8 @@ export class WikiPack {
       const id = await this.resolveTitle(t);
       if (id !== null && !ids.includes(id)) ids.push(id);
     }
-    let hits = await this.titleHits(ids, stems);
+    const action = ACTION_INTENT.test(query);
+    let hits = await this.titleHits(ids, stems, 5, action);
     const limit = Math.max(k, ids.length * 2);
     if (hits.length < limit) {
       const topic = titles.length ? await this.stems(titles.join(" ")) : stems;
@@ -602,6 +640,15 @@ export class WikiPack {
         const relevant =
           coverage(`${h.title} ${h.text}`, topic.length ? topic : stems) >= 0.5 || (sem?.get(c.articleId) ?? 0) >= SEMANTIC_KEEP;
         if (relevant && !hits.some((x) => nearDuplicate(x.text, h.text))) {
+          // What-to-do question, passage from another section: the same article's action section instead, if it has one.
+          if (action && !h.action) {
+            const act = (await this.articlePassages(c.articleId, stems, 1, true)).find((p) => p.action);
+            if (act && !seen.has(act.chunkId)) {
+              hits.push({ ...act, via: "bm25", score: h.score });
+              seen.add(act.chunkId);
+              continue;
+            }
+          }
           hits.push(h);
           seen.add(c.chunkId);
         }
@@ -618,9 +665,9 @@ export class WikiPack {
     return { hits: hits.slice(0, limit), stems };
   }
 
-  private async titleHits(ids: number[], stems: Stem[], ranks = 5): Promise<PackHit[]> {
+  private async titleHits(ids: number[], stems: Stem[], ranks = 5, action = false): Promise<PackHit[]> {
     const perTitle: PackHit[][] = [];
-    for (const id of ids) perTitle.push(await this.articlePassages(id, stems));
+    for (const id of ids) perTitle.push(await this.articlePassages(id, stems, 2, action));
     const hits: PackHit[] = [];
     const seen = new Set<number>();
     const add = (h: PackHit) => {

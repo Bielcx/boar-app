@@ -39,6 +39,16 @@ const rows = [
     page_id: 3e9 + 7, title: "Horta comunitária", source: "appropedia", url: "https://www.appropedia.org/Horta", license: "CC BY-SA 4.0",
     text: `# Horta comunitária\n\nComo plantar uma horta de verduras e parar de comprar. Como regar uma horta de manhã. ${filler("Horta")}`,
   },
+  // A first-aid article whose prevention section repeats the question's words more than its treatment section.
+  {
+    page_id: 901, title: "Scald", source: "enwiki",
+    text: [
+      "# Scald", "", "A scald is a burn from hot liquid such as boiling water. " + filler("Scald"), "",
+      "## Prevention", "", "To prevent a scald from boiling water, keep children away from boiling water and turn pot handles inward. Boiling water spills cause most child scalds. " + filler("Prevention"), "",
+      "## Treatment", "", "Cool the scald under cool running water for twenty minutes, remove tight clothing, and cover it loosely. " + filler("Cooling"), "",
+      "## History", "", "Scalds from boiling water were described in ancient medicine. " + filler("History"),
+    ].join("\n"),
+  },
 ];
 
 let pack: WikiPack;
@@ -85,5 +95,15 @@ describe("topic-pack sources", () => {
       const hits = await pack.search(q);
       expect(hits[0]?.title, q).toBe("Burn");
     }
+  });
+
+  it("gives a what-to-do question the article's treatment section, not its prevention or history", async () => {
+    const hits = await pack.search("My child spilled boiling water. What do I do about the scald?", { titles: ["Scald"] });
+    const sections = hits.filter((h) => h.title === "Scald" && !h.lead);
+    expect(sections[0]?.section).toBe("Treatment");
+    expect(sections[0]?.action).toBe(true);
+    // A question that isn't asking what to do keeps the plain word-overlap order.
+    const plain = await pack.search("Why do boiling water spills scald children?", { titles: ["Scald"] });
+    expect(plain.filter((h) => h.title === "Scald" && !h.lead)[0]?.section).toBe("Prevention");
   });
 });

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decompress } from "fzstd";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { WikiPack, countAtBoundary, coverage, nearDuplicate, sectionAt, titleCandidates } from "./wikiPack";
+import { WikiPack, countAtBoundary, coverage, nearDuplicate, sectionAt, sectionKind, titleCandidates } from "./wikiPack";
 
 // A pack built by the real builder from a fixture of six made-up, test-only
 // articles (src/rag/testing/fixtures/mini-wiki.jsonl), read back with fzstd,
@@ -108,5 +108,16 @@ describe("matchTerm", () => {
     expect(matchTerm("purifi")).toBe('"purif"*');
     expect(matchTerm("water")).toBe('"water"');
     expect(matchTerm("hi")).toBe('"hi"');
+  });
+});
+
+describe("sectionKind", () => {
+  it("lets the last heading decide, and tells a what-to-do heading from one that only sits under one", () => {
+    expect(sectionKind("Treatment")).toBe("action");
+    expect(sectionKind("Management > Intravenous fluids")).toBe("action-sub");
+    expect(sectionKind("Management > Forecasting")).toBe("background");
+    expect(sectionKind("Prevention")).toBe("background");
+    expect(sectionKind("Effects > Fires")).toBe("other");
+    expect(sectionKind("During an earthquake")).toBe("action");
   });
 });
