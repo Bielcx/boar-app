@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decompress } from "fzstd";
 import { nodeSqliteDatabase } from "./testing/nodeSqlite";
-import { WikiPack, countAtBoundary, coverage, nearDuplicate, sectionAt, sectionKind, titleCandidates } from "./wikiPack";
+import { WikiPack, countAtBoundary, coverage, instructionShare, nearDuplicate, sectionAt, sectionKind, titleCandidates } from "./wikiPack";
 
 // A pack built by the real builder from a fixture of six made-up, test-only
 // articles (src/rag/testing/fixtures/mini-wiki.jsonl), read back with fzstd,
@@ -119,5 +119,15 @@ describe("sectionKind", () => {
     expect(sectionKind("Prevention")).toBe("background");
     expect(sectionKind("Effects > Fires")).toBe("other");
     expect(sectionKind("During an earthquake")).toBe("action");
+  });
+});
+
+describe("instructionShare", () => {
+  it("scores steps above context", () => {
+    const steps = 'Stay indoors. Get down on the floor and cover your head. Hold on to the table. Do not run outside.';
+    const context = "Earthquakes are unpredictable. An early warning system gives people a few seconds. Such systems exist in Japan.";
+    expect(instructionShare(steps)).toBeGreaterThan(0.7);
+    expect(instructionShare(context)).toBe(0);
+    expect(instructionShare("If you are in bed, stay there and cover your head.")).toBe(1);
   });
 });

@@ -4,7 +4,8 @@
 // of the same article on pt.wikipedia (interlanguage link) and, optionally, that article's Portuguese redirects.
 // Keys are normalized (lower case, no accents, no trailing "(…)"). When two names share a key, an exact Portuguese
 // title beats a title with a "(…)" qualifier, which beats a redirect ("São Paulo" is the city, not "São Paulo
-// (apóstolo)"). A one-word key only comes from an exact title: "assinatura" isn't "Assinatura (lógica)".
+// (apóstolo)"). A one-word key comes from an exact title or a redirect of 8+ letters: "assinatura" isn't
+// "Assinatura (lógica)", "terremoto" is Earthquake.
 // Build time only.
 //
 //   node scripts/build-pt-lexicon.mjs --titles titles.txt --out assets/lexicon/pt-en.json [--redirects]
@@ -45,7 +46,9 @@ log(`${ptOf.size} titles have a Portuguese article`);
 const lexicon = new Map(); // key -> { en, rank }: 3 exact title, 2 title with a "(…)" qualifier, 1 redirect
 const put = (name, en, rank) => {
   const k = normalizeKey(name);
-  if (k.length < 3 || (!k.includes(" ") && rank < 3)) return;
+  // One-word names: exact titles, or long redirects ("terremoto" -> Earthquake, whose title is "Sismo"); short
+  // one-word redirects are too often another sense ("assinatura" -> Signature (logic)).
+  if (k.length < 3 || (!k.includes(" ") && rank < 3 && k.length < 8)) return;
   if ((lexicon.get(k)?.rank ?? 0) < rank) lexicon.set(k, { en, rank });
 };
 for (const [pt, en] of ptOf) put(pt, en, /\(/.test(pt) ? 2 : 3);

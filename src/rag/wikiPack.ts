@@ -118,6 +118,27 @@ export const BACKGROUND_SECTION =
  * "Management > Forecasting" is background. "action" when the last heading itself says what to do, "action-sub"
  * when only a parent does.
  */
+const IMPERATIVE =
+  /^(?:["“]?)(do not|don't|never|always|stay|get|keep|move|go|drop|cover|hold|take|call|apply|remove|cool|wash|press|pinch|lean|lie|sit|stand|put|place|use|avoid|check|turn|open|close|leave|seek|shelter|protect|stop|drink|boil|rinse|elevate|raise|loosen|wrap|clean|find|look|listen|help|give|try|watch|wait|walk|run|crawl|follow|make|bring|carry|tie|immobili[sz]e|monitor|reassure|if [^,]{1,60}, (?:do not|don't|stay|get|keep|move|go|drop|cover|hold|take|call|leave|use|stop))\b/i;
+
+/** Share of a passage's sentences that tell the reader what to do ("Stay indoors.", "Do not run!"). */
+export function instructionShare(text: string): number {
+  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((s) => s.replace(/^[-*•\d.)\s]+/, "").trim()).filter((s) => s.length > 3);
+  return sentences.length ? sentences.filter((s) => IMPERATIVE.test(s)).length / sentences.length : 0;
+}
+
+/** Share of imperative sentences above which a section with a neutral heading counts as steps (lay first-aid manuals). */
+const STEPS_SHARE = 0.35;
+
+/**
+ * Whether a passage tells what to do: its heading says so (Treatment, First aid, During…), or its heading is neutral
+ * ("Hypothermia", "Animal bites > Snakes" in a first-aid manual) and most of it is instructions.
+ */
+export function isActionPassage(section: string, text: string): boolean {
+  const kind = sectionKind(section);
+  return kind.startsWith("action") || (kind === "other" && instructionShare(text) >= STEPS_SHARE);
+}
+
 export function sectionKind(section: string): "action" | "action-sub" | "background" | "other" {
   const path = section.split(" > ");
   const leaf = path[path.length - 1];
@@ -473,7 +494,7 @@ export class WikiPack {
       source: a.source,
       views: a.views,
       lead,
-      action: !lead && sectionKind(sectionAt(a.text, start)).startsWith("action"),
+      action: !lead && isActionPassage(sectionAt(a.text, start), a.text.slice(start, end)),
       ...(a.url ? { url: a.url } : {}),
       ...(a.license ? { license: a.license } : {}),
     };
@@ -496,7 +517,12 @@ export class WikiPack {
         if (!action) return { r, s };
         // A what-to-do question wants the article's Treatment/First aid/During section, not its Prevention or History.
         const kind = sectionKind(sectionAt(a.text, r.start));
-        return { r, s: kind === "action" ? s + 0.5 : kind === "action-sub" ? s + 0.25 : kind === "background" ? s * 0.3 : s };
+        if (kind === "background") return { r, s: s * 0.3 };
+        // Among what-to-do sections, the one that gives steps ("Stay indoors. Get down… Hold on…") over context; a
+        // neutral heading whose text is mostly steps counts as a what-to-do section.
+        const share = instructionShare(a.text.slice(r.start, r.end));
+        if (kind === "other") return { r, s: share >= STEPS_SHARE ? s + 0.5 + 0.4 * share : s };
+        return { r, s: s + (kind === "action" ? 0.5 : 0.25) + 0.4 * share };
       })
       .sort((x, y) => y.s - x.s || y.r.start - x.r.start)
       // One passage per section (the best-scored, first after the sort): two chunks of "Intravenous fluids" would

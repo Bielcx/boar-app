@@ -11,6 +11,7 @@ import {
 import type { RetrievedChunk } from "./retrieve.types";
 import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
 import { englishNamesIn, looksPortuguese, type Lexicon } from "./ptLexicon";
+import { ACTION_INTENT } from "./wikiPack";
 import { ptLexicon } from "./ptLexiconAsset";
 
 export type { RetrievedChunk } from "./retrieve.types";
@@ -117,10 +118,24 @@ export async function retrieve(
   const found = await retrieveOne(names.join(" "), topK, { includeWikiPacks: opts.includeWikiPacks, titles: names });
   // Sources without a title boost (bundled corpus, format-1 packs): the article whose title is one of the names first.
   const named = new Set(names.map((n) => n.toLowerCase()));
-  const english = [...found.filter((c) => named.has(c.title.toLowerCase())), ...found.filter((c) => !named.has(c.title.toLowerCase()))];
+  // A what-to-do question: passages from a section that says what to do (the preparedness pack's Treatment,
+  // First aid, During…) first; then articles named exactly; disambiguation lists never.
+  const action = ACTION_INTENT.test(query);
+  const rank = (c: RetrievedChunk) => (action && c.action ? 0 : named.has(c.title.toLowerCase()) ? 1 : 2);
+  const english = found.filter((c) => !isDisambiguation(c)).sort((a, b) => rank(a) - rank(b));
   const seen = new Set<string>();
-  const merged = [...english.slice(0, Math.ceil((topK * 2) / 3)), ...main, ...english].filter((c) => !seen.has(c.chunkId) && (seen.add(c.chunkId), true));
+  // In a what-to-do question only steps go first: a generic name ("estrada" -> Road) must not put its article
+  // ahead of everything else.
+  const first = action ? english.filter((c) => c.action) : english;
+  const merged = [...first.slice(0, Math.ceil((topK * 2) / 3)), ...main, ...english].filter(
+    (c) => !isDisambiguation(c) && !seen.has(c.chunkId) && (seen.add(c.chunkId), true)
+  );
   return merged.slice(0, topK);
+}
+
+/** A "may refer to" list or a "(disambiguation)" page: never a source. */
+export function isDisambiguation(c: { title: string; body: string }): boolean {
+  return /\(disambiguation\)$/i.test(c.title) || /\bmay (also )?refer to\b/i.test(c.body.slice(0, 300));
 }
 
 async function retrieveOne(

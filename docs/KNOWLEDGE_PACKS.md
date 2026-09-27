@@ -479,7 +479,7 @@ Portuguese question (`looksPortuguese`: two Portuguese function words, or one pl
 positives on 348 English eval questions, 90 of 91 Portuguese detected) and runs a second search with the English
 article names it mentions, those results first, and an article whose title is one of the names ahead of the rest.
 
-The names come from `assets/lexicon/pt-en.json` (104,677 Portuguese names, 4.0 MB), built by
+The names come from `assets/lexicon/pt-en.json` (126,122 Portuguese names, 4.6 MB), built by
 `scripts/build-pt-lexicon.mjs` from Wikipedia itself: for each English title of the bundled corpora, wiki-vital5 and
 the topic packs (57,159), the title of the same article on pt.wikipedia and its Portuguese redirects. An exact title
 beats one with a "(…)" qualifier, which beats a redirect; a one-word name only comes from an exact title (a single
@@ -498,5 +498,14 @@ The English row is lower because an English question only gets the title boost w
 the Portuguese route always searches by name. On wiki-vital5 (format 1, keyword only) the suggestion questions put the
 right article first: estações do ano → *Season*, vacinas → *Immune system*/*Vaccine*, vírus, queimadura → *Burn*,
 efeito estufa, monções, pandemia/epidemia, fissão nuclear, Rota da Seda, Grande Barreira de Corais, sangramento nasal
-→ *Nosebleed*, Fahrenheit. Misses: "picada de abelha" (wiki-vital5 has no *Bee sting*). Remaining noise: a few generic
-names ("homem" → *Man*). Not measured yet: a model translating the question, and a multilingual embedder.
+→ *Nosebleed*, Fahrenheit. Misses: "picada de abelha" (wiki-vital5 has no *Bee sting*).
+
+**Safety rules (gate ee1f2b7):** generic Portuguese words pulled off-topic sources into first-aid answers
+("cobra" → *Cobra*, "estrada" → *Road*, "filho" → *Son*). Now: longest name first (as before); a one-word name
+must be a long word (7+ letters) or a proper noun capitalized mid-question, and a one-word name for a qualified
+title ("complemento" → *Complement (set theory)*) needs the capital; one-word Portuguese redirects of 8+ letters
+count ("terremoto" → *Earthquake*, "sangramento" → *Bleeding*, "enchente" → *Flood*; lexicon v3, 126,122 names);
+disambiguation lists ("may refer to") are never a source on this path; and in a what-to-do question only passages
+from a section that says what to do go ahead of the rest. Sections whose heading is neutral but whose text is
+mostly instructions (lay manuals: Wikibooks *First Aid/Cold-Related Illness & Injury § Hypothermia*) count as
+what-to-do sections. Gate config: recall@1 0.548, @3 0.595, @6 0.643.

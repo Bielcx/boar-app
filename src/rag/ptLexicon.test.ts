@@ -46,5 +46,10 @@ describe("ptLexicon", () => {
     expect(englishNamesIn("Como estancar um sangramento nasal?", lexicon)).toEqual(["Nosebleed"]);
     expect(englishNamesIn("Qual é a capital da França?", lexicon)).toEqual([]);
     expect(englishNamesIn("Quanto é 30 °C em Fahrenheit?", { ...lexicon, "grau fahrenheit": "Fahrenheit" })).toEqual(["Fahrenheit"]);
+    // Short common nouns aren't names; long or capitalized ones are.
+    const generic = { ...lexicon, hora: "Hour", braco: "Arm", filho: "Son", tbilisi: "Tbilisi" };
+    expect(englishNamesIn("Meu filho queimou o braço há uma hora. O que eu faço?", generic)).toEqual([]);
+    expect(englishNamesIn("Onde comer em Tbilisi?", generic)).toEqual(["Tbilisi"]);
+    expect(englishNamesIn("Como tratar uma queimadura?", lexicon)).toEqual(["Burn"]);
   });
 });

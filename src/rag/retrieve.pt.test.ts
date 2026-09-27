@@ -12,6 +12,19 @@ vi.mock("./packs", () => ({
   // Stands in for an English source: only English words match.
   searchPacks: async (query: string) => {
     calls.push(query);
+    const chunk = (id: string, title: string, body: string, action?: boolean) =>
+      ({ chunkId: id, docId: id, title, body, source: "Wikipedia", score: 5, matchType: "lexical" as const, ...(action === undefined ? {} : { action }) });
+    if (/snakebite/i.test(query)) {
+      return {
+        lexical: [
+          chunk("pack:v5:tree", "Tree snake", "Tree snake may refer to: any arboreal snake…"),
+          chunk("pack:prep:lead", "Snakebite", "A snakebite is an injury caused by the bite of a snake.", false),
+          chunk("pack:prep:treat", "Snakebite", "Keep the person still and calm; immobilize the bitten limb.", true),
+        ],
+        semantic: [],
+      };
+    }
+    if (/^road$/i.test(query)) return { lexical: [chunk("pack:v5:road", "Road", "A road is a thoroughfare.", false)], semantic: [] };
     const lexical = /season/i.test(query)
       ? [{ chunkId: "pack:vital5:1", docId: "pack:vital5:Season", title: "Season", body: "A season is a division of the year.", source: "Wikipedia", score: 9, matchType: "lexical" as const }]
       : /cultivo|jardim/i.test(query)
@@ -38,5 +51,16 @@ describe("retrieve with Portuguese questions", () => {
     calls.length = 0;
     await retrieve("Why do we have seasons on Earth?", 6, { lexicon });
     expect(calls).toEqual(["Why do we have seasons on Earth?"]);
+  });
+
+  it("in a what-to-do question puts action sections first and never cites a disambiguation list", async () => {
+    const hits = await retrieve("Fui mordido por uma picada de cobra na trilha. O que eu faço?", 6, { lexicon: { "picada de cobra": "Snakebite" } });
+    expect(hits[0]?.body).toMatch(/immobilize/);
+    expect(hits.map((h) => h.title)).not.toContain("Tree snake");
+  });
+
+  it("in a what-to-do question never puts a generic name's article first", async () => {
+    const hits = await retrieve("Meu parceiro está na estrada com frio. O que eu faço? (cultivo)", 6, { lexicon: { estrada: "Road" } });
+    expect(hits[0]?.title).toBe("Jardim Vertical");
   });
 });

@@ -50,7 +50,7 @@ describe.skipIf(!env.BOAR_PT_PACKS)("Portuguese vs English retrieval", () => {
     const out: Record<string, unknown> = { questions: pt.length, modes: {} as Record<string, unknown>, perQuestion: [] as unknown[] };
     const rows: Record<string, Array<{ id: string; rank: number }>> = { en: [], pt: [], "pt+lex": [] };
     for (const q of pt) {
-      const row: Record<string, unknown> = { id: q.id, pt: q.query, names: englishNamesIn(q.query, lexicon) };
+      const row: Record<string, unknown> = { id: q.id, query: q.query, names: englishNamesIn(q.query, lexicon) };
       for (const mode of Object.keys(rows)) {
         const titles = [...new Set((await ranked(mode, q)).map((h) => `${h.source}|${h.title.toLowerCase()}`))];
         const rank = titles.findIndex((t) => q.gold.some((g) => g.title && t === `${g.source}|${g.title.toLowerCase()}`));
