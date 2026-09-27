@@ -438,7 +438,11 @@ function sectionHeading(chunk: RetrievedChunk): string {
  */
 function titledByLexicon(names: string[], chunk: RetrievedChunk): boolean {
   const clean = (s: string) => s.replace(/^(Wikibooks|Wikivoyage|US government|Appropedia):\s*/, "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
-  const heads = [clean(chunk.title), ...sectionHeading(chunk).split(">").map(clean)];
+  // A heading under a "… by country" list is an item of that list, not the page's subject (Sextant trv-009:
+  // "Triage systems by country > Portugal" for "É esperado dar gorjeta em restaurantes em Portugal?").
+  const path = sectionHeading(chunk).split(">").map(clean);
+  const listItem = (k: number) => k > 0 && /\bby (country|countries|region|state|city|nation|continent)\b|\b(other countries|around the world|worldwide)\b/.test(path[k - 1]);
+  const heads = [clean(chunk.title), ...path.filter((_, k) => !listItem(k))];
   return names.some((n) => {
     const name = clean(n);
     if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);

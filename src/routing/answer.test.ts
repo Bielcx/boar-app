@@ -1234,6 +1234,22 @@ describe("answer(): a snakebite first-aid question gets the WHO card (SAFETY, af
   });
 });
 
+describe("answer(): trv-009 PT, exact question and gate sources (bc7db6d)", () => {
+  it("'Triage systems by country > Portugal' is not a source on topic: the compact model declines", async () => {
+    f.retrieved = [
+      chunk("t", "Triage", "Specific triage systems and methods > Triage systems by country > Portugal: In Portugal, the Manchester Triage System is used."),
+      chunk("l", "List of British restaurants", "This is a list of notable restaurants in the United Kingdom."),
+    ];
+    f.deps.englishNames = () => ["Portugal"];
+    f.deps.engine.generate = async () => "Em Portugal, não é comum dar gorjeta em restaurantes.";
+    const { events, result } = await collect("É esperado dar gorjeta em restaurantes em Portugal?");
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect(result.text).toBe("Não encontrei isso no acervo deste celular.");
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

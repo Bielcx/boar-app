@@ -764,3 +764,11 @@ describe("isPortugueseQuestion (trv-009 PT)", () => {
     for (const q of ["How do I stop a nosebleed?", "Is tipping expected in restaurants in Portugal?", "What is a monsoon?", "Is São Paulo safe at night?", "Do I need a visa for Brazil?"]) expect(isPortugueseQuestion(q), q).toBe(false);
   });
 });
+
+describe("namedByLexicon: a '… by country' list item is not the subject (trv-009)", () => {
+  const c = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("the country heading under a by-country list doesn't count; the country's own page does", () => {
+    expect(namedByLexicon(["Portugal"], c("Triage", "Specific triage systems and methods > Triage systems by country > Portugal: In Portugal, the Manchester Triage System is used."))).toBe(false);
+    expect(namedByLexicon(["Portugal"], c("Wikivoyage: Portugal", "Buy > Tipping: Tipping is not expected but appreciated."))).toBe(true);
+  });
+});
