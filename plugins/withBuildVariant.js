@@ -46,10 +46,9 @@ const LOCATION_PERMISSIONS = [
 ];
 
 // Configuration changes the app handles itself instead of letting Android
-// destroy and recreate the activity. Without fontScale/density, changing the
-// system font or display size restarted the app and threw the setup wizard
-// back to step 1 (device baseline finding #4). React Native re-lays itself
-// out on these (onConfigurationChanged -> Dimensions/fontScale update).
+// destroy and recreate the activity. Without density, changing the display
+// size restarted the activity mid-setup (device baseline finding #4). React
+// Native re-lays itself out on these (onConfigurationChanged -> Dimensions).
 const REQUIRED_CONFIG_CHANGES = [
   "keyboard",
   "keyboardHidden",
@@ -58,16 +57,23 @@ const REQUIRED_CONFIG_CHANGES = [
   "screenLayout",
   "smallestScreenSize",
   "uiMode",
-  "fontScale",
   "density",
   "locale",
   "layoutDirection",
 ];
 
-/** Pure: the activity's configChanges with every required flag present, existing order kept. */
+// Changes Android must handle by recreating the activity. fontScale: RN's
+// Fabric keeps its cached measurement of unchanged text, in dp, and a font
+// scale change alters text size without changing dp, so live text clipped
+// ("Rea", "Bac"; Prism FS-1). Recreating the activity remounts the React
+// surface (JS, downloads and the persisted wizard step survive). density
+// stays above: it scales text and dp alike, so cached measurements hold.
+const FORBIDDEN_CONFIG_CHANGES = ["fontScale"];
+
+/** Pure: the activity's configChanges with every required flag present and no forbidden one, existing order kept. */
 function mergeConfigChanges(existing) {
   const current = String(existing ?? "").split("|").map((s) => s.trim()).filter(Boolean);
-  const merged = [...current];
+  const merged = current.filter((flag) => !FORBIDDEN_CONFIG_CHANGES.includes(flag));
   for (const flag of REQUIRED_CONFIG_CHANGES) if (!merged.includes(flag)) merged.push(flag);
   return merged.join("|");
 }
@@ -198,6 +204,7 @@ module.exports = {
   NETWORK_PERMISSIONS,
   LOCATION_PERMISSIONS,
   REQUIRED_CONFIG_CHANGES,
+  FORBIDDEN_CONFIG_CHANGES,
   mergeConfigChanges,
   dataExtractionRulesXml,
   BACKUP_DOMAINS,

@@ -14,6 +14,21 @@ export function expertFractionHint(model: Pick<CatalogModel, "id">): number {
   return MOE_ID.test(model.id) ? 0.9 : 0;
 }
 
+/**
+ * This model can't open on this phone, so it is not offered for download
+ * (Prism CR-1: 7B/8B on 3.8 GB). From the same estimate as the rows: its
+ * working memory exceeds the free RAM ("insufficient"), or it is dense and
+ * its weights plus working memory exceed the phone's total RAM, so it can't
+ * stay in memory at all (a mixture-of-experts file streams its experts).
+ * The catalog's answer tiers never count: the default one goes through the
+ * low-RAM confirmation instead.
+ */
+export function wontFitHere(model: Pick<CatalogModel, "answerTier">, fit: MemoryFit | undefined): boolean {
+  if (!fit || model.answerTier) return false;
+  if (fit.verdict === "insufficient") return true;
+  return fit.expertFraction === 0 && fit.fileBytes + fit.anonBytes > fit.totalBytes;
+}
+
 export function catalogFit(
   model: Pick<CatalogModel, "id" | "kind" | "sizeBytes">,
   ram: { totalBytes: number; availableBytes: number },

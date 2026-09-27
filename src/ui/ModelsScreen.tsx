@@ -3,12 +3,13 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Button, Card, EmptyState, ListRow, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
+import { Badge, Button, Card, EmptyState, ListRow, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
+import { CatalogList } from "./flows/CatalogList";
 import { DEEP_AUTO_MIN_TOK_PER_SEC as MIN_DEEP_TOK_PER_SEC, deepAutoEligible, MIN_SPEED_SAMPLES, ModelSpeed, modelSpeedStats } from "../routing/depth";
 import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
 import { listRecentExecutions } from "../services/executionTelemetry";
@@ -20,10 +21,6 @@ import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-function Hairline() {
-  const t = useTokens();
-  return <View style={{ height: t.size.hairline, backgroundColor: t.color.line.hairline, marginLeft: t.space.base }} />;
-}
 
 export function ModelsScreen() {
   const { t, i18n } = useTranslation();
@@ -36,6 +33,7 @@ export function ModelsScreen() {
 
   const [answer, setAnswer] = useState<AnswerSettings | null>(null);
   const [speeds, setSpeeds] = useState<Record<string, ModelSpeed>>({});
+  const [showLarger, setShowLarger] = useState(false);
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -65,10 +63,12 @@ export function ModelsScreen() {
     ...MODEL_CATALOG.filter((m) => m.kind === "llm" || m.kind === "embedding"),
     ...catalog.discovered.filter((d) => !MODEL_CATALOG.some((c) => c.filename === d.filename)),
   ];
-  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[] };
+  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[], larger: [] as CatalogModel[] };
   for (const m of models) {
     const kind = catalog.view(m).state.kind;
     if (kind === "in-use") groups.inUse.push(m);
+    // Can't open on this phone: out of the list, in a folded section that says why (CR-1).
+    else if (catalog.view(m).wontFit) groups.larger.push(m);
     else if (kind === "not-installed" || kind === "downloading" || kind === "verifying" || (kind === "failed" && !catalog.statuses[m.id]?.present))
       groups.available.push(m);
     else groups.installed.push(m);
@@ -79,21 +79,23 @@ export function ModelsScreen() {
     if (ok) toast({ message: t("flows.models.nowAnswering", { name: m.label }), tone: "success" });
   };
 
-  const renderGroup = (list: CatalogModel[]) =>
-    list.map((m, i) => (
-      <React.Fragment key={m.id}>
-        {i > 0 && <Hairline />}
+  const renderGroup = (list: CatalogModel[]) => (
+    <CatalogList>
+      {list.map((m) => (
         <CatalogRow
+          key={m.id}
           model={m}
           view={catalog.view(m)}
+          fileImport={catalog.importFor(m.id)}
           fit={catalog.fit(m)}
           busy={catalog.loadingId !== null}
           onDownload={() => catalog.install([m])}
           onUse={() => use(m)}
           onRemove={() => catalog.remove(m)}
         />
-      </React.Fragment>
-    ));
+      ))}
+    </CatalogList>
+  );
 
   return (
     <Screen>
@@ -135,6 +137,8 @@ export function ModelsScreen() {
                   <OptionCard
                     key={m.id}
                     title={m.label}
+                    // Same risk as Use for answers on a low-RAM phone (CR-1).
+                    badge={catalog.view(m).mayCloseApp ? <Badge label={t(catalog.view(m).didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
                     trailing={sp ? t("flows.models.rate", { rate: formatRate(sp.medianTokPerSec, i18n.language) }) : undefined}
                     description={
@@ -180,6 +184,20 @@ export function ModelsScreen() {
           </View>
         )}
       </Section>
+
+      {groups.larger.length > 0 && (
+        <Section title={t("flows.models.larger")} footer={t("flows.models.largerFooter")}>
+          {showLarger ? (
+            renderGroup(groups.larger)
+          ) : (
+            <ListRow
+              icon="chevron-down"
+              title={t("flows.models.showLarger", { count: groups.larger.length })}
+              onPress={() => setShowLarger(true)}
+            />
+          )}
+        </Section>
+      )}
 
       {!offline && (
         <Section title={t("flows.models.advanced")} footer={t("flows.models.searchFooter")}>

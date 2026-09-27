@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context";
 import "./src/i18n";
 import { LanguageProvider } from "./src/i18n/LanguageContext";
 import { ModelManager } from "./src/models/ModelManager";
@@ -23,6 +24,10 @@ registerGeoProviders(geoProvidersFrom({ installedPoiPacks, getCurrentPoint, reso
 
 const modelManager = new ModelManager();
 
+// Keep the native splash (same canvas, mascot and wordmark) up until the first real screen can
+// draw, instead of flashing a bare spinner between the two (iOS cd50fdc splash sequence).
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 function AppContent() {
   const t = useTokens();
   const [initialRoute, setInitialRoute] = useState<"Main" | "Setup" | null>(null);
@@ -39,20 +44,23 @@ function AppContent() {
     })();
   }, []);
 
-  if (!initialRoute || (!fontsLoaded && !fontError)) {
-    return (
-      <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]}>
-        <ActivityIndicator color={t.color.accent.solid} size="large" />
-      </View>
-    );
+  const ready = !!initialRoute && (fontsLoaded || !!fontError);
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) {
+    // Under the splash; the canvas colour matches it in case the OS reveals this frame.
+    return <View style={[styles.centered, { backgroundColor: t.color.bg.canvas }]} />;
   }
-  return <RootNavigator initialRoute={initialRoute} />;
+  return <RootNavigator initialRoute={initialRoute!} />;
 }
 
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
+      {/* Real insets on the first frame, so the shell does not jump as the splash fades (Prism SA-1). */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <KeyboardProvider>
           <LanguageProvider>
             <ThemeProvider>

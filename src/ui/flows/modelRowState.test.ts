@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { canAutoRetry, DownloadErrorKind, modelRowView, RowInput } from "./modelRowState";
+import { canAutoRetry, DownloadErrorKind, modelRowView, RowInput, mayCloseApp } from "./modelRowState";
+import { COMPACT_ONLY_MAX_RAM_BYTES } from "../../routing/defaultModel";
 
 const idle = { downloading: false, progress: 0, error: null };
 
@@ -108,5 +109,59 @@ describe("error kinds from the trust layer", () => {
     const v = view({ download: { downloading: false, progress: 0, error: "unreadable", errorKind: "unknown-file", permanent: true } });
     expect(v.state).toMatchObject({ kind: "failed", errorKind: "unknown-file", permanent: true });
     expect(canAutoRetry(v.state)).toBe(false);
+  });
+});
+
+describe("mayCloseApp (CR-1: Qwen3-4B on 3.8 GB got the app killed)", () => {
+  const GIB = 1024 ** 3;
+  const compact = 1.0e9;
+  const fourB = { kind: "llm", sizeBytes: 2.5e9 };
+
+  it("warns at and under the setup's compact-only limit, for a model bigger than the compact one", () => {
+    expect(mayCloseApp(fourB, compact, 3.8 * GIB)).toBe(true);
+    expect(mayCloseApp(fourB, compact, COMPACT_ONLY_MAX_RAM_BYTES)).toBe(true);
+  });
+
+  it("does not warn just above the limit, on unknown RAM, or for the compact model itself", () => {
+    expect(mayCloseApp(fourB, compact, COMPACT_ONLY_MAX_RAM_BYTES + 1)).toBe(false);
+    expect(mayCloseApp(fourB, compact, 0)).toBe(false);
+    expect(mayCloseApp({ kind: "llm", sizeBytes: compact }, compact, 3.8 * GIB)).toBe(false);
+    expect(mayCloseApp({ kind: "embedding", sizeBytes: 3e9 }, compact, 3.8 * GIB)).toBe(false);
+  });
+
+  it("replaces 'May be slow' in the row view", () => {
+    const v = modelRowView({ present: true, roles: [], fit: "thrashing", mayCloseApp: true });
+    expect(v.mayCloseApp).toBe(true);
+    expect(v.fitWarning).toBeNull();
+    expect(modelRowView({ present: true, roles: [], fit: "thrashing" })).toMatchObject({ mayCloseApp: false, fitWarning: "thrashing" });
+  });
+});
+
+describe("load crash and confirmation (CR-2)", () => {
+  const row = (o: Partial<RowInput>) => modelRowView({ present: true, roles: [], ...o });
+
+  it("a risky model asks before Use until the user confirms it", () => {
+    expect(row({ mayCloseApp: true }).confirmUse).toBe(true);
+    expect(row({ mayCloseApp: true, largeConfirmed: true }).confirmUse).toBe(false);
+  });
+
+  it("a model whose last load killed the app says 'Didn't open here' and asks again, even if confirmed", () => {
+    const v = row({ loadCrashed: true, largeConfirmed: true, fit: "thrashing" });
+    expect(v).toMatchObject({ didNotOpen: true, mayCloseApp: true, confirmUse: true, fitWarning: null });
+  });
+
+  it("an ordinary model never asks", () => {
+    expect(row({})).toMatchObject({ didNotOpen: false, mayCloseApp: false, confirmUse: false });
+  });
+});
+
+describe("won't fit on this phone (CR-1)", () => {
+  it("offers no download and replaces the memory warnings", () => {
+    const v = modelRowView({ present: false, roles: [], wontFit: true, fit: "thrashing", mayCloseApp: true });
+    expect(v).toMatchObject({ wontFit: true, primary: "none", fitWarning: null, mayCloseApp: false });
+  });
+
+  it("an installed model is not hidden behind it (it can still be removed)", () => {
+    expect(modelRowView({ present: true, roles: [], wontFit: true }).wontFit).toBe(false);
   });
 });

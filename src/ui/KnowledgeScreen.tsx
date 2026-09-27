@@ -20,6 +20,7 @@ import type { CustomCollection } from "../rag/db";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
 import { CollectionIndexStatus, getCollectionIndexStatus, onCollectionIndexStatus } from "../rag/indexStatus";
 import { CatalogRow } from "./flows/CatalogRow";
+import { CatalogList } from "./flows/CatalogList";
 import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
@@ -174,33 +175,41 @@ export function KnowledgeScreen() {
 
       {packs.length > 0 && (
         <Section title={t("flows.knowledge.topicPacksTitle")} footer={t("flows.knowledge.topicPacksFooter")}>
+          <CatalogList>
           {packs.map((pack) => (
             <CatalogRow
+              showKind={false}
               key={pack.entry.id}
               model={pack.entry}
               title={packName(pack, lang)}
               meta={t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) })}
               details={[t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") })]}
               view={catalog.view(pack.entry)}
+              fileImport={catalog.importFor(pack.entry.id)}
               onDownload={() => catalog.install([pack.entry])}
               onRemove={() => catalog.remove(pack.entry)}
             />
           ))}
+          </CatalogList>
         </Section>
       )}
 
       <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
+        <CatalogList>
         <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
         {CORPUS_CATALOG.map((pack) => (
           <CatalogRow
+              showKind={false}
             key={pack.id}
             model={pack}
             details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
-            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.importFiles())}
+            fileImport={catalog.importFor(pack.id)}
+            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.install([pack]))}
             onRemove={() => catalog.remove(pack)}
           />
         ))}
+        </CatalogList>
       </Section>
 
       {(catalog.imports.length > 0 || regions.some((r) => !canDownload(poiCatalogEntry(r)) && !catalog.statuses[poiCatalogEntry(r).id]?.present)) && (
@@ -212,6 +221,7 @@ export function KnowledgeScreen() {
       )}
 
       <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
+        <CatalogList>
         <View style={{ padding: tokens.space.base }}>
           <CitySearch catalog={catalog} />
         </View>
@@ -228,6 +238,7 @@ export function KnowledgeScreen() {
             const name = lang.startsWith("pt") ? r.name.pt : r.name.en;
             return (
               <CatalogRow
+              showKind={false}
                 key={r.id}
                 model={entry}
                 title={name}
@@ -239,12 +250,14 @@ export function KnowledgeScreen() {
                     : cities.names.join(", "),
                 ].filter(Boolean)}
                 view={catalog.view(entry)}
+                fileImport={catalog.importFor(entry.id)}
                 onDownload={() => catalog.install(placesInstall(r))}
                 onRemove={() => catalog.remove(entry)}
               />
             );
           })
         )}
+        </CatalogList>
       </Section>
 
       <Section title={t("flows.knowledge.yourCollections")}>
@@ -262,7 +275,7 @@ export function KnowledgeScreen() {
               <ListRow
                 title={c.name}
                 subtitle={t("flows.knowledge.collectionMeta", {
-                  docs: t("flows.knowledge.docs", { count: c.docCount }),
+                  docs: t("flows.knowledge.docs", { count: c.docCount, value: formatCount(c.docCount, lang) }),
                   chunks: t("flows.knowledge.chunks", { count: c.chunkCount }),
                   size: formatBytes(c.sizeBytes, i18n.language),
                 })}
@@ -282,6 +295,7 @@ export function KnowledgeScreen() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  tone="danger"
                   label={t("flows.row.remove")}
                   accessibilityLabel={t("flows.knowledge.removeA11y", { name: c.name })}
                   onPress={() => setToRemove(c)}

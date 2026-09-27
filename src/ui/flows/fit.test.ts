@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { catalogFit, expertFractionHint } from "./fit";
+import type { MemoryFit } from "../../inference/memoryFit";
+import { catalogFit, expertFractionHint, wontFitHere } from "./fit";
 
 const GB = 1024 ** 3;
 
@@ -32,5 +33,45 @@ describe("catalogFit", () => {
 
   it("reports insufficient when buffers alone exceed free RAM", () => {
     expect(catalogFit({ id: "huge", kind: "llm", sizeBytes: 60 * GB }, { totalBytes: 8 * GB, availableBytes: GB }, 4096)?.verdict).toBe("insufficient");
+  });
+});
+
+describe("wontFitHere (CR-1: 7B/8B offered for download on a 3.8 GB phone)", () => {
+  const fitOf = (o: Partial<MemoryFit>): MemoryFit => ({
+    verdict: "thrashing",
+    fileBytes: 0,
+    kvCacheBytes: 0,
+    computeBytes: 0,
+    anonBytes: 0,
+    hotWeightBytes: 0,
+    expertFraction: 0,
+    availableBytes: 0,
+    totalBytes: 0,
+    fromMetadata: false,
+    ...o,
+  });
+
+  it("the limit: dense weights plus working memory against total RAM, on both sides", () => {
+    const total = 4_000_000_000;
+    expect(wontFitHere({}, fitOf({ fileBytes: 3_500_000_000, anonBytes: 500_000_000, totalBytes: total }))).toBe(false);
+    expect(wontFitHere({}, fitOf({ fileBytes: 3_500_000_001, anonBytes: 500_000_000, totalBytes: total }))).toBe(true);
+  });
+
+  it("insufficient always counts; a mixture-of-experts file streams, so size alone does not", () => {
+    expect(wontFitHere({}, fitOf({ verdict: "insufficient", totalBytes: 1e12 }))).toBe(true);
+    expect(wontFitHere({}, fitOf({ fileBytes: 12e9, anonBytes: 1e9, totalBytes: 4e9, expertFraction: 0.9, verdict: "streaming" }))).toBe(false);
+  });
+
+  it("never the catalog's answer tiers (the 4B goes through the confirmation), and not without an estimate", () => {
+    expect(wontFitHere({ answerTier: "default" }, fitOf({ verdict: "insufficient" }))).toBe(false);
+    expect(wontFitHere({}, undefined)).toBe(false);
+  });
+
+  it("on a 3.8 GB phone: a 4.7 GB 7B can't open; a 2.4 GB model not in a tier still can", () => {
+    const phone = { totalBytes: 3.8 * 1024 ** 3, availableBytes: 2.2 * 1024 ** 3 };
+    const seven = { id: "some-7b", kind: "llm" as const, sizeBytes: 4.7e9 };
+    const small = { id: "some-3b", kind: "llm" as const, sizeBytes: 2.4e9 };
+    expect(wontFitHere({}, catalogFit(seven, phone, 4096))).toBe(true);
+    expect(wontFitHere({}, catalogFit(small, phone, 4096))).toBe(false);
   });
 });

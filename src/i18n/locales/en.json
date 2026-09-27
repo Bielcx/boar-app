@@ -320,8 +320,12 @@
       "loading": "Loading",
       "failed": "Failed",
       "failedAnnounce": "{{name}} failed. Retry is available.",
-      "verified": "Verified",
+      "verified": "File checked",
+      "importChecking": "Checking {{name}}",
+      "importOther": "{{name}} is a different item, not this one. Choose this item's file.",
       "unverified": "Installed, not verified",
+      "active": "Active",
+      "usedFor": "Used for: {{roles}}",
       "role": {
         "answer": "Answers",
         "deep": "Deep answers",
@@ -340,6 +344,7 @@
       },
       "error": {
         "network": "No connection. Connect and try again.",
+        "stalled": "The download stopped making progress.",
         "storage": "Not enough free space on the phone.",
         "hash-mismatch": "The file doesn't match the expected one. Get a fresh copy of the file and try again.",
         "size-mismatch": "The file is incomplete. Get a fresh copy of the file and try again.",
@@ -349,6 +354,10 @@
         "unknown-file": "This file isn't one BOAR knows. Choose the file listed for this item.",
         "too-large": "This file is larger than BOAR accepts for this kind of item.",
         "no-source": "This item isn't published for download yet. Import its file instead."
+      },
+      "errorDetail": {
+        "interrupted": "Stopped at {{done}} of {{total}}. Try again to continue from there.",
+        "paused": "No progress for {{seconds}} s. Tap Try again to continue."
       },
       "download": "Download {{size}}",
       "retry": "Try again",
@@ -369,6 +378,25 @@
         "streaming": "Reads from storage",
         "thrashing": "May be slow",
         "insufficient": "Won't fit"
+      },
+      "mayClose": "May close the app",
+      "mayCloseWhy": "too big for this phone's memory",
+      "didNotOpen": "Didn't open here",
+      "wontFitHere": "Too big for this phone",
+      "wontFitWhy": "needs more memory than this phone has",
+      "wontFitNumbers": "needs ~{{need}} of memory · this phone has {{total}}",
+      "didNotOpenBefore": "BOAR closed the last time it loaded ",
+      "mayCloseTitle": "Use this model?",
+      "mayCloseBefore": "BOAR may close when it loads ",
+      "mayCloseAfter": ". Compact is the recommended one here.",
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "keepCompact": "Keep Compact",
+      "useAnyway": "Use anyway",
+      "fitWhy": {
+        "streaming": "larger than this phone's memory",
+        "thrashing": "needs most of this phone's memory",
+        "insufficient": "not enough free memory on this phone"
       }
     },
     "models": {
@@ -396,6 +424,10 @@
       "added": "{{name}} added to Models",
       "addFailed": "Couldn't add it: {{error}}",
       "nowAnswering": "{{name}} now writes your answers",
+      "larger": "Larger models",
+      "largerFooter": "These need more memory than this phone has, so they can't open here.",
+      "showLarger_one": "Show {{count}} larger model",
+      "showLarger_other": "Show {{count}} larger models",
       "deepTitle": "Model for full answers",
       "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at {{min}} tokens/s or more.",
       "deepAuto": "Automatic",
@@ -408,8 +440,7 @@
       "usedLabel": "Used by BOAR",
       "freeLabel": "Free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
-      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone.",
-      "storage": "BOAR uses {{used}} · {{free}} free on this phone"
+      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",
@@ -425,8 +456,8 @@
       "emptyBody": "PDFs, text or notes. BOAR will cite them in answers.",
       "add": "Add documents",
       "collectionMeta": "{{docs}} · {{chunks}} · {{size}}",
-      "docs_one": "{{count}} document",
-      "docs_other": "{{count}} documents",
+      "docs_one": "{{value}} document",
+      "docs_other": "{{value}} documents",
       "chunks_one": "{{count}} passage",
       "chunks_other": "{{count}} passages",
       "useInAnswers": "Use {{name}} in answers",
@@ -582,10 +613,11 @@
       "ofFiles_one": "of {{total}} file",
       "ofFiles_other": "of {{total}} files",
       "keepOpenImport": "Keep BOAR open while it checks the files. If you leave, the check may stop.",
-      "totalValue": "{{done}} of {{total}}",
+      "totalValue": "{{done}} / {{total}}",
       "percentAnnounce": "{{pct}}% downloaded",
       "percentImportedAnnounce": "{{pct}}% imported",
       "queued": "Waiting",
+      "currentItem": "Item {{n}} of {{total}} — {{name}}",
       "groupModels": "Models",
       "groupKnowledge": "Knowledge",
       "groupIndex": "On the phone",
@@ -641,13 +673,7 @@
         "compact": "Compact"
       },
       "suggested": "Suggested",
-      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one.",
-      "stepOf": "Step {{step}} of {{total}}",
-      "stepAnnounce": "Step {{step}} of 3, {{title}}",
-      "download": "Download: {{size}}",
-      "diskAfter": "Space after install: {{size}}",
-      "time": "About {{minutes}} min at {{speed}}/s (estimate)",
-      "importSize": "Files to import: {{size}}"
+      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
     },
     "places": {
       "title": "Places (offline)",

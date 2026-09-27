@@ -320,8 +320,12 @@
       "loading": "Carregando",
       "failed": "Falhou",
       "failedAnnounce": "{{name}} falhou. Dá para tentar de novo.",
-      "verified": "Verificado",
+      "verified": "Arquivo conferido",
+      "importChecking": "Conferindo {{name}}",
+      "importOther": "{{name}} é outro item, não este. Escolha o arquivo deste item.",
       "unverified": "Instalado, sem verificação",
+      "active": "Ativo",
+      "usedFor": "Usado para: {{roles}}",
       "role": {
         "answer": "Respostas",
         "deep": "Aprofundar",
@@ -340,6 +344,7 @@
       },
       "error": {
         "network": "Sem conexão. Conecte-se e tente de novo.",
+        "stalled": "O download parou de avançar.",
         "storage": "Falta espaço livre no celular.",
         "hash-mismatch": "O arquivo veio diferente do esperado. Pegue uma cópia nova do arquivo e tente de novo.",
         "size-mismatch": "O arquivo veio incompleto. Pegue uma cópia nova do arquivo e tente de novo.",
@@ -349,6 +354,10 @@
         "unknown-file": "Este arquivo não é um que o BOAR conhece. Escolha o arquivo indicado para este item.",
         "too-large": "Este arquivo é maior do que o BOAR aceita para este tipo de item.",
         "no-source": "Este item ainda não está publicado para download. Importe o arquivo."
+      },
+      "errorDetail": {
+        "interrupted": "Parou em {{done}} de {{total}}. Tente de novo para continuar de onde parou.",
+        "paused": "Sem progresso por {{seconds}} s. Toque em Tentar de novo para continuar."
       },
       "download": "Baixar {{size}}",
       "retry": "Tentar de novo",
@@ -369,6 +378,25 @@
         "streaming": "Lê do armazenamento",
         "thrashing": "Pode ficar lento",
         "insufficient": "Não cabe"
+      },
+      "mayClose": "Pode fechar o app",
+      "mayCloseWhy": "grande demais para a memória deste celular",
+      "didNotOpen": "Não abriu aqui",
+      "wontFitHere": "Grande demais para este celular",
+      "wontFitWhy": "precisa de mais memória do que este celular tem",
+      "wontFitNumbers": "precisa de ~{{need}} de memória · este celular tem {{total}}",
+      "didNotOpenBefore": "O BOAR fechou da última vez que carregou o ",
+      "mayCloseTitle": "Usar este modelo?",
+      "mayCloseBefore": "O BOAR pode fechar ao carregar o ",
+      "mayCloseAfter": ". O Compacto é o recomendado aqui.",
+      "showAll": "Mostrar tudo",
+      "showLess": "Mostrar menos",
+      "keepCompact": "Manter Compacto",
+      "useAnyway": "Usar mesmo assim",
+      "fitWhy": {
+        "streaming": "maior que a memória deste celular",
+        "thrashing": "usa quase toda a memória deste celular",
+        "insufficient": "falta memória livre neste celular"
       }
     },
     "models": {
@@ -396,6 +424,10 @@
       "added": "{{name}} adicionado aos modelos",
       "addFailed": "Não foi possível adicionar: {{error}}",
       "nowAnswering": "{{name}} agora escreve as respostas",
+      "larger": "Modelos maiores",
+      "largerFooter": "Estes precisam de mais memória do que este celular tem, então não abrem aqui.",
+      "showLarger_one": "Mostrar {{count}} modelo maior",
+      "showLarger_other": "Mostrar {{count}} modelos maiores",
       "deepTitle": "Modelo para respostas completas",
       "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a {{min}} tokens/s ou mais.",
       "deepAuto": "Automático",
@@ -408,15 +440,14 @@
       "usedLabel": "Usado pelo BOAR",
       "freeLabel": "Livre no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
-      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular.",
-      "storage": "O BOAR usa {{used}} · {{free}} livres no celular"
+      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
     },
     "knowledge": {
       "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",
       "indexing": "Indexando {{done}} de {{total}}",
       "indexingLabel": "Indexação do conhecimento",
       "appCollections": "Coleções do BOAR",
-      "appFooter": "Feitas a partir da Wikipedia (CC BY-SA 4.0).",
+      "appFooter": "Feitas a partir da Wikipédia (CC BY-SA 4.0).",
       "builtin": "Artigos embutidos",
       "builtinSub": "Sempre disponíveis, sem download.",
       "packReady": "{{name}} está pronto",
@@ -425,8 +456,8 @@
       "emptyBody": "PDFs, textos ou notas. O BOAR vai citá-los nas respostas.",
       "add": "Adicionar documentos",
       "collectionMeta": "{{docs}} · {{chunks}} · {{size}}",
-      "docs_one": "{{count}} documento",
-      "docs_other": "{{count}} documentos",
+      "docs_one": "{{value}} documento",
+      "docs_other": "{{value}} documentos",
       "chunks_one": "{{count}} trecho",
       "chunks_other": "{{count}} trechos",
       "useInAnswers": "Usar {{name}} nas respostas",
@@ -516,7 +547,7 @@
       "buildRelease": "build de release",
       "howTitle": "Como funciona",
       "how1": "O BOAR responde com um modelo de linguagem que roda neste celular, com o llama.cpp. Depois da configuração, não precisa de internet.",
-      "how2": "Antes de responder, ele busca no conhecimento guardado no celular (coleções da Wikipedia e seus documentos) e cita os trechos que usou.",
+      "how2": "Antes de responder, ele busca no conhecimento guardado no celular (coleções da Wikipédia e seus documentos) e cita os trechos que usou.",
       "how3": "Cada resposta é medida no celular. Veja Desempenho para velocidade e memória.",
       "installedTitle": "Instalado neste celular",
       "installedFooter": "Cada modelo e coleção mantém a própria licença.",
@@ -559,11 +590,11 @@
       "package": {
         "essential": {
           "name": "Essencial",
-          "body": "Modelos de resposta e de busca, mais as coleções básicas de temas da Wikipedia."
+          "body": "Modelos de resposta e de busca, mais as coleções básicas de temas da Wikipédia."
         },
         "encyclopedia": {
           "name": "Enciclopédia",
-          "body": "O Essencial mais o pacote de Artigos Vitais da Wikipedia, para perguntas mais amplas."
+          "body": "O Essencial mais o pacote de Artigos Vitais da Wikipédia, para perguntas mais amplas."
         }
       },
       "recommended": "Recomendado",
@@ -582,10 +613,11 @@
       "ofFiles_one": "de {{total}} arquivo",
       "ofFiles_other": "de {{total}} arquivos",
       "keepOpenImport": "Mantenha o BOAR aberto enquanto ele confere os arquivos. Se sair, a conferência pode parar.",
-      "totalValue": "{{done}} de {{total}}",
+      "totalValue": "{{done}} / {{total}}",
       "percentAnnounce": "{{pct}}% baixado",
       "percentImportedAnnounce": "{{pct}}% importado",
       "queued": "Na fila",
+      "currentItem": "Item {{n}} de {{total}} — {{name}}",
       "groupModels": "Modelos",
       "groupKnowledge": "Conhecimento",
       "groupIndex": "No celular",
@@ -641,13 +673,7 @@
         "compact": "Compacto"
       },
       "suggested": "Sugerido",
-      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
-      "stepOf": "Passo {{step}} de {{total}}",
-      "stepAnnounce": "Passo {{step}} de 3, {{title}}",
-      "download": "Download: {{size}}",
-      "diskAfter": "Espaço depois de instalar: {{size}}",
-      "time": "Cerca de {{minutes}} min a {{speed}}/s (estimativa)",
-      "importSize": "Arquivos para importar: {{size}}"
+      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o compacto está selecionado. Você ainda pode escolher o padrão."
     },
     "places": {
       "title": "Lugares (offline)",

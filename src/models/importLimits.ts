@@ -1,4 +1,5 @@
 import type { CatalogModel } from "./manifest";
+import { formatBytes } from "./units";
 
 /**
  * Size ceilings for anything a user brings in from a file. Assets matched
@@ -15,22 +16,24 @@ export type ImportKind =
   | "document-text"
   | "document-pdf";
 
-const GiB = 1024 ** 3;
-const MiB = 1024 ** 2;
+// Decimal units, as Android's file picker and Settings show sizes: the same
+// file must read the same size in BOAR and in the system (Prism N-14).
+const GB = 1000 ** 3;
+const MB = 1000 ** 2;
 
 export const IMPORT_LIMITS: Record<ImportKind, number> = {
   // Largest model worth running in 12 GB of RAM is ~13 GB on disk (35B-A3B at 2-bit); leave room.
-  llm: 24 * GiB,
-  embedding: 2 * GiB,
+  llm: 24 * GB,
+  embedding: 2 * GB,
   // Full English Wikipedia with its index is ~20 GB.
-  "knowledge-pack": 30 * GiB,
+  "knowledge-pack": 30 * GB,
   // A continent of OSM food places is hundreds of MB.
-  "places-pack": 4 * GiB,
+  "places-pack": 4 * GB,
   // Parsed with JSON.parse in one go.
-  "corpus-json": 64 * MiB,
+  "corpus-json": 64 * MB,
   // .txt/.md/.csv/.json notes: read into memory, then chunked and embedded one by one.
-  "document-text": 25 * MiB,
-  "document-pdf": 100 * MiB,
+  "document-text": 25 * MB,
+  "document-pdf": 100 * MB,
 };
 
 const LABEL: Record<ImportKind, string> = {
@@ -75,11 +78,8 @@ export function importKindOfDocument(filename: string): ImportKind {
   return filename.toLowerCase().endsWith(".pdf") ? "document-pdf" : "document-text";
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes >= GiB) return `${(bytes / GiB).toFixed(1)} GB`;
-  if (bytes >= MiB) return `${(bytes / MiB).toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
+// Sizes in messages use the app-wide formatter (decimal, like the system picker).
+export { formatBytes };
 
 export type SizeCheck = { ok: true } | { ok: false; limitBytes: number; message: string };
 

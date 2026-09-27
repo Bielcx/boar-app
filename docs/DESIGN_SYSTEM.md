@@ -87,6 +87,15 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 
 - Line height is a ratio of size, so it tracks both scales. In-app size preference (0.94 / 1 / 1.12) multiplies the OS font scale. No `maxFontSizeMultiplier` below 2 on content; only `display`, badges and inline chips are capped (1.5).
 
+### Fidelity sprint (27/09): mockup metrics
+- **Floors:** 12 pt for all text; **11 pt only for caps with tracking** (`label` overline, `badge` seals, `step` labels). Untracked caps metadata (`capsMeta`, the header model id) stays at 12. Nothing below 11.
+- New type: `wordmark` 40 (chat empty state), `cardTitle` 16 Baloo 800 (OptionCard), `buttonLg` 17 (bottom CTA), `button` 15, `seal` 13 caps (OFFLINE), `badge` 11/600 caps, `step` 11 caps, `capsMeta` 12 caps; `label` is now 11/500 tracking 1.3.
+- Space: `gutterChat` 16 (conversation) vs `gutter` 20 (setup, forms); `cardGap` 14 (chat suggestion cards).
+- Radius: `card` 18 (suggestions, choices, steps), `lg` 20 (default), `hero` 22 (download, model error). `Card radius` + `padding="compact"` (12/14).
+- Size: `headerDisc` 42 (IconButton `size="header"`, touch via hitSlop), `avatar` 42 / `avatarSm` 26, `mascot` 170 / `mascotMd` 120 / `mascotSm` 48, `composer` 52 (IconButton `size="lg"`), `button` 46, `buttonLg` 54 (Button `size="lg"`).
+- Colour: `line.row` (s2) for separators between rows inside a card.
+- Primitives: OptionCard 10/12 padding, radius 18, 2 pt border, 18 pt radio with 8 pt dot, `cardTitle`, the trailing figure small (`caption` secondary); Stepper 4 pt bars 6 pt apart with caps `step` labels; Progress 10 pt with the ember fill glowing; Badge soft 4/10, solid and outline 2/8, neutral outline in the designer's border.
+
 ## 4. Space, radius, size
 
 - 4pt grid: `space.xxs 2 · xs 4 · sm 8 · md 12 · base 16 · lg 20 · xl 24 · xxl 32 · xxxl 40 · huge 48 · giant 64`. Screen gutter `space.gutter` 20 (`Screen` applies it; also the footer).
@@ -127,8 +136,8 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Screen` | Scaffold: canvas, safe area (bottom+sides by default; the native header owns the top), keyboard-aware scroll (`keyboardShouldPersistTaps="handled"`), optional sticky `footer`; `space.gutter` (20) on the sides; `center` centres short content vertically (welcome, error states) | Title announced by the native stack |
 | `Text` | All text. `variant`, `color`, `numeric`, `weight`, `align`, `header` | Headers for titles; OS font scale on |
 | `Icon` | Feather glyph | Hidden unless `label` |
-| `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
-| `IconButton` | Icon-only; `plain` / `surface` (neutral disc: header chrome) / `tonal` (soft accent: counts as the screen's accent) / `filled`; `selected` | `label` required, `selected` state |
+| `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `tone="danger"` on `ghost`/`outline` for a destructive entry point whose confirmation comes next (Remove → Sheet); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
+| `IconButton` | Icon-only; `plain` / `surface` (neutral disc: header chrome) / `tonal` (soft accent: counts as the screen's accent) / `filled` (disabled = raised disc + muted icon, no accent); `selected` | `label` required, `selected` state |
 | `Card` | Grouped content; `level`, `onPress` | Button role when pressable |
 | `Section` | Titled group; `inset` draws the grouped surface with hairlines; `footer` explains effect | Title is a header |
 | `ListRow` | Settings/navigation row: `title`, `value`, `subtitle`, `icon`, `trailing` (non-interactive), `switch={{ value, onValueChange }}`, `destructive` | One focus stop reading "title, value, subtitle"; with `switch` the whole row is role switch + `checked`; title/value wrap instead of truncating |
@@ -143,7 +152,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Badge` | Status seal, pill, caps: `solid` = ACTIVE, `soft` = CACHED, `outline` = DOWNLOADING (tone) / NOT ON DISK (neutral); `dot` + `caps={false}` for compatibility seals | Text always present |
 | `OfflineSeal` | `pill` (ember, crossed wifi, header; keep the visible label to one word, "OFFLINE", and put the full sentence in `accessibilityLabel`), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
 | `Ambient` | Light pattern behind hero screens (usually via `Screen ambient`) | Hidden from readers |
-| `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss | Live region (danger assertive) |
+| `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss. Tone = soft fill + icon; only `danger` gets a border | Live region (danger assertive) |
 | `Toast` | `useToast()({ message, tone, icon, actionLabel, onAction })` | Announced; ≥ 5s + 60ms/char (6s with action); sits above the composer |
 | `Sheet` | Confirmations and short tasks; `footer` actions listed safest first (Cancel, then Delete; drawn with the last on top); `returnFocusRef` = the trigger | Modal, focus to title and back to the trigger on close, Android back/scrim close, `accessibilityViewIsModal` |
 | `TextField` | Visible `label` (or `accessibilityLabel`), `helper`, `error`, `autoGrow` + `maxRows`, `leading`/`trailing` | Label is the name (not placeholder), error as hint + live |
@@ -167,7 +176,7 @@ Patterns:
 - **Errors** say what happened, why if known, and the next action (`EmptyState tone="error"` or `Banner tone="danger"`). No raw "Error: …" strings.
 - **Streaming**: announce start and end once (`useAnnounce`), never per token.
 - **Dense result lists** (places, sources, models): one row per item inside one inset surface, hairlines between rows, max two text lines, the key number in a right-aligned column with `numeric` and a unit, provenance once in the footer in `field` color, "Show N more" instead of nested scroll. Reference: the geo result card spec (`review/ui-qa/specs/geo-result-card.md`).
-- Keyboard: the shell mounts `KeyboardProvider` (react-native-keyboard-controller). `Screen` scrolls focused inputs into view. The chat composer should use the controller's `KeyboardStickyView` / `KeyboardAvoidingView`.
+- Keyboard: the shell mounts `KeyboardProvider` (react-native-keyboard-controller). `Screen` scrolls focused inputs into view. The chat composer should use the controller's `KeyboardStickyView` / `KeyboardAvoidingView`. A `KeyboardAvoidingView` below a header or safe-area inset **must** set `automaticOffset`: in 1.21.x it compares its `onLayout` y (relative to its parent) with the keyboard's screen position, so without it the padding comes up short by everything above it and the composer hides behind the keyboard (Quill K-1). `Screen`'s `KeyboardAwareScrollView` uses the focused input's window position and is not affected.
 - Safe area: per screen through `Screen edges`. The shell has no global `SafeAreaView`; legacy screens are wrapped in `RootNavigator.tsx` until migrated.
 
 ## 9. Navigation

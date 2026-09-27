@@ -4,10 +4,12 @@
  * space. Pure, so it's testable; ModelManager supplies the measurements.
  */
 
+import { formatBytes } from "./units";
+
 /** Room kept for the app itself (APK, runtime files), which isn't measured on disk here. */
-export const APP_RESERVE_BYTES = 1024 ** 3;
+export const APP_RESERVE_BYTES = 1000 ** 3;
 /** Free space to leave on the phone after a download. */
-export const FREE_SPACE_MARGIN_BYTES = 512 * 1024 ** 2;
+export const FREE_SPACE_MARGIN_BYTES = 500 * 1000 ** 2;
 
 export interface StorageCheckInput {
   /** Bytes BOAR already uses on disk (models, knowledge base, database), excluding partial downloads. */
@@ -27,7 +29,7 @@ export type StorageCheck =
   | { ok: true; projectedBytes: number }
   | { ok: false; reason: "budget" | "disk"; projectedBytes: number; message: string };
 
-const gb = (b: number) => `${(b / 1024 ** 3).toFixed(1)}GB`;
+const gb = (b: number) => formatBytes(b);
 
 export function checkStorageForDownload(input: StorageCheckInput): StorageCheck {
   const projectedBytes = APP_RESERVE_BYTES + input.usedBytes + input.reservedBytes + input.downloadBytes;

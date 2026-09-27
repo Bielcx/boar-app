@@ -3,34 +3,42 @@ import { llamaEngine } from "../inference/LlamaEngine";
 import { embeddingEngine } from "../rag/embed";
 import { closeAllPacks } from "../rag/packs";
 import { resetDatabase } from "../rag/db";
-import { resetDownloadState } from "./downloadManager";
+import { cancelAllDownloads } from "./downloadManager";
 import { clearSettings } from "../models/settings";
 import { clearDiscoveredModels } from "../models/discoveredModels";
+import { closeRegisteredStores, runReset } from "./resetOrder";
 
-const MODELS_DIR = `${FileSystem.documentDirectory}models`;
-const CORPUS_DIR = `${FileSystem.documentDirectory}corpus`;
+// Everything BOAR downloads or imports: models, knowledge packs, places packs,
+// and the temp folder of an import that was interrupted.
+const DATA_DIRS = ["models", "corpus", "poi", "imports"].map((d) => `${FileSystem.documentDirectory}${d}`);
 
 /**
- * Full app data wipe ("Danger Zone > Clear All Data" in Settings). This app
- * doesn't use MMKV/AsyncStorage — everything persisted lives either in the
- * SQLite knowledge base (chat history, all corpus/collection chunks) or in
- * small JSON files under the document directory (settings, the discovered-
- * models list), so those are what actually get cleared here.
+ * Full app data wipe ("Erase everything" in Settings). Everything persisted
+ * lives in the SQLite knowledge base (chat history, all corpus/collection
+ * chunks), in files under the document directory, or in small JSON files
+ * (settings, the discovered-models list).
  *
- * Order matters: the native llama.cpp contexts are released FIRST since
- * they hold the model files open (mmap'd) — deleting a file out from under
- * a live context is exactly the kind of native-lifecycle bug this project
- * has hit before (see LlamaEngine/EmbeddingEngine's own unload-before-load
- * guard). After this call, App.tsx's required-models check will fail and
- * the app should be sent back to the setup wizard.
+ * The order is in resetOrder.ts: nothing is deleted while a download, a
+ * model context or a database connection may still touch it. Closing the
+ * shared database under a live query crashed natively (Prism RS-1). After
+ * this call the app has no models and goes back to the setup wizard.
  */
-export async function resetAllAppData(): Promise<void> {
-  await Promise.all([llamaEngine.unload(), embeddingEngine.unload(), closeAllPacks()]);
-  resetDownloadState();
-
-  await resetDatabase();
-  await FileSystem.deleteAsync(MODELS_DIR, { idempotent: true });
-  await FileSystem.deleteAsync(CORPUS_DIR, { idempotent: true });
-  await clearSettings();
-  await clearDiscoveredModels();
+export function resetAllAppData(): Promise<void> {
+  return runReset({
+    cancelDownloads: cancelAllDownloads,
+    unloadEngines: async () => {
+      await Promise.all([llamaEngine.unload(), embeddingEngine.unload()]);
+    },
+    closeStores: async () => {
+      await Promise.all([closeAllPacks(), closeRegisteredStores()]);
+    },
+    resetDatabase,
+    deleteFiles: async () => {
+      for (const dir of DATA_DIRS) await FileSystem.deleteAsync(dir, { idempotent: true });
+    },
+    clearSettings: async () => {
+      await clearSettings();
+      await clearDiscoveredModels();
+    },
+  });
 }

@@ -6,10 +6,12 @@ import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, 
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
-import { formatBytes } from "./format";
+import { failureLines, formatBytes, formatRam } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
+import { confirmLargeModel } from "./adapters";
+import type { FileImport } from "./useCatalog";
 
 interface Props {
   model: CatalogModel;
@@ -27,6 +29,10 @@ interface Props {
   details?: string[];
   /** Memory estimate, for the numbers in the "won't fit" explanation. */
   fit?: MemoryFit;
+  /** The kind overline; off where the whole screen is one kind (Knowledge, Prism KN-3). */
+  showKind?: boolean;
+  /** The file this row asked for (useCatalog.importFor): its check, refusal or mismatch shows here. */
+  fileImport?: FileImport;
 }
 
 type Seal = { label: string; tone: Tone; emphasis: "solid" | "soft" | "outline"; icon?: IconName };
@@ -45,7 +51,8 @@ function seal(state: RowState, t: TFunction): Seal {
     case "failed":
       return { label: t("flows.row.failed"), tone: "danger", emphasis: "soft" };
     case "in-use":
-      return { label: state.roles.map((r) => t(`flows.row.role.${r}`)).join(" · "), tone: "accent", emphasis: "solid" };
+      // A solid seal is a status (Active); the role goes in the metadata, the kind is already the overline (Iris).
+      return { label: t("flows.row.active"), tone: "accent", emphasis: "solid" };
     case "installed":
       return state.verified
         ? { label: t("flows.row.verified"), tone: "field", emphasis: "soft" }
@@ -53,15 +60,24 @@ function seal(state: RowState, t: TFunction): Seal {
   }
 }
 
+/** A detail line longer than this may wrap past two lines: it folds, with Show all. */
+const DETAIL_FOLD_CHARS = 90;
+
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true, fileImport }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
   const announce = useAnnounce();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
+  const [closeRiskOpen, setCloseRiskOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  // On a low-RAM phone, a model bigger than the compact one asks before loading (CR-1).
+  const requestUse = onUse && (view.confirmUse ? () => setCloseRiskOpen(true) : onUse);
+  // A ghost Remove that opens the actions row lines its text up with the column above (Iris).
+  const leadsActions = !(view.primary === "download" || view.primary === "explain" || view.primary === "retry" || (view.primary === "use" && onUse));
   const [removing, setRemoving] = useState(false);
   const { state } = view;
   const b = seal(state, t);
@@ -88,12 +104,14 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   return (
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
       {/* The mockup's catalog card: kind overline and status seal, then the name with its size, then one metadata line. */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-        <Text variant="label" color="field" style={{ flex: 1 }}>
-          {t(`flows.row.kind.${model.kind}`)}
-        </Text>
-        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
-      </View>
+      {showKind && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+          <Text variant="label" color="field" style={{ flex: 1 }}>
+            {t(`flows.row.kind.${model.kind}`)}
+          </Text>
+          <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+        </View>
+      )}
       <View style={{ gap: tokens.space.xs }}>
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
           <Text variant="headline" style={{ flex: 1 }}>
@@ -103,18 +121,56 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             {size}
           </Text>
         </View>
-        <MetaLine items={meta ? [meta] : [model.license]} />
+        {/* Without the kind overline, the seal sits on the metadata line, not alone above the title (Prism KN-6). */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+          <View style={{ flex: 1 }}>
+            <MetaLine
+              items={[
+                state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
+                // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
+                view.wontFit
+              ? fit
+                ? t("flows.row.wontFitNumbers", {
+                    // What it needs: weights and working memory for a dense model, the working memory alone for MoE.
+                    need: formatRam(fit.expertFraction === 0 ? fit.fileBytes + fit.anonBytes : fit.anonBytes, i18n.language),
+                    total: formatRam(fit.totalBytes, i18n.language),
+                  })
+                : t("flows.row.wontFitWhy")
+              : view.mayCloseApp
+                ? t("flows.row.mayCloseWhy")
+                : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
+                meta ?? model.license,
+              ]}
+            />
+          </View>
+          {!showKind && <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />}
+        </View>
         {details?.map((d) => (
-          <Text key={d} variant="footnote" color="secondary">
+          // Long lines (a pack's sources) fold to two lines (Iris).
+          <Text key={d} variant="footnote" color="secondary" numberOfLines={showAll ? undefined : 2}>
             {d}
           </Text>
         ))}
+        {details?.some((d) => d.length > DETAIL_FOLD_CHARS) && (
+          <View style={{ alignSelf: "flex-start", marginLeft: -tokens.space.md }}>
+            <Button size="sm" variant="ghost" label={t(showAll ? "flows.row.showLess" : "flows.row.showAll")} onPress={() => setShowAll((v) => !v)} />
+          </View>
+        )}
       </View>
-      {view.fitWarning && (
+      {view.wontFit ? (
+        <View style={{ flexDirection: "row" }}>
+          {/* A fixed fact about a model that can't be chosen, not a risk: neutral outline, like NOT ON DISK (Iris). */}
+          <Badge label={t("flows.row.wontFitHere")} tone="neutral" emphasis="outline" />
+        </View>
+      ) : view.mayCloseApp ? (
+        <View style={{ flexDirection: "row" }}>
+          <Badge label={t(view.didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} />
+        </View>
+      ) : view.fitWarning ? (
         <View style={{ flexDirection: "row" }}>
           <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
         </View>
-      )}
+      ) : null}
 
       {(state.kind === "downloading" || state.kind === "verifying") && (
         <Progress
@@ -124,26 +180,46 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         />
       )}
 
-      {view.fitWarning && (
-        <Text variant="footnote" color={view.fitWarning === "insufficient" ? "danger" : "warning"}>
-          {t(`flows.row.fit.${view.fitWarning}`)}
-        </Text>
-      )}
+      {state.kind === "failed" &&
+        (() => {
+          const lines = failureLines(state, t, i18n.language);
+          return (
+            <View style={{ gap: tokens.space.xxs }}>
+              <Text variant="footnote" color="danger">
+                {lines.cause}
+              </Text>
+              <Text variant="caption" color="secondary" selectable>
+                {lines.detail}
+              </Text>
+            </View>
+          );
+        })()}
 
-      {state.kind === "failed" && (
-        <View style={{ gap: tokens.space.xxs }}>
-          <Text variant="footnote" color="danger">
-            {t(`flows.row.error.${state.errorKind}`)}
-          </Text>
-          <Text variant="caption" color="secondary" selectable>
-            {state.message}
-          </Text>
+      {fileImport && (
+        <View style={{ gap: tokens.space.xs }} accessibilityLiveRegion="polite">
+          {fileImport.status === "importing" ? (
+            <>
+              <Text variant="footnote" color="secondary">
+                {t("flows.row.importChecking", { name: fileImport.name })}
+              </Text>
+              <Progress label={t("flows.row.importChecking", { name: fileImport.name })} value={fileImport.progress} />
+            </>
+          ) : fileImport.status === "failed" ? (
+            <Text variant="footnote" color="danger">
+              {`${fileImport.name}: ${t(`flows.row.error.${fileImport.errorKind ?? "unknown"}`)}`}
+            </Text>
+          ) : (
+            <Text variant="footnote" color="warning">
+              {t("flows.row.importOther", { name: fileImport.name })}
+            </Text>
+          )}
         </View>
       )}
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
+        {/* One primary per screen: a catalog row's action is secondary, the seal carries the state (Iris, Prism MD-2). */}
         {view.primary === "download" && (
-          <Button size="sm" label={getLabel} icon={getIcon} onPress={onDownload} />
+          <Button size="sm" variant="secondary" label={getLabel} icon={getIcon} onPress={onDownload} />
         )}
         {view.primary === "explain" && (
           <Button
@@ -158,22 +234,26 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         {view.primary === "retry" && (
           <Button
             size="sm"
+            variant="secondary"
             label={t("flows.row.retry")}
             icon="refresh-cw"
-            onPress={state.kind === "failed" && state.errorKind === "load" ? onUse : onDownload}
+            onPress={state.kind === "failed" && state.errorKind === "load" ? requestUse : onDownload}
           />
         )}
         {view.primary === "use" && onUse && (
-          <Button size="sm" variant="secondary" label={t("flows.row.use")} onPress={onUse} disabled={busy} />
+          <Button size="sm" variant="secondary" label={t("flows.row.use")} onPress={requestUse} disabled={busy} />
         )}
         {removable && (
+          <View style={leadsActions ? { marginLeft: -tokens.space.md } : undefined}>
           <Button
             size="sm"
             variant="ghost"
+            tone="danger"
             label={t("flows.row.remove")}
             accessibilityHint={view.removeBlocked ? t("flows.row.inUseHint") : undefined}
             onPress={() => (view.removeBlocked ? toast({ message: t("flows.row.inUseHint") }) : setConfirmOpen(true))}
           />
+          </View>
         )}
       </View>
 
@@ -200,12 +280,44 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         {fit && (
           <Text variant="callout" numeric>
             {t("flows.row.fitDetail", {
-              need: formatBytes(fit.anonBytes, i18n.language),
-              free: formatBytes(fit.availableBytes, i18n.language),
-              total: formatBytes(fit.totalBytes, i18n.language),
+              need: formatRam(fit.anonBytes, i18n.language),
+              free: formatRam(fit.availableBytes, i18n.language),
+              total: formatRam(fit.totalBytes, i18n.language),
             })}
           </Text>
         )}
+      </Sheet>
+
+      <Sheet
+        visible={closeRiskOpen}
+        onClose={() => setCloseRiskOpen(false)}
+        title={t("flows.row.mayCloseTitle")}
+        footer={
+          <>
+            {/* Compact is the default here: the safe choice first (the Sheet stacks the footer bottom-up). */}
+            <Button label={t("flows.row.keepCompact")} variant="primary" fullWidth onPress={() => setCloseRiskOpen(false)} />
+            <Button
+              label={t("flows.row.useAnyway")}
+              variant="secondary"
+              fullWidth
+              onPress={async () => {
+                setCloseRiskOpen(false);
+                // Lets the engine load it on this low-RAM phone (Tusk's confirmLargeModel).
+                await confirmLargeModel(model.id);
+                onUse?.();
+              }}
+            />
+          </>
+        }
+      >
+        {/* A short title; the model's full name goes in the body, in bold (Iris). */}
+        <Text variant="callout">
+          {t(view.didNotOpen ? "flows.row.didNotOpenBefore" : "flows.row.mayCloseBefore")}
+          <Text variant="callout" weight="semibold">
+            {title ?? model.label}
+          </Text>
+          {t("flows.row.mayCloseAfter")}
+        </Text>
       </Sheet>
 
       <Sheet

@@ -9,7 +9,8 @@
  * until those land, and a row without them falls back to today's fields.
  */
 
-import type { IntegrityErrorKind } from "../../models/integrity";
+import type { DownloadErrorDetail, IntegrityErrorKind } from "../../models/integrity";
+import { COMPACT_ONLY_MAX_RAM_BYTES } from "../../routing/defaultModel";
 
 export type DownloadPhase = "downloading" | "copying" | "verifying" | "verified" | "error";
 /** The trust layer's error kinds (src/models/integrity.ts). */
@@ -27,6 +28,8 @@ export interface RowDownload {
   verifyTotal?: number;
   errorKind?: DownloadErrorKind;
   permanent?: boolean;
+  /** Why a download stopped part-way, with its numbers (Ledger, MD-4); the UI translates it. */
+  errorDetail?: DownloadErrorDetail;
 }
 
 export interface RowInput {
@@ -41,13 +44,21 @@ export interface RowInput {
   /** Last load attempt failed with this message. */
   loadError?: string | null;
   fit?: FitVerdict;
+  /** Loading it can get the app killed on this phone (mayCloseApp). */
+  mayCloseApp?: boolean;
+  /** Its last load did kill the app here (Tusk's load marker, CR-2). */
+  loadCrashed?: boolean;
+  /** The user already chose "Use anyway" for it. */
+  largeConfirmed?: boolean;
+  /** It can't open on this phone (wontFitHere): no download is offered. */
+  wontFit?: boolean;
 }
 
 export type RowState =
   | { kind: "not-installed" }
   | { kind: "downloading"; phase: "downloading" | "copying"; progress: number }
   | { kind: "verifying"; progress: number | null }
-  | { kind: "failed"; errorKind: DownloadErrorKind | "load"; message: string; permanent: boolean }
+  | { kind: "failed"; errorKind: DownloadErrorKind | "load"; message: string; permanent: boolean; detail?: DownloadErrorDetail }
   | { kind: "loading" }
   | { kind: "in-use"; roles: ModelRole[]; verified: boolean }
   | { kind: "installed"; verified: boolean };
@@ -68,6 +79,35 @@ export interface RowView {
   removeBlocked: boolean;
   /** Memory warning to show next to the row; "insufficient" only warns, never hides the row. */
   fitWarning: FitVerdict | null;
+  /** Loading it can get the app killed here: the row says so instead of "May be slow", and Use asks first (CR-1). */
+  mayCloseApp: boolean;
+  /** Its last load killed the app here: the seal says "Didn't open here" (CR-2). */
+  didNotOpen: boolean;
+  /** Use asks for confirmation first (risky and not confirmed yet, or it already crashed). */
+  confirmUse: boolean;
+  /** Can't open on this phone: "Won't fit on this phone", and no download button (CR-1). */
+  wontFit: boolean;
+}
+
+/**
+ * On a phone at or under the compact-only RAM limit (Tusk's
+ * COMPACT_ONLY_MAX_RAM_BYTES, the one the setup uses), a language model
+ * bigger than the compact one can get BOAR killed by the system when it
+ * loads (Piston: Qwen3-4B on 3.8 GB, lowmemorykiller). Unknown RAM (0) is
+ * not a reason to warn.
+ */
+export function mayCloseApp(
+  model: { kind: string; sizeBytes: number },
+  compactSizeBytes: number | undefined,
+  totalRamBytes: number
+): boolean {
+  return (
+    model.kind === "llm" &&
+    compactSizeBytes !== undefined &&
+    model.sizeBytes > compactSizeBytes &&
+    totalRamBytes > 0 &&
+    totalRamBytes <= COMPACT_ONLY_MAX_RAM_BYTES
+  );
 }
 
 function stateOf(input: RowInput): RowState {
@@ -79,6 +119,7 @@ function stateOf(input: RowInput): RowState {
       errorKind: dl.errorKind ?? "unknown",
       message: dl.error,
       permanent: dl.permanent ?? false,
+      detail: dl.errorDetail,
     };
   }
   if (dl?.downloading) {
@@ -98,10 +139,25 @@ function stateOf(input: RowInput): RowState {
 
 export function modelRowView(input: RowInput): RowView {
   const state = stateOf(input);
-  const fitWarning = input.fit && input.fit !== "resident" ? input.fit : null;
-  const base = { removeBlocked: state.kind === "in-use", fitWarning };
+  const didNotOpen = input.loadCrashed ?? false;
+  const closes = (input.mayCloseApp ?? false) || didNotOpen;
+  // The stronger warning replaces "May be slow".
+  const fitWarning = !closes && input.fit && input.fit !== "resident" ? input.fit : null;
+  // A crash withdraws the confirmation (Tusk), so it asks again even if confirmed before.
+  const confirmUse = didNotOpen || (closes && !input.largeConfirmed);
+  const wontFit = (input.wontFit ?? false) && state.kind === "not-installed";
+  const base = {
+    removeBlocked: state.kind === "in-use",
+    // The row says it can't fit; no second memory warning.
+    fitWarning: wontFit ? null : fitWarning,
+    mayCloseApp: wontFit ? false : closes,
+    didNotOpen,
+    confirmUse,
+    wontFit,
+  };
   switch (state.kind) {
     case "not-installed":
+      if (wontFit) return { ...base, state, primary: "none", tone: "danger" };
       return { ...base, state, primary: fitWarning === "insufficient" ? "explain" : "download", tone: "neutral" };
     case "downloading":
     case "verifying":

@@ -35,6 +35,41 @@ export class AssetIntegrityError extends Error {
   }
 }
 
+/** Why a download stopped part-way, as a stable code the UI translates. */
+export type DownloadErrorCode =
+  /** The transfer failed (connection dropped, server error). The bytes so far are kept. */
+  | "interrupted"
+  /** No progress for `stallS` seconds; paused, and Retry resumes it. */
+  | "paused";
+
+/** The numbers behind a DownloadError, for a translated message in the UI. */
+export interface DownloadErrorDetail {
+  code: DownloadErrorCode;
+  /** Bytes on disk when it stopped (the resume point). */
+  bytesDone: number;
+  bytesTotal: number;
+  /** Seconds without progress before pausing ("paused" only). */
+  stallS?: number;
+}
+
+/**
+ * A download that stopped part-way and can be resumed (kind "network", never
+ * permanent). `message` is English for logs and old callers; UIs should use
+ * `detail`. The underlying exception text is logged, not put in the message.
+ */
+export class DownloadError extends AssetIntegrityError {
+  constructor(
+    public readonly detail: DownloadErrorDetail,
+    message: string
+  ) {
+    super("network", message, false);
+  }
+}
+
+export function downloadErrorDetailOf(e: unknown): DownloadErrorDetail | undefined {
+  return e instanceof DownloadError ? e.detail : undefined;
+}
+
 /**
  * The user cancelled an import (AbortSignal). `name` is "AbortError", like
  * fetch's, so callers can check `e.name === "AbortError"` for any cancel.

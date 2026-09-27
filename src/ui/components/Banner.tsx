@@ -30,7 +30,9 @@ const DEFAULT_ICON: Record<BannerTone, IconName> = {
 
 /**
  * Inline, persistent notice inside the content flow (not floating). Errors
- * are announced assertively, everything else politely.
+ * are announced assertively, everything else politely. The tone lives in the
+ * soft fill and the icon (mockup "KEEP BOAR OPEN"); only danger adds a frame,
+ * so an info note inside a card doesn't draw a coloured box.
  */
 export function Banner({ tone = "info", title, message, icon, actionLabel, onAction, onDismiss, dismissLabel }: BannerProps) {
   const t = useTokens();
@@ -45,11 +47,11 @@ export function Banner({ tone = "info", title, message, icon, actionLabel, onAct
         padding: t.space.md,
         borderRadius: t.radius.lg,
         backgroundColor: tc.bg,
-        borderWidth: t.size.border,
+        borderWidth: tone === "danger" ? t.size.border : 0,
         borderColor: tc.fg,
       }}
     >
-      <View style={{ paddingTop: 2 }}>
+      <View style={{ paddingTop: t.space.xxs }}>
         <Icon name={icon ?? DEFAULT_ICON[tone]} color={tc.fg} />
       </View>
       <View style={{ flex: 1, gap: t.space.xs }}>

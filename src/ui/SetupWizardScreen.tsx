@@ -13,6 +13,7 @@ import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } f
 import { useLanguage } from "../i18n/LanguageContext";
 import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
 import { CatalogModel, MODEL_CATALOG, TIERS } from "../models/manifest";
+import { findAsset } from "../models/assetRegistry";
 import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
 import { embeddingEngine } from "../rag/embed";
@@ -28,7 +29,7 @@ import {
   storageShortfall,
   transferSeconds,
 } from "./flows/packages";
-import { formatBytes, formatCount, minutesLeft } from "./flows/format";
+import { failureLines, formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
 import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
@@ -48,6 +49,11 @@ interface Props {
 
 type Step = 1 | 2 | 3;
 type IndexPhase = "waiting" | "building" | "ready" | "error";
+
+/** The mockup's setup rhythm (FIDELITY): 14 pt between blocks, content right under the stepper. */
+function setupRhythm(t: ReturnType<typeof useTokens>) {
+  return { gap: t.space.md + t.space.xxs, paddingTop: t.space.xs };
+}
 
 /** Above this OS font scale the two language cards stack instead of sitting side by side. */
 const LARGE_TEXT = 1.15;
@@ -91,14 +97,26 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
         setAnswerChosen(!!p.answerChosen);
         const region = p.travelRegionId ? poiRegions().find((r) => r.id === p.travelRegionId) : undefined;
         if (region) setTravel(region);
+        // The trip's items back from their ids; one that no longer exists drops the trip rather than half of it.
+        const tripAssets = p.trip?.assetIds.map((id) => findAsset(id));
+        if (p.trip && tripAssets?.every(Boolean)) setTrip({ label: p.trip.label, assets: tripAssets as CatalogModel[] });
         setStep(p.step);
       }
       setRestored(true);
     });
   }, []);
   useEffect(() => {
-    if (restored) setSetupProgress({ step, packageId, travelRegionId: travel?.id, answerTier, packageChosen, answerChosen });
-  }, [restored, step, packageId, travel, answerTier, packageChosen, answerChosen]);
+    if (restored)
+      setSetupProgress({
+        step,
+        packageId,
+        travelRegionId: travel?.id,
+        trip: trip ? { label: trip.label, assetIds: trip.assets.map((a) => a.id) } : undefined,
+        answerTier,
+        packageChosen,
+        answerChosen,
+      });
+  }, [restored, step, packageId, travel, trip, answerTier, packageChosen, answerChosen]);
   const titleRef = useRef<RNText>(null);
 
   // Focus and announce the title on every step change (Prism F7).
@@ -264,10 +282,12 @@ function SetupStepper({ stage }: { stage: number }) {
 function StepHeader({ titleRef, stage, title, subtitle }: { titleRef: React.RefObject<RNText | null>; stage: number; title: string; subtitle?: string }) {
   const tokens = useTokens();
   return (
-    <View style={{ gap: tokens.space.xl }}>
+    // 18 pt from the stepper's labels to the title, as measured on the mockup (FIDELITY).
+    <View style={{ gap: tokens.space.base + tokens.space.xxs }}>
       <SetupStepper stage={stage} />
       <View style={{ gap: tokens.space.xs }}>
-        <Text ref={titleRef} variant="title2" header>
+        {/* 26 pt like the mockup's step titles (FIDELITY). */}
+        <Text ref={titleRef} variant="title1" header>
           {title}
         </Text>
         {subtitle && (
@@ -310,11 +330,12 @@ function Welcome({
   ];
   // Measured on this phone; a value the OS would not give is left out, never guessed.
   const phone = [
-    { key: "phoneMemory", bytes: deviceRamBytes },
-    { key: "phoneFree", bytes: freeBytes },
+    { key: "phoneMemory", bytes: deviceRamBytes, ram: true },
+    { key: "phoneFree", bytes: freeBytes, ram: false },
   ].filter((r) => r.bytes > 0);
   return (
     <Screen
+      contentStyle={setupRhythm(tokens)}
       ambient
       edges={["top", "bottom", "left", "right"]}
       footer={
@@ -344,8 +365,11 @@ function Welcome({
         <Text variant="body">{t("flows.onboarding.tagline")}</Text>
         <View style={{ gap: tokens.space.sm }}>
           {points.map((p) => (
-            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-              <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+            // Icon on the first line's optical centre when the text wraps (Iris, 1.3).
+            <View key={p.key} style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "flex-start" }}>
+              <View style={{ paddingTop: tokens.space.xxs }}>
+                <Icon name={p.icon} size="sm" color={tokens.color.text.secondary} />
+              </View>
               <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
                 {t(`flows.onboarding.${p.key}`)}
               </Text>
@@ -397,7 +421,7 @@ function Welcome({
                 {t(`flows.onboarding.${r.key}`)}
               </Text>
               <Text variant="mono" numeric>
-                {formatBytes(r.bytes, lang)}
+                {r.ram ? formatRam(r.bytes, lang) : formatBytes(r.bytes, lang)}
               </Text>
             </View>
           ))}
@@ -492,6 +516,7 @@ function PackageStep({
 
   return (
     <Screen
+      contentStyle={setupRhythm(tokens)}
       edges={["top", "bottom", "left", "right"]}
       footer={
         <>
@@ -519,7 +544,7 @@ function PackageStep({
       <Text variant="mono" color="secondary" numeric>
         {deviceRamBytes > 0 || freeBytes > 0
           ? t("flows.onboarding.device", {
-              ram: deviceRamBytes > 0 ? formatBytes(deviceRamBytes, lang) : t("flows.onboarding.unknown"),
+              ram: deviceRamBytes > 0 ? formatRam(deviceRamBytes, lang) : t("flows.onboarding.unknown"),
               free: freeBytes > 0 ? formatBytes(freeBytes, lang) : t("flows.onboarding.unknown"),
             })
           : t("flows.onboarding.deviceUnknown")}
@@ -550,7 +575,7 @@ function PackageStep({
                 !offline &&
                   p.seconds != null &&
                   p.plan.downloadBytes > 0 &&
-                  t("flows.onboarding.meta.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
+                  t("flows.onboarding.meta.time", { minutes: minutesAbout(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
               ]}
             >
               {warning && (
@@ -586,7 +611,7 @@ function PackageStep({
           <Text variant="footnote" color="secondary">
             {compactSuggested
               ? pick?.reason === "compact-low-ram"
-                ? t("flows.onboarding.compactLowRam", { ram: formatBytes(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+                ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
                 : t("flows.onboarding.compactWhy")
               : t("flows.onboarding.answerModelFooter")}
           </Text>
@@ -849,7 +874,7 @@ function InstallStep({
   useEffect(() => {
     if (failedKey && failedKey !== lastFailedKey.current) {
       const first = failed[0];
-      const reason = first.state.kind === "failed" ? t(`flows.row.error.${first.state.errorKind}`) : "";
+      const reason = first.state.kind === "failed" ? failureLines(first.state, t, lang).cause : "";
       announce(`${t("flows.onboarding.downloadFailed")}. ${first.asset.label}: ${reason}`, { assertive: true });
       setTimeout(() => {
         const node = retryRef.current && findNodeHandle(retryRef.current);
@@ -882,6 +907,16 @@ function InstallStep({
     return () => clearInterval(id);
   }, [downloading]);
   const stalled = downloading && now - lastMove.current.at > STALL_MS;
+  // Measured download speed since this screen started receiving bytes: the time left is shown only once measured.
+  const rateStart = useRef<{ bytes: number; at: number } | null>(null);
+  if (downloading && !rateStart.current && doneBytes > 0) rateStart.current = { bytes: doneBytes, at: Date.now() };
+  const etaS = (() => {
+    const r = rateStart.current;
+    if (!r || !downloading) return undefined;
+    const elapsedS = (now - r.at) / 1000;
+    const bps = (doneBytes - r.bytes) / Math.max(elapsedS, 1);
+    return elapsedS >= 5 && bps > 0 ? (totalBytes - doneBytes) / bps : undefined;
+  })();
 
   // Announce every quarter of the download, never per tick (Prism F4).
   const quarter = totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 4) : 0;
@@ -946,6 +981,9 @@ function InstallStep({
   const indexing = indexPhase === "building" || indexPhase === "error";
   const { fontScale } = useWindowDimensions();
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
+  // The item whose bytes are arriving now, "Item 2 of 5 — name" under the bar (the mockup's "Model 1 of 3 — …").
+  const currentIdx = states.findIndex((x) => moving(x.state));
+  const current = currentIdx >= 0 ? { n: currentIdx + 1, label: states[currentIdx].asset.label } : undefined;
   const presentCount = states.filter((s) => s.state.kind === "installed" || s.state.kind === "in-use").length;
   // The offline build imports: its hero counts files and only appears once one is in; before that the list says it all (Iris, Prism N-5/N-6).
   const hero = !allPresent
@@ -1048,6 +1086,7 @@ function InstallStep({
 
   return (
     <Screen
+      contentStyle={setupRhythm(tokens)}
       edges={["top", "bottom", "left", "right"]}
       footer={
         ready ? (
@@ -1083,12 +1122,20 @@ function InstallStep({
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
       {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
         // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
-        <Card style={{ gap: tokens.space.md, overflow: "hidden" }}>
-          {/* The boar sits in the corner like the mockup; the content sets the card's height (Iris, Prism N-6). */}
-          <View style={{ position: "absolute", top: 0, right: 0 }}>
-            {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
-          </View>
-          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm : tokens.size.mascot - tokens.space.base }}>
+        // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
+        // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
+        <Card style={{ gap: tokens.space.md - tokens.space.xxs, overflow: "hidden", borderRadius: tokens.radius.lg + tokens.space.xxs }}>
+          {fontScale > LARGE_TEXT ? (
+            // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
+            <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
+              <Mascot size="brand" />
+            </View>
+          ) : (
+            <View style={{ position: "absolute", top: -tokens.space.xs, right: -tokens.space.xs }}>
+              <Mascot size="hero" glow />
+            </View>
+          )}
+          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascot - tokens.space.xl }}>
             {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
             {hero.figure ? (
               <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
@@ -1096,12 +1143,45 @@ function InstallStep({
               <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
             )}
           </View>
-          <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} />
-          <MetaLine items={hero.meta} />
+          <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
+          {!allPresent && !offline && current && (
+            <Text variant="footnote" numberOfLines={2}>
+              {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
+            </Text>
+          )}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: tokens.space.md }}>
+            <MetaLine items={hero.meta} />
+            {!allPresent && etaS != null && <MetaLine items={[t("flows.onboarding.minutesLeft", { count: minutesLeft(etaS) })]} />}
+          </View>
         </Card>
       )}
 
-      <Card padding="none">
+      {/* Right under the progress, where it is seen: downloads pause in the background (Prism S3-5). */}
+      {downloading && (
+        // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
+        <View
+          style={{
+            gap: tokens.space.xs,
+            backgroundColor: tokens.color.status.warning.soft,
+            borderRadius: tokens.radius.lg - tokens.space.xxs,
+            paddingVertical: tokens.space.md,
+            paddingHorizontal: tokens.space.md + tokens.space.xxs,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
+            <Text variant="label" color="warning">
+              {t("flows.onboarding.keepOpenTitle")}
+            </Text>
+          </View>
+          <Text variant="footnote">
+            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+          </Text>
+        </View>
+      )}
+
+      {/* The mockup's list card: 4/14 padding, rows 9 pt tall padding, status in small caps (FIDELITY). */}
+      <Card padding="none" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs, paddingVertical: tokens.space.xs }}>
         {[
           ...fileRows,
           {
@@ -1132,7 +1212,7 @@ function InstallStep({
           .map((row, i, rows) => (
           <React.Fragment key={row.key}>
           {row.group && row.group !== rows[i - 1]?.group && (
-            <View style={{ paddingHorizontal: tokens.space.base, paddingTop: tokens.space.md }}>
+            <View style={{ paddingTop: tokens.space.md }}>
               <Text variant="label" color="secondary">
                 {row.group}
               </Text>
@@ -1143,8 +1223,7 @@ function InstallStep({
             accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
             style={{
               gap: tokens.space.xs,
-              paddingHorizontal: tokens.space.base,
-              paddingVertical: tokens.space.md,
+              paddingVertical: tokens.space.sm,
               borderBottomWidth: i < rows.length - 1 && rows[i + 1].group === row.group ? tokens.size.hairline : 0,
               borderBottomColor: tokens.color.line.hairline,
             }}
@@ -1155,7 +1234,8 @@ function InstallStep({
                 {row.title}
               </Text>
               {row.key !== "index" && (
-                <Text variant="mono" color={row.tone} numeric>
+                // Small caps like the mockup's STREAMING / QUEUED / PENDING.
+                <Text variant="label" color={row.tone} numeric>
                   {row.status}
                 </Text>
               )}
@@ -1185,18 +1265,20 @@ function InstallStep({
               {t("flows.onboarding.downloadFailed")}
             </Text>
           </View>
-          {failed.map((f) => (
-            <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
-              <Text variant="callout">
-                {f.asset.label}: {t(`flows.row.error.${f.state.kind === "failed" ? f.state.errorKind : "unknown"}`)}
-              </Text>
-              {f.state.kind === "failed" && (
-                <Text variant="caption" color="secondary" selectable>
-                  {f.state.message}
+          {failed.map((f) => {
+            if (f.state.kind !== "failed") return null;
+            const lines = failureLines(f.state, t, lang);
+            return (
+              <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
+                <Text variant="callout">
+                  {f.asset.label}: {lines.cause}
                 </Text>
-              )}
-            </View>
-          ))}
+                <Text variant="caption" color="secondary" selectable>
+                  {lines.detail}
+                </Text>
+              </View>
+            );
+          })}
           <Button ref={retryRef} label={t("flows.row.retry")} icon="refresh-cw" onPress={() => failed.forEach((f) => catalog.download(f.asset))} />
           {noSpaceFailure && <Button label={t("flows.onboarding.smallerPackage")} variant="secondary" onPress={onChoosePackage} />}
         </View>
@@ -1217,19 +1299,6 @@ function InstallStep({
         />
       )}
 
-      {downloading && (
-        <Card style={{ gap: tokens.space.xs }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
-            <Text variant="label" color="warning">
-              {t("flows.onboarding.keepOpenTitle")}
-            </Text>
-          </View>
-          <Text variant="footnote" color="secondary">
-            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
-          </Text>
-        </Card>
-      )}
     </Screen>
   );
 }
@@ -1244,6 +1313,9 @@ function PhaseIcon({ state, model }: { state: RowState; model: CatalogModel }) {
   if (state.kind === "installed" || state.kind === "in-use") return <Icon name="check-circle" color={tokens.color.status.success.solid} />;
   if (state.kind === "failed") return <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />;
   if (moving(state)) return <Icon name="download" color={tokens.color.accent.text} />;
-  // Not a ring: an empty circle read as the radio of step 2 (Prism N-7).
-  return <Icon name={state.kind === "not-installed" && !canDownload(model) ? "file-plus" : "clock"} color={tokens.color.text.secondary} />;
+  // Waiting: what the item is, like the mockup (database for the search model, book for knowledge);
+  // a file to import says so. Never an empty ring (Prism N-7).
+  const waiting: IconName =
+    state.kind === "not-installed" && !canDownload(model) ? "file-plus" : model.kind === "embedding" ? "database" : model.kind === "corpus" ? "book-open" : "cpu";
+  return <Icon name={waiting} color={tokens.color.text.secondary} />;
 }

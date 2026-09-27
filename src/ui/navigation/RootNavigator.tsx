@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { DarkTheme, DefaultTheme, NavigationContainer, Theme, useNavigation } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, NavigationContainer, NavigationState, Theme, useNavigation } from "@react-navigation/native";
+import { saveNavState, savedNavState } from "./navState";
 import { createNativeStackNavigator, NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -117,7 +118,13 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
   const { t: tr } = useTranslation();
   const theme = useMemo(() => navigationTheme(t), [t]);
   return (
-    <NavigationContainer theme={theme}>
+    // Restores the last screen when the tree mounts again, e.g. after Android recreates the
+    // Activity on a system font change (FS-1): the JS context survives, the React tree does not.
+    <NavigationContainer
+      theme={theme}
+      initialState={savedNavState<NavigationState>()}
+      onStateChange={saveNavState}
+    >
       <StatusBar style={t.scheme === "dark" ? "light" : "dark"} />
       <Stack.Navigator
         initialRouteName={initialRoute}

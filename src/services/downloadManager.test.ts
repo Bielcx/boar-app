@@ -31,8 +31,8 @@ vi.mock("../models/ModelManager", () => ({
   },
 }));
 
-import { getDownloadState, resetDownloadState, restartDownload, startDownload } from "./downloadManager";
-import { AssetIntegrityError } from "../models/integrity";
+import { cancelAllDownloads, getDownloadState, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
+import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -139,6 +139,14 @@ describe("download phases and error kinds", () => {
     expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "hash-mismatch", permanent: true });
   });
 
+  it("passes a stopped download's code and numbers through, for a translated message", async () => {
+    const p = startDownload(asset("a"));
+    const detail = { code: "paused", bytesDone: 40, bytesTotal: 100, stallS: 60 } as const;
+    pending.get("a")!.reject(new DownloadError(detail, "Download of A paused (no progress for 60s)"));
+    await p;
+    expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "network", permanent: false, errorDetail: detail });
+  });
+
   it("treats plain errors as transient (retry allowed)", async () => {
     const p = startDownload(asset("a"));
     pending.get("a")!.reject(new Error("socket closed"));
@@ -146,3 +154,54 @@ describe("download phases and error kinds", () => {
     expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "unknown", permanent: false });
   });
 });
+
+describe("remounting the UI (font scale change, FS-1)", () => {
+  it("a running download outlives the screen that started it: a new subscriber sees it, and Download again doesn't start a second one", async () => {
+    // The screen that starts the download, then unmounts (key change at the navigator).
+    const seenByOld: number[] = [];
+    const unsubscribeOld = subscribeDownloads(() => seenByOld.push(getDownloadState("a")?.bytesWritten ?? -1));
+    const first = startDownload(asset("a"));
+    downloadMock.mock.calls[0][1]!({ phase: "downloading", totalBytesWritten: 40, totalBytesExpectedToWrite: 100 });
+    unsubscribeOld();
+
+    // The remounted screen: fresh subscription, same module state.
+    const seenByNew: number[] = [];
+    const unsubscribeNew = subscribeDownloads(() => seenByNew.push(getDownloadState("a")?.bytesWritten ?? -1));
+    expect(getDownloadState("a")).toMatchObject({ downloading: true, bytesWritten: 40, bytesExpected: 100 });
+    const again = startDownload(asset("a"));
+    expect(again).toBe(first);
+    expect(downloadMock).toHaveBeenCalledTimes(1);
+
+    downloadMock.mock.calls[0][1]!({ phase: "downloading", totalBytesWritten: 90, totalBytesExpectedToWrite: 100 });
+    pending.get("a")!.resolve();
+    await first;
+    expect(seenByNew).toContain(90);
+    expect(seenByOld).not.toContain(90);
+    expect(getDownloadState("a")).toMatchObject({ phase: "verified", downloading: false });
+    unsubscribeNew();
+  });
+});
+
+describe("cancelAllDownloads (Erase everything)", () => {
+  it("cancels every running download and waits for each to settle before forgetting them", async () => {
+    signalCancelMock.mockClear();
+    const a = startDownload(asset("a"));
+    const b = startDownload(asset("b"));
+    let settled = false;
+    const done = cancelAllDownloads().then(() => (settled = true));
+    await settle();
+    expect(signalCancelMock.mock.calls.map((c) => c[0].id).sort()).toEqual(["a", "b"]);
+    await Promise.all([a, b]);
+    await done;
+    expect(settled).toBe(true);
+    expect(getDownloadState("a")).toBeUndefined();
+    expect(getDownloadState("b")).toBeUndefined();
+  });
+
+  it("does nothing when no download is running", async () => {
+    signalCancelMock.mockClear();
+    await cancelAllDownloads();
+    expect(signalCancelMock).not.toHaveBeenCalled();
+  });
+});
+

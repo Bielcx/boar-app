@@ -3,7 +3,7 @@ import * as BundledAssets from "bundled-assets";
 import { networkAllowed } from "../config/variant";
 import { checkStorageForDownload } from "./storageBudget";
 import { copyWithSha256, sha256OfFile, HashProgress } from "./fileHash";
-import { AssetIntegrityError, candidatesBySize, digestsEqual, matchByDigest, throwIfAborted } from "./integrity";
+import { AssetIntegrityError, candidatesBySize, digestsEqual, DownloadError, matchByDigest, throwIfAborted } from "./integrity";
 import { allAssets } from "./assetRegistry";
 import { checkImportSize, formatBytes, importKindOfAsset, MAX_ASSET_IMPORT_BYTES } from "./importLimits";
 import {
@@ -239,6 +239,16 @@ export class ModelManager {
     return ok;
   }
 
+  /** A stalled download, left paused for the next attempt to resume. */
+  private async pausedError(asset: CatalogModel, destPath: string): Promise<DownloadError> {
+    const stallS = DOWNLOAD_INACTIVITY_TIMEOUT_MS / 1000;
+    const kept = (await FileSystem.getInfoAsync(destPath).catch(() => null)) as { exists: boolean; size?: number } | null;
+    return new DownloadError(
+      { code: "paused", bytesDone: kept?.exists ? kept.size ?? 0 : 0, bytesTotal: asset.sizeBytes, stallS },
+      `Download of ${asset.label} paused (no progress for ${stallS}s) — tap Retry to resume, or check your connection.`
+    );
+  }
+
   /**
    * Installs an asset from a file the user picked (SAF / document picker),
    * with no network. The file is identified by content, not name: its size
@@ -253,6 +263,25 @@ export class ModelManager {
     onProgress?: HashProgress,
     signal?: AbortSignal,
     catalog: CatalogModel[] = this.importCatalog()
+  ): Promise<CatalogModel> {
+    // Every attempt and every refusal is logged, including the ones decided
+    // before any copy (unknown size, too large, no room): a silent refusal
+    // looks like "the import button does nothing" on a device.
+    dlog("import", `importing ${srcUri}`);
+    try {
+      return await this.importFromFileUnlogged(srcUri, onProgress, signal, catalog);
+    } catch (e: any) {
+      const kind = e instanceof AssetIntegrityError ? e.kind : e?.name ?? "error";
+      dlog("import", `refused ${srcUri}: ${kind}: ${e?.message ?? e}`);
+      throw e;
+    }
+  }
+
+  private async importFromFileUnlogged(
+    srcUri: string,
+    onProgress: HashProgress | undefined,
+    signal: AbortSignal | undefined,
+    catalog: CatalogModel[]
   ): Promise<CatalogModel> {
     // Entries without a known hash can't be identified by content.
     catalog = catalog.filter((a) => /^[0-9a-f]{64}$/i.test(a.sha256));
@@ -567,9 +596,7 @@ export class ModelManager {
         // Paused, not deleted — stays in pausedDownloads for the next call
         // to pick up. Only genuinely-failed (non-timeout) downloads below
         // are treated as unrecoverable and cleaned up.
-        throw new Error(
-          `Download of ${asset.label} stalled (no progress for ${DOWNLOAD_INACTIVITY_TIMEOUT_MS / 1000}s) — tap Retry to resume, or check your connection.`
-        );
+        throw await this.pausedError(asset, destPath);
       }
       // A dropped connection (or any other transfer error): keep the bytes we
       // have. The next attempt resumes from the file's length, and the
@@ -579,10 +606,10 @@ export class ModelManager {
       downloadsOwningFile.delete(asset.id);
       const kept = (await FileSystem.getInfoAsync(destPath).catch(() => null)) as { exists: boolean; size?: number } | null;
       const keptBytes = kept?.exists ? kept.size ?? 0 : 0;
-      throw new AssetIntegrityError(
-        "network",
-        `Download of ${asset.label} was interrupted at ${keptBytes} of ${asset.sizeBytes} bytes (${e?.message ?? e}). Retry to continue from there.`,
-        false
+      // The exception text went to the log above; the UI gets a code and numbers.
+      throw new DownloadError(
+        { code: "interrupted", bytesDone: keptBytes, bytesTotal: asset.sizeBytes },
+        `Download of ${asset.label} was interrupted at ${keptBytes} of ${asset.sizeBytes} bytes. Retry to continue from there.`
       );
     } finally {
       clearTimeout(timer);
@@ -602,9 +629,7 @@ export class ModelManager {
       // stalled/paused case as the throw path above, just via the resolve
       // side of the promise instead of a rejection.
       dlog(asset.id, "result was undefined (pause/cancel) — leaving paused for next attempt to resume");
-      throw new Error(
-        `Download of ${asset.label} paused (no progress for ${DOWNLOAD_INACTIVITY_TIMEOUT_MS / 1000}s) — tap Retry to resume, or check your connection.`
-      );
+      throw await this.pausedError(asset, destPath);
     }
 
     progressHooks.delete(asset.id);

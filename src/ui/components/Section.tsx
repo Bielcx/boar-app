@@ -32,14 +32,21 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
           }}
         >
           {items.map((child, i) => (
-            <View
-              key={i}
-              style={
-                i > 0
-                  ? { borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline, marginLeft: t.space.base }
-                  : undefined
-              }
-            >
+            <View key={i}>
+              {/* The separator is inset; the row itself is not, so every row keeps the same left edge. */}
+              {i > 0 && (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: t.space.base,
+                    right: 0,
+                    height: t.size.hairline,
+                    backgroundColor: t.color.line.hairline,
+                  }}
+                />
+              )}
               {child}
             </View>
           ))}
@@ -48,7 +55,7 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
         items
       )}
       {footer && (
-        <Text variant="footnote" color="tertiary" style={{ paddingHorizontal: t.space.base }}>
+        <Text variant="footnote" color="secondary" style={{ paddingHorizontal: t.space.base }}>
           {footer}
         </Text>
       )}
