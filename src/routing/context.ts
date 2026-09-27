@@ -179,8 +179,10 @@ export function selectInstant(query: string, chunks: RetrievedChunk[]): InstantS
  * ML-DSA-44..."). A sentence opening with a pronoun ("It initially
  * focuses...") needs the text before it.
  */
-export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | null {
+export function instantFinalBlock(query: string, snippet: string): "anaphora" | "list" | "compound" | "not-definition" | "health" | null {
   const q = query.trim().replace(/[?!.\s]+$/, "");
+  // One sentence is never a complete first-aid answer.
+  if (isHealthQuestion(q)) return "health";
   if (/^(it|its|this|that|these|those|they|their|he|she|his|her|such|both)\b/i.test(snippet.trim())) return "anaphora";
   if (/\b(and|or)\s+(what|how|why|which|who|when|where)\b/i.test(q)) return "compound";
   if (/^(which|what)\b.*\b(are|were)\b/i.test(q)) return "list";
@@ -192,6 +194,128 @@ export function instantFinalBlock(query: string, snippet: string): "anaphora" | 
     if (!defines.test(snippet)) return "not-definition";
   }
   return null;
+}
+
+/**
+ * Share of the question's distinct content words found in `text` (0..1).
+ * An absolute measure: relative scores alone let an off-topic page win when
+ * nothing on-topic was retrieved ("Dean Lee", a nuclear physicist, for "Which
+ * signature algorithms are quantum resistant?", with no crypto pack).
+ */
+export function termCoverage(query: string, text: string): number {
+  const q = [...new Set(tokenizeTerms(query))];
+  if (!q.length) return 1;
+  const t = new Set(tokenizeTerms(text));
+  return q.filter((x) => t.has(x)).length / q.length;
+}
+
+/** Below this, a snippet is not shown as "from the source", and the sources count as weak. */
+export const MIN_TERM_COVERAGE = 0.75;
+
+/** Best coverage of the question by any single source (title + body). 0 without sources. */
+export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number {
+  return chunks.reduce((best, c) => Math.max(best, termCoverage(query, `${c.title} ${c.body}`)), 0);
+}
+
+/** Health, first aid and emergencies: the answer may only state what the sources say. */
+const HEALTH =
+  /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|bitten|stung|boiling water|spill\w* (hot|boiling)|shiver\w*|earthquakes?|tsunami|floods?|flooding|hurricane|tornado|wildfire|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|terremoto|enchente|inunda\w*|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
+
+export function isHealthQuestion(query: string): boolean {
+  return HEALTH.test(query);
+}
+
+/** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
+export const HEALTH_GROUNDING_INSTRUCTION =
+  "This is a health or first-aid question. State only what the numbered sources say, and cite the source of each step. " +
+  "Do not add steps or facts from memory. If the sources do not cover something, say so and advise calling the local emergency number.";
+
+/**
+ * A source is on topic when its title shares a content word with the question
+ * ("Post-quantum cryptography", "Nosebleed") or its text covers most of the
+ * question's words. "Dean Lee" (a nuclear physicist) for "Which signature
+ * algorithms are quantum resistant?" is neither.
+ */
+export function onTopic(query: string, chunk: RetrievedChunk): boolean {
+  const q = new Set(tokenizeTerms(query));
+  if (tokenizeTerms(chunk.title).some((t) => q.has(t))) return true;
+  return termCoverage(query, `${chunk.title} ${chunk.body}`) >= MIN_TERM_COVERAGE;
+}
+
+/** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
+export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
+
+/** Sources exist but none is on topic: fixed text, no model (no answer from memory). */
+export function noGoodSourceAnswer(pt: boolean): string {
+  return pt
+    ? "Não encontrei uma fonte boa para isso no acervo offline, então não vou responder de memória. Instale um pacote de conhecimento sobre o tema (Configurações › Conhecimento) e pergunte de novo."
+    : "I didn't find a good source for this in the offline library, so I won't answer from memory. Install a knowledge pack on this topic (Settings › Knowledge) and ask again.";
+}
+
+/** Longest health excerpt shown as the answer (about 120 words). */
+export const HEALTH_EXTRACT_MAX_CHARS = 700;
+
+// What to DO, not what it is: a treatment / first-aid / "during" section, with instructions.
+const ACTION_SECTION = /^(treatment|first aid|management|what to do|during|immediate|self[- ]care|emergency care|response|stay safe|how to|signs and treatment)/i;
+const ACTION_WORD = /\b(apply|applying|pinch|lean|press|pressure|call|cool|drop|cover|hold|boil|move|remove|keep|seek|get|stay|avoid|do not|don't)\b/gi;
+const HEDGE = /\b(controversial|traditionally|historically|history|studies|evidence is)\b/i;
+
+/** Which source to quote for a health question: the most instructive on-topic one (index into `sources`). */
+export function healthSourceIndex(sources: RetrievedChunk[]): number {
+  let best = 0;
+  let bestScore = -Infinity;
+  sources.forEach((c, i) => {
+    const section = c.body.split(":")[0];
+    const score =
+      (ACTION_SECTION.test(section) ? 2 : 0) + Math.min(2, (c.body.match(ACTION_WORD)?.length ?? 0) * 0.25) - (HEDGE.test(c.body) ? 1 : 0) - i * 0.05;
+    if (score > bestScore) (best = i), (bestScore = score);
+  });
+  return best;
+}
+
+/**
+ * A health answer taken word for word from one source (its full text, not
+ * the compressed one), cut at a sentence end and cited by its number.
+ */
+export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean): string {
+  let text = "";
+  for (const s of splitSentences(source.body)) {
+    if (text && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
+    text = text ? `${text} ${s}` : s;
+  }
+  const lead = pt ? "Da fonte offline (em inglês):" : "From the offline source:";
+  return `${lead}\n${text} [${sourceNumber}]`;
+}
+
+// First-aid instructions the sources call wrong (NHS, CDC, Ready.gov), as a model might phrase them.
+const RISKY_HEALTH: Array<[string, RegExp]> = [
+  ["blow-nose", /\bblow\w*\b[^.]{0,20}\bnose\b/i],
+  ["head-back", /\b(tilt|lean|put|tip|throw)\w*\b[^.]{0,25}\bhead\b[^.]{0,10}\bback(wards?)?\b/i],
+  ["lie-down-nosebleed", /\b(lie|lay)\b[^.]{0,10}\b(down|flat)\b[^.]{0,40}\bnose/i],
+  ["tourniquet", /\btourniquet|torniquete|garrote/i],
+  ["suck-venom", /\bsuck\w*[^.]{0,30}venom|chup\w*[^.]{0,30}veneno/i],
+  ["cut-wound", /\b(cut|slice|incise)\w*\b[^.]{0,30}\b(bite|wound|fang)/i],
+  ["ice", /\b(apply|use|put)\w*\b[^.]{0,20}\bice\b|\bice[- ](pack|cold)|\bgelo\b/i],
+  ["butter-toothpaste", /\bbutter\b|toothpaste|manteiga|pasta de dente/i],
+  ["burn-cream", /\b(cream|ointment|lotion)s?\b[^.]{0,30}\bburn|\bburn\w*\b[^.]{0,40}\b(cream|ointment|lotion)|pomada/i],
+  ["doorway", /\bdoorway|batente|v[ãa]o da porta/i],
+  ["run-outside-quake", /\b(run|rush)\w* (outside|outdoors)/i],
+];
+const NEGATED = /\b(do not|don't|dont|never|avoid|not|no|instead of|rather than|without)\b|n[ãa]o\b|nunca|evite/i;
+
+/** The first known-dangerous instruction in a generated health answer (not negated in its sentence), or null. */
+export function riskyHealthInstruction(answer: string): string | null {
+  for (const sentence of splitSentences(answer)) {
+    for (const [id, re] of RISKY_HEALTH) if (re.test(sentence) && !NEGATED.test(sentence)) return id;
+  }
+  return null;
+}
+
+/** Health question without a good source: fixed text, no model. */
+export function noHealthSourceAnswer(pt: boolean): string {
+  return pt
+    ? "Não tenho uma fonte offline confiável sobre isso, então não vou arriscar orientações de saúde de memória. Em uma emergência, ligue para o serviço de emergência local (192 SAMU ou 193 Bombeiros no Brasil, 112 na Europa, 911 nos EUA)."
+    : "I don't have a reliable offline source on this, so I won't give health advice from memory. In an emergency, call your local emergency number (911 in the US, 112 in Europe).";
 }
 
 /** A chunk whose best sentence scores under this share of the best chunk's is dropped. */
