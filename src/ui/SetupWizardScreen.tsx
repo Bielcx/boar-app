@@ -40,6 +40,8 @@ import { locateForUser } from "../services/location";
 import { networkAllowed } from "../config/variant";
 import { ImportList } from "./flows/ImportList";
 import { RadioRow } from "./flows/RadioRow";
+import * as Clipboard from "expo-clipboard";
+import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
 
@@ -1365,9 +1367,25 @@ function InstallStep({
           {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
           <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} hideVerified />
           {!activeImport && (
-            <Text variant="footnote" color="secondary" selectable>
-              {t("flows.onboarding.importHow")}
-            </Text>
+            // Where the files come from, with an address someone can type on a computer (Prism IM-5).
+            <View style={{ gap: tokens.space.xs }}>
+              <Text variant="footnote" color="secondary">
+                {t("flows.onboarding.importHow")}
+              </Text>
+              <Text variant="footnote" selectable>
+                {OFFLINE_INSTALL_URL}
+              </Text>
+              <View style={{ alignSelf: "flex-start" }}>
+                <TextAction
+                  label={t("flows.onboarding.copyLink")}
+                  leadingIcon="copy"
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(`https://${OFFLINE_INSTALL_URL}`);
+                    announce(t("flows.onboarding.linkCopied"));
+                  }}
+                />
+              </View>
+            </View>
           )}
         </View>
       )}

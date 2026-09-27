@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
+import { REPO_URL } from "./flows/links";
 import { useTranslation } from "react-i18next";
 import { Button, ListRow, Mascot, Screen, Section, Text, useToast } from "./components";
 import { useTokens } from "./theme";
@@ -12,7 +13,6 @@ import { formatBytes } from "./flows/format";
 import { MODEL_CATALOG } from "../models/manifest";
 import appConfig from "../../app.json";
 
-const REPO_URL = "github.com/rferrari/boar-app";
 
 /** Fonts bundled in the app (src/ui/theme/fontFiles.ts); licenses from each package's LICENSE_FONT. */
 const BUNDLED_FONTS = [

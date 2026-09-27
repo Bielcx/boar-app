@@ -681,7 +681,9 @@
       "smallerPackage": "Escolher um pacote menor",
       "importTitle": "Importe os arquivos",
       "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
-      "importHow": "A lista de arquivos e os links de download estão em docs/OFFLINE_INSTALL.md, no repositório do BOAR.",
+      "importHow": "A lista de arquivos e onde baixar cada um estão no guia de instalação offline:",
+      "copyLink": "Copiar link",
+      "linkCopied": "Link copiado",
       "toImport": "Ainda não importado",
       "importPlacesNote": "Os pacotes de lugares ainda não estão publicados para download: escolha os arquivos aqui (a região e o arquivo de lugares do mundo).",
       "compactWhy": "A estimativa de memória indica que o padrão pode não rodar bem neste celular, por isso o compacto está selecionado. Você ainda pode escolher o padrão.",
@@ -819,7 +821,11 @@
       "groupLabel_one": "Fonte {{numbers}}: {{title}}, {{origin}}",
       "groupLabel_other": "Fontes {{numbers}}: {{title}}, {{origin}}, {{count}} trechos",
       "relevance": "relevância {{band}}",
-      "band": { "high": "Alta", "medium": "Média", "low": "Baixa" },
+      "band": {
+        "high": "Alta",
+        "medium": "Média",
+        "low": "Baixa"
+      },
       "related": "Relacionados no seu acervo · {{count}}",
       "hideRelated": "Ocultar relacionados",
       "found_one": "{{count}} trecho encontrado",
