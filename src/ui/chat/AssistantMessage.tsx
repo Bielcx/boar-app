@@ -440,7 +440,7 @@ function WeakSourceNote({ answer }: { answer: AnswerState }) {
   const [open, setOpen] = useState(false);
   const groups = groupSources(answer.sources);
   return (
-    <Card style={{ gap: t.space.sm }}>
+    <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       <View accessible accessibilityLabel={`${tr("chat.weak.title")}. ${tr("chat.weak.body")}`} style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Icon name="book" size="sm" color={t.color.text.secondary} />
@@ -469,7 +469,7 @@ function WeakSourceNote({ answer }: { answer: AnswerState }) {
           </Text>
           {groups.map((g) => (
             <View key={g.key} style={{ gap: t.space.xxs }}>
-              <Text variant="subhead" numberOfLines={2}>
+              <Text variant="footnote" numberOfLines={2}>
                 {g.title}
               </Text>
               <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
@@ -492,11 +492,11 @@ function DeclinedNoSource({ answer, onAnswerAnyway }: { answer: AnswerState; onA
   const [open, setOpen] = useState(false);
   const groups = groupSources(answer.sources);
   return (
-    <Card style={{ gap: t.space.sm }}>
+    <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       <View accessible accessibilityLabel={`${tr("chat.weak.declinedTitle")}. ${tr("chat.weak.declinedBody")}`} style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
           <Icon name="search" size="sm" color={t.color.text.secondary} />
-          <Text variant="headline" style={{ flex: 1 }}>
+          <Text variant="cardTitle" style={{ flex: 1 }}>
             {tr("chat.weak.declinedTitle")}
           </Text>
         </View>
@@ -523,7 +523,7 @@ function DeclinedNoSource({ answer, onAnswerAnyway }: { answer: AnswerState; onA
           </Text>
           {groups.map((g) => (
             <View key={g.key} style={{ gap: t.space.xxs }}>
-              <Text variant="subhead" numberOfLines={2}>
+              <Text variant="footnote" numberOfLines={2}>
                 {g.title}
               </Text>
               <MetaLine items={[sourceParts(answer.sources[g.indexes[0]].source).name, tr("chat.weak.weakMatch")]} variant="caption" />
