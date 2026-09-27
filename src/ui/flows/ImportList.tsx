@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { AccessibilityInfo, findNodeHandle, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Button, Icon, Progress, Text, useAnnounce } from "../components";
-import { useTokens } from "../theme";
+import { Button, IconSlot, Progress, Text, useAnnounce, useOpticalLine } from "../components";
+import { icon, useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
 import { worldPlacesEntry } from "./adapters";
@@ -45,6 +45,7 @@ interface Props {
 export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hidePick, hideActive, hideVerified }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
+  const line = useOpticalLine("subhead");
   const announce = useAnnounce();
   const pickRef = useRef<View>(null);
   const busy = imports.some((f) => f.status === "importing");
@@ -83,9 +84,10 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
         const label = labelFor(f.assetId, t);
         return (
           <View key={f.name} style={{ gap: tokens.space.xs }}>
-            <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
+            <View style={{ flexDirection: "row", gap: icon.gap, alignItems: "flex-start" }}>
               <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-                <Icon
+                <IconSlot
+                  line={line}
                   name={f.status === "verified" ? "check-circle" : f.status === "failed" ? "alert-octagon" : "file"}
                   color={
                     f.status === "verified"

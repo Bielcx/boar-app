@@ -6,9 +6,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce } from "./components";
+import { Badge, Button, Card, EmptyState, Icon, IconName, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
 import type { TextColor } from "./components/Text";
-import { useTokens } from "./theme";
+import { icon as iconTokens, useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
@@ -530,6 +530,7 @@ function PackageStep({
   const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
+  const headlineLine = useOpticalLine("headline");
   const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
@@ -588,7 +589,7 @@ function PackageStep({
           accessibilityLabel={[catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
           accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.xs + tokens.space.xxs }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: iconTokens.gapTight }}>
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
@@ -597,11 +598,16 @@ function PackageStep({
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+          {/* Chevron on the name's optical line, at the card's edge (icon-align). */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap }}>
             <Text variant="headline" style={{ flex: 1 }}>
               {catalogLabel(answerModel, t)}
             </Text>
-            {choices.compact && choices.default && <Icon name="chevron-right" size="sm" color={tokens.color.text.secondary} />}
+            {choices.compact && choices.default && (
+              <View style={{ height: headlineLine.lineHeight, justifyContent: "center", transform: [{ translateY: headlineLine.offset }] }}>
+                <Icon name="chevron-right" size={headlineLine.iconSize} color={tokens.color.text.secondary} edge="end" />
+              </View>
+            )}
           </View>
           {answerFit && (
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.xs + tokens.space.xxs }}>
@@ -915,6 +921,8 @@ function InstallStep({
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const subheadLine = useOpticalLine("subhead");
+  const headlineLine = useOpticalLine("headline");
   const announce = useAnnounce();
   const [indexPhase, setIndexPhase] = useState<IndexPhase>("waiting");
   const [indexError, setIndexError] = useState<string | null>(null);
@@ -1262,26 +1270,29 @@ function InstallStep({
           <View
             accessible
             accessibilityLabel={`${t("flows.onboarding.category.extras")}: ${extras.join(", ")}`}
-            style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
+            style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
           >
-            <Icon name="plus-circle" size="sm" color={tokens.color.status.success.solid} />
+            <IconSlot name="plus-circle" line={subheadLine} color={tokens.color.status.success.solid} />
             <View style={{ flex: 1 }}>
               <Text variant="subhead">{t("flows.onboarding.category.extras")}</Text>
               <Text variant="caption" color="secondary" numberOfLines={2}>
                 {extras.join(", ")}
               </Text>
             </View>
-            <Text variant="label" color="secondary">
-              {t("flows.onboarding.categoryStatus.ready")}
-            </Text>
+            <View style={{ height: subheadLine.lineHeight, justifyContent: "center" }}>
+              <Text variant="label" color="secondary">
+                {t("flows.onboarding.categoryStatus.ready")}
+              </Text>
+            </View>
           </View>
         )}
         {[
           {
             key: "index",
             icon: (
-              <Icon
+              <IconSlot
                 name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "clock"}
+                line={subheadLine}
                 color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.secondary}
               />
             ),
@@ -1313,7 +1324,7 @@ function InstallStep({
               borderTopColor: tokens.color.line.row,
             }}
           >
-            <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
+            <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
               {row.icon}
               <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
                 {row.title}
@@ -1348,12 +1359,9 @@ function InstallStep({
             paddingHorizontal: tokens.space.md + tokens.space.xxs,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-            <Icon name="alert-triangle" size="sm" color={tokens.color.status.warning.solid} />
-            <Text variant="label" color="warning">
-              {t("flows.onboarding.keepOpenTitle")}
-            </Text>
-          </View>
+          <IconText icon="alert-triangle" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
+            {t("flows.onboarding.keepOpenTitle")}
+          </IconText>
           <Text variant="footnote">
             {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
             {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
@@ -1404,9 +1412,9 @@ function InstallStep({
             backgroundColor: tokens.color.status.danger.soft,
           }}
         >
-          <View style={{ flexDirection: "row", gap: tokens.space.sm, alignItems: "center" }}>
-            <Icon name="alert-octagon" color={tokens.color.status.danger.solid} />
-            <Text variant="headline" color="danger" header>
+          <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
+            <IconSlot name="alert-octagon" line={headlineLine} color={tokens.color.status.danger.solid} />
+            <Text variant="headline" color="danger" header style={{ flexShrink: 1 }}>
               {t("flows.onboarding.downloadFailed")}
             </Text>
           </View>
@@ -1497,6 +1505,7 @@ function CategoryRow({
 }) {
   const { t } = useTranslation();
   const tokens = useTokens();
+  const line = useOpticalLine("subhead");
   const name = t(`flows.onboarding.category.${row.category}`);
   const failedItem = row.items.find((i) => i.state.kind === "failed");
   const reason = failedItem && failedItem.state.kind === "failed" ? failureLines(failedItem.state, t, lang).cause : undefined;
@@ -1523,9 +1532,9 @@ function CategoryRow({
           row.status === "failed" ? `${status}: ${reason ?? ""}` : status,
         ].join(", ")}
         onPress={onToggle}
-        style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md - tokens.space.xxs, paddingVertical: tokens.space.sm, minHeight: tokens.size.touch }}
+        style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap, paddingVertical: tokens.space.sm, minHeight: tokens.size.touch }}
       >
-        <Icon name={icon} size="sm" color={iconColor} />
+        <IconSlot name={icon} line={line} color={iconColor} />
         <View style={{ flex: 1 }}>
           <Text variant="subhead">{name}</Text>
           {reason && (
@@ -1534,9 +1543,11 @@ function CategoryRow({
             </Text>
           )}
         </View>
-        <Text variant="label" color={tone}>
-          {status}
-        </Text>
+        <View style={{ height: line.lineHeight, justifyContent: "center" }}>
+          <Text variant="label" color={tone}>
+            {status}
+          </Text>
+        </View>
       </Pressable>
       {expanded &&
         row.items.map((it) => {
@@ -1544,7 +1555,8 @@ function CategoryRow({
           return (
             <View
               key={it.id}
-              style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, paddingLeft: tokens.space.xl, paddingBottom: tokens.space.sm }}
+              // Items start at the category name's x: icon plus gap, at any text size (icon-align rule 4).
+              style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm, paddingLeft: line.iconSize + iconTokens.gap, paddingBottom: tokens.space.sm }}
             >
               <Text variant="footnote" color="secondary" style={{ flex: 1 }} numberOfLines={2}>
                 {catalogLabel(asset, t)}
