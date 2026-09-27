@@ -22,6 +22,7 @@
 #   IOS_NO_QUEUE       1 = do not go through ~/boar/bin/heavy (on a Mac without the queue
 #                      it is skipped automatically)
 #   IOS_XCODEBUILD_JOBS  cap xcodebuild -jobs and run it under nice
+#   IOS_RN_LOG_INFO    1 = keep console.info in the Release build (timing marks)
 #   IOS_STRIP_ENTITLEMENTS  comma list of entitlement keys to drop before a device
 #                      build, e.g. com.apple.developer.kernel.increased-memory-limit
 #                      when the signing team cannot get that capability
@@ -104,6 +105,21 @@ case "$MODE" in
     ;;
   *) echo "unknown mode $MODE" >&2; exit 2 ;;
 esac
+
+# IOS_RN_LOG_INFO=1: measurement builds only. Release React Native drops
+# console.info/log (log threshold = error), so "[boot]"-style marks never reach
+# the device log; this lowers the threshold in the generated AppDelegate. Without
+# the variable the line is removed again (a reused prebuild must not keep it).
+AD="ios/$SCHEME/AppDelegate.swift"
+if [[ -f "$AD" ]]; then
+  sed -i '' '/RCTSetLogThreshold(RCTLogLevel.info)  \/\/ IOS_RN_LOG_INFO/d' "$AD"
+  if [[ "${IOS_RN_LOG_INFO:-0}" == "1" ]]; then
+    sed -i '' 's|^    let delegate = ReactNativeDelegate()$|    RCTSetLogThreshold(RCTLogLevel.info)  // IOS_RN_LOG_INFO\
+    let delegate = ReactNativeDelegate()|' "$AD"
+    grep -q 'IOS_RN_LOG_INFO' "$AD" || { echo "IOS_RN_LOG_INFO: AppDelegate anchor not found" >&2; exit 2; }
+    log "React Native log threshold lowered to info (measurement build)"
+  fi
+fi
 
 # IOS_XCODEBUILD_JOBS=N caps xcodebuild's parallelism and runs it under nice
 # (a shared Mac: the fidelity rounds build next to other jobs).

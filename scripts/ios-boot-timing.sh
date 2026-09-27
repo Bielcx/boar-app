@@ -11,7 +11,10 @@
 # cold = first launch right after a fresh install (no caches, the app opens on
 # setup); warm = the process is terminated and launched again (caches warm).
 # Both go through the splash. Reinstalls the app: run it last. Output: one line
-# per run plus the medians, also appended to $IOS_BOOT_OUT if set.
+# per run plus the medians, also appended to $IOS_BOOT_OUT if set. With a build
+# made with IOS_RN_LOG_INFO=1, the app's "[boot] ..." console lines of each run
+# are appended to $IOS_BOOT_LINES; IOS_BOOT_WAIT (s, default 5) sets how long
+# each launch is recorded.
 set -euo pipefail
 DEV="${1:?simulator udid}"; APP="${2:?path to the .app}"; RUNS="${3:-3}"
 BUNDLE=team.sopa.aoair
@@ -25,11 +28,17 @@ run() {  # run <cold|warm> <n>
     xcrun simctl install "$DEV" "$APP"
   fi
   sleep 2
+  # JS console lines (needs a build with IOS_RN_LOG_INFO=1 for console.info):
+  # every "[boot]" line of this launch goes to $IOS_BOOT_LINES as "<kind> <n> <line>".
+  xcrun simctl spawn "$DEV" log stream --style compact --level info \
+    --predicate 'eventMessage CONTAINS "[boot]"' > "$TMP/$kind-$n.log" 2>/dev/null & local lg=$!
   xcrun simctl io "$DEV" recordVideo --codec h264 --force "$mp4" >/dev/null 2>&1 & local rec=$!
   sleep 1.5
   local t_launch; t_launch=$(python3 -c 'import time; print(time.time())')
   xcrun simctl launch "$DEV" "$BUNDLE" >/dev/null
-  sleep 5; kill -INT "$rec"; wait "$rec" 2>/dev/null || true
+  sleep "${IOS_BOOT_WAIT:-5}"; kill -INT "$rec"; wait "$rec" 2>/dev/null || true
+  kill "$lg" 2>/dev/null || true
+  grep -o '\[boot\].*' "$TMP/$kind-$n.log" | sed "s/^/$kind $n /" >> "${IOS_BOOT_LINES:-/dev/null}" || true
   # The recording's first frame is ~when recordVideo started; its start time is
   # taken from the file's creation (ffprobe) relative to the launch timestamp.
   python3 - "$mp4" "$t_launch" "$kind" "$n" <<'EOF'
