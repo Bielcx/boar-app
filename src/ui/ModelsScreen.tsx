@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, EmptyState, ListRow, MetaLine, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
+import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
@@ -263,7 +264,7 @@ export function ModelSearchScreen() {
     try {
       const model = toCatalogModel(repoId, file);
       await addDiscoveredModel(model);
-      toast({ message: t("flows.models.added", { name: model.label }), tone: "success" });
+      toast({ message: t("flows.models.added", { name: catalogLabel(model, t) }), tone: "success" });
     } catch (e: any) {
       toast({ message: t("flows.models.addFailed", { error: e?.message ?? String(e) }), tone: "danger" });
     } finally {

@@ -7,6 +7,7 @@ import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
 import { failureLines, formatBytes, formatRam } from "./format";
+import { catalogLabel } from "./catalogLabel";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
@@ -94,10 +95,10 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const lastKind = useRef(state.kind);
   useEffect(() => {
     if (state.kind === "failed" && lastKind.current !== "failed") {
-      announce(t("flows.row.failedAnnounce", { name: model.label }), { assertive: true });
+      announce(t("flows.row.failedAnnounce", { name: catalogLabel(model, t) }), { assertive: true });
     }
     lastKind.current = state.kind;
-  }, [state.kind, announce, model.label, t]);
+  }, [state.kind, announce, catalogLabel(model, t), t]);
 
   const progress =
     state.kind === "downloading" ? state.progress : state.kind === "verifying" ? state.progress ?? undefined : undefined;
@@ -117,7 +118,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       <View style={{ gap: tokens.space.xs }}>
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
           <Text variant="headline" style={{ flex: 1 }}>
-            {title ?? model.label}
+            {title ?? catalogLabel(model, t)}
           </Text>
           <Text variant="headline" numeric>
             {size}
@@ -182,7 +183,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
 
       {(state.kind === "downloading" || state.kind === "verifying") && (
         <Progress
-          label={t("flows.row.progressLabel", { name: model.label })}
+          label={t("flows.row.progressLabel", { name: catalogLabel(model, t) })}
           value={progress}
           valueText={progress != null ? `${Math.round(progress * 100)}%` : undefined}
         />
@@ -268,7 +269,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       <Sheet
         visible={explainOpen}
         onClose={() => setExplainOpen(false)}
-        title={t("flows.row.wontFitTitle", { name: model.label })}
+        title={t("flows.row.wontFitTitle", { name: catalogLabel(model, t) })}
         description={t("flows.row.fit.insufficient")}
         footer={
           <>
@@ -322,7 +323,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         <Text variant="callout">
           {t(view.didNotOpen ? "flows.row.didNotOpenBefore" : "flows.row.mayCloseBefore")}
           <Text variant="callout" weight="semibold">
-            {title ?? model.label}
+            {title ?? catalogLabel(model, t)}
           </Text>
           {t("flows.row.mayCloseAfter")}
         </Text>
@@ -331,7 +332,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
       <Sheet
         visible={confirmOpen}
         onClose={() => !removing && setConfirmOpen(false)}
-        title={t("flows.row.removeTitle", { name: model.label })}
+        title={t("flows.row.removeTitle", { name: catalogLabel(model, t) })}
         description={t("flows.row.removeBody", { size })}
         footer={
           <>
@@ -346,7 +347,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
                 try {
                   await onRemove();
                   setConfirmOpen(false);
-                  toast({ message: t("flows.row.removed", { name: model.label }), tone: "success" });
+                  toast({ message: t("flows.row.removed", { name: catalogLabel(model, t) }), tone: "success" });
                 } finally {
                   setRemoving(false);
                 }
