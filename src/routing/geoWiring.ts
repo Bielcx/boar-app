@@ -6,6 +6,7 @@
 import { distanceMeters, GeoProviders } from "./geo";
 import { normalizeKey } from "../rag/ptLexicon";
 import { ptLexicon } from "../rag/ptLexiconAsset";
+import { cleanPlaceName } from "../rag/poiPack";
 
 export interface GeoSources {
   installedPoiPacks(): Promise<unknown[]>;
@@ -44,7 +45,7 @@ export function geoProvidersFrom(s: GeoSources): GeoProviders {
       cityByName(s.cities?.() ?? [], name) ??
       // A Portuguese name ("Berlim", "Lisboa", "Nova Iorque") through Bramble's PT->EN lexicon; the result
       // still has to be one of the packs' cities, so a wrong translation just finds nothing.
-      cityByName(s.cities?.() ?? [], ptLexicon()[normalizeKey(name)] ?? ""),
+      cityByName(s.cities?.() ?? [], ptLexicon()[normalizeKey(cleanPlaceName(name).name)] ?? ""),
     searchPois: (q) => s.searchPois(q),
   };
 }
@@ -56,6 +57,9 @@ export function cityByName(
   cities: Array<{ name: string; lat: number; lon: number; country?: string }>,
   name: string
 ): { name: string; lat: number; lon: number; country?: string; kind: string } | null {
-  const c = cities.find((x) => fold(x.name) === fold(name));
+  // Same cleaning as the gazetteer (Bramble's cleanPlaceName): "Berlin?", "in Berlin", "Berlin, Germany".
+  const wanted = fold(cleanPlaceName(name).name);
+  if (!wanted) return null;
+  const c = cities.find((x) => fold(x.name) === wanted);
   return c ? { name: c.name, lat: c.lat, lon: c.lon, ...(c.country ? { country: c.country } : {}), kind: "city" } : null;
 }
