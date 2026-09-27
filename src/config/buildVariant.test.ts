@@ -80,13 +80,20 @@ describe("location", () => {
 describe("activity configChanges", () => {
   const EXPO_DEFAULT = "keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize|assetsPaths";
 
-  it("adds fontScale, density, locale and layoutDirection to Expo's defaults (system font change must not restart the app)", () => {
+  it("adds density, locale and layoutDirection to Expo's defaults (display size change must not restart setup)", () => {
     const flags = plugin.mergeConfigChanges(EXPO_DEFAULT).split("|");
-    for (const f of ["fontScale", "density", "uiMode", "locale", "layoutDirection", "orientation", "screenSize"]) {
+    for (const f of ["density", "uiMode", "locale", "layoutDirection", "orientation", "screenSize"]) {
       expect(flags).toContain(f);
     }
     expect(flags).toContain("assetsPaths"); // keeps what was there
     expect(new Set(flags).size).toBe(flags.length);
+  });
+
+  it("leaves fontScale out, and removes it from an existing manifest, so a font size change recreates the activity (Prism FS-1)", () => {
+    expect(plugin.REQUIRED_CONFIG_CHANGES).not.toContain("fontScale");
+    const flags = plugin.mergeConfigChanges(`${EXPO_DEFAULT}|fontScale|density`).split("|");
+    expect(flags).not.toContain("fontScale");
+    expect(flags).toContain("density");
   });
 
   it("works from an empty attribute and is idempotent", () => {
