@@ -6,7 +6,7 @@
  * route is unknown. onFirstLayout (name kept for App.tsx) fires once the splash image is decoded, and App.tsx hides the native splash then.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Image, Platform, useWindowDimensions, View } from "react-native";
+import { Animated, Dimensions, Image, Platform, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Progress, Text } from "../components";
 import { buildTokens, useTheme } from "../theme";
@@ -30,7 +30,12 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
   // Always the native splash's colours (dark Fogueira, #17110D), whatever theme the user picked:
   // the opaque image is composed on that canvas, so any other background would show a seam.
   const tokens = useMemo(() => buildTokens("dark", "standard", "fogueira"), []);
-  const { width, height } = useWindowDimensions();
+  // Android 12+ draws its splash on a full-screen window (behind the system bars) and centres the icon there;
+  // with edge-to-edge, the window size can come back without the navigation bar, so Android centres on the
+  // screen (Iris). iOS centres on the window, like its storyboard.
+  const win = useWindowDimensions();
+  const screen = Dimensions.get("screen");
+  const { width, height } = Platform.OS === "android" ? screen : win;
   // Android 12+ shows only the boar in the system's 240 dp icon box (Iris 794efe9): this starts as that same
   // image, then fades to the full art with the tagline and bar. iOS starts on the full art, like its native splash.
   const startsAsIcon = Platform.OS === "android";
