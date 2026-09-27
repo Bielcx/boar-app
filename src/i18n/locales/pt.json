@@ -639,6 +639,7 @@
       "workingMemory": "precisa de ~{{size}} de memória",
       "currentItem": "Item {{n}} de {{total}} — {{name}}",
       "keepOpenTitle": "Mantenha o BOAR aberto",
+      "keepOpenIndex": "Mantenha o BOAR aberto enquanto ele monta o índice de busca. Se sair, ele pode pausar.",
       "stage": {
         "start": "Início",
         "choose": "Escolha",

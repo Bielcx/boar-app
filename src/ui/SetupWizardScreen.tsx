@@ -1302,7 +1302,7 @@ function InstallStep({
 
 
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
-      {transferring && (
+      {(transferring || indexPhase === "building") && (
         // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
         <View
           style={{
@@ -1320,7 +1320,8 @@ function InstallStep({
             </Text>
           </View>
           <Text variant="footnote">
-            {t(offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+            {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
+            {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
         </View>
       )}
