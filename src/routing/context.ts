@@ -754,7 +754,9 @@ export function isPortugueseQuestion(query: string): boolean {
 }
 
 /** Next to a PT question: answer in Portuguese even with English sources (the sources' language pulls the model). */
-export const PT_ANSWER_LANGUAGE = "Responda em português do Brasil, mesmo que as fontes estejam em inglês.";
+// And the citation, with an example (gate 1724fd5: with the language line alone the models stopped writing [n]).
+export const PT_ANSWER_LANGUAGE =
+  "Responda em português do Brasil, mesmo que as fontes estejam em inglês, e cite cada afirmação com o número da fonte, como [1].";
 
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
