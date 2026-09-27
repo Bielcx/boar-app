@@ -541,6 +541,9 @@ function PackageStep({
         <>
           <Button
             size="lg"
+            // The mockup's CTA carries an arrow (Prism S2F-2).
+            icon="arrow-right"
+            iconPosition="end"
             label={
               chosen.plan.downloadBytes > 0 && !offline
                 ? t("flows.onboarding.install", { size: formatBytes(chosen.plan.downloadBytes, lang) })
