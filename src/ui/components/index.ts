@@ -50,6 +50,8 @@ export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
 export { Text } from "./Text";
 export type { TextColor, TextProps } from "./Text";
+export { TextAction } from "./TextAction";
+export type { TextActionProps } from "./TextAction";
 export { TextField } from "./TextField";
 export type { TextFieldProps } from "./TextField";
 export { ToastProvider, toastDuration, useToast } from "./Toast";
