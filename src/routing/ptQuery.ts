@@ -18,7 +18,11 @@ const PT_EN: Array<[RegExp, string]> = [
   [/ataque card[íi]aco|infarto/i, "heart attack"],
   [/\bavc\b|derrame/i, "stroke"],
   [/\brcp\b|reanima[çc][ãa]o( cardiopulmonar)?|massagem card[íi]aca/i, "cpr"],
+  // A scald is a burn: "derramou água fervente no braço" must find Burn, not the physics of boiling.
+  [/(derram|caiu|queim|escald)\w*[^.]{0,40}(água|[óo]leo|caf[ée]|ch[áa]) (fervente|quente)|(água|[óo]leo) (fervente|quente)[^.]{0,40}(derram|caiu|queim|escald)\w*|escaldadura/i, "burn scald"],
   [/[áa]gua fervente|[áa]gua quente/i, "boiling water"],
+  // Shivering, confused, slurred speech in the cold: hypothermia.
+  [/(tremend\w*|tremores?|calafrios?)[^.]{0,80}\bfrio\b|\bfrio\b[^.]{0,80}(tremend\w*|tremores?|calafrios?)/i, "hypothermia"],
   [/[áa]gua pot[áa]vel|[áa]gua (segura|limpa) para beber|tornar a [áa]gua (segura|pot[áa]vel)/i, "safe drinking water"],
   [/[áa]gua contaminada/i, "contaminated water"],
   [/insola[çc][ãa]o|golpe de calor/i, "heat stroke"],
@@ -50,6 +54,12 @@ const PT_EN: Array<[RegExp, string]> = [
   [/prevenir|evitar/i, "prevent"],
 ];
 
+const DISASTER = new Set(["earthquake", "flood", "hurricane", "fire", "evacuation", "safe drinking water", "contaminated water", "boiling water"]);
+const GENERIC = new Set(["nose", "child", "stop", "treat", "prevent"]);
+
+/** "O que faço?", "como tratar": the question wants steps, so search the first-aid sections too. */
+const WANTS_STEPS = /\bo que (eu )?(fa[çc]o|fazer|devo fazer)\b|\bcomo (tratar|socorrer|ajudar|agir)\b|\bprimeiros socorros\b/i;
+
 export function englishSearchTerms(query: string): string | null {
   const out: string[] = [];
   let rest = query;
@@ -59,5 +69,8 @@ export function englishSearchTerms(query: string): string | null {
       if (!out.includes(en)) out.push(en);
     }
   }
+  // Medical cases only: for an earthquake or a flood, "first aid" pulls in the wrong sections.
+  const medical = out.some((t) => !DISASTER.has(t) && !GENERIC.has(t));
+  if (medical && WANTS_STEPS.test(query) && !out.includes("first aid")) out.push("first aid");
   return out.length ? out.join(" ") : null;
 }

@@ -250,6 +250,11 @@ describe("isHealthQuestion", () => {
       "After a flood the tap water might be contaminated. How do I make water safe to drink?",
       "How do I stop a nosebleed?",
       "Como faço para parar um sangramento no nariz?",
+      "Meu filho derramou água fervente no braço. O que eu faço?",
+      "Meu parceiro de trilha está tremendo, confuso e enrolando a fala no frio. O que devo fazer?",
+      "Fui picado por uma cobra numa trilha, a duas horas da estrada. O que faço agora?",
+      "Começou um terremoto enquanto estou num quarto de hotel. O que devo fazer?",
+      "Depois de uma enchente a água da torneira pode estar contaminada. Como deixo a água segura para beber?",
     ]) {
       expect(isHealthQuestion(q), q).toBe(true);
     }

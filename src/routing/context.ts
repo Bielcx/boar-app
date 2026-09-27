@@ -221,8 +221,11 @@ export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number 
 const HEALTH =
   /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|bitten|stung|boiling water|spill\w* (hot|boiling)|shiver\w*|earthquakes?|tsunami|floods?|flooding|hurricane|tornado|wildfire|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|terremoto|enchente|inunda\w*|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
 
+// Portuguese terms starting or ending with an accented letter: JS \b doesn't see "á" as a letter.
+const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quente)|queimadura|picad[ao]|tremend\w*|tremores?|calafrios?|hipotermia|sangramento|engasg\w*|afogamento|desmai\w*|convuls\p{L}*|emerg[êe]ncia|terremoto|enchente|inunda\p{L}*)(?![\p{L}])/iu;
+
 export function isHealthQuestion(query: string): boolean {
-  return HEALTH.test(query);
+  return HEALTH.test(query) || HEALTH_PT.test(query);
 }
 
 /** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
@@ -259,6 +262,10 @@ export const HEALTH_EXTRACT_MAX_CHARS = 700;
 const ACTION_SECTION = /^(treatment|first aid|management|what to do|during|immediate|self[- ]care|emergency care|response|stay safe|how to|signs and treatment)/i;
 const ACTION_WORD = /\b(apply|applying|pinch|lean|press|pressure|call|cool|drop|cover|hold|boil|move|remove|keep|seek|get|stay|avoid|do not|don't)\b/gi;
 const HEDGE = /\b(controversial|traditionally|historically|history|studies|evidence is)\b/i;
+// Sections that describe, not instruct.
+const DESCRIPTIVE_SECTION = /^(cause|causes|mechanics|mechanism|pathophysiology|epidemiology|history|etymology|society|research|classification|prognosis|injection|diagnosis)\b/i;
+/** Under this, the chosen source gives no steps: say so before quoting it. */
+export const HEALTH_ACTION_MIN_SCORE = 0.5;
 
 /** Which source to quote for a health question: the most instructive on-topic one (index into `sources`). */
 export function healthSourceIndex(sources: RetrievedChunk[]): number {
@@ -266,11 +273,21 @@ export function healthSourceIndex(sources: RetrievedChunk[]): number {
   let bestScore = -Infinity;
   sources.forEach((c, i) => {
     const section = c.body.split(":")[0];
-    const score =
-      (ACTION_SECTION.test(section) ? 2 : 0) + Math.min(2, (c.body.match(ACTION_WORD)?.length ?? 0) * 0.25) - (HEDGE.test(c.body) ? 1 : 0) - i * 0.05;
+    const score = healthActionScore(c) - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;
+}
+
+/** How much a source tells what to do: an instructions section, action words, minus description and hedging. */
+export function healthActionScore(c: RetrievedChunk): number {
+  const section = c.body.split(":")[0];
+  return (
+    (ACTION_SECTION.test(section) ? 2 : 0) +
+    Math.min(2, (c.body.match(ACTION_WORD)?.length ?? 0) * 0.25) -
+    (HEDGE.test(c.body) ? 1 : 0) -
+    (DESCRIPTIVE_SECTION.test(section) ? 1.5 : 0)
+  );
 }
 
 /**
@@ -283,7 +300,14 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
     if (text && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
     text = text ? `${text} ${s}` : s;
   }
-  const lead = pt ? "Da fonte offline (em inglês):" : "From the offline source:";
+  const steps = healthActionScore(source) >= HEALTH_ACTION_MIN_SCORE;
+  const lead = steps
+    ? pt
+      ? "Da fonte offline (em inglês):"
+      : "From the offline source:"
+    : pt
+      ? "A fonte offline não traz os passos de socorro para isso. Em uma emergência, ligue para o serviço de emergência local (192 SAMU, 193 Bombeiros). O que a fonte diz (em inglês):"
+      : "The offline source doesn't give first-aid steps for this. In an emergency, call your local emergency number. What the source says:";
   return `${lead}\n${text} [${sourceNumber}]`;
 }
 

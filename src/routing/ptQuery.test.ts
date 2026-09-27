@@ -7,9 +7,10 @@ describe("englishSearchTerms", () => {
   });
 
   it("maps the other first-aid and emergency cases", () => {
-    expect(englishSearchTerms("Fui picado por uma cobra na trilha, o que faço?")).toBe("snake bite");
-    expect(englishSearchTerms("Meu filho derramou água fervente no braço")).toBe("boiling water");
-    expect(englishSearchTerms("Como tratar uma queimadura?")).toBe("burn treat");
+    expect(englishSearchTerms("Fui picado por uma cobra na trilha, o que faço?")).toBe("snake bite first aid");
+    expect(englishSearchTerms("Meu filho derramou água fervente no braço. O que eu faço?")).toBe("burn scald first aid");
+    expect(englishSearchTerms("Meu parceiro de trilha está tremendo, confuso e enrolando a fala no frio. O que devo fazer?")).toBe("hypothermia first aid");
+    expect(englishSearchTerms("Como tratar uma queimadura?")).toBe("burn treat first aid");
     expect(englishSearchTerms("O que fazer durante um terremoto no hotel?")).toBe("earthquake");
     expect(englishSearchTerms("Como tornar a água potável depois de uma enchente?")).toBe("safe drinking water flood");
   });
