@@ -1411,6 +1411,20 @@ describe("answer(): a phrase question with no source is declined by both models 
   });
 });
 
+describe("answer(): lng-009, an allergy phrase to translate (gate 52a2310)", () => {
+  it("stays on the health path: no source, no answer from memory", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    const calls: unknown[] = [];
+    f.deps.engine.generate = async (...a: unknown[]) => { calls.push(a); return "Je suis allergique au peanut."; };
+    const { result } = await collect("How do I say 'I am allergic to peanuts' in French?");
+    expect(result.receipt.reasonCodes).toContain("grounding:health-no-source");
+    expect(calls).toHaveLength(0);
+    expect(result.text).not.toMatch(/allergique/);
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];
