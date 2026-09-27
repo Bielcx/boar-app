@@ -242,6 +242,15 @@ describe("modelDisplayName / withDisplayNames (Prism CR-3)", () => {
     expect(modelDisplayName("qwen2.5-1.5b-instruct-q4km", models)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
     expect(modelDisplayName("Qwen2.5-1.5B-Instruct (Q4_K_M)", models)).toBe("Qwen2.5-1.5B-Instruct (Q4_K_M)");
   });
+  it("shows the short name when the catalog has one (Ledger displayName)", () => {
+    const short = [{ ...models[0], displayName: "Qwen3 4B" }, { ...models[1], displayName: "Qwen2.5 1.5B" }];
+    const crash = { crashedLabel: "models/qwen3-4b-instruct-2507-q4km.gguf", fallbackLabel: "qwen2.5-1.5b-instruct-q4km", at: 1 };
+    expect(withDisplayNames(crash, short)).toEqual({ crashedLabel: "Qwen3 4B", fallbackLabel: "Qwen2.5 1.5B", at: 1 });
+  });
+  it("the receipt names a catalog model by its short name", () => {
+    expect(receiptLine({ ...receipt, modelId: "qwen3-4b-instruct-2507-q4km", modelLabel: "Qwen3-4B-Instruct-2507 (Q4_K_M)" }, "en-US", t)).toContain(" · Qwen3 4B · ");
+  });
+
   it("never shows an internal path for a model outside the catalog, and keeps an empty fallback empty", () => {
     expect(modelDisplayName("models/hf/SmolLM3-3B-Q4_K_M.gguf", models)).toBe("SmolLM3-3B-Q4_K_M");
     expect(modelDisplayName("", models)).toBe("");

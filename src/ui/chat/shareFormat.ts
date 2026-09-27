@@ -1,6 +1,7 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerReceipt as Receipt } from "./answerEvents";
 import { CALCULATOR_MODEL_ID, EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID } from "./answerEvents";
+import { modelNameById } from "./modelName";
 
 /** Labels come from i18n so the text reads in the app's language. */
 export interface ShareLabels {
@@ -63,7 +64,7 @@ export function formatForShare(
           ? labels.noOfflineSource ?? receipt.modelLabel
           : receipt.modelId === CALCULATOR_MODEL_ID
             ? labels.calculator ?? receipt.modelLabel
-            : receipt.modelLabel;
+            : modelNameById(receipt.modelId, receipt.modelLabel);
     parts.push(`${labels.answeredOffline} · ${who} · ${formatSeconds(receipt.totalMs, locale)}`);
   }
   return parts.join("\n\n");

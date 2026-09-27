@@ -352,7 +352,7 @@ export function ChatModelError({
             {setupLeads ? (
               <Button label={tr("chat.modelError.setup")} fullWidth onPress={onRelaunchWizard} />
             ) : (
-              <Button label={tr("chat.actions.retry")} fullWidth onPress={onRetry} />
+              <Button label={tr("chat.modelError.retry")} fullWidth onPress={onRetry} />
             )}
           </View>
         </View>

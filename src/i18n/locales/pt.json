@@ -16,79 +16,9 @@
     "hoursAgo": "há {{count}}h",
     "daysAgo": "há {{count}}d"
   },
-  "drawer": {
-    "subtitle": "Inteligência Local Adaptativa",
-    "newChat": "Nova Sessão de Pesquisa",
-    "recentSessions": "SESSÕES RECENTES"
-  },
-  "modelLoadErrorCard": {
-    "corrupt": {
-      "title": "Falha na verificação de integridade",
-      "detail": "O arquivo do modelo baixado está truncado ou corrompido (provavelmente por uma interrupção de rede em segundo plano).",
-      "recommendation": "Baixe o arquivo do modelo novamente ou troque para um modelo já em cache nas Configurações."
-    },
-    "missing": {
-      "title": "Recurso do modelo ausente",
-      "detail": "O binário do modelo GGUF designado não está presente no armazenamento local do aparelho.",
-      "recommendation": "Reabra o Assistente de Configuração ou selecione um modelo instalado no catálogo."
-    },
-    "memory": {
-      "title": "RAM do hardware excedida",
-      "detail": "Memória residente insuficiente para mapear (mmap) os pesos do modelo GGUF e inicializar o cache KV.",
-      "recommendation": "Feche aplicativos em segundo plano ou troque para um modelo mais leve (ex.: Compacto 1,2GB) nas Configurações."
-    },
-    "general": {
-      "title": "Inicialização do motor interrompida",
-      "detailFallback": "O motor llama.rn falhou ao se conectar ao contexto GGUF local.",
-      "recommendation": "Revise as configurações do modelo ou execute novamente o Assistente de Configuração para restaurar os padrões."
-    },
-    "actionRequired": "AÇÃO NECESSÁRIA",
-    "settings": "Configurações",
-    "setupWizard": "Assistente de Configuração"
-  },
-  "drawerFooterStats": {
-    "ram": "RAM",
-    "disk": "DISCO",
-    "lastQuery": "{{rate}} tok/s na última consulta"
-  },
   "chatScreen": {
     "initializingCore": "Inicializando núcleo offline local…",
-    "mountingWeights": "Carregando pesos GGUF locais…",
-    "indexingKnowledgeBase": "Indexando base de conhecimento offline…",
-    "reasoningElapsed": "💭 Raciocinando… {{seconds}}s",
-    "reasoningUnfinished": "O raciocínio não terminou antes do fim da resposta (interrompido ou sem tokens). Toque em 💭 para ler.",
-    "showReasoning": "Mostrar raciocínio",
-    "hideReasoning": "Ocultar raciocínio",
-    "messageReused": "Mensagem copiada para a caixa de texto",
-    "stopping": "Parando… (terminando a etapa atual)",
-    "modelDownloadComplete": "✅ Download de \"{{label}}\" concluído",
-    "drawerItems": {
-      "prompts": "Ideias de Prompts",
-      "myDocuments": "Meus Documentos",
-      "settings": "Configurações",
-      "telemetry": "Telemetria de Execução",
-      "about": "Sobre & Informações"
-    },
-    "inputPlaceholder": "Faça uma pergunta de pesquisa offline…",
-    "stopGeneration": "Parar geração",
-    "sendMessage": "Enviar mensagem",
-    "research": {
-      "decomposing": "🔬 Dividindo a pergunta em subperguntas…",
-      "researching": "🔬 Pesquisando subpergunta {{index}}/{{count}}…",
-      "synthesizing": "🔬 Sintetizando descobertas offline…"
-    },
-    "roleYou": "VOCÊ",
-    "roleAssistant": "🐗 BOAR",
-    "stoppedByUser": "Interrompido pelo usuário",
-    "deepResearchBanner": "MISTURA DE AGENTES: DECOMPOR ➔ EMBEDDINGS LOCAIS ➔ SINTETIZAR",
-    "copyResponse": "Copiar resposta",
-    "copied": "Copiado",
-    "rateUp": "Boa resposta",
-    "rateDown": "Resposta ruim",
-    "rateHelpful": "Útil",
-    "rateUnhelpful": "Não útil",
-    "stageTimedOut": "Uma etapa da pesquisa demorou demais e foi interrompida",
-    "interruptedByBackground": "Pausado — o app foi para segundo plano. Pergunte novamente para continuar."
+    "modelDownloadComplete": "✅ Download de \"{{label}}\" concluído"
   },
   "sourceFootnotes": {
     "title": "FONTES VERIFICADAS OFFLINE",
@@ -822,7 +752,7 @@
       "title": "Fontes ({{count}})",
       "chip": "Fonte {{n}}: {{title}}",
       "cite": "Fonte {{n}}: {{title}}",
-      "corpus": "Biblioteca offline",
+      "corpus": "Acervo offline",
       "myDocuments": "Meus documentos",
       "copyPassage": "Copiar trecho",
       "passageCopied": "Trecho copiado",
@@ -842,8 +772,8 @@
         "medium": "Média",
         "low": "Baixa"
       },
-      "related": "Relacionados no seu acervo · {{count}}",
-      "hideRelated": "Ocultar relacionados",
+      "related": "Relacionados ({{count}})",
+      "hideRelated": "Ocultar",
       "found_one": "{{count}} trecho encontrado",
       "found_other": "{{count}} trechos encontrados"
     },
@@ -881,7 +811,7 @@
       "unhelpful": "Resposta não útil",
       "deepen": "Aprofundar",
       "deepenEst": "Aprofundar · ~{{time}}",
-      "askModel": "Responder com o modelo",
+      "askModel": "Responder com IA",
       "retry": "Tentar de novo",
       "copyQuestion": "Copiar pergunta",
       "editQuestion": "Editar e reenviar",
@@ -903,11 +833,11 @@
       "stoppedSnippet": "Parado — mostrando o trecho da fonte",
       "timeout": "Uma etapa demorou demais e foi interrompida",
       "interrupted": "A resposta foi interrompida.",
-      "streamsFromStorage": "Este modelo lê os pesos do armazenamento, então as respostas ficam mais lentas."
+      "streamsFromStorage": "Modelo grande para este celular: as respostas ficam mais lentas."
     },
     "error": {
       "generic": "Não consegui gerar a resposta.",
-      "oom": "Memória insuficiente para este modelo. Escolha um menor em Ajustes.",
+      "oom": "Falta memória. Escolha um modelo menor em Ajustes.",
       "no_model": "Nenhum modelo instalado.",
       "load_failed": "O modelo não carregou.",
       "generation_failed": "Não consegui gerar a resposta.",
@@ -924,7 +854,7 @@
     },
     "empty": {
       "title": "Pergunte qualquer coisa",
-      "body": "As respostas vêm do modelo e da biblioteca deste celular, com fontes.",
+      "body": "As respostas vêm do modelo e do acervo deste celular, com fontes.",
       "suggestionsLabel": "Experimente perguntar",
       "ask": "Perguntar: {{question}}",
       "fill": "Colocar no campo para editar",
@@ -992,7 +922,7 @@
       "nearYou": "Perto de você",
       "inCity": "Em {{city}}",
       "byDistance": "Ordenado por distância",
-      "byDiet": "Ordenado pela tag de dieta, depois distância",
+      "byDiet": "Dieta primeiro, depois distância",
       "staleLocation": "Usando sua localização de {{minutes}} min atrás",
       "m": "{{value}} metros",
       "km": "{{value}} quilômetros",
@@ -1000,32 +930,32 @@
         "vegan": {
           "only": "Vegano",
           "yes": "Opções veganas",
-          "limited": "Poucas opções veganas",
-          "tagged": "Marcado como vegano"
+          "limited": "Vegano: poucas",
+          "tagged": "Consta vegano"
         },
         "vegetarian": {
           "only": "Vegetariano",
           "yes": "Opções vegetarianas",
-          "limited": "Poucas opções vegetarianas",
-          "tagged": "Marcado como vegetariano"
+          "limited": "Vegetariano: poucas",
+          "tagged": "Consta vegetariano"
         },
         "gluten_free": {
           "only": "Sem glúten",
           "yes": "Opções sem glúten",
-          "limited": "Poucas opções sem glúten",
-          "tagged": "Marcado como sem glúten"
+          "limited": "Sem glúten: poucas",
+          "tagged": "Consta sem glúten"
         },
         "halal": {
           "only": "Halal",
           "yes": "Opções halal",
-          "limited": "Poucas opções halal",
-          "tagged": "Marcado como halal"
+          "limited": "Halal: poucas",
+          "tagged": "Consta halal"
         },
         "kosher": {
           "only": "Kosher",
           "yes": "Opções kosher",
-          "limited": "Poucas opções kosher",
-          "tagged": "Marcado como kosher"
+          "limited": "Kosher: poucas",
+          "tagged": "Consta kosher"
         }
       },
       "open": "Aberto",
@@ -1042,8 +972,8 @@
       "showMore_one": "Mostrar mais {{count}}",
       "showMore_other": "Mostrar mais {{count}}",
       "truncated": "Há mais lugares; faça uma pergunta mais específica para vê-los.",
-      "openInMaps": "Abrir num app de mapas",
-      "noMapsApp": "Nenhum app de mapas consegue abrir este lugar.",
+      "openInMaps": "Abrir no mapa",
+      "noMapsApp": "Nenhum app de mapas abre isto.",
       "copyCoordinates": "Copiar coordenadas",
       "coordinatesCopied": "Coordenadas copiadas",
       "address": "Endereço",
@@ -1052,10 +982,10 @@
       "website": "Site",
       "description": "Do guia de viagem",
       "coordinates": "Coordenadas",
-      "viewPassage": "Ver o trecho do guia",
+      "viewPassage": "Ver trecho do guia",
       "whichCity": "Qual cidade?",
       "search": "Buscar",
-      "useLocation": "Usar minha localização",
+      "useLocation": "Perto de mim",
       "typeCity": "Digitar a cidade",
       "locationDenied": "A localização está desligada. Digite a cidade.",
       "locationUnavailable": "Não consegui o sinal de GPS. Digite a cidade.",
@@ -1064,14 +994,14 @@
       "locationAllow": "Continuar",
       "noPackTitle": "Mapa offline não instalado",
       "noPackBody": "Instale o mapa offline de uma região para buscar restaurantes e lugares sem internet.",
-      "getMap": "Baixar o mapa offline",
+      "getMap": "Ver mapas offline",
       "noneInCity": "Não tenho dados offline de lugares em {{city}}",
-      "noneInCityFiltered": "Não tenho dados offline de lugares ({{filter}}) em {{city}}",
+      "noneInCityFiltered": "Nenhum lugar {{filter}} no mapa de {{city}}",
       "noneNear": "Não tenho dados offline de lugares perto de você",
-      "noneNearFiltered": "Não tenho dados offline de lugares ({{filter}}) perto de você",
+      "noneNearFiltered": "Nenhum lugar {{filter}} perto de você no mapa",
       "noneBody": "Nada aqui é inventado: a lista só mostra lugares registrados no mapa offline instalado. Tente uma cidade vizinha ou instale outra região.",
       "searchHint": "Digite uma cidade primeiro",
-      "dietToVerify": "Etiqueta de dieta do OSM a conferir",
+      "dietToVerify": "Dieta a confirmar",
       "cityPlaceholder": "ex.: Berlim",
       "dataFrom": "dados de {{date}}",
       "openSettings": "Abrir ajustes",
@@ -1079,7 +1009,7 @@
       "searchCityHint": "Mostra lugares em {{city}}",
       "staleTitle": "Sua última localização foi em {{city}}, há {{ago}}",
       "staleBody": "Sem posição recente agora. Use essa cidade ou escolha onde você está.",
-      "useCity": "Usar {{city}}",
+      "useCity": "Usar esta cidade",
       "chooseCity": "Escolher cidade",
       "ago": {
         "min_one": "{{count}} min",
@@ -1091,8 +1021,9 @@
       },
       "locating": "Procurando sua localização…",
       "locatingBody": "Ou digite a cidade:",
-      "byDietCity": "Ordenado pela tag de dieta, depois distância do centro",
-      "byDistanceCity": "Ordenado por distância do centro"
+      "byDietCity": "Dieta primeiro, depois distância do centro",
+      "byDistanceCity": "Ordenado por distância do centro",
+      "copyShort": "Copiar"
     },
     "assistantName": "boar",
     "suggestionTopics": {
@@ -1107,7 +1038,7 @@
     "modelError": {
       "overline": "Ação necessária",
       "settings": "Ajustes",
-      "setup": "Configurar o modelo",
+      "setup": "Configurar",
       "memory": {
         "title": "Memória insuficiente",
         "body": "Este celular não tinha memória livre suficiente para abrir o modelo.",
@@ -1115,7 +1046,7 @@
       },
       "corrupt": {
         "title": "O arquivo do modelo está danificado",
-        "body": "O arquivo do modelo neste celular está incompleto ou mudou desde a instalação.",
+        "body": "O arquivo do modelo está incompleto ou foi alterado.",
         "hint": "Instale o modelo de novo pela configuração."
       },
       "missing": {
@@ -1137,39 +1068,41 @@
       },
       "status": "{{model}} não carregado",
       "details": "Detalhes",
-      "hideDetails": "Ocultar detalhes"
+      "hideDetails": "Ocultar detalhes",
+      "retry": "Recarregar"
     },
     "safety": {
       "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."
     },
     "loadCrash": {
-      "message": "O {{model}} fechou o app: este celular não tem memória para ele. Voltamos ao {{fallback}}.",
+      "message": "Sem memória para o {{model}}. Voltamos ao {{fallback}}.",
       "seeModels": "Ver modelos",
       "dismiss": "Dispensar",
-      "messageNoFallback": "O {{model}} fechou o app: este celular não tem memória para ele. Escolha um modelo menor."
+      "messageNoFallback": "Sem memória para o {{model}}. Escolha um modelo menor."
     },
     "weak": {
       "title": "Sem fonte forte neste celular",
       "titleUncited": "Nenhuma fonte citada",
-      "bodyUncited": "A resposta não cita nenhum dos trechos encontrados neste celular, então não dá para conferir por eles. Ela pode estar errada.",
-      "body": "Respondido com o conhecimento geral do modelo, que pode errar. Nada no acervo deste celular bateu de perto.",
-      "showClosest": "Ver trechos mais próximos",
-      "showFound": "Ver trechos encontrados · {{count}}",
-      "hideFound": "Ocultar trechos encontrados",
+      "bodyUncited": "Ela não cita os trechos encontrados, então não dá para conferir. Pode estar errada.",
+      "body": "Nada no acervo do celular bateu de perto. A resposta vem do modelo e pode errar.",
+      "showClosest": "Trechos próximos",
+      "showFound": "Trechos ({{count}})",
+      "hideFound": "Ocultar trechos",
       "foundTitle": "Trechos encontrados",
-      "hideClosest": "Ocultar trechos mais próximos",
+      "hideClosest": "Ocultar trechos",
       "closestTitle": "Trechos mais próximos (correspondência fraca)",
       "weakMatch": "fraca",
       "receipt": "conhecimento geral",
       "receiptUncited": "sem fonte citada",
       "declinedTitle": "Não encontrei isso no acervo deste celular",
       "unsupportedTitle": "Os trechos encontrados não sustentam esta resposta",
-      "unsupportedBody": "A resposta do modelo compacto citava trechos que não dizem o que ele escreveu, então ela foi retida.",
-      "declinedBody": "Sem uma fonte, o modelo compacto costuma errar perguntas assim, então ele não chutou.",
-      "answerAnyway": "Responder mesmo assim (pode errar)",
+      "unsupportedBody": "O modelo compacto citou trechos que não dizem isso, então a resposta foi retida.",
+      "declinedBody": "Sem fonte, o modelo compacto costuma errar isso, então não chutou.",
+      "answerAnyway": "Arriscar resposta",
       "declinedTitleIncomplete": "O acervo deste celular está incompleto",
       "declinedBodyIncomplete": "A indexação parou antes do fim, então a resposta pode estar na parte que falta.",
-      "bodyIncomplete": "Respondido com o conhecimento geral do modelo, que pode errar. O acervo deste celular não terminou de indexar, então pode faltar a fonte."
+      "bodyIncomplete": "Vem do modelo e pode errar. O acervo está incompleto, então pode faltar a fonte.",
+      "answerAnywayHint": "Pode estar errada."
     },
     "stepShort": {
       "search": "Buscando…",
@@ -1179,7 +1112,7 @@
       "prepare": "Preparando…"
     },
     "library": {
-      "incomplete": "O acervo offline não terminou de indexar. Algumas respostas podem ficar sem fonte."
+      "incomplete": "Acervo incompleto: algumas respostas podem ficar sem fonte."
     }
   },
   "location": {

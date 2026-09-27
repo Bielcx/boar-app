@@ -10,7 +10,7 @@ import { llamaEngine } from "../inference/LlamaEngine";
 import { embeddingEngine } from "../rag/embed";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty } from "../rag/seedCorpus";
 import { makeGate } from "./chat/gate";
-import { MODEL_CATALOG, CORPUS_CATALOG, REQUIRED_MODELS, CatalogModel } from "../models/manifest";
+import { MODEL_CATALOG, CORPUS_CATALOG, REQUIRED_MODELS, CatalogModel, displayNameOf } from "../models/manifest";
 import { listDiscoveredModels } from "../models/discoveredModels";
 import { subscribeDownloads, listDownloadStates } from "../services/downloadManager";
 import {
@@ -40,6 +40,7 @@ import {
 } from "../services/chatHistory";
 import { summarizeConversation } from "../services/summarize";
 import { titleFromQuestion } from "./chat/sessionTitle";
+import { modelNameById } from "./chat/modelName";
 import { startAppMemoryTracking } from "../services/telemetry";
 import { stripThinking } from "../services/thinking";
 import { cleanCitations } from "../services/citations";
@@ -256,7 +257,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const llm = effective ? (await catalogModelById(effective.id, "llm")) ?? null : null;
       const emb = await resolveActiveModel("embedding");
       if (llm) setActiveModel(llm);
-      const loadingLabel = llm ? t("chat.model.loading", { label: llm.label }) : t("chatScreen.initializingCore");
+      const loadingLabel = llm ? t("chat.model.loading", { label: displayNameOf(llm) }) : t("chatScreen.initializingCore");
       setLoadStatus({ label: loadingLabel });
       // Both loads start here, before any question: the search's query vector waits in the embedder's queue
       // behind its own load, and answer() waits for the model's (Tusk). No model can run (null): no preload;
@@ -320,7 +321,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           if (dl.error || showSettingsRef.current) continue;
           (async () => {
             const known = [...MODEL_CATALOG, ...CORPUS_CATALOG, ...(await listDiscoveredModels())].find((m) => m.id === assetId);
-            toast({ message: t("chatScreen.modelDownloadComplete", { label: known?.label ?? assetId }), tone: "success" });
+            toast({ message: t("chatScreen.modelDownloadComplete", { label: known ? displayNameOf(known) : assetId }), tone: "success" });
           })();
         }
       }
@@ -791,7 +792,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       followUp(id, { place: city });
     },
     useLocation: (id) => locateAndAsk(id),
-    getMap: openSettings,
+    // The offline maps live in Knowledge › Places (the button said "Get the map" and opened Settings).
+    getMap: () => navigation.navigate("Knowledge"),
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
     editQuestion: (text) => {
@@ -857,8 +859,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   return (
     <Screen scroll={false} padded={false} ambient edges={["top", "left", "right"]}>
       <ChatHeader
-        activeModelLabel={effective?.label ?? activeModel?.label}
-        downgradedFrom={effective?.downgradedFrom}
+        // Short names (Ledger): "Qwen3 4B", not "Qwen3-4B-Instruct-2507 (Q4_K_M)".
+        activeModelLabel={effective ? modelNameById(effective.id, effective.label) : activeModel ? displayNameOf(activeModel) : undefined}
+        downgradedFrom={
+          effective?.downgradedFrom && { ...effective.downgradedFrom, label: modelNameById(effective.downgradedFrom.id, effective.downgradedFrom.label) }
+        }
         onOpenModels={() => navigation.navigate("Models")}
         voiceEnabled={voiceInputEnabled}
         onOpenDrawer={() => {
@@ -921,7 +926,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           }
           ListEmptyComponent={
             loadError ? (
-              <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel?.label} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? displayNameOf(activeModel) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
             ) : !modelsRequested ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
