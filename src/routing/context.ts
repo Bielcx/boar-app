@@ -219,7 +219,7 @@ export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number 
 
 /** Health, first aid and emergencies: the answer may only state what the sources say. */
 const HEALTH =
-  /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|bitten|stung|boiling water|spill\w* (hot|boiling)|shiver\w*|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
+  /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|shiver\w*|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
 
 // Portuguese terms starting or ending with an accented letter: JS \b doesn't see "á" as a letter.
 const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quente)|queimadura|picad[ao]|tremend\w*|tremores?|calafrios?|hipotermia|sangramento|engasg\w*|afogamento|desmai\w*|convuls\p{L}*|emerg[êe]ncia)(?![\p{L}])/iu;
@@ -231,8 +231,19 @@ const DISASTER =
 export const ACTION_INTENT =
   /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get|treat|stop|help|make|purify|care)|how to (treat|stop|help|survive|make|purify)|first aid|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
 
+// An injury DESCRIBED without the condition's name ("spilled boiling water on his arm",
+// "derramou água fervendo no braço", "got bitten", "está sangrando"): health when the
+// question asks what to do (gate ee1f2b7: 20/20 free answers, one said "medicinal oil").
+const INJURY_DESCRIBED =
+  /(^|[^\p{L}])(spill\p{L}*|splash\p{L}*|scald\p{L}*|burn\p{L}*|boiling|blister\p{L}*|bit|bitten|stung|sting\p{L}*|bleed\p{L}*|faint\p{L}*|passed out|chok\p{L}*|cut (my|his|her|their|him|herself|himself|myself)|fell (off|down|from)|broke (my|his|her|their)|twist\p{L}*|sprain\p{L}*|swallow\p{L}*|electrocut\p{L}*|derram\p{L}*|escald\p{L}*|queim\p{L}*|fervend\p{L}*|fervent\p{L}*|bolha\p{L}*|mord\p{L}*|picou|picad\p{L}*|sangr\p{L}*|desmai\p{L}*|engasg\p{L}*|cortou|caiu d\p{L}*|bateu a cabe[çc]a|torceu|quebrou|engoliu|choque el[ée]trico)(?![\p{L}])/iu;
+
 export function isHealthQuestion(query: string): boolean {
-  return HEALTH.test(query) || HEALTH_PT.test(query) || (DISASTER.test(query) && ACTION_INTENT.test(query));
+  return (
+    HEALTH.test(query) ||
+    HEALTH_PT.test(query) ||
+    (DISASTER.test(query) && ACTION_INTENT.test(query)) ||
+    (INJURY_DESCRIBED.test(query) && ACTION_INTENT.test(query))
+  );
 }
 
 /**
@@ -282,15 +293,23 @@ export function isSafetyQuery(query: string): boolean {
  * matched ("bitten", "earthquake", "safe to drink") plus the article names it
  * maps to (canonical EN / PT dictionary: "snakebite", "hypothermia").
  */
+// Words that name no condition: in a title they match anything ("Just Stop Oil", "Tree snake",
+// "California Department of Water Resources", gate ee1f2b7).
+const GENERIC_TOPIC = new Set(tokenizeTerms("water stop treat treatment child children nose safe drink drinking prevent help make first aid snake arm hand hot cold"));
+
 export function healthTopicTerms(query: string, articleTerms: string | null): Set<string> {
-  const matched = [
-    ...(query.match(new RegExp(HEALTH.source, "gi")) ?? []),
-    ...(query.match(new RegExp(HEALTH_PT.source, "giu")) ?? []),
-    ...(query.match(new RegExp(DISASTER.source, "giu")) ?? []),
-  ].join(" ");
-  const terms = new Set(tokenizeTerms(`${matched} ${articleTerms ?? ""}`));
-  // Drinking-water questions are about water.
-  if ([...terms].some((t) => /^(drink|flood|contaminat|potavel)/.test(t))) terms.add("water");
+  // With article terms (the dictionary / canonical names), they ARE the topic: the story's own
+  // words ("cobra", "parar") are not. Otherwise, what the health detector matched.
+  const source = articleTerms
+    ? articleTerms
+    : [
+        ...(query.match(new RegExp(HEALTH.source, "gi")) ?? []),
+        ...(query.match(new RegExp(HEALTH_PT.source, "giu")) ?? []),
+        ...(query.match(new RegExp(DISASTER.source, "giu")) ?? []),
+      ].join(" ");
+  const terms = new Set(tokenizeTerms(source).filter((t) => !GENERIC_TOPIC.has(t)));
+  // Drinking water: the condition is contamination / purification, not "water".
+  if (/\b(drink|flood|contaminat|potavel|purif)/i.test(source)) ["contaminat", "purification", "purify", "disinfect", "boil", "flood"].forEach((t) => terms.add(t));
   return terms;
 }
 
@@ -299,13 +318,23 @@ export function healthTopicTerms(query: string, articleTerms: string | null): Se
  * in the text is not enough: with "snakebite" as the query, a plant used
  * against snakebites ("Renealmia cernua") covered it fully (gate 715ffdd).
  */
+/** Sources written for laypeople (first-aid book, travel health, Ready.gov/CDC): preferred for what to do. */
+const LAY_SOURCE = /^(Wikibooks|Wikivoyage|US government):/;
+
 // Technical specifications are never first-aid sources ("EIP-7775: BURN opcode" for a burn).
 const NON_HEALTH_SOURCE = /^(Ethereum EIPs\/ERCs|Ethereum specs|ethereum\.org|Bitcoin BIPs):/;
 
 export function onHealthTopic(topic: Set<string>, chunk: RetrievedChunk): boolean {
   if (NON_HEALTH_SOURCE.test(chunk.title)) return false;
-  // The article title, or the section heading ("Stay healthy" › "... > Water contamination").
-  return titleNames(chunk.title, topic) || titleNames(sectionHeading(chunk), topic);
+  const action = (chunk as { action?: boolean }).action;
+  // The article title names the condition; or the section heading does ("Stay healthy" ›
+  // "... > Water contamination") and the pack didn't mark it as background
+  // ("Hog Butchering and Smoking › SCALDING" is not about scalds on people).
+  if (titleNames(chunk.title, topic)) return true;
+  if ((action !== false || LAY_SOURCE.test(chunk.title)) && titleNames(sectionHeading(chunk), topic)) return true;
+  // A pack's action section counts only when its text names the condition too
+  // ("Oral rehydration therapy › Treatment" is an action section, not about burns).
+  return action === true && titleNames(chunk.body, topic);
 }
 
 /** Next to the question (small models follow instructions there, s32): health answers stay inside the sources. */
@@ -321,7 +350,11 @@ export const HEALTH_GROUNDING_INSTRUCTION =
  */
 /** Same word despite the tiny stemmer ("earthquakes" -> "earthquak", "earthquake" stays). */
 function sameTerm(a: string, b: string): boolean {
-  return a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)));
+  // A stemmer quirk differs by a short suffix ("earthquak"/"earthquake", "contaminat"/"contamination");
+  // a longer one is another word ("snake" is not "snakebite").
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 5 && long.startsWith(short) && long.length - short.length <= 3;
 }
 
 function titleNames(title: string, terms: Iterable<string>): boolean {
@@ -390,8 +423,9 @@ export function healthSourceIndex(sources: RetrievedChunk[]): number {
   const flag = (c: RetrievedChunk) => (c as { action?: boolean }).action;
   const anyAction = sources.some((c) => flag(c) === true);
   sources.forEach((c, i) => {
-    if (anyAction && flag(c) !== true) return;
-    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) - i * 0.05;
+    if (anyAction && flag(c) !== true && !LAY_SOURCE.test(c.title)) return;
+    // Laypeople's first-aid text beats a clinical Treatment section ("Active external rewarming involves...").
+    const score = healthActionScore(c) + (flag(c) === true ? 3 : 0) + (LAY_SOURCE.test(c.title) ? 4 : 0) - i * 0.05;
     if (score > bestScore) (best = i), (bestScore = score);
   });
   return best;
@@ -417,9 +451,16 @@ export function healthActionScore(c: RetrievedChunk): number {
  * the compressed one), cut at a sentence end and cited by its number.
  */
 export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: boolean): string {
-  let text = "";
-  for (const s of splitSentences(source.body)) {
-    if (text && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
+  // Steps first: start at the first sentence that tells what to do, keeping the section heading
+  // ("Treatment > First aid: Snakebite first aid recommendations vary..." opens with background).
+  const colon = source.body.indexOf(":");
+  const heading = colon > 0 && colon <= 120 ? source.body.slice(0, colon) : "";
+  const sentences = splitSentences(heading ? source.body.slice(colon + 1).replace(/^[:\s]+/, "") : source.body);
+  const firstStep = sentences.findIndex((x) => new RegExp(ACTION_WORD.source, "i").test(x));
+  const from = firstStep > 0 ? sentences.slice(firstStep) : sentences;
+  let text = heading ? `${heading}:` : "";
+  for (const s of from) {
+    if (text.length > heading.length + 1 && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
     text = text ? `${text} ${s}` : s;
   }
   // Steps = an instructions-like source AND at least one sentence that tells what to do

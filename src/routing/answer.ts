@@ -602,6 +602,16 @@ export function createAnswerer(deps: AnswerDeps) {
         const onTopicHealth = sources.filter((c) => onHealthTopic(topic, c));
         if (onTopicHealth.length < sources.length) reasonCodes.push(`grounding:health-off-topic-dropped-${sources.length - onTopicHealth.length}`);
         sources = onTopicHealth;
+        // The best source to quote may have been cut by compression (relative relevance): a
+        // first-aid book's section loses to the clinical article's wording. Bring it back.
+        const pool = raw.filter((c) => onHealthTopic(topic, c));
+        if (pool.length) {
+          const best = pool[healthSourceIndex(pool)];
+          if (!sources.some((c) => c.chunkId === best.chunkId)) {
+            sources = [...sources, best];
+            reasonCodes.push("grounding:health-best-restored");
+          }
+        }
       }
       if (sources.length && gen?.mode !== "multipass") {
         emit({ type: "sources", answerId, tier: plan.instant !== "off" ? "instant" : genTier, sources });

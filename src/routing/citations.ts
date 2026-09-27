@@ -13,7 +13,11 @@ export const CITATION_MIN_SUPPORT = 0.5;
 /** Sentences with fewer key words than this are too short to judge: the citation stays. */
 const MIN_KEY_TERMS = 2;
 
-const same = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 5 && (a.startsWith(b) || b.startsWith(a)));
+const same = (a: string, b: string) => {
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 5 && long.startsWith(short) && long.length - short.length <= 3;
+};
 
 /** The sentence a citation at `at` belongs to: back past "." and spaces right before it, then to the previous sentence end. */
 function sentenceBefore(text: string, at: number): string {

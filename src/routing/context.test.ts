@@ -277,6 +277,22 @@ describe("isHealthQuestion", () => {
     }
   });
 
+  it("an injury described without its name is health when the question asks what to do (gate ee1f2b7)", () => {
+    for (const q of [
+      "Meu filho derramou água fervendo no braço. O que eu faço?",
+      "My son spilled hot coffee on his hand, what should I do?",
+      "A bee stung me and my arm is swelling, what do I do?",
+      "Meu amigo desmaiou, o que fazer?",
+      "Ela engasgou com uma bala, o que devo fazer?",
+      "He cut his finger with a knife, how do I stop the bleeding?",
+    ]) {
+      expect(isHealthQuestion(q), q).toBe(true);
+    }
+    for (const q of ["Why does boiling water bubble?", "What is a blister pack?", "Quem queimou Roma?"]) {
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+  });
+
   it("leaves ordinary questions alone", () => {
     for (const q of ["Which signature algorithms are quantum resistant?", "What is the capital of Australia?", "How do noise-cancelling headphones work?"]) {
       expect(isHealthQuestion(q), q).toBe(false);

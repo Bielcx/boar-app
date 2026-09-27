@@ -11,7 +11,7 @@
 const PT_EN: Array<[RegExp, string]> = [
   [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz sangrando|epistaxe/i, "nosebleed"],
   [/primeiros socorros/i, "first aid"],
-  [/picada de cobra|mordida de cobra|picad[ao] por (uma )?cobra|mordid[ao] por (uma )?cobra/i, "snake bite"],
+  [/picada de (cobra|serpente)|mordida de (cobra|serpente)|picad[ao] por (uma )?(cobra|serpente)|mordid[ao] por (uma )?(cobra|serpente)|(cobra|serpente)[^.]{0,30}(picou|mordeu)|(picou|mordeu)[^.]{0,30}(cobra|serpente)/i, "snakebite"],
   [/picada de (abelha|vespa)|ferroada/i, "bee sting"],
   [/picada de escorpi[ãa]o/i, "scorpion sting"],
   [/parada card[íi]aca/i, "cardiac arrest"],
@@ -19,8 +19,8 @@ const PT_EN: Array<[RegExp, string]> = [
   [/\bavc\b|derrame/i, "stroke"],
   [/\brcp\b|reanima[çc][ãa]o( cardiopulmonar)?|massagem card[íi]aca/i, "cpr"],
   // A scald is a burn: "derramou água fervente no braço" must find Burn, not the physics of boiling.
-  [/(derram|caiu|queim|escald)\w*[^.]{0,40}(água|[óo]leo|caf[ée]|ch[áa]) (fervente|quente)|(água|[óo]leo) (fervente|quente)[^.]{0,40}(derram|caiu|queim|escald)\w*|escaldadura/i, "burn scald"],
-  [/[áa]gua fervente|[áa]gua quente/i, "boiling water"],
+  [/(derram|caiu|queim|escald|jog)\w*[^.]{0,40}(água|[áa]gua|[óo]leo|caf[ée]|ch[áa]|sopa|leite) (fervente|fervendo|quente|escaldante)|(água|[áa]gua|[óo]leo) (fervente|fervendo|quente|escaldante)[^.]{0,40}(derram|caiu|queim|escald)\w*|escaldadura|escaldou|se queimou|queimou (o|a|a m[ãa]o|o bra[çc]o)/i, "burn scald"],
+  [/[áa]gua (fervente|fervendo)|[áa]gua quente/i, "boiling water"],
   // Shivering, confused, slurred speech in the cold: hypothermia.
   [/(tremend\w*|tremores?|calafrios?)[^.]{0,80}\bfrio\b|\bfrio\b[^.]{0,80}(tremend\w*|tremores?|calafrios?)/i, "hypothermia"],
   [/[áa]gua pot[áa]vel|[áa]gua (segura|limpa) para beber|tornar a [áa]gua (segura|pot[áa]vel)/i, "safe drinking water"],

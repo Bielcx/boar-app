@@ -226,7 +226,8 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     expect(result.tier).toBe("instant");
     expect(result.receipt.modelId).toBe("extractive");
     expect(result.text).toBe(
-      "From the offline source:\nA nosebleed is bleeding from the nose. Pinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back. [1]"
+      // Steps first: the definition sentence is skipped.
+      "From the offline source:\nPinch the soft part of the nose and lean forward for ten minutes. At home, the head should not be tilted back. [1]"
     );
     expect(result.receipt.reasonCodes).toContain("grounding:health-extractive");
   });
@@ -248,7 +249,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f.deps.retrieve = async (q) => (queries.push(q), [NOSEBLEED]);
     const { result } = await collect("Como faço para parar um sangramento no nariz?");
     expect(queries).toEqual(["nosebleed stop what to do"]);
-    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nA nosebleed is bleeding/);
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nPinch the soft part/);
     expect(f.generations).toHaveLength(0);
   });
 
@@ -271,7 +272,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     f = makeFake();
     f.retrieved = [quality, contamination] as any;
     const { result } = await collect("After a flood the tap water might be contaminated. How do I make water safe to drink?");
-    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[2\]$/);
+    expect(result.text).toMatch(/^From the offline source:\nWater contamination: boil water for one minute .* \[\d\]$/);
   });
 
   it("E-1 'Deeper answer' on a health question: the model may only restate the sources", async () => {
@@ -296,7 +297,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     const { events, result } = await collect("How do I stop a nosebleed?", "deep");
     expect(seen[0].temperature).toBe(0);
     expect(events.filter((e) => e.type === "token").map((e: any) => e.text)).toEqual([result.text]);
-    expect(result.text).toMatch(/^From the offline source:\nA nosebleed is bleeding from the nose\./);
+    expect(result.text).toMatch(/^From the offline source:\nPinch the soft part of the nose/);
     expect(result.receipt.reasonCodes).toContain("grounding:health-unsafe-blow-nose");
   });
 
@@ -321,7 +322,7 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
   it("…and still quotes the on-topic ones", async () => {
     for (const [q, on] of [
       ["I just got bitten by a snake while hiking. What do I do right now?", chunk("sb", "Snakebite", "Treatment > First aid: Keep the person calm and still, remove rings and watches, and get to a hospital for antivenom.")],
-      ["After a flood the tap water might be contaminated. How do I make water safe to drink?", chunk("w", "Wikivoyage: Water", "Stay healthy: After a flood, boil water for one minute at a rolling boil before you drink it.")],
+      ["After a flood the tap water might be contaminated. How do I make water safe to drink?", chunk("w", "Wikivoyage: Stay healthy", "During your trip > Water contamination: After a flood, boil water for one minute at a rolling boil before you drink it.")],
       ["An earthquake starts while I'm inside a hotel room. What should I do?", chunk("e", "Earthquakes (Ready.gov)", "During an Earthquake: Drop, cover, and hold on. Stay inside until the shaking stops.")],
     ] as const) {
       f = makeFake();
@@ -378,6 +379,32 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     const shown = (onTopic.events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
     expect(shown.map((c) => c.title)).toEqual(["Nosebleed"]);
     expect(onTopic.result.sources.map((c) => c.title)).toEqual(["Nosebleed"]);
+  });
+
+  it("gate ee1f2b7 BLOCKER: a scald described in PT ('fervendo') is health: source text only, never a free model answer", async () => {
+    const queries: string[] = [];
+    f.deps.retrieve = async (q) => (queries.push(q), [chunk("b", "Burn", "Management: Cool the burn under cool running water for 20 minutes. Do not use ice, butter or creams.")]);
+    const { result } = await collect("Meu filho derramou água fervendo no braço. O que eu faço?");
+    expect(queries).toEqual(["burn scald what to do"]);
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/^Da fonte offline \(em inglês\):\nManagement: Cool the burn/);
+  });
+
+  it("gate ee1f2b7: PT health answers never cite a title that only shares a generic word", async () => {
+    for (const [q, off] of [
+      ["Fui picado por uma cobra na trilha. O que eu faço?", chunk("t", "Tree snake", "Tree snakes live in trees and rarely bite people.")],
+      ["O que fazer durante um terremoto?", chunk("j", "Just Stop Oil", "Just Stop Oil is a climate campaign group.")],
+      ["Depois de uma enchente, como deixo a água segura para beber?", chunk("c", "California Department of Water Resources", "The department manages water supply in California.")],
+      ["My child spilled boiling water on their arm. What do I do?", { ...chunk("o", "Oral rehydration therapy", "Treatment algorithm: give oral rehydration solution in small sips."), action: true }],
+      ["My child spilled boiling water on their arm. What do I do?", { ...chunk("h", "Appropedia: Hog Butchering and Smoking", "SCALDING: A hog must be bled and scalded in hot water before scraping."), action: false }],
+    ] as const) {
+      f = makeFake();
+      f.retrieved = [off as any];
+      const { events, result } = await collect(q);
+      expect(events.some((e) => e.type === "sources"), q).toBe(false);
+      expect(result.sources, q).toEqual([]);
+      expect(f.generations, q).toHaveLength(0);
+    }
   });
 
   it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
