@@ -15,8 +15,8 @@ export const SUGGESTION_VALIDATION = {
   // tectonics", which says neither. Replaced by q8/q9, which the lead itself answers.
   // Sextant v3 (integration 50d44a1, builtin only, seeds 42/7/1234): q8 EN passes on both models (lead
   // cited); q8 PT fails ("monção" doesn't reach Monsoon); q9 fails in both languages (EN cited 2/3,
-  // PT's on-topic source dropped by the guard); q9 waits for the gate on 98a47b4.
-  evidence: "eval/results/suggestions/verdicts.v1.json + v2 + v3 (feat/eval-frontier 4655cbb)",
+  // PT's on-topic source dropped by the guard). Rechecked on 98a47b4: the same (8c66bc2), q9 stays out.
+  evidence: "eval/results/suggestions/verdicts.v1.json + v2 + v3 (feat/eval-frontier 4655cbb, recheck 8c66bc2)",
   byModel: {
     "qwen3-4b-instruct-2507-q4km": { en: ["q1", "q2", "q3", "q4", "q7", "q8"], pt: ["q1", "q2", "q3", "q4", "q7"] },
     // 1.5B PT: q3 fails the source check (answer shows "Cold", "Absolute zero"); empty until PT-1.
