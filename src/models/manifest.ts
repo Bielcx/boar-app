@@ -71,7 +71,8 @@ export interface CatalogModel {
   format?: "json" | "sqlite-pack" | "poi-pack";
 }
 
-export const STORAGE_BUDGET_BYTES = 50 * 1024 * 1024 * 1024; // 50GB
+// Decimal, as the bounty and the phone count it (50 GB = 50e9 bytes; Prism N-14).
+export const STORAGE_BUDGET_BYTES = 50 * 1000 ** 3;
 export const RAM_BUDGET_BYTES = 12 * 1024 * 1024 * 1024; // 12GB
 
 /**
