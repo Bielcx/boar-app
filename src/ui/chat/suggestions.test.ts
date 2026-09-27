@@ -11,8 +11,9 @@ describe("suggestionsFor", () => {
     expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", ALL)).toEqual(["q1", "q2", "q3", "q4", "q5", "q7"]);
   });
 
-  it("offers no Portuguese suggestion until Sextant finds its source in Portuguese (PT search, Bramble PT-1)", () => {
-    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt", ALL)).toEqual([]);
+  it("in Portuguese offers only what passed both checks (source in PT + answer), Sextant 27/09", () => {
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt", ALL)).toEqual(["q4", "q6"]);
+    expect(suggestionsFor("qwen3-4b-instruct-2507-q4km", "pt")).toEqual(["q6"]);
     expect(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "pt-BR", ALL)).toEqual([]);
   });
 
