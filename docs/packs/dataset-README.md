@@ -35,12 +35,9 @@ Each pack keeps the license of its sources. Share-alike packs stay share-alike; 
 | `topics/boar-preparedness.manifest.json` | Every document in the preparedness pack with its source URL and license | — | — |
 | `topics/boar-crypto.sqlite` | Ethereum and cryptography: 3,141 documents | 591 EIPs and 617 ERCs ([ethereum/EIPs](https://github.com/ethereum/EIPs), [ethereum/ERCs](https://github.com/ethereum/ERCs)); 129 pages of the consensus specs, execution specs, execution APIs and Portal Network specs; the Ethereum Yellow Paper (27 sections); 228 [ethereum.org](https://ethereum.org) pages; 180 [Bitcoin BIPs](https://github.com/bitcoin/bips) whose header names a permissive license (BSD, MIT, CC0, public domain, CC BY; 33 without one left out); 1,369 Wikipedia articles from the cryptography, post-quantum, zero-knowledge, blockchain, Ethereum, cryptocurrency, smart contract and DeFi categories, relevance-filtered | CC0 1.0 (EIPs, ERCs, specs); CC BY-SA 4.0 (Yellow Paper, Wikipedia); MIT (ethereum.org); each BIP's own license. Per document in the pack. |
 | `topics/boar-crypto.manifest.json` | Every document in the crypto pack with its source URL and license | — | — |
+| `wiki/en/boar-wiki-en-00.sqlite` … `-14.sqlite` | English Wikipedia in 15 packs (one per FineWiki shard; install any subset): 6,124,620 articles, 18.03 GB in all. The ~1M most-read articles in full, the rest as leads; Wikipedia redirects; lead embeddings of the most-read | Wikipedia via [HuggingFaceFW/finewiki](https://huggingface.co/datasets/HuggingFaceFW/finewiki) (August 2025 dumps); redirects and title index from the enwiki dumps; one day of pageviews for ranking | CC BY-SA 4.0 |
 
-Coming next (listed here when uploaded):
-
-| Path | What | Sources | License |
-|---|---|---|---|
-| `wiki/en/boar-wiki-en-NN.sqlite` | English Wikipedia, sharded, plus Wikivoyage | Wikipedia via [HuggingFaceFW/finewiki](https://huggingface.co/datasets/HuggingFaceFW/finewiki); Wikivoyage dump | CC BY-SA 4.0 |
+Coming next: the world places tiles and English Wikivoyage as its own pack.
 
 ### Which cities have a places pack
 

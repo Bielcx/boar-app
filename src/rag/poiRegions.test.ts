@@ -3,6 +3,7 @@ import { allAssets } from "../models/assetRegistry";
 import { POI_REGIONS, WORLD_PLACES, poiCatalogEntries, regionForPoint, regionsForTimeZone, worldPlacesEntry } from "./poiRegions";
 import { preparednessEntry } from "./preparedness";
 import { cryptoEntry } from "./cryptoPack";
+import { WIKI_EN_SHARDS, wikiEnEntries } from "./wikiEnPacks";
 
 describe("poiRegions", () => {
   it("finds the region containing a point, and none in the ocean", () => {
@@ -53,10 +54,19 @@ describe("tiles", () => {
 
 describe("hosted pack URLs", () => {
   it("pin every hosted file to an upload commit, never a branch", () => {
-    const entries = [...poiCatalogEntries(), worldPlacesEntry(), preparednessEntry(), cryptoEntry()].filter((e) => e.sourceUrl);
+    const entries = [...poiCatalogEntries(), worldPlacesEntry(), preparednessEntry(), cryptoEntry(), ...wikiEnEntries()].filter((e) => e.sourceUrl);
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) {
       expect(e.sourceUrl).toMatch(/^https:\/\/huggingface\.co\/datasets\/r4topunk\/boar-packs\/resolve\/[0-9a-f]{40}\/[\w./-]+\.sqlite$/);
     }
+  });
+});
+
+describe("English Wikipedia shards", () => {
+  it("lists all 15 parts once, each with its measured size and hash", () => {
+    expect(WIKI_EN_SHARDS.map((s) => s.part)).toEqual([...Array(15).keys()]);
+    const entries = wikiEnEntries();
+    expect(new Set(entries.map((e) => e.id)).size).toBe(15);
+    for (const e of entries) expect(e.sizeBytes).toBeGreaterThan(1e9), expect(e.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });
