@@ -83,6 +83,12 @@ describe("receiptLine", () => {
     );
   });
 
+  it("names the engine's no-source answer in the app's language (I18N-2), never its English label", () => {
+    expect(receiptLine({ ...receipt, modelId: "grounding-guard", modelLabel: "No offline source", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 200 }, "pt-BR", t)).toBe(
+      'chat.receipt.answeredIn{"time":"0,2 s"} · chat.receipt.noOfflineSource · chat.receipt.offline'
+    );
+  });
+
   it("omits speed when nothing was generated", () => {
     expect(receiptLine({ ...receipt, tokens: 0, tokPerSec: 0, ttftMs: 0 }, "en-US", t)).toBe(
       'chat.receipt.answeredIn{"time":"6.2 s"} · Qwen3 4B · chat.receipt.offline'

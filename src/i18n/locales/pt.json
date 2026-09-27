@@ -821,6 +821,7 @@
     "receipt": {
       "sourcePassage": "Trecho da fonte",
       "localModel": "Modelo local",
+      "noOfflineSource": "Sem fonte offline",
       "started": "começou em {{time}}",
       "offline": "offline",
       "details": "Detalhes de desempenho",

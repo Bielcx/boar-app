@@ -1,6 +1,6 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerReceipt as Receipt } from "./answerEvents";
-import { EXTRACTIVE_MODEL_ID } from "./answerEvents";
+import { EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID } from "./answerEvents";
 
 /** Labels come from i18n so the text reads in the app's language. */
 export interface ShareLabels {
@@ -11,6 +11,8 @@ export interface ShareLabels {
   sourcePassage: string;
   /** e.g. "My documents" — origin of a chunk from a user-imported collection. */
   myDocuments: string;
+  /** e.g. "No offline source": the engine's fixed answer when nothing on the phone covers it. */
+  noOfflineSource?: string;
 }
 
 function sourceLine(chunk: RetrievedChunk, n: number, labels: ShareLabels): string {
@@ -52,7 +54,12 @@ export function formatForShare(
 ): string {
   const parts = [question.trim(), formatForCopy(answer, sources, labels, only)];
   if (receipt) {
-    const who = receipt.modelId === EXTRACTIVE_MODEL_ID ? labels.sourcePassage : receipt.modelLabel;
+    const who =
+      receipt.modelId === EXTRACTIVE_MODEL_ID
+        ? labels.sourcePassage
+        : receipt.modelId === GROUNDING_GUARD_MODEL_ID
+          ? labels.noOfflineSource ?? receipt.modelLabel
+          : receipt.modelLabel;
     parts.push(`${labels.answeredOffline} · ${who} · ${formatSeconds(receipt.totalMs, locale)}`);
   }
   return parts.join("\n\n");

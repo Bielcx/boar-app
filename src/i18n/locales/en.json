@@ -821,6 +821,7 @@
     "receipt": {
       "sourcePassage": "Source passage",
       "localModel": "Local model",
+      "noOfflineSource": "No offline source",
       "started": "started in {{time}}",
       "offline": "offline",
       "details": "Performance details",

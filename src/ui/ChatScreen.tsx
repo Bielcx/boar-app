@@ -740,6 +740,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       answeredOffline: t("chat.share.answeredOffline"),
       sourcePassage: t("chat.share.sourcePassage"),
       myDocuments: t("chat.share.myDocuments"),
+      noOfflineSource: t("chat.receipt.noOfflineSource"),
     }),
     [t]
   );
