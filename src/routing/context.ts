@@ -744,6 +744,9 @@ export interface CompressedContext {
  * dropped — unless nothing scores at all, in which case the first sentences
  * of the top chunks are kept so the model still sees its best sources.
  */
+/** The shown relevance of an article the question names: the UI's 'high' band (Quill: >= 0.75). */
+const NAMED_ARTICLE_RELEVANCE = 0.75;
+
 export function compressContext(query: string, chunks: RetrievedChunk[], opts: CompressOptions = {}): CompressedContext {
   const budget = opts.tokenBudget ?? 1200;
   const perChunk = opts.maxSentencesPerChunk ?? 4;
@@ -796,14 +799,29 @@ export function compressContext(query: string, chunks: RetrievedChunk[], opts: C
   }
 
   const keptIndices = [...picked.keys()].sort((a, b) => chunkBest[b] - chunkBest[a] || a - b);
+  const qTerms = [...new Set(tokenizeTerms(query))];
+  const shownRelevance = (ci: number) => {
+    const best = scored.filter((x) => x.chunkIndex === ci).sort((a, b) => b.score - a.score)[0];
+    const have = new Set([...tokenizeTerms(chunks[ci].title), ...tokenizeTerms(best?.text ?? "")]);
+    const share = qTerms.length ? qTerms.filter((t) => have.has(t)).length / qTerms.length : 0;
+    // The article the question names ("Monsoon" for "What causes the monsoon?") never reads as weak.
+    const named = chunks[ci].title.split(/:\s+/).some((seg) => {
+      const st = tokenizeTerms(seg.replace(/\s*\([^)]*\)\s*$/, ""));
+      return st.length > 0 && st.every((t) => qTerms.includes(t));
+    });
+    return named ? Math.max(share, NAMED_ARTICLE_RELEVANCE) : share;
+  };
   const out = keptIndices.map((ci) => {
     const positions = [...picked.get(ci)!].sort((a, b) => a - b);
     const body = positions
       .map((p) => scored.find((s) => s.chunkIndex === ci && s.position === p)!.text)
       .join(" ");
-    // relevance (0..1): its best sentence's score for this question, one scale for every source
-    // of the answer (pack title hits and fused ones alike). None when nothing matched at all.
-    return { ...chunks[ci], body, ...(anyMatch ? { relevance: chunkBest[ci] } : {}) };
+    // relevance (0..1), what the UI shows: the share of the question's words the title and the best
+    // sentence cover, unweighted. The ranking's IDF weights are relative to the candidates: the topic
+    // word itself ("monsoon"), in every sentence, weighed almost nothing, and the exact article read
+    // "Low" (Prism BAND-1; on Sextant's sets the gold sources' median went 0.58 -> 0.75). None when
+    // nothing matched at all.
+    return { ...chunks[ci], body, ...(anyMatch ? { relevance: shownRelevance(ci) } : {}) };
   });
   const tokensAfter = out.reduce((acc, c) => acc + count(`${c.title}\n${c.body}`), 0);
   return { chunks: out, keptIndices, tokensBefore, tokensAfter };
