@@ -2,8 +2,7 @@ import { CALCULATOR_MODEL_ID, EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID, typ
 import { answerPhase, noSourceKind, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds, formatTokPerSec } from "./shareFormat";
 import { placesEmptyTitle } from "./placesFormat";
-import { displayNameOf } from "../../models/manifest";
-import { modelNameById } from "./modelName";
+import { chatModelName, chatModelNameById, type NameableModel } from "./modelName";
 import { answerSourceSplit } from "./sourceLabel";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
@@ -96,22 +95,27 @@ export const PLACES_MODEL_ID = "places";
  * banner showed "models/qwen3-4b-instruct-2507-q4km.gguf"). Catalog (and discovered) label first;
  * otherwise the file's name without folder or ".gguf", never an internal path.
  */
-export function modelDisplayName(ref: string, models: { id: string; label: string; displayName?: string; filename?: string }[]): string {
+export function modelDisplayName(
+  ref: string,
+  models: (NameableModel & { filename?: string })[],
+  t: T
+): string {
   const key = ref.trim();
   if (!key) return "";
   const found = models.find((m) => m.id === key || m.label === key || (!!m.filename && m.filename === key));
-  if (found) return displayNameOf(found);
+  if (found) return chatModelName(found, t);
   if (key.includes("/") || /\.gguf$/i.test(key)) return key.split("/").pop()!.replace(/\.gguf$/i, "");
   return key;
 }
 
-/** The crash with display names for both models (CR-3). */
+/** The crash with the chat's names for both models (CR-3; tier names, r4to). */
 export function withDisplayNames<C extends { crashedLabel: string; fallbackLabel: string }>(
   crash: C | null,
-  models: { id: string; label: string; displayName?: string; filename?: string }[]
+  models: Parameters<typeof modelDisplayName>[1],
+  t: T
 ): C | null {
   if (!crash) return null;
-  return { ...crash, crashedLabel: modelDisplayName(crash.crashedLabel, models), fallbackLabel: modelDisplayName(crash.fallbackLabel, models) };
+  return { ...crash, crashedLabel: modelDisplayName(crash.crashedLabel, models, t), fallbackLabel: modelDisplayName(crash.fallbackLabel, models, t) };
 }
 
 export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: string } | null, t: T): string | null {
@@ -133,7 +137,7 @@ export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
   // I18N-2: the engine's label is English; say it in the app's language.
   if (r.modelId === GROUNDING_GUARD_MODEL_ID) return [total, t("chat.receipt.noOfflineSource"), t("chat.receipt.offline")].join(" · ");
   if (r.modelId === CALCULATOR_MODEL_ID) return [total, t("chat.receipt.calculator"), t("chat.receipt.offline")].join(" · ");
-  const parts = [total, (r.modelLabel && modelNameById(r.modelId, r.modelLabel)) || t("chat.receipt.localModel")];
+  const parts = [total, (r.modelLabel && chatModelNameById(r.modelId, r.modelLabel, t)) || t("chat.receipt.localModel")];
   if (r.tokPerSec > 0) parts.push(`${formatTokPerSec(r.tokPerSec, locale)} tok/s`);
   if (r.ttftMs > 0) parts.push(t("chat.receipt.started", { time: formatSeconds(r.ttftMs, locale) }));
   parts.push(t("chat.receipt.offline"));
