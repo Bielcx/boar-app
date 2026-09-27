@@ -462,6 +462,28 @@ function properNounTerms(query: string): string[] {
     .flatMap((w) => tokenizeTerms(w));
 }
 
+/**
+ * A pair of consecutive question terms appears, consecutive, in the title or the first sentence, as the
+ * subject: not as a place ("… in Chiang Mai", the title's ", Chiang Mai" qualifier: the Chinese consulate
+ * is not about visiting Chiang Mai).
+ */
+function sharesQuestionPair(query: string, chunk: RetrievedChunk): boolean {
+  const qt = tokenizeTerms(query);
+  const pairs = qt.slice(1).map((t, i) => [qt[i], t] as const).filter(([a, b]) => a !== b);
+  if (!pairs.length) return false;
+  const colon = chunk.body.indexOf(":");
+  const text = colon > 0 && colon <= 120 ? chunk.body.slice(colon + 1) : chunk.body;
+  const PLACE = new Set(["in", "at", "near", "to", "into", "from", "em", "no", "na", "perto"]);
+  const has = (raw: string) => {
+    const words = (raw.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]+/g) ?? []).map((w) => ({ w, t: tokenizeTerms(w)[0] }));
+    return pairs.some(([a, b]) =>
+      words.some((x, i) => i + 1 < words.length && !!x.t && !!words[i + 1].t && sameTerm(x.t, a) && sameTerm(words[i + 1].t!, b) && !(i > 0 && PLACE.has(words[i - 1].w)))
+    );
+  };
+  // The title before its ", Place" qualifier ("Vienna, Georgia"; "Consulate-General of China, Chiang Mai").
+  return has(chunk.title.split(/,\s+/)[0]) || has(splitSentences(text.trim())[0] ?? "");
+}
+
 /** The title's first word is a question term ("Plate" of "Plate tectonics"). */
 function leadsTitle(title: string, q: Set<string>): boolean {
   const first = tokenizeTerms(title)[0];
@@ -496,6 +518,11 @@ export function onTopic(query: string, chunk: RetrievedChunk): boolean {
   // segment is in the question) is on topic even when this passage doesn't repeat the question's
   // other words (Prism RF-1: the suggested question lost its source to the coverage rule below).
   if (titleSegmentNamed(chunk.title, q)) return true;
+  // Two consecutive question terms ("Roman Empire") in the title or the passage's first sentence
+  // (Sextant cmp-009: "Fall of the Western Roman Empire", and "The Byzantine Empire, also known as
+  // the Eastern Roman Empire, ..." for "How did government in the Roman Republic differ from the
+  // Roman Empire?"). "Scary Stories: Dark Web" has no "dark matter".
+  if (sharesQuestionPair(query, chunk)) return true;
   // The title's acronym ("Maximal extractable value (MEV)") named by the question ("O que é MEV…?").
   const acronym = /\(([A-Z][A-Z0-9-]{1,9})\)\s*$/.exec(chunk.title)?.[1];
   if (acronym && q.has(tokenizeTerms(acronym)[0] ?? "")) return true;
