@@ -24,6 +24,9 @@ export interface StoredAnswer {
   deep?: StoredTier;
   /** CT-2: the [n] the final text kept; absent in older records (every source shown). */
   cited?: number[];
+  /** No strong source (weak_sources), and whether the compact model declined: a reopened answer keeps its note or card. */
+  weakSources?: boolean;
+  weakDeclined?: boolean;
 }
 
 function storeTier(t: TierState | undefined): StoredTier | undefined {
@@ -65,6 +68,8 @@ export function toStoredAnswer(state: AnswerState): string {
     fast: storeTier(state.fast),
     deep: storeTier(state.deep),
     ...(state.cited ? { cited: state.cited } : {}),
+    ...(state.weakSources ? { weakSources: true } : {}),
+    ...(state.weakDeclined ? { weakDeclined: true } : {}),
   };
   return JSON.stringify(stored);
 }
@@ -106,6 +111,8 @@ export function fromStoredAnswer(id: string, text: string, meta: string | null):
     fast: restoreTier(stored.fast),
     deep: restoreTier(stored.deep),
     ...(Array.isArray(stored.cited) ? { cited: stored.cited } : {}),
+    ...(stored.weakSources ? { weakSources: true } : {}),
+    ...(stored.weakDeclined ? { weakDeclined: true } : {}),
   };
 }
 

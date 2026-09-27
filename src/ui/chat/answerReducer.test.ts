@@ -288,3 +288,24 @@ describe("NB-1 PT (Prism, 7a79150): the health excerpt cites [4] of 5 sources", 
     expect(sourcesCardMode(false, answerSourceSplit(legacy))).toBe("all");
   });
 });
+
+describe("no-source answers (Tusk 4375d76 / a740a0b)", () => {
+  const receipt = { modelId: "q", modelLabel: "Q", tokens: 3, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
+  const streamed = answerReducer({ answerIds: ["a"], sources: [], deepAvailable: {} } as AnswerState, { type: "token", answerId: "a", tier: "fast", text: "Seasons happen because…" } as never);
+  it("(a) 4B+: the final text with the not-from-the-library line replaces the stream; weak note, not declined", () => {
+    let s = answerReducer(streamed, { type: "warning", answerId: "a", code: "weak_sources" } as never);
+    const finalText = "Esta resposta não vem de uma fonte offline deste celular; confira antes de confiar nela.\n\nSeasons happen because…";
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText, cited: [] } as never);
+    expect(s.fast?.text).toBe(finalText);
+    expect(s.weakSources).toBe(true);
+    expect(s.weakDeclined).toBeUndefined();
+  });
+  it("(b) compact: declined after streaming, finalText '' empties the text (not 'absent'), no Deeper answer", () => {
+    let s = answerReducer(streamed, { type: "warning", answerId: "a", code: "weak_sources", declined: true } as never);
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "fast", outcome: "success", receipt, finalText: "", cited: [] } as never);
+    expect(s.fast?.text).toBe("");
+    expect(s.weakDeclined).toBe(true);
+    expect(canDeepen(s)).toBe(false);
+    expect(answerPhase(s)).toBe("done");
+  });
+});
