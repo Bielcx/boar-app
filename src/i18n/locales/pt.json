@@ -727,6 +727,8 @@
       "checking": "Conferindo {{name}}",
       "checkingValue": "Conferindo, {{pct}}%",
       "verified": "Verificado: {{item}}",
+      "emptyFile": "O arquivo está vazio (0 bytes): a cópia para o celular pode ter falhado. Copie de novo.",
+      "unknownHint": "Escolha o arquivo exato da lista de instalação offline: o nome e o tamanho precisam bater.",
       "missingCities": "Ainda falta o índice de cidades ({{name}}, {{size}}): perguntas com nome de cidade não funcionam até você importá-lo. Lugares perto de você pelo GPS já funcionam.",
       "checkingAnnounce": "{{name}}: {{pct}}% conferido",
       "cancelA11y": "Cancelar a importação de {{name}}"
