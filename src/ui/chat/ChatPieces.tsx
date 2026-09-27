@@ -110,21 +110,37 @@ export function ChatEmptyState({
   const t = useTokens();
   const { t: tr } = useTranslation();
   return (
-    <View style={{ flexGrow: 1, justifyContent: "center", gap: t.space.xxl, paddingVertical: t.space.xl }}>
-      <View style={{ alignItems: "center", gap: t.space.xs }}>
+    // The mockup's layout (spec-chat-vazio): top-aligned under the header with three suggestions; centred when
+    // fewer (Iris), so a lone card doesn't leave a gap above the composer.
+    <View
+      style={{
+        flexGrow: 1,
+        justifyContent: showsKnowledgeHint(suggestions.length) ? "center" : "flex-start",
+        gap: t.space.lg,
+        marginTop: -t.space.xs,
+      }}
+    >
+      <View style={{ alignItems: "center" }}>
         <Mascot glow />
-        {/* Starts with the visible word, then the screen's title (Prism, in the spirit of WCAG 2.5.3). */}
-        <Text variant="display" align="center" header accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}>
+        {/* The wordmark overlaps the mascot's base by 20, as in the mockup. Starts with the visible word, then the
+            screen's title for readers (Prism, in the spirit of WCAG 2.5.3). */}
+        <Text
+          variant="wordmark"
+          align="center"
+          header
+          accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}
+          style={{ marginTop: -t.space.lg }}
+        >
           {tr("chat.assistantName")}
         </Text>
-        <Text variant="subhead" color="field" align="center">
+        <Text variant="footnote" weight="medium" color="field" align="center" style={{ marginTop: t.space.xs + t.space.xxs }}>
           {tr("chat.empty.tagline")}
         </Text>
       </View>
       {(suggestions.length > 0 || (onAddKnowledge && showsKnowledgeHint(suggestions.length))) && (
-        <View style={{ gap: t.space.md }}>
+        <View style={{ gap: t.space.cardGap }}>
           {suggestions.length > 0 && (
-            <Text variant="label" color="secondary" header>
+            <Text variant="label" color="secondary" header style={{ paddingHorizontal: t.space.xs }}>
               {tr("chat.empty.suggestionsLabel")}
             </Text>
           )}
@@ -139,12 +155,14 @@ export function ChatEmptyState({
                 accessibilityLabel={tr("chat.empty.ask", { question: q })}
                 accessibilityActions={[{ name: "fill", label: tr("chat.empty.fill") }]}
                 onAccessibilityAction={() => onFill(q)}
+                radius="card"
+                padding="compact"
                 style={{ gap: t.space.xs }}
               >
-                <Text variant="label" color="field">
+                <Text variant="caption" weight="semibold" color="field">
                   {tr(`chat.suggestionTopics.${k}`)}
                 </Text>
-                <Text variant="callout" numberOfLines={2}>
+                <Text variant="footnote" numberOfLines={2}>
                   {q}
                 </Text>
               </Card>
@@ -152,7 +170,13 @@ export function ChatEmptyState({
           })}
           {/* Few questions are covered by the knowledge on this phone: say why, and where to get more. */}
           {onAddKnowledge && showsKnowledgeHint(suggestions.length) && (
-            <Card onPress={onAddKnowledge} accessibilityLabel={tr("chat.empty.addKnowledge")} accessibilityHint={tr("chat.empty.addKnowledgeHint")}>
+            <Card
+              onPress={onAddKnowledge}
+              radius="card"
+              padding="compact"
+              accessibilityLabel={tr("chat.empty.addKnowledge")}
+              accessibilityHint={tr("chat.empty.addKnowledgeHint")}
+            >
               <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
                 <Icon name="book-open" size="sm" color={t.color.text.secondary} />
                 <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
@@ -172,7 +196,7 @@ export function ChatModelLoading({ label, progress }: { label: string; progress?
   const t = useTokens();
   return (
     <View style={{ flexGrow: 1, justifyContent: "center", alignItems: "center", gap: t.space.md }}>
-      <Mascot dim />
+      <Mascot size="md" dim />
       <Text variant="footnote" color="secondary" align="center">
         {label}
       </Text>
@@ -211,26 +235,26 @@ export function ChatModelError({
     <View style={compact ? undefined : { flexGrow: 1, justifyContent: "center", gap: t.space.xl, paddingVertical: t.space.xl }}>
       {!compact && (
         <View style={{ alignItems: "center" }}>
-          <Mascot dim />
+          <Mascot size="md" dim />
         </View>
       )}
       <Card
         accessibilityRole="alert"
-        style={{ gap: t.space.md, borderWidth: t.size.border * 1.5, borderColor: t.color.status.danger.solid }}
+        style={{ gap: t.space.md, borderWidth: t.size.border, borderColor: t.color.status.danger.solid }}
       >
         <View style={{ alignSelf: "flex-start" }}>
           <Badge label={tr("chat.modelError.overline")} tone="danger" icon="alert-triangle" />
         </View>
         <View style={{ gap: t.space.xs }}>
-          <Text variant="title3" header>
+          <Text variant="title2" header>
             {tr(`chat.modelError.${kind}.title`)}
           </Text>
-          <Text variant="footnote" color="secondary">
+          <Text variant="subhead" weight="regular">
             {tr(`chat.modelError.${kind}.body`)}
           </Text>
         </View>
-        <View style={{ gap: t.space.sm, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.raised }}>
-          <Text variant="footnote">{tr(`chat.modelError.${kind}.hint`)}</Text>
+        <View style={{ gap: t.space.sm, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.canvas }}>
+          <Text variant="footnote" color="secondary">{tr(`chat.modelError.${kind}.hint`)}</Text>
           {/* The engine's own words, whole and selectable, so a user can report them. */}
           {showsRawError(kind) && error.trim().length > 0 && (
             <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error })}>

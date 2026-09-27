@@ -752,7 +752,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           refreshSessions();
           navigation.dispatch(DrawerActions.openDrawer());
         }}
-        onNewChat={resetToNewChat}
       />
       {/* automaticOffset: the view's onLayout y is relative to its parent (below the safe area and the
           header), so without it the padding came out short and the composer sat behind the keyboard
@@ -760,7 +759,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       <KeyboardAvoidingView behavior="padding" automaticOffset style={{ flex: 1 }}>
         {/* With a conversation on screen, the model state sits above it; an empty chat shows it centred instead. */}
         {items.length > 0 && !loadError && !ready ? (
-          <View style={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
+          <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
             <Text variant="footnote" color="secondary">
               {loadStatus.label}
             </Text>
@@ -775,7 +774,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           extraData={renderItem}
-          contentContainerStyle={{ paddingHorizontal: tk.space.gutter, paddingVertical: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
+          contentContainerStyle={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.xl, flexGrow: 1 }}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           // With a conversation on screen, a model error comes in as the next message, above the composer: it
