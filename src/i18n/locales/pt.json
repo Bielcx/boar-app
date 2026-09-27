@@ -818,7 +818,7 @@
       "stopped": "Parado por você",
       "stoppedSnippet": "Parado — mostrando o trecho da fonte",
       "timeout": "Uma etapa demorou demais e foi interrompida",
-      "interrupted": "Interrompido quando o app foi para segundo plano",
+      "interrupted": "A resposta foi interrompida.",
       "streamsFromStorage": "Este modelo lê os pesos do armazenamento, então as respostas ficam mais lentas."
     },
     "error": {
