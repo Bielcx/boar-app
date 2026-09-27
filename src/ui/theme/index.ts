@@ -2,8 +2,9 @@ import { colors, getThemeColors, THEMES, midnightTheme, amberTheme, frontierThem
 import { typography, fontFamilies, getTypography, FONT_SCALES, Typography } from "./typography";
 import { spacing, radii, shadows } from "./spacing";
 import { ThemeProvider, useTheme, useTokens } from "./ThemeContext";
-export { buildTokens, toneColors, variantFace, space, radius, size, motion, MIN_TOUCH, MIN_FONT_SIZE, APP_FONT_SCALE } from "./tokens";
+export { buildTokens, toneColors, variantFace, variantShape, icon, space, radius, size, motion, MIN_TOUCH, MIN_FONT_SIZE, APP_FONT_SCALE } from "./tokens";
 export { fontFamilyFor, BUNDLED_FAMILIES } from "./fonts";
+export { opticalOffset, baselineFromTop, FACE_METRICS } from "./opticalCenter";
 export type { FontFace, FontWeight } from "./fonts";
 export type { Tokens, ColorTokens, ColorScheme, TextVariant, Tone, TypeStyle } from "./tokens";
 export { getPalette, PALETTE_IDS, SOURCE_PALETTES } from "./palette";

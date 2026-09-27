@@ -1,10 +1,11 @@
 import React from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { toneColors, useTokens } from "../theme";
+import { icon as iconTokens, toneColors, useTokens } from "../theme";
 import { Button } from "./Button";
-import { Icon, IconName } from "./Icon";
+import type { IconName } from "./Icon";
 import { IconButton } from "./IconButton";
+import { IconSlot, useOpticalLine } from "./IconText";
 import { Text } from "./Text";
 
 export type BannerTone = "info" | "success" | "warning" | "danger" | "field";
@@ -38,12 +39,14 @@ export function Banner({ tone = "info", title, message, icon, actionLabel, onAct
   const t = useTokens();
   const { t: tr } = useTranslation();
   const tc = toneColors(t.color, tone);
+  // The icon sits on the first line: the title's when there is one, else the message's.
+  const line = useOpticalLine(title ? "headline" : "callout", "title");
   return (
     <View
       accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}
       style={{
         flexDirection: "row",
-        gap: t.space.md,
+        gap: iconTokens.gap,
         padding: t.space.md,
         borderRadius: t.radius.lg,
         backgroundColor: tc.bg,
@@ -51,9 +54,7 @@ export function Banner({ tone = "info", title, message, icon, actionLabel, onAct
         borderColor: tc.fg,
       }}
     >
-      <View style={{ paddingTop: t.space.xxs }}>
-        <Icon name={icon ?? DEFAULT_ICON[tone]} color={tc.fg} />
-      </View>
+      <IconSlot name={icon ?? DEFAULT_ICON[tone]} line={line} color={tc.fg} />
       <View style={{ flex: 1, gap: t.space.xs }}>
         {title && (
           <Text variant="headline" style={{ color: tc.fg }}>

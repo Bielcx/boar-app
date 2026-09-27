@@ -180,6 +180,12 @@ export function variantFace(variant: TextVariant): FontFace {
   return TYPE_SCALE[variant].face;
 }
 
+/** What the icon alignment needs from a variant: its face, whether it is caps, and its OS-scale cap. */
+export function variantShape(variant: TextVariant): { face: FontFace; uppercase: boolean; maxScale?: number } {
+  const spec: TypeSpec = TYPE_SCALE[variant];
+  return { face: spec.face, uppercase: !!spec.uppercase, maxScale: spec.maxScale };
+}
+
 function buildType(fontScale: FontScale): Record<TextVariant, TypeStyle> {
   const k = APP_FONT_SCALE[fontScale];
   const out = {} as Record<TextVariant, TypeStyle>;
@@ -243,6 +249,27 @@ export const radius = {
   xl: 28,
   /** Buttons, inputs, badges, the OFFLINE seal. */
   full: 999,
+} as const;
+
+/**
+ * Icon beside text (icon-align round, 27/09). One set (Feather), one stroke: Feather draws 2 on a
+ * 24 grid, so the stroke scales with the icon. Sizes are at 1.0 and grow with the text (IconText).
+ */
+export const icon = {
+  /** Icon to text: every row, button, banner, toast. */
+  gap: 8,
+  /** Chips and seals. */
+  gapTight: 6,
+  /** Beside body, callout, footnote and button text. */
+  sizeBody: 16,
+  /** Beside titles (headline and up, bottom CTA) and as the leading glyph of a list row. */
+  sizeTitle: 20,
+  /** Inside caps seals and chips (badge 11, seal 13). */
+  sizeSeal: 13,
+  /** Feather's stroke on its 24 grid; informational (the glyph font can't change it). */
+  stroke: 2,
+  /** Icons stop growing with the OS text size here, like the capped text variants. */
+  maxScale: 2,
 } as const;
 
 /** Minimum touch target per platform guideline (Apple HIG 44pt, Material 48dp). */
@@ -330,6 +357,7 @@ export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standar
     space,
     radius,
     size,
+    icon,
     elevation: buildElevation(scheme, color.glow),
     motion,
   };
