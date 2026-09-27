@@ -219,13 +219,55 @@ export function sourceCoverage(query: string, chunks: RetrievedChunk[]): number 
 
 /** Health, first aid and emergencies: the answer may only state what the sources say. */
 const HEALTH =
-  /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|bitten|stung|boiling water|spill\w* (hot|boiling)|shiver\w*|earthquakes?|tsunami|floods?|flooding|hurricane|tornado|wildfire|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|terremoto|enchente|inunda\w*|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
+  /\b(first aid|nose ?bleeds?|bleed(ing)?|burns?|scald(ed|s)?|bites?|stings?|snake|venom|poison(ing|ed)?|overdose|cpr|resuscitat\w*|chok(e|ing)|heimlich|fractur\w*|broken (bone|arm|leg)|sprain\w*|concussion|seizures?|stroke|heart attack|cardiac|allerg\w*|anaphyla\w*|epipen|asthma|hypotherm\w*|heat ?stroke|frostbite|drown\w*|unconscious|faint\w*|wounds?|fever|dehydrat\w*|symptoms?|dosage|medicine|medication|injur\w*|emergency|bitten|stung|boiling water|spill\w* (hot|boiling)|shiver\w*|evacuat\w*|contaminated|safe to drink|purify\w*|drinking water|evacua\w*|[áa]gua (pot[áa]vel|contaminada|fervente)|primeiros socorros|sangra\w*|queimadura\w*|picada\w*|mordida\w*|cobra|veneno|envenena\w*|engasg\w*|fratura\w*|desmai\w*|convuls\w*|infarto|avc|alergi\w*|febre|ferida\w*|ferimento\w*|afogamento|rcp|reanima\w*|emerg[eê]ncia|sintomas?|rem[eé]dio)\b/i;
 
 // Portuguese terms starting or ending with an accented letter: JS \b doesn't see "á" as a letter.
-const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quente)|queimadura|picad[ao]|tremend\w*|tremores?|calafrios?|hipotermia|sangramento|engasg\w*|afogamento|desmai\w*|convuls\p{L}*|emerg[êe]ncia|terremoto|enchente|inunda\p{L}*)(?![\p{L}])/iu;
+const HEALTH_PT = /(^|[^\p{L}])([áa]gua (pot[áa]vel|contaminada|fervente|quente)|queimadura|picad[ao]|tremend\w*|tremores?|calafrios?|hipotermia|sangramento|engasg\w*|afogamento|desmai\w*|convuls\p{L}*|emerg[êe]ncia)(?![\p{L}])/iu;
+
+// Disasters are safety questions when the question is what to do (Iris, E-1: "What should I
+// do during an earthquake?"), not when it asks history ("What caused the 1906 earthquake?").
+const DISASTER =
+  /(^|[^\p{L}])(earthquakes?|tsunamis?|floods?|flooding|hurricanes?|tornado(es)?|cyclones?|typhoons?|wildfires?|bush ?fires?|house fires?|kitchen fires?|on fire|caught fire|fires? (breaks?|broke) out|fire alarm|smoke inhalation|landslides?|avalanches?|volcan\p{L}*|eruption|terremotos?|sismos?|tsunamis?|enchentes?|inunda\p{L}*|alagamentos?|furac[ãa]o|tornados?|inc[êe]ndios?|deslizamentos?|avalanches?)(?![\p{L}])/iu;
+const ACTION_INTENT =
+  /\b(what (should|do|can|must) (i|we|you|one) do|what to do|how (do|should|can) (i|we|you) (stay|keep|survive|protect|prepare|get)|stay safe|survive|protect (myself|yourself|ourselves)|prepare for|during|after (it|the)|before (it|the)|right now|evacuat\w*)\b|o que (eu )?(fa[çc]o|fazer|devo fazer)|como (agir|me proteger|sobreviver|se proteger|deixo|tornar|fa[çc]o)|durante|depois (de|do|da|que)|antes (de|do|da)|segur[ao] para/i;
 
 export function isHealthQuestion(query: string): boolean {
-  return HEALTH.test(query) || HEALTH_PT.test(query);
+  return HEALTH.test(query) || HEALTH_PT.test(query) || (DISASTER.test(query) && ACTION_INTENT.test(query));
+}
+
+/**
+ * The chat's emergency-services line (Quill, src/ui/chat/safetyNote.ts b48657b, EQ-1): a broad,
+ * deliberately generous word list ("a note too many costs a line, one too few can cost more").
+ * Kept here so engine and UI use one classifier: isSafetyQuery = isHealthQuestion (which also
+ * switches the answer to the source's own text, so it is stricter) OR these words.
+ */
+const SAFETY_NOTE_STEMS = [
+  "earthquake", "flood", "wildfire", "hurricane", "tornado", "tsunami", "evacuat", "disaster", "landslide",
+  "avalanche", "gas leak", "carbon monoxide", "lightning", "blizzard", "volcan", "survival",
+  "terremoto", "sismo", "enchente", "inunda", "incêndio", "incendio", "queimada", "furacão", "furacao",
+  "evacua", "desastre", "deslizamento", "vazamento de gás", "vazamento de gas", "monóxido",
+  "vulcão", "vulcao", "sobreviv", "perdido",
+  "first aid", "emergency", "bleed", "blood", "nosebleed", "burn", "wound", "injur", "fractur",
+  "broken bone", "sprain", "resuscitat", "chok", "poison", "overdose", "allerg", "anaphyla", "faint",
+  "unconscious", "seizure", "heart attack", "stroke", "chest pain", "breath", "drown", "hypotherm",
+  "heatstroke", "heat stroke", "dehydrat", "fever", "concussion", "symptom", "medicine", "medication",
+  "primeiros socorros", "emergência", "emergencia", "sangr", "hemorrag", "queimad", "ferid", "ferimento",
+  "fratur", "osso quebrado", "entors", "reanima", "engasg", "envenen", "intoxica", "picada",
+  "mordida", "alergi", "desmai", "inconsciente", "convuls", "infarto", "derrame", "dor no peito", "respira",
+  "afog", "hipotermia", "insolação", "insolacao", "desidrat", "febre", "concussão", "sintoma", "remédio",
+  "remedio", "medicamento",
+];
+/** Whole words only ("pain" must not match "painting"). */
+const SAFETY_NOTE_WORDS = ["fire", "fires", "raio", "raios", "pain", "dor", "dose", "cut", "shock", "choque", "bite", "sting", "cpr", "rcp", "avc", "dores", "cuts", "bites", "stings"];
+const escRe = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const SAFETY_NOTE = new RegExp(
+  `(^|[^\\p{L}])(?:(?:${SAFETY_NOTE_STEMS.map(escRe).join("|")})|(?:${SAFETY_NOTE_WORDS.map(escRe).join("|")})(?![\\p{L}-]))`,
+  "iu"
+);
+
+/** One classifier for the emergency-services line, shared by the engine (done.safety) and the chat. */
+export function isSafetyQuery(query: string): boolean {
+  return isHealthQuestion(query) || SAFETY_NOTE.test(query);
 }
 
 /**
@@ -237,6 +279,7 @@ export function healthTopicTerms(query: string, articleTerms: string | null): Se
   const matched = [
     ...(query.match(new RegExp(HEALTH.source, "gi")) ?? []),
     ...(query.match(new RegExp(HEALTH_PT.source, "giu")) ?? []),
+    ...(query.match(new RegExp(DISASTER.source, "giu")) ?? []),
   ].join(" ");
   const terms = new Set(tokenizeTerms(`${matched} ${articleTerms ?? ""}`));
   // Drinking-water questions are about water.
@@ -359,7 +402,9 @@ export function healthExtract(source: RetrievedChunk, sourceNumber: number, pt: 
     if (text && text.length + s.length + 1 > HEALTH_EXTRACT_MAX_CHARS) break;
     text = text ? `${text} ${s}` : s;
   }
-  const steps = healthActionScore(source) >= HEALTH_ACTION_MIN_SCORE;
+  // Steps = an instructions-like source AND at least one sentence that tells what to do
+  // (a heading plus an image caption, "During an Earthquake: Image", is not an answer).
+  const steps = healthActionScore(source) >= HEALTH_ACTION_MIN_SCORE && splitSentences(text).some((s) => new RegExp(ACTION_WORD.source, "i").test(s));
   const lead = steps
     ? pt
       ? "Da fonte offline (em inglês):"

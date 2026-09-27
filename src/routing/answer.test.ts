@@ -310,6 +310,30 @@ describe("answer(): grounding guard (Prism Q-1, E-1)", () => {
     }
   });
 
+  it("Iris E-1: 'What should I do during an earthquake?' with only a heading + image caption: says the source has no steps, points to emergency services, no model, safety line", async () => {
+    f.retrieved = [chunk("eq", "Earthquakes (Ready.gov)", "During an Earthquake > Protect Yourself During Earthquakes: Image")];
+    const { events, result } = await collect("What should I do during an earthquake?");
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/^The offline source doesn't give first-aid steps for this\. In an emergency, call your local emergency number\./);
+    expect(events.find((e) => e.type === "done")).toMatchObject({ safety: true });
+  });
+
+  it("disaster with no on-topic source: emergency line, no model; history of a disaster is an ordinary question", async () => {
+    f.retrieved = [];
+    const { events, result } = await collect("What should I do during an earthquake?");
+    expect(f.generations).toHaveLength(0);
+    expect(result.text).toMatch(/emergency number/);
+    expect(events.find((e) => e.type === "done")).toMatchObject({ safety: true });
+    f = makeFake();
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.retrieved = [];
+    const hist = await collect("What caused the 1906 San Francisco earthquake?");
+    // The emergency line is generous (same list as the chat); the answer itself is an ordinary model answer.
+    expect(hist.events.find((e) => e.type === "done")).toMatchObject({ safety: true });
+    expect(f.generations).toHaveLength(1);
+  });
+
   it("E-1 snake bite / burn without a good source: emergency services, no model", async () => {
     for (const [q, retrieved] of [
       ["What should I do after a snake bite?", []],

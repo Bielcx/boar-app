@@ -6,6 +6,7 @@ import {
   INSTANT_FINAL_CONFIDENCE,
   instantFinalBlock,
   isHealthQuestion,
+  isSafetyQuery,
   riskyHealthInstruction,
   mergeSources,
   scoreSentences,
@@ -260,6 +261,22 @@ describe("isHealthQuestion", () => {
     }
   });
 
+  it("disasters count when the question is what to do (Iris, E-1), not for their history", () => {
+    for (const q of [
+      "What should I do during an earthquake?",
+      "What do I do if a fire breaks out in my building?",
+      "How do I stay safe in a flood?",
+      "A tsunami warning was issued. What should we do right now?",
+      "O que fazer durante um terremoto?",
+      "Como agir num incêndio em casa?",
+    ]) {
+      expect(isHealthQuestion(q), q).toBe(true);
+    }
+    for (const q of ["What caused the 1906 San Francisco earthquake?", "When was the Great Fire of London?", "How are tsunamis formed?"]) {
+      expect(isHealthQuestion(q), q).toBe(false);
+    }
+  });
+
   it("leaves ordinary questions alone", () => {
     for (const q of ["Which signature algorithms are quantum resistant?", "What is the capital of Australia?", "How do noise-cancelling headphones work?"]) {
       expect(isHealthQuestion(q), q).toBe(false);
@@ -276,5 +293,15 @@ describe("riskyHealthInstruction", () => {
     expect(riskyHealthInstruction("Clean the burn and apply an antibiotic cream.")).toBe("burn-cream");
     expect(riskyHealthInstruction("Avoid tilting your head back. Lean forward and pinch the soft part of the nose.")).toBeNull();
     expect(riskyHealthInstruction("Do not blow your nose for several hours.")).toBeNull();
+  });
+});
+
+describe("isSafetyQuery (one classifier for the emergency line, engine and chat)", () => {
+  it("includes the chat's broad list and everything that gets strict health grounding", () => {
+    for (const q of ["What should I do during an earthquake?", "Is there a gas leak smell?", "How does lightning form?", "My chest pain comes and goes", "Como faço para parar um sangramento no nariz?", "Estou perdido na trilha"]) {
+      expect(isSafetyQuery(q), q).toBe(true);
+    }
+    expect(isSafetyQuery("What is the capital of Australia?")).toBe(false);
+    expect(isSafetyQuery("Which painting did Monet make first?")).toBe(false);
   });
 });

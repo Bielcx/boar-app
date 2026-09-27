@@ -18,6 +18,7 @@ import {
   INSTANT_FINAL_CONFIDENCE,
   HEALTH_GROUNDING_INSTRUCTION,
   isHealthQuestion,
+  isSafetyQuery,
   MIN_TERM_COVERAGE,
   NO_SOURCE_INSTRUCTION,
   noHealthSourceAnswer,
@@ -228,9 +229,11 @@ export function createAnswerer(deps: AnswerDeps) {
     // Resolves on stop(), so a wait (the GPS) ends at once instead of running out its timeout.
     let signalStop: () => void = () => {};
     const stopSignal = new Promise<"stopped">((r) => (signalStop = () => r("stopped")));
+    // Health, first aid or a disaster: the chat shows the emergency-services line (one classifier: this one).
+    const safety = isSafetyQuery(req.query);
     const emit = (e: AnswerEvent) => {
       try {
-        onEvent(e);
+        onEvent(e.type === "done" && safety ? { ...e, safety: true } : e);
       } catch (err) {
         console.warn("[answer] onEvent threw", err);
       }

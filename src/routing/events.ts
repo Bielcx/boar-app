@@ -160,6 +160,11 @@ export type AnswerEvent =
        * the sources don't support were removed (CT-1). The UI replaces the text.
        */
       finalText?: string;
+      /**
+       * A health, first-aid or disaster question (the engine's classifier): the chat
+       * shows the "Not a substitute for emergency services" line.
+       */
+      safety?: boolean;
     })
   | (Base & {
       /** Emitted only after a fast-tier done: a deeper answer is possible for this question. */
