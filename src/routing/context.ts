@@ -438,7 +438,11 @@ function sectionHeading(chunk: RetrievedChunk): string {
  */
 function titledByLexicon(names: string[], chunk: RetrievedChunk): boolean {
   const clean = (s: string) => s.replace(/^(Wikibooks|Wikivoyage|US government|Appropedia):\s*/, "").replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
-  const heads = [clean(chunk.title), ...sectionHeading(chunk).split(">").map(clean)];
+  // A heading under a "… by country" list is an item of that list, not the page's subject (Sextant trv-009:
+  // "Triage systems by country > Portugal" for "É esperado dar gorjeta em restaurantes em Portugal?").
+  const path = sectionHeading(chunk).split(">").map(clean);
+  const listItem = (k: number) => k > 0 && /\bby (country|countries|region|state|city|nation|continent)\b|\b(other countries|around the world|worldwide)\b/.test(path[k - 1]);
+  const heads = [clean(chunk.title), ...path.filter((_, k) => !listItem(k))];
   return names.some((n) => {
     const name = clean(n);
     if (!name.includes(" ")) return heads.some((h) => h === name || h === `${name}s`);
@@ -880,6 +884,27 @@ export function excerptRules(query: string, topic: Iterable<string>): ExcerptRul
     cutInside: water && !burn,
     mustInclude: burn && HIGH_RISK_BURN.test(query) ? SEEK_CARE : null,
   };
+}
+
+// The situation a question is about, when the quoted source doesn't address it (Sextant dng-005: a flood question
+// answered with Wikivoyage's general "Water › Buy" travel section).
+const SITUATIONS: Array<[RegExp, RegExp, string, string]> = [
+  [/\bflood\w*|enchente\w*|inunda[çc]\w*|alagamento/i, /\bflood\w*/i, "enchente", "flood"],
+];
+
+/**
+ * When the question names a situation (a flood) that the quoted source never mentions, the excerpt is
+ * general advice: say so, after the lead, instead of passing it off as advice for that situation.
+ */
+export function situationNote(query: string, source: RetrievedChunk, pt: boolean): string | null {
+  for (const [asks, mentions, ptName, enName] of SITUATIONS) {
+    if (asks.test(query) && !mentions.test(`${source.title} ${source.body}`)) {
+      return pt
+        ? `O acervo offline não tem orientação específica para ${ptName}; o trecho abaixo é uma orientação geral sobre o assunto.`
+        : `The offline library has no guidance specific to a ${enName}; the passage below is general advice on the subject.`;
+    }
+  }
+  return null;
 }
 
 const AFTER_ASK = /\bafter (it|the \w+) (stops|ends|is over|passes)\b|\b(and|what about|what to do) after\b|\bafterwards\b|depois que (parar|passar|acabar|terminar)|\be depois\b|o que fazer depois|\bap[óo]s (parar|passar|o tremor|a enchente)/i;
