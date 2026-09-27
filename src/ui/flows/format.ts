@@ -34,3 +34,8 @@ export function formatRate(tokPerSec: number, locale: string): string {
 export function minutesLeft(seconds: number): number {
   return Math.max(1, Math.ceil(seconds / 60));
 }
+
+/** Minutes, to the nearest, for an up-front estimate ("~3 min" vs "~4 min"); at least 1. */
+export function minutesAbout(seconds: number): number {
+  return Math.max(1, Math.round(seconds / 60));
+}

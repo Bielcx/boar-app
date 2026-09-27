@@ -410,8 +410,7 @@
       "usedLabel": "Used by BOAR",
       "freeLabel": "Free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
-      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone.",
-      "storage": "BOAR uses {{used}} · {{free}} free on this phone"
+      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",
@@ -643,13 +642,7 @@
         "compact": "Compact"
       },
       "suggested": "Suggested",
-      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one.",
-      "stepOf": "Step {{step}} of {{total}}",
-      "stepAnnounce": "Step {{step}} of 3, {{title}}",
-      "download": "Download: {{size}}",
-      "diskAfter": "Space after install: {{size}}",
-      "time": "About {{minutes}} min at {{speed}}/s (estimate)",
-      "importSize": "Files to import: {{size}}"
+      "compactLowRam": "This phone has {{ram}} of memory or less, so the compact model is selected. You can still choose the standard one."
     },
     "places": {
       "title": "Places (offline)",

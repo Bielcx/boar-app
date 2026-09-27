@@ -28,7 +28,7 @@ import {
   storageShortfall,
   transferSeconds,
 } from "./flows/packages";
-import { formatBytes, formatCount, formatRam, minutesLeft } from "./flows/format";
+import { formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
 import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
@@ -553,7 +553,7 @@ function PackageStep({
                 !offline &&
                   p.seconds != null &&
                   p.plan.downloadBytes > 0 &&
-                  t("flows.onboarding.meta.time", { minutes: minutesLeft(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
+                  t("flows.onboarding.meta.time", { minutes: minutesAbout(p.seconds), speed: formatBytes(REFERENCE_BYTES_PER_SEC, lang) }),
               ]}
             >
               {warning && (
