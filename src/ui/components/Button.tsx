@@ -10,7 +10,8 @@ export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "des
 export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
   label: string;
   variant?: ButtonVariant;
-  size?: "md" | "sm";
+  /** lg = bottom call to action (54, mockup); md = 46 visual on iOS (48 Android); sm = compact row action. */
+  size?: "lg" | "md" | "sm";
   icon?: IconName;
   iconPosition?: "start" | "end";
   loading?: boolean;
@@ -53,7 +54,7 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
     palette.fg = c.status.danger.solid;
     if (variant === "outline") palette.border = c.status.danger.solid;
   }
-  const height = size === "sm" ? t.size.controlSm : t.size.touch;
+  const height = size === "sm" ? t.size.controlSm : size === "lg" ? t.size.buttonLg : Math.max(t.size.touch, t.size.button);
   const slop = Math.max(0, (t.size.touch - height) / 2);
 
   return (
@@ -91,7 +92,7 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
       ) : (
         <View style={[styles.row, { gap: t.space.sm, flexDirection: iconPosition === "end" ? "row-reverse" : "row" }]}>
           {icon && <Icon name={icon} size={size === "sm" ? "sm" : "md"} color={palette.fg} />}
-          <Text variant={size === "sm" ? "subhead" : "button"} style={{ color: palette.fg }} numberOfLines={2} align="center">
+          <Text variant={size === "sm" ? "subhead" : size === "lg" ? "buttonLg" : "button"} style={{ color: palette.fg }} numberOfLines={2} align="center">
             {label}
           </Text>
         </View>

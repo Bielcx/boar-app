@@ -13,7 +13,7 @@ export interface ProgressProps {
 }
 
 /** Linear progress. Determinate when `value` is set; otherwise an indeterminate sweep (static under reduce motion). */
-export function Progress({ value, valueText, label, tone = "accent", height = 8 }: ProgressProps) {
+export function Progress({ value, valueText, label, tone = "accent", height = 10 }: ProgressProps) {
   const { tokens: t, reduceMotion } = useTheme();
   const sweep = useRef(new Animated.Value(0)).current;
   const indeterminate = value === undefined;
@@ -36,7 +36,7 @@ export function Progress({ value, valueText, label, tone = "accent", height = 8 
       accessibilityLabel={label}
       accessibilityState={{ busy: indeterminate }}
       accessibilityValue={indeterminate ? { text: valueText } : { min: 0, max: 100, now: pct, text: valueText ?? `${pct}%` }}
-      style={{ height, borderRadius: height, backgroundColor: t.color.bg.raised, overflow: "hidden" }}
+      style={{ height, borderRadius: height, backgroundColor: t.color.bg.raised, overflow: indeterminate ? "hidden" : "visible" }}
     >
       {indeterminate ? (
         <Animated.View
@@ -50,7 +50,16 @@ export function Progress({ value, valueText, label, tone = "accent", height = 8 
           }}
         />
       ) : (
-        <View style={{ width: `${pct}%`, height: "100%", borderRadius: height, backgroundColor: fill }} />
+        <View
+          style={{
+            width: `${pct}%`,
+            height: "100%",
+            borderRadius: height,
+            backgroundColor: fill,
+            // Mockup: the ember fill glows (0 0 14 @.6); other tones stay flat.
+            ...(tone === "accent" ? { boxShadow: `0px 0px 14px rgba(${t.color.glow}, 0.6)` } : null),
+          }}
+        />
       )}
     </View>
   );

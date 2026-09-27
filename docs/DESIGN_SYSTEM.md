@@ -87,6 +87,15 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 
 - Line height is a ratio of size, so it tracks both scales. In-app size preference (0.94 / 1 / 1.12) multiplies the OS font scale. No `maxFontSizeMultiplier` below 2 on content; only `display`, badges and inline chips are capped (1.5).
 
+### Fidelity sprint (27/09): mockup metrics
+- **Floors:** 12 pt for all text; **11 pt only for caps with tracking** (`label` overline, `badge` seals, `step` labels). Untracked caps metadata (`capsMeta`, the header model id) stays at 12. Nothing below 11.
+- New type: `wordmark` 40 (chat empty state), `cardTitle` 16 Baloo 800 (OptionCard), `buttonLg` 17 (bottom CTA), `button` 15, `seal` 13 caps (OFFLINE), `badge` 11/600 caps, `step` 11 caps, `capsMeta` 12 caps; `label` is now 11/500 tracking 1.3.
+- Space: `gutterChat` 16 (conversation) vs `gutter` 20 (setup, forms); `cardGap` 14 (chat suggestion cards).
+- Radius: `card` 18 (suggestions, choices, steps), `lg` 20 (default), `hero` 22 (download, model error). `Card radius` + `padding="compact"` (12/14).
+- Size: `headerDisc` 42 (IconButton `size="header"`, touch via hitSlop), `avatar` 42 / `avatarSm` 26, `mascot` 170 / `mascotMd` 120 / `mascotSm` 48, `composer` 52 (IconButton `size="lg"`), `button` 46, `buttonLg` 54 (Button `size="lg"`).
+- Colour: `line.row` (s2) for separators between rows inside a card.
+- Primitives: OptionCard 10/12 padding, radius 18, 2 pt border, 18 pt radio with 8 pt dot, `cardTitle`, the trailing figure small (`caption` secondary); Stepper 4 pt bars 6 pt apart with caps `step` labels; Progress 10 pt with the ember fill glowing; Badge soft 4/10, solid and outline 2/8, neutral outline in the designer's border.
+
 ## 4. Space, radius, size
 
 - 4pt grid: `space.xxs 2 · xs 4 · sm 8 · md 12 · base 16 · lg 20 · xl 24 · xxl 32 · xxxl 40 · huge 48 · giant 64`. Screen gutter `space.gutter` 20 (`Screen` applies it; also the footer).

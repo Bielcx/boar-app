@@ -87,7 +87,7 @@ export function OfflineSeal({ label, sublabel, variant = "pill", accessibilityLa
       }}
     >
       {variant === "moon" ? moonDisc : <Icon name="wifi-off" size="sm" color={t.color.accent.on} />}
-      <Text variant="button" style={{ color: t.color.accent.on, letterSpacing: 0.8, textTransform: "uppercase" }} maxFontSizeMultiplier={1.5}>
+      <Text variant="seal" style={{ color: t.color.accent.on }} maxFontSizeMultiplier={1.5}>
         {label}
       </Text>
     </View>

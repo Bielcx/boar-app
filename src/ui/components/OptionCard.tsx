@@ -50,11 +50,13 @@ export function OptionCard({
   const frame = (pressed: boolean): ViewStyle => ({
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: t.space.md,
+    // Mockup: 10/12 padding, radius 18, 2 pt border, 10 pt from the radio to the text.
+    gap: t.space.sm + t.space.xxs,
     minHeight: t.size.touch,
-    padding: t.space.base,
-    borderRadius: t.radius.lg,
-    borderWidth: 1.5,
+    paddingVertical: t.space.sm + t.space.xxs,
+    paddingHorizontal: t.space.md,
+    borderRadius: t.radius.card,
+    borderWidth: t.size.focusRing,
     borderColor: selected ? t.color.accent.solid : restBorder,
     // Selected rises to `raised` (mockup): an accent.soft wash would swallow soft accent badges.
     backgroundColor: selected || pressed ? t.color.bg.raised : t.color.bg.surface,
@@ -75,11 +77,11 @@ export function OptionCard({
     >
       {indicator === "radio" && <Radio on={selected} />}
       {leading}
-      <View style={{ flex: 1, gap: t.space.xs }}>
+      <View style={{ flex: 1, gap: t.space.xxs }}>
         {/* Title and badge wrap together; the deciding figure keeps its column on the right. */}
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm }}>
           <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: t.space.sm, rowGap: t.space.xs }}>
-            <Text variant="headline" style={{ flexShrink: 1 }}>
+            <Text variant="cardTitle" style={{ flexShrink: 1 }}>
               {title}
             </Text>
             {badge}
@@ -87,7 +89,8 @@ export function OptionCard({
           {trailing !== undefined && (
             <View style={{ flexShrink: 0 }}>
               {typeof trailing === "string" ? (
-                <Text variant="headline" numeric>
+                // Mockup: the size sits small and quiet on the right (11 px mu → 12 pt floor).
+                <Text variant="caption" color="secondary" numeric>
                   {trailing}
                 </Text>
               ) : (
@@ -97,7 +100,7 @@ export function OptionCard({
           )}
         </View>
         {description ? (
-          <Text variant="footnote" color="secondary">
+          <Text variant="caption" color="secondary">
             {description}
           </Text>
         ) : null}
@@ -115,7 +118,8 @@ export function OptionCard({
 
 function Radio({ on }: { on: boolean }) {
   const t = useTokens();
-  const d = t.size.icon + 2;
+  // Mockup: 18 pt ring, 2 pt border, 8 pt dot.
+  const d = t.size.iconSm + t.space.xxs;
   return (
     <View
       style={{
@@ -124,13 +128,14 @@ function Radio({ on }: { on: boolean }) {
         // Optically centred on the headline's first line.
         marginTop: 1,
         borderRadius: d / 2,
-        borderWidth: 2,
+        borderWidth: t.size.focusRing,
+        // Unselected ring keeps the 3:1 control border (the mockup's bd would fail WCAG 1.4.11).
         borderColor: on ? t.color.accent.solid : t.color.line.strong,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      {on && <View style={{ width: d / 2, height: d / 2, borderRadius: d / 4, backgroundColor: t.color.accent.solid }} />}
+      {on && <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.accent.solid }} />}
     </View>
   );
 }
