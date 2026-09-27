@@ -85,7 +85,8 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
       accessibilityLabel={placeA11yLabel(place, now, locale, tr)}
       style={({ pressed }) => ({
         minHeight: t.size.touch + 8,
-        paddingHorizontal: t.space.base,
+        // The sheet's compact card padding (12/14).
+        paddingHorizontal: t.space.md + t.space.xxs,
         paddingVertical: t.space.sm,
         justifyContent: "center",
         backgroundColor: pressed ? t.color.bg.sunken : undefined,
@@ -93,7 +94,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
     >
       <View style={{ flexDirection: stacked ? "column" : "row", gap: stacked ? t.space.xxs : t.space.md }}>
         <View style={{ flex: stacked ? undefined : 1, gap: t.space.xxs }}>
-          <Text variant="headline" numberOfLines={2}>
+          <Text variant="cardTitle" numberOfLines={2}>
             {place.name}
           </Text>
           {(tags || state) && (
@@ -111,7 +112,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
           )}
         </View>
         {distance && (
-          <Text variant="subhead" numeric align={stacked ? "left" : "right"}>
+          <Text variant="mono" align={stacked ? "left" : "right"}>
             {distance}
           </Text>
         )}
@@ -304,9 +305,9 @@ function StaleLocationPrompt({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
-    <Card style={{ gap: t.space.md }}>
+    <Card radius="card" padding="compact" style={{ gap: t.space.md }}>
       <View style={{ gap: t.space.xs }}>
-        <Text ref={titleRef} variant="headline" header>
+        <Text ref={titleRef} variant="cardTitle" header>
           {tr("chat.places.staleTitle", { city: last.city, ago: agoText(last.ageS, tr) })}
         </Text>
         <Text variant="footnote" color="secondary">
@@ -381,7 +382,7 @@ function CityPrompt({
     onCity(city.trim());
   };
   return (
-    <Card style={{ gap: t.space.md }}>
+    <Card radius="card" padding="compact" style={{ gap: t.space.md }}>
       {/* A permanent "no" on Android can only be undone in the system settings; offer the way there. */}
       {locationStatus === "denied" && (
         <Banner
@@ -397,7 +398,7 @@ function CityPrompt({
         <View style={{ gap: t.space.xs }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
             <ActivityIndicator size="small" color={t.color.field.solid} />
-            <Text ref={titleRef} variant="headline" header style={{ flex: 1 }}>
+            <Text ref={titleRef} variant="cardTitle" header style={{ flex: 1 }}>
               {tr("chat.places.locating")}
             </Text>
           </View>
@@ -406,7 +407,7 @@ function CityPrompt({
           </Text>
         </View>
       ) : (
-        <Text ref={titleRef} variant="headline" header>
+        <Text ref={titleRef} variant="cardTitle" header>
           {tr("chat.places.whichCity")}
         </Text>
       )}
@@ -506,7 +507,7 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
   return (
     <View style={{ gap: t.space.sm }}>
       <Card padding="none" style={{ overflow: "hidden" }}>
-        <View style={{ padding: t.space.base, paddingBottom: t.space.sm, gap: t.space.xxs }}>
+        <View style={{ paddingHorizontal: t.space.md + t.space.xxs, paddingTop: t.space.md, paddingBottom: t.space.sm, gap: t.space.xxs }}>
           <Text variant="label" color="secondary" header numeric>
             {cardTitle(r, r.places.length, tr)}
           </Text>
@@ -521,18 +522,19 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
         </View>
         <View accessibilityRole="list">
           {shown.map((p) => (
-            <View key={p.id} style={{ borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
+            // Rows inside a card are separated by line.row (the sheet's s2 hairline).
+            <View key={p.id} style={{ borderTopWidth: t.size.hairline, borderTopColor: t.color.line.row }}>
               <PlaceRow place={p} now={now} locale={locale} onPress={() => setOpenPlace(p)} />
             </View>
           ))}
         </View>
         <View
           style={{
-            paddingHorizontal: t.space.base,
+            paddingHorizontal: t.space.md + t.space.xxs,
             paddingVertical: t.space.sm,
             gap: t.space.xs,
             borderTopWidth: t.size.hairline,
-            borderTopColor: t.color.line.hairline,
+            borderTopColor: t.color.line.row,
           }}
         >
           {hidden > 0 && (
