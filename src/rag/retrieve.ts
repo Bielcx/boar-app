@@ -12,6 +12,7 @@ import type { RetrievedChunk } from "./retrieve.types";
 import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
 import { englishNamesIn, looksPortuguese, type Lexicon } from "./ptLexicon";
 import { ACTION_INTENT, LAY_SOURCES } from "./wikiPack";
+import { EXPLAIN_INTENT } from "./explain";
 import { ptLexicon } from "./ptLexiconAsset";
 
 export type { RetrievedChunk } from "./retrieve.types";
@@ -116,7 +117,12 @@ export async function retrieve(
   const names = englishNamesIn(query, opts.lexicon ?? ptLexicon());
   if (!names.length) return main;
   // The names alone ("Earthquake") don't say the question asks what to do; the question does.
-  const found = await retrieveOne(names.join(" "), topK, { includeWikiPacks: opts.includeWikiPacks, titles: names, action: ACTION_INTENT.test(query) });
+  const found = await retrieveOne(names.join(" "), topK, {
+    includeWikiPacks: opts.includeWikiPacks,
+    titles: names,
+    action: ACTION_INTENT.test(query),
+    explain: EXPLAIN_INTENT.test(query),
+  });
   // Sources without a title boost (bundled corpus, format-1 packs): the article whose title is one of the names first.
   const named = new Set(names.map((n) => n.toLowerCase()));
   // A what-to-do question: passages from a section that says what to do (the preparedness pack's Treatment,
@@ -142,7 +148,7 @@ export function isDisambiguation(c: { title: string; body: string }): boolean {
 async function retrieveOne(
   query: string,
   topK: number,
-  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; titles?: string[]; action?: boolean }
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean; titles?: string[]; action?: boolean; explain?: boolean }
 ): Promise<RetrievedChunk[]> {
   const { includeWikiPacks = true, titles } = opts;
   const queryVec = opts.queryVec ?? (await embeddingEngine.embed(query));
@@ -150,9 +156,15 @@ async function retrieveOne(
     lexicalSearch(query, topK * 2),
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
-    searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
+    searchPacks(query, queryVec, topK * 2, opts.explain !== undefined ? { explain: opts.explain } : {}).catch(() => ({ lexical: [], semantic: [] })),
     includeWikiPacks
-      ? searchWikiPacks(query, { k: topK, queryVec, ...(titles ? { titles } : {}), ...(opts.action !== undefined ? { action: opts.action } : {}) }).catch(() => [])
+      ? searchWikiPacks(query, {
+          k: topK,
+          queryVec,
+          ...(titles ? { titles } : {}),
+          ...(opts.action !== undefined ? { action: opts.action } : {}),
+          ...(opts.explain !== undefined ? { explain: opts.explain } : {}),
+        }).catch(() => [])
       : Promise.resolve([]),
   ]);
 

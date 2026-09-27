@@ -49,6 +49,14 @@ const rows = [
       "## History", "", "Scalds from boiling water were described in ancient medicine. " + filler("History"),
     ].join("\n"),
   },
+  // An article whose lead only defines the subject; the section with the question's other words explains it.
+  {
+    page_id: 902, title: "Plate tectonics", source: "enwiki",
+    text: [
+      "# Plate tectonics", "", "Plate tectonics is the scientific theory that the lithosphere comprises large tectonic plates. " + filler("Theory"), "",
+      "## Plate boundaries", "", "Most earthquakes happen at plate boundaries, where plates collide, separate or slide past each other. " + filler("Boundary"),
+    ].join("\n"),
+  },
   // Official guidance on the same topic, whose words the question repeats less than the encyclopedia's.
   {
     page_id: 4e9 + 1, title: "Burns and scalds (Ready.gov)", source: "usgov", url: "https://www.ready.gov/burns", license: "Public domain",
@@ -130,5 +138,16 @@ describe("topic-pack sources", () => {
     const named = await pack.titlesInQuestion(q, await pack.stems(q));
     const scald = await pack.resolveTitle("Scald");
     expect(named.find((t) => t.id === scald)?.share ?? 0).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it("answers a why question with the section that explains, ahead of the lead that only defines (EN and PT)", async () => {
+    const en = await pack.search("Why do earthquakes happen near plate boundaries?", { k: 4, titles: ["Plate tectonics"] });
+    expect(en.filter((h) => h.title === "Plate tectonics")[0]?.section).toBe("Plate boundaries");
+    // A Portuguese question runs as its English names, with the why intent passed along (retrieve()).
+    const pt = await pack.search("Earthquake Plate tectonics", { k: 4, titles: ["Plate tectonics"], explain: true });
+    expect(pt.filter((h) => h.title === "Plate tectonics")[0]?.section).toBe("Plate boundaries");
+    // Not a why question: the lead stays first.
+    const what = await pack.search("What is plate tectonics?", { k: 4, titles: ["Plate tectonics"] });
+    expect(what.filter((h) => h.title === "Plate tectonics")[0]?.section).toBe("");
   });
 });
