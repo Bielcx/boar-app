@@ -7,8 +7,8 @@ import { useTheme, useTokens } from "../theme";
 import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
-import { answerPhase, canDeepen, isGeneralKnowledge, isLocating, type AnswerState, type TierState } from "./answerReducer";
-import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
+import { generatingSteps, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -696,7 +696,8 @@ function InstantSnippet({
         {source ? `${tr("chat.snippet.fromSource")} · ${source.title}` : tr("chat.snippet.fromSource")}
       </Text>
       <Text variant={isFinal ? "body" : "callout"} selectable>
-        {expanded ? snippet.text : previewText(snippet.text)}
+        {/* FMT-1: a pack's list flattened to " - " reads as a list again. */}
+        {expanded ? splitInlineBullets(snippet.text) : previewText(snippet.text)}
       </Text>
       <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
         {!isFinal && (
@@ -729,8 +730,11 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const { t: tr } = useTranslation();
   const phase = answerPhase(answer);
   // No strong source: no [n] citations, even if weak passages came back (weak-sources spec rule 4).
-  const generalKnowledge = isGeneralKnowledge(answer);
-  const sourceTitles = answer.weakSources ? [] : answer.sources.map((s) => s.title);
+  // Nothing on the topic ("weak") or found but not cited ("uncited"): no sources card, a note instead.
+  const sourceless = noSourceKind(answer);
+  // No strong source: no [n] citations (weak-sources spec rule 4).
+  const sourceTitles = sourceless === "weak" ? [] : answer.sources.map((s) => s.title);
+
   const placesOnly = !!answer.places && !answer.fast;
   const note = noSourceNote(answer, placesOnly);
   const split = answerSourceSplit(answer);
@@ -785,7 +789,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         />
       )}
 
-      {answer.instant && !answer.weakSources && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
+      {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
       {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
       {answer.extract ? (
         <TierBody
@@ -848,7 +852,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
       {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
 
-      {answer.sources.length > 0 && !placesOnly && !generalKnowledge && (
+      {answer.sources.length > 0 && !placesOnly && !sourceless && (
         // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
         // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
         cardMode === "found" ? (

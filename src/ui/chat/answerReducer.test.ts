@@ -8,7 +8,7 @@ import {
   answerReducer,
   attachAnswer,
   canDeepen,
-  isGeneralKnowledge,
+  noSourceKind,
   initialAnswer,
   isAnswerActive,
   type AnswerState, isLocating, asInterrupted } from "./answerReducer";
@@ -311,23 +311,25 @@ describe("no-source answers (Tusk 4375d76 / a740a0b)", () => {
   });
 });
 
-describe("isGeneralKnowledge (Prism CT-5, Tusk: a model answer with done.cited = [])", () => {
+describe("noSourceKind (Prism CT-5, Tusk a428bb6: weak_sources on every uncited model answer)", () => {
   const model = { modelId: "qwen3-4b", modelLabel: "Q", tokens: 30, tokPerSec: 10, ttftMs: 1, totalMs: 2, reasonCodes: [] };
   const src = [{ chunkId: "c", docId: "d", title: "RMS Titanic", body: "b", score: 1, matchType: "hybrid" as const }];
   const answered = (over: Partial<AnswerState>) =>
     ({ answerIds: ["a"], sources: src, fast: { text: "Today in history…", stage: null, outcome: "success", receipt: model }, ...over }) as AnswerState;
-  it("marks the model's finished answer that cites nothing, even without weak_sources", () => {
-    expect(isGeneralKnowledge(answered({ cited: [] }))).toBe(true);
+  it("passages on the topic, none cited → uncited, with or without weak_sources", () => {
+    expect(noSourceKind(answered({ cited: [], weakSources: true }))).toBe("uncited");
+    expect(noSourceKind(answered({ cited: [] }))).toBe("uncited");
   });
-  it("not when it cites a source, not while cited is unknown, not for answers no model wrote", () => {
-    expect(isGeneralKnowledge(answered({ cited: [1] }))).toBe(false);
-    expect(isGeneralKnowledge(answered({}))).toBe(false);
-    expect(isGeneralKnowledge(answered({ cited: [], fast: { text: "x", stage: "generating" } }))).toBe(false);
-    expect(isGeneralKnowledge(answered({ cited: [], fast: { text: "fixed", stage: null, outcome: "success", receipt: { ...model, modelId: "grounding-guard" } } }))).toBe(false);
+  it("nothing on the topic (no sources) → weak", () => {
+    expect(noSourceKind(answered({ sources: [], cited: [], weakSources: true }))).toBe("weak");
+    expect(noSourceKind(answered({ sources: [], cited: [] }))).toBe("weak");
   });
-  it("the engine's weak_sources still counts; a deep pass that cites makes it sourced", () => {
-    expect(isGeneralKnowledge(answered({ weakSources: true, cited: [1] }))).toBe(true);
-    expect(isGeneralKnowledge(answered({ cited: [2], deep: { text: "Deeper [2]", stage: null, outcome: "success", receipt: model } }))).toBe(false);
+  it("none when it cites, while cited is unknown, or for answers no model wrote", () => {
+    expect(noSourceKind(answered({ cited: [1] }))).toBeNull();
+    expect(noSourceKind(answered({}))).toBeNull();
+    expect(noSourceKind(answered({ cited: [], fast: { text: "x", stage: "generating" } }))).toBeNull();
+    expect(noSourceKind(answered({ cited: [], fast: { text: "fixed", stage: null, outcome: "success", receipt: { ...model, modelId: "grounding-guard" } } }))).toBeNull();
+    expect(noSourceKind(answered({ cited: [2], deep: { text: "Deeper [2]", stage: null, outcome: "success", receipt: model } }))).toBeNull();
   });
 });
 

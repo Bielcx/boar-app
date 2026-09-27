@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -258,7 +258,9 @@ describe("receiptTagKey (Iris CT-5)", () => {
   const src = [{ chunkId: "c", docId: "d", title: "T", body: "b", score: 1, matchType: "hybrid" as const }];
   const base = { answerIds: ["a"], sources: src, fast: { text: "x", stage: null, outcome: "success", receipt } } as AnswerState;
   it("general knowledge only when nothing covered the question; no source cited when found passages weren't cited", () => {
-    expect(receiptTagKey({ ...base, weakSources: true, cited: [] })).toBe("chat.weak.receipt");
+    expect(receiptTagKey({ ...base, sources: [], weakSources: true, cited: [] })).toBe("chat.weak.receipt");
+    // a428bb6: the engine also flags the uncited case with weak_sources; the found passages decide.
+    expect(receiptTagKey({ ...base, weakSources: true, cited: [] })).toBe("chat.weak.receiptUncited");
     expect(receiptTagKey({ ...base, cited: [] })).toBe("chat.weak.receiptUncited");
     expect(receiptTagKey({ ...base, cited: [1] })).toBeNull();
     expect(receiptTagKey(base)).toBeNull();
@@ -272,13 +274,30 @@ describe("tag and note together (Prism: the tag changes, the warning never goes)
     const a = { ...base, cited: [] };
     expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receiptUncited", "uncited"]);
   });
-  it("weak_sources → 'general knowledge' + note B", () => {
-    const a = { ...base, weakSources: true };
+  it("cited = [] with passages AND weak_sources (a428bb6) → still 'no source cited' + the CT-5 note", () => {
+    const a = { ...base, cited: [], weakSources: true };
+    expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receiptUncited", "uncited"]);
+  });
+  it("weak_sources with nothing on the topic → 'general knowledge' + note B", () => {
+    const a = { ...base, sources: [], weakSources: true };
     expect([receiptTagKey(a), noSourceNote(a, false)]).toEqual(["chat.weak.receipt", "weak"]);
   });
   it("a cited answer has neither; a decline and a places list have their own cards", () => {
     expect([receiptTagKey({ ...base, cited: [1] }), noSourceNote({ ...base, cited: [1] }, false)]).toEqual([null, null]);
     expect(noSourceNote({ ...base, weakSources: true, weakDeclined: true }, false)).toBeNull();
     expect(noSourceNote({ ...base, cited: [] }, true)).toBeNull();
+  });
+});
+
+describe("showsInstantSnippet (Prism DUP-1)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "Appropedia: How to survive an earthquake", body: "b", score: 1, matchType: "hybrid" as const }];
+  const instant = { text: "During an earthquake: Drop, cover, and hold on!…", sourceIndex: 0, confidence: 0.9 };
+  it("one block: the engine's excerpt replaces the instant card", () => {
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: src, instant } as AnswerState)).toBe(true);
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: src, instant, extract: "From the offline source: … [1]" } as AnswerState)).toBe(false);
+  });
+  it("no card without a passage, nor when nothing was on the topic", () => {
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: src } as AnswerState)).toBe(false);
+    expect(showsInstantSnippet({ answerIds: ["a"], sources: [], instant, weakSources: true } as AnswerState)).toBe(false);
   });
 });

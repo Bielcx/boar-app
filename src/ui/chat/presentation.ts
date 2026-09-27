@@ -1,5 +1,5 @@
 import { EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID, type AnswerReceipt } from "./answerEvents";
-import { answerPhase, uncitedModelAnswer, type AnswerPhase, type AnswerState } from "./answerReducer";
+import { answerPhase, noSourceKind, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds, formatTokPerSec } from "./shareFormat";
 import { placesEmptyTitle } from "./placesFormat";
 import { answerSourceSplit } from "./sourceLabel";
@@ -266,12 +266,12 @@ export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fa
 
 /**
  * The tag after the receipt's numbers (Iris): "general knowledge" only when nothing on the phone
- * covered the question (weak_sources, true there); "no source cited" when passages on the topic
- * were found but the model cited none (it may have used them, so "general knowledge" could be false).
+ * covered the question, where it is true; "no source cited" when passages on the topic were found
+ * but the model cited none (it may have used them, so "general knowledge" could be false).
  */
 export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | null {
-  if (a.weakSources) return "chat.weak.receipt";
-  return uncitedModelAnswer(a) ? "chat.weak.receiptUncited" : null;
+  const kind = noSourceKind(a);
+  return kind === "weak" ? "chat.weak.receipt" : kind === "uncited" ? "chat.weak.receiptUncited" : null;
 }
 
 /**
@@ -281,6 +281,15 @@ export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.
  */
 export function noSourceNote(a: AnswerState, placesOnly: boolean): "weak" | "uncited" | null {
   if (placesOnly || a.weakDeclined) return null;
-  if (a.weakSources) return "weak";
-  return uncitedModelAnswer(a) ? "uncited" : null;
+  return noSourceKind(a);
+}
+
+/**
+ * The "From the source" card shows the instant passage unless the engine's literal excerpt answers
+ * (Prism DUP-1: a health question got both, the same instruction twice, pushing the emergency note
+ * off screen; the excerpt is the engine's final answer, with [n], language label and emergency line),
+ * or nothing on the phone was on the topic.
+ */
+export function showsInstantSnippet(a: AnswerState): boolean {
+  return !!a.instant && !a.extract && noSourceKind(a) !== "weak";
 }
