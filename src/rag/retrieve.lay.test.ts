@@ -24,13 +24,15 @@ vi.mock("./packs", async (importOriginal) => {
       semantic: [],
     }),
     // Six clinical keyword hits, then the two lay sources the pack search adds past its limit.
-    searchWikiPacks: async () => [
+    searchWikiPacks: async (query: string) => [
       {
         packId: "prep",
         stems: [],
         hits: [
           ...[1, 2, 3, 4, 5, 6].map((i) => hit(i, `Clinical ${i}`, "enwiki", 10 - i)),
-          hit(9, "Earthquake safety", "enwikivoyage", 0.2, true),
+          ...(/earthquake/i.test(query)
+            ? [hit(9, "Earthquake safety", "enwikivoyage", 0.2, true), hit(10, "Earthquakes (Ready.gov)", "usgov", 0.1, true)]
+            : []),
           hit(7, "US Army Survival Manual", "usgov", 1),
           hit(8, "Outdoor Survival/First Aid", "enwikibooks", 0.5),
         ],
@@ -53,10 +55,14 @@ describe("retrieve and lay sources", () => {
     expect(await retrieve("history of snakes in art", 6)).toHaveLength(6);
   });
 
-  it("puts pack sections that say what to do ahead of keyword noise from other sources", async () => {
+  it("safety-008: puts pack sections that say what to do ahead of keyword noise, in English and Portuguese", async () => {
     state.junk = true;
-    const titles = (await retrieve("What should I do during an earthquake?", 6)).map((c) => c.title);
+    const en = (await retrieve("What should I do during an earthquake?", 6)).map((c) => c.title);
+    const pt = (await retrieve("O que eu faço durante um terremoto?", 6, { lexicon: { terremoto: "Earthquake" } })).map((c) => c.title);
     state.junk = false;
-    expect(titles[0]).toMatch(/Earthquake safety/);
+    for (const titles of [en, pt]) {
+      expect(titles.slice(0, 2).join(" | ")).toMatch(/Earthquake safety.*Earthquakes \(Ready\.gov\)/);
+      expect(titles.slice(0, 6).some((t) => /Junk/.test(t))).toBe(true);
+    }
   });
 });
