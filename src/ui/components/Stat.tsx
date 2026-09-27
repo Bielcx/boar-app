@@ -31,7 +31,14 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
     >
       {label ? <Text variant="label" color="field">{label}</Text> : null}
       <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.xxs }}>
-        <Text variant={VALUE_VARIANT[size]} color={color} numeric header={false}>
+        <Text
+          variant={VALUE_VARIANT[size]}
+          color={color}
+          numeric
+          header={false}
+          // xl: trim the extra leading of `hero` (kept so iOS doesn't clip the ascenders) from the layout.
+          style={size === "xl" ? { marginVertical: -((t.type.hero.lineHeight ?? 0) - (t.type.hero.fontSize ?? 0)) / 2 } : undefined}
+        >
           {value}
         </Text>
         {unit ? (

@@ -135,7 +135,9 @@ type TypeSpec = {
 /** Baloo 2 (display) for the wordmark, titles, buttons and big numbers; Lexend (text) for everything read. */
 const TYPE_SCALE = {
   /** The one figure a screen is about (download %, mockup 56). Capped: it is already large. */
-  hero: { face: "display", weight: 800, size: 56, leading: 1, tracking: -1.2, maxScale: 1.2 },
+  // Leading 1.2: Baloo's ascenders overflow a 1.0 line box and iOS clips them (Loom, b897ffd '51%').
+  // Stat trims the extra leading back so the figure keeps the mockup's footprint.
+  hero: { face: "display", weight: 800, size: 56, leading: 1.2, tracking: -1.2, maxScale: 1.2 },
   /** The chat's empty-state wordmark (mockup 40). */
   wordmark: { face: "display", weight: 800, size: 40, leading: 1, tracking: -0.8, maxScale: 1.3 },
   display: { face: "display", weight: 800, size: 34, leading: 1.1, tracking: -0.7, maxScale: 1.5 },
