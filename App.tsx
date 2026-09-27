@@ -15,11 +15,21 @@ import { initHaptics } from "./src/services/haptics";
 import { initialRoute as bootRoute } from "./src/ui/flows/boot";
 import { registerGeoProviders } from "./src/routing/answerService";
 import { geoProvidersFrom } from "./src/routing/geoWiring";
-import { getCurrentPoint } from "./src/services/location";
+import { getCurrentPoint, getLocationFix } from "./src/services/location";
 import { installedPoiPacks, resolvePlace, searchPois } from "./src/rag/pois";
+import { POI_REGIONS } from "./src/rag/poiRegions";
 
 // Offline places: without this, every places question answers "places pack not installed".
-registerGeoProviders(geoProvidersFrom({ installedPoiPacks, getCurrentPoint, resolvePlace, searchPois }));
+registerGeoProviders(
+  geoProvidersFrom({
+    installedPoiPacks,
+    getCurrentPoint,
+    getLocationFix,
+    resolvePlace,
+    searchPois,
+    cities: () => POI_REGIONS.flatMap((r) => r.cities),
+  })
+);
 
 const modelManager = new ModelManager();
 
