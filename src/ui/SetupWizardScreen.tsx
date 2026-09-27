@@ -880,7 +880,7 @@ function InstallStep({
   const quarter = totalBytes > 0 ? Math.floor((doneBytes / totalBytes) * 4) : 0;
   const lastQuarter = useRef(quarter);
   useEffect(() => {
-    if (quarter > lastQuarter.current && quarter < 4) announce(t("flows.onboarding.percentAnnounce", { pct: quarter * 25 }));
+    if (quarter > lastQuarter.current && quarter < 4) announce(t(offline ? "flows.onboarding.percentImportedAnnounce" : "flows.onboarding.percentAnnounce", { pct: quarter * 25 }));
     lastQuarter.current = quarter;
   }, [quarter, announce, t]);
 
@@ -1020,7 +1020,8 @@ function InstallStep({
 
       {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
       {((!allPresent && (!offline || presentCount > 0)) || (indexing && seed)) && (
-        <Card style={{ gap: tokens.space.md }}>
+        // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
+        <Card style={{ gap: tokens.space.md, overflow: "hidden" }}>
           {/* The boar sits in the corner like the mockup; the content sets the card's height (Iris, Prism N-6). */}
           <View style={{ position: "absolute", top: 0, right: 0 }}>
             {fontScale > LARGE_TEXT ? <Mascot size="brand" /> : <Mascot size="hero" glow />}
@@ -1065,7 +1066,10 @@ function InstallStep({
             tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
             group: t("flows.onboarding.groupIndex"),
           },
-        ].map((row, i, rows) => (
+        ]
+          // While the hero shows the index, its row would repeat it (Prism N-10).
+          .filter((row) => !(row.key === "index" && indexing && seed))
+          .map((row, i, rows) => (
           <React.Fragment key={row.key}>
           {row.group && row.group !== rows[i - 1]?.group && (
             <View style={{ paddingHorizontal: tokens.space.base, paddingTop: tokens.space.md }}>
