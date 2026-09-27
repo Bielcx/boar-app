@@ -44,3 +44,30 @@ export function deviceTimeZone(): string | undefined {
     return undefined;
   }
 }
+
+/** A city to offer as a chip, with the region pack it comes from. */
+export interface PoiCity {
+  name: string;
+  /** The region pack's id (POI_REGIONS[].id). */
+  region: string;
+}
+
+/**
+ * The biggest cities (by food places nearby) across the installed region
+ * packs, each name once. `installed` holds region ids whose file is on disk.
+ */
+export function topInstalledCities(regions: Pick<PoiRegion, "id" | "cities">[], installed: Set<string>, limit = 6): PoiCity[] {
+  const all = regions
+    .filter((r) => installed.has(r.id))
+    .flatMap((r) => r.cities.map((c) => ({ name: c.name, region: r.id, pois: c.pois })))
+    .sort((a, b) => b.pois - a.pois);
+  const seen = new Set<string>();
+  const out: PoiCity[] = [];
+  for (const c of all) {
+    if (seen.has(c.name)) continue;
+    seen.add(c.name);
+    out.push({ name: c.name, region: c.region });
+    if (out.length >= limit) break;
+  }
+  return out;
+}

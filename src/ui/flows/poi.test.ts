@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { citySummary, PoiRegion, suggestRegion } from "./poi";
+import { citySummary, PoiRegion, suggestRegion, topInstalledCities } from "./poi";
 
 function region(id: string, bbox: PoiRegion["bbox"], timeZones: string[], poiCount: number, cities: string[] = []): PoiRegion {
   return {
@@ -51,5 +51,32 @@ describe("citySummary", () => {
   it("shows the first places and counts the rest of the list", () => {
     expect(citySummary(saoPaulo)).toEqual({ names: ["São Paulo", "Guarulhos", "Osasco"], more: 2 });
     expect(citySummary(berlin)).toEqual({ names: [], more: 0 });
+  });
+});
+
+describe("topInstalledCities", () => {
+  const regions = [
+    { id: "sao-paulo", cities: [{ name: "São Paulo", lat: 0, lon: 0, pois: 9000 }, { name: "Campinas", lat: 0, lon: 0, pois: 800 }] },
+    { id: "taipei", cities: [{ name: "Taipei", lat: 0, lon: 0, pois: 5000 }, { name: "Keelung", lat: 0, lon: 0, pois: 300 }] },
+    { id: "singapore", cities: [{ name: "Singapore", lat: 0, lon: 0, pois: 20000 }] },
+  ];
+
+  it("only cities of installed packs, most food places first", () => {
+    expect(topInstalledCities(regions, new Set(["sao-paulo", "taipei"]))).toEqual([
+      { name: "São Paulo", region: "sao-paulo" },
+      { name: "Taipei", region: "taipei" },
+      { name: "Campinas", region: "sao-paulo" },
+      { name: "Keelung", region: "taipei" },
+    ]);
+  });
+
+  it("respects the limit and returns nothing when no pack is installed", () => {
+    expect(topInstalledCities(regions, new Set(["sao-paulo", "taipei", "singapore"]), 2).map((c) => c.name)).toEqual(["Singapore", "São Paulo"]);
+    expect(topInstalledCities(regions, new Set())).toEqual([]);
+  });
+
+  it("lists a city name once even if two packs cover it", () => {
+    const overlap = [...regions, { id: "sp-tiles", cities: [{ name: "São Paulo", lat: 0, lon: 0, pois: 100 }] }];
+    expect(topInstalledCities(overlap, new Set(["sao-paulo", "sp-tiles"])).filter((c) => c.name === "São Paulo")).toHaveLength(1);
   });
 });

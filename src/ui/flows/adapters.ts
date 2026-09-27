@@ -10,11 +10,13 @@
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
+import * as FileSystem from "expo-file-system/legacy";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
 import { availableRamFrom, contextSizeForRam, MemoryFit } from "../../inference/memoryFit";
 import { removeCorpusPackIndex } from "../../rag/seedCorpus";
 import { catalogFit } from "./fit";
-import type { PoiRegion } from "./poi";
+import { topInstalledCities } from "./poi";
+import type { PoiCity, PoiRegion } from "./poi";
 import type { City } from "./travel";
 import { searchPlaces } from "../../rag/pois";
 import { POI_REGIONS, poiCatalogEntries, worldPlacesEntry } from "../../rag/poiRegions";
@@ -118,4 +120,20 @@ export function topicPacks(): TopicPack[] {
 /** The pack's name in the UI language (English for anything but Portuguese). */
 export function packName(pack: TopicPack, lang: string): string {
   return lang.startsWith("pt") ? pack.name.pt : pack.name.en;
+}
+
+/**
+ * The biggest cities of the region packs installed on this phone, for the
+ * chat's "Which city?" chips. A pack counts as installed when its catalog
+ * file is on disk; no pack, or no readable storage, gives [].
+ */
+export async function installedPoiCities(limit = 6): Promise<PoiCity[]> {
+  const installed = new Set<string>();
+  await Promise.all(
+    POI_REGIONS.map(async (r) => {
+      const info = await FileSystem.getInfoAsync(`${FileSystem.documentDirectory}${r.filename}`).catch(() => null);
+      if (info?.exists) installed.add(r.id);
+    })
+  );
+  return topInstalledCities(POI_REGIONS, installed, limit);
 }
