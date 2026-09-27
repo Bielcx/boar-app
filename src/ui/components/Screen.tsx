@@ -26,6 +26,15 @@ export interface ScreenProps {
 }
 
 /** Screen scaffold: canvas background, safe area, keyboard handling, content rhythm. */
+/**
+ * Space under a footer action. iOS: the mockup ends the action 30 pt above the edge, 4 pt into the
+ * home-indicator area, which floats over content. Android: the navigation bar (3-button or gesture)
+ * is a real bar, so the action sits fully above it (Prism AN-1: 4 pt of the CTA were under it).
+ */
+export function footerBottom(inset: number, xs: number, sm: number): number {
+  return Platform.OS === "ios" ? Math.max(inset - xs, sm) : inset + sm;
+}
+
 export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient, center }: ScreenProps) {
   const t = useTokens();
   const insets = useSafeAreaInsets();
@@ -89,7 +98,7 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
           style={{
             paddingHorizontal: t.space.gutter,
             paddingTop: t.space.md,
-            paddingBottom: padsBottom ? Math.max(insets.bottom - t.space.xs, t.space.sm) : t.space.sm,
+            paddingBottom: padsBottom ? footerBottom(insets.bottom, t.space.xs, t.space.sm) : t.space.sm,
             gap: t.space.sm,
             borderTopWidth: ambient ? 0 : t.size.hairline,
             borderTopColor: t.color.line.hairline,
