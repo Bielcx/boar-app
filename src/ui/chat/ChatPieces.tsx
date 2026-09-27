@@ -119,9 +119,9 @@ export function ChatEmptyState({
         marginTop: -t.space.xs,
       }}
     >
-      {/* The mockup's hero block has 18 pt above it (Prism, 9b56912: hero 20 pt high, cards already right), so
-          the space moves from between the tagline and the section label to above the hero. */}
-      <View style={{ alignItems: "center", paddingTop: t.space.lg }}>
+      {/* The mockup's hero block has 18 pt above it (Prism/Iris, 9b56912: hero 20 pt high, cards already right):
+          the 20 pt that sat between the tagline and the section label now go 18 above the hero, 2 below it. */}
+      <View style={{ alignItems: "center", paddingTop: t.space.base + t.space.xxs, paddingBottom: t.space.xxs }}>
         <Mascot glow />
         {/* The wordmark sits 6 below the hero box (the mascot image spills over the box, as in the mockup). Starts with the
             visible word, then the
