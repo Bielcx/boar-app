@@ -9,19 +9,23 @@
 
 // Longest phrases first: "sangramento no nariz" before "sangramento".
 const PT_EN: Array<[RegExp, string]> = [
-  [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz sangrando|epistaxe/i, "nosebleed"],
+  [/sangramento (no|do|pelo) nariz|sangramento nasal|sangue (no|do|pelo) nariz|nariz sangrando|epistaxe/i, "nosebleed nose bleed"],
   [/primeiros socorros/i, "first aid"],
-  [/picada de cobra|mordida de cobra|picad[ao] por (uma )?cobra|mordid[ao] por (uma )?cobra/i, "snake bite"],
+  [/picada de (cobra|serpente)|mordida de (cobra|serpente)|picad[ao] por (uma )?(cobra|serpente)|mordid[ao] por (uma )?(cobra|serpente)|(cobra|serpente)[^.]{0,30}(picou|mordeu)|(picou|mordeu)[^.]{0,30}(cobra|serpente)/i, "snakebite snake bite"],
   [/picada de (abelha|vespa)|ferroada/i, "bee sting"],
   [/picada de escorpi[ãa]o/i, "scorpion sting"],
   [/parada card[íi]aca/i, "cardiac arrest"],
   [/ataque card[íi]aco|infarto/i, "heart attack"],
   [/\bavc\b|derrame/i, "stroke"],
   [/\brcp\b|reanima[çc][ãa]o( cardiopulmonar)?|massagem card[íi]aca/i, "cpr"],
-  [/[áa]gua fervente|[áa]gua quente/i, "boiling water"],
+  // A scald is a burn: "derramou água fervente no braço" must find Burn, not the physics of boiling.
+  [/(derram|caiu|queim|escald|jog)\w*[^.]{0,40}(água|[áa]gua|[óo]leo|caf[ée]|ch[áa]|sopa|leite) (fervente|fervendo|quente|escaldante)|(água|[áa]gua|[óo]leo) (fervente|fervendo|quente|escaldante)[^.]{0,40}(derram|caiu|queim|escald)\w*|escaldadura|escaldou|se queimou|queimou (o|a|a m[ãa]o|o bra[çc]o)/i, "burn scald"],
+  [/[áa]gua (fervente|fervendo)|[áa]gua quente/i, "boiling water"],
+  // Shivering, confused, slurred speech in the cold: hypothermia.
+  [/(tremend\w*|tremores?|calafrios?)[^.]{0,80}\bfrio\b|\bfrio\b[^.]{0,80}(tremend\w*|tremores?|calafrios?)/i, "hypothermia"],
   [/[áa]gua pot[áa]vel|[áa]gua (segura|limpa) para beber|tornar a [áa]gua (segura|pot[áa]vel)/i, "safe drinking water"],
   [/[áa]gua contaminada/i, "contaminated water"],
-  [/insola[çc][ãa]o|golpe de calor/i, "heat stroke"],
+  [/insola[çc][ãa]o|golpe de calor/i, "heatstroke heat stroke"],
   [/rea[çc][ãa]o al[ée]rgica|choque anafil[áa]tico|anafilaxia/i, "anaphylaxis allergic reaction"],
   [/sangramento|hemorragia|sangrando/i, "bleeding"],
   [/queimadura|queimou|queimad[oa]/i, "burn"],
@@ -60,4 +64,23 @@ export function englishSearchTerms(query: string): string | null {
     }
   }
   return out.length ? out.join(" ") : null;
+}
+
+// English first-aid questions phrased as a story ("I just got bitten by a snake while hiking")
+// share few words with the articles (Snakebite, Burn, Hypothermia): search with their names.
+const EN_CANONICAL: Array<[RegExp, string]> = [
+  [/\b(bitten|bit) by (a |an )?(snake|viper|rattlesnake|cobra)|\bsnake ?bites?\b/i, "snakebite snake bite"],
+  [/\b(spill\w*|splash\w*|scald\w*|pour\w*)\b[^.]{0,40}\b(boiling|hot) (water|oil|coffee|tea)|\b(boiling|hot) (water|oil)[^.]{0,40}\b(spill\w*|scald\w*|burn\w*)|\bscalds?\b/i, "burn scald"],
+  [/\bshiver\w*[^.]{0,80}\bcold\b|\bcold\b[^.]{0,80}\bshiver\w*/i, "hypothermia"],
+  [/\bnose ?bleeds?\b|\bbleeding (from )?(the |my |his |her )?nose\b/i, "nosebleed nose bleed"],
+  [/\bchok(e|ing)\b/i, "choking"],
+  // Earthquakes and floods: the question's own words find the "During an earthquake" sections better.
+];
+// No "first aid" added: it pulls in generic first-aid articles ("Mental health first aid").
+
+/** Canonical English search words for an English first-aid question, or null. */
+export function canonicalHealthTerms(query: string): string | null {
+  const out = EN_CANONICAL.filter(([re]) => re.test(query)).map(([, t]) => t);
+  if (!out.length) return null;
+  return out.join(" ");
 }
