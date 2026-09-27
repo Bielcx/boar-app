@@ -865,8 +865,8 @@
       "q2": "What is the difference between a pandemic and an epidemic?",
       "q3": "What is 30 °C in Fahrenheit?",
       "q4": "How do I stop a nosebleed?",
-      "q5": "How does photosynthesis work?",
-      "q6": "How do vaccines train the immune system?",
+      "q5": "What causes the monsoon?",
+      "q6": "Why do earthquakes happen near plate boundaries?",
       "q7": "What causes the greenhouse effect?"
     },
     "header": {
@@ -1020,8 +1020,8 @@
       "q2": "Health",
       "q3": "Quick math",
       "q4": "First aid",
-      "q5": "Biology",
-      "q6": "Health",
+      "q5": "Weather",
+      "q6": "Earth science",
       "q7": "Climate"
     },
     "modelError": {

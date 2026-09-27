@@ -25,10 +25,12 @@ export const SUGGESTION_VALIDATION = {
  * must return a source whose title contains one of them.
  *
  * Checked by title against the shipped corpora (26/09): the builtin has
- * "Pandemic", "Photosynthesis", "Vaccine", "Immune system", "Greenhouse
- * effect"; neither builtin nor corpus-standard/full has "Season" or
- * "Fahrenheit" (standard is a random Wikipedia sample). wiki-vital5 entries
- * are UNVERIFIED until Bramble/Sextant confirm. New keys (q5-q7) show once a
+ * "Pandemic", "Monsoon", "Plate tectonics", "Greenhouse effect"; neither
+ * builtin nor corpus-standard/full has "Season" or "Fahrenheit" (standard is
+ * a random Wikipedia sample). wiki-vital5 (Bramble, app search): seasons →
+ * Season 1st, nosebleed → Nosebleed 1st, Fahrenheit 3rd after Kelvin and
+ * Celsius. Photosynthesis and vaccines are left out: the app's EVAL_SET asks
+ * them (Sextant's "outside the test sets" rule). New keys (q5-q7) show once a
  * model's list in SUGGESTION_VALIDATION includes them.
  */
 export interface SuggestionSource {
@@ -41,9 +43,9 @@ export const SUGGESTION_SOURCES: SuggestionSource[] = [
   { key: "q1", corpus: ["wiki-vital5"], expect: ["Season", "Axial tilt"] },
   { key: "q2", corpus: ["builtin"], expect: ["Pandemic", "Epidemic"] },
   { key: "q3", corpus: ["wiki-vital5"], expect: ["Fahrenheit", "Celsius"] },
-  { key: "q4", corpus: ["boar-preparedness"], expect: ["Nosebleed", "Epistaxis"] },
-  { key: "q5", corpus: ["builtin"], expect: ["Photosynthesis"] },
-  { key: "q6", corpus: ["builtin"], expect: ["Vaccine", "Immune system"] },
+  { key: "q4", corpus: ["boar-preparedness", "wiki-vital5"], expect: ["Nosebleed", "Epistaxis"] },
+  { key: "q5", corpus: ["builtin"], expect: ["Monsoon"] },
+  { key: "q6", corpus: ["builtin"], expect: ["Plate tectonics"] },
   { key: "q7", corpus: ["builtin"], expect: ["Greenhouse effect", "Climate change"] },
 ];
 

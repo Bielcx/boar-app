@@ -37,6 +37,14 @@ describe("coveredSuggestions (RT-1)", () => {
     }
   });
 
+  it("no builtin suggestion asks about a topic the app's EVAL_SET uses (Sextant: outside the test sets)", () => {
+    const evalSource = readFileSync(join(__dirname, "../../eval/evalSet.ts"), "utf8");
+    const evalTitles = [...evalSource.matchAll(/expectedKbTitles: \[([^\]]*)\]/g)].flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]));
+    for (const s of SUGGESTION_SOURCES) {
+      for (const w of s.expect) expect(evalTitles, `${s.key} ${w}`).not.toContain(w);
+    }
+  });
+
   it("every suggestion has its text and topic in EN and PT", () => {
     for (const lang of ["en", "pt"]) {
       const chat = JSON.parse(readFileSync(join(__dirname, `../../i18n/locales/${lang}.json`), "utf8")).chat;
