@@ -26,6 +26,7 @@ import {
   NO_SOURCE_INSTRUCTION,
   noHealthSourceAnswer,
   onTopic,
+  namedByLexicon,
   PT_QUESTION,
   healthExtract,
   healthSourceIndex,
@@ -592,6 +593,8 @@ export function createAnswerer(deps: AnswerDeps) {
       if (names.length) reasonCodes.push("match:pt-en-names");
       /** What the sources are matched against: the English words for a translated PT question. */
       const matchQuery = english ?? (names.length ? names.join(" ") : req.query);
+      // Lexicon names are article titles: a source must be titled by one ("Season", not "Hurricane Season ...").
+      const onSubject = (c: RetrievedChunk) => (names.length ? namedByLexicon(names, c) : onTopic(matchQuery, c));
       // The packs lift an article's Treatment/Management section only when the query asks what to
       // do (Bramble b03c959); the article name alone ("snakebite") brought back "Signs and symptoms".
       // Lexicon names aren't searched here: retrieve() already adds them to a PT question's search.
@@ -637,7 +640,7 @@ export function createAnswerer(deps: AnswerDeps) {
       const guarded = gen?.mode !== "multipass" && (!pt || !!english || names.length > 0);
       // Health has its own, stricter topic filter below (the condition, lay sources allowed).
       if (guarded && !health && sources.length) {
-        const kept = sources.filter((c) => onTopic(matchQuery, c));
+        const kept = sources.filter((c) => onSubject(c));
         if (kept.length < sources.length) reasonCodes.push(`grounding:off-topic-dropped-${sources.length - kept.length}`);
         if (!kept.length) reasonCodes.push("grounding:no-good-source");
         sources = kept;
@@ -666,13 +669,15 @@ export function createAnswerer(deps: AnswerDeps) {
 
       // 2. Instant snippet (no LLM): only a sentence that covers the question.
       if (plan.instant !== "off" && raw.length) {
-        const snip = selectInstant(matchQuery, raw);
-        const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === raw[snip.sourceIndex].chunkId) : -1;
+        // Lexicon names: the sentence comes from a source titled by one (a one-word name is in many titles).
+        const pool = names.length ? raw.filter(onSubject) : raw;
+        const snip = pool.length ? selectInstant(matchQuery, pool) : null;
+        const sourceIndex = snip ? sources.findIndex((c) => c.chunkId === pool[snip.sourceIndex].chunkId) : -1;
         // "From the source" only from an on-topic source (the same onTopic as the sources), and a sentence that covers the question.
         const covers =
           !!snip &&
-          onTopic(matchQuery, raw[snip.sourceIndex]) &&
-          termCoverage(matchQuery, `${raw[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
+          onSubject(pool[snip.sourceIndex]) &&
+          termCoverage(matchQuery, `${pool[snip.sourceIndex].title} ${snip.text}`) >= MIN_TERM_COVERAGE;
         if (snip && sourceIndex >= 0 && !covers) reasonCodes.push("instant:off-topic");
         if (snip && sourceIndex >= 0 && covers) {
           markVisible();

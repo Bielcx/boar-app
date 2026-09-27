@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  namedByLexicon,
   healthSourceIndex,
   coreProcedure,
   healthTopicTerms,
@@ -400,5 +401,18 @@ describe("isCurrentEventQuery (CT-3)", () => {
     ]) {
       expect(isCurrentEventQuery(q), q).toBe(false);
     }
+  });
+});
+
+describe("namedByLexicon (PT-1: lexicon names are article titles)", () => {
+  const c = (title: string, body = "Text.") => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
+  it("a one-word name is the whole title; a multi-word name may sit in a longer title or a heading", () => {
+    expect(namedByLexicon(["Season"], c("Season"))).toBe(true);
+    expect(namedByLexicon(["Season"], c("Wikivoyage: Seasons"))).toBe(true);
+    expect(namedByLexicon(["Season"], c("US government: Hurricane Season Preparedness Digital Toolkit (Ready.gov)"))).toBe(false);
+    expect(namedByLexicon(["Season"], c("Hunting", "Seasons > Season: Hunting season is regulated."))).toBe(true);
+    expect(namedByLexicon(["Nuclear fission"], c("Potassium iodide", "Volatile nuclear fission products are released."))).toBe(false);
+    expect(namedByLexicon(["Greenhouse effect"], c("Runaway greenhouse effect"))).toBe(true);
+    expect(namedByLexicon(["Georgia (country)"], c("Georgia (country)"))).toBe(true);
   });
 });
