@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { Platform } from "react-native";
 import { DarkTheme, DefaultTheme, NavigationContainer, NavigationState, Theme, useNavigation } from "@react-navigation/native";
 import { saveNavState, savedNavState } from "./navState";
 import { createNativeStackNavigator, NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -81,31 +80,22 @@ function EvaluationRoute() {
   return <EvaluationScreen chatBusy={generating} />;
 }
 
-/** Native header for the flow screens (Loom): large title on the canvas, back and gesture from the stack. */
-function navFont(alias: string | undefined, postScript: string): string | undefined {
-  return Platform.OS === "ios" ? postScript : alias;
-}
-
-function flowHeader(t: Tokens, title: string, large = true) {
+/**
+ * Native header for the flow screens (Loom): the back button only. The screen title is drawn in the
+ * content (ScreenTitle, title1 Baloo, like the setup steps) because iOS 26 left the native large title
+ * empty whatever we tried (Prism/Harbor LT-1, tests 1-4). The header keeps `title` in a transparent
+ * colour, so VoiceOver and TalkBack still announce the screen name once on entry, and nothing shows twice.
+ * `large` is kept for the call sites; it no longer turns on a large title.
+ */
+function flowHeader(t: Tokens, title: string, _large = true) {
   return {
     headerShown: true,
     title,
-    headerLargeTitle: large,
+    headerLargeTitle: false,
     headerShadowVisible: false,
     headerTintColor: t.color.accent.text,
-    // Brand type in the native header (the system font was the only non-brand title left):
-    // large title = the setup's step title (title1, Baloo 800 26), compact = headline.
-    // iOS's UINavigationBar looks fonts up by PostScript name, not by expo-font's alias: with the alias the
-    // large title drew nothing (an empty 80 pt band; Prism LT-1). Android's header is RN text (alias works).
-    headerTitleStyle: { color: t.color.text.primary, fontFamily: navFont(t.type.headline.fontFamily, "Baloo2-Bold"), fontSize: t.type.headline.fontSize },
-    // LT-1 test 3: the large title drew nothing with a custom font (alias or PostScript) and size;
-    // colour only, to see whether the style is the cause (Harbor 777979f: the font resolves fine).
-    headerLargeTitleStyle: { color: t.color.text.primary },
+    headerTitleStyle: { color: "transparent" },
     headerStyle: { backgroundColor: t.color.bg.canvas },
-    // LT-1 test 4: with an opaque headerStyle, the large-title (scroll-edge) appearance needs its own
-    // background, or iOS may not draw the large title over it (Prism).
-    headerLargeStyle: { backgroundColor: t.color.bg.canvas },
-    headerLargeTitleShadowVisible: false,
     headerBackButtonDisplayMode: "minimal" as const,
   };
 }
