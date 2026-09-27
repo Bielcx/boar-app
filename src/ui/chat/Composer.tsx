@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { IconButton, Text } from "../components";
+import { footerBottom } from "../components/Screen";
 import { useTokens } from "../theme";
 import { VoiceInputButton } from "../VoiceInputButton";
 import { composerNotice, composerPlaceholderKey, sendMode, type ModelStatus } from "./composerState";
@@ -42,7 +43,8 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   // the screen leaves the bottom edge to the composer. Small insets (Android gestures) keep at least sm.
   // With the keyboard up there is no home indicator under the composer: keep the usual small gap.
   const keyboardUp = useKeyboardState((k) => k.isVisible);
-  const bottom = keyboardUp ? t.space.sm : Math.max(t.space.sm, insets.bottom - t.space.xs);
+  // iOS: 4 pt into the home-indicator inset, as the mockup; Android: fully above the navigation bar (Iris AN-1).
+  const bottom = keyboardUp ? t.space.sm : footerBottom(insets.bottom, t.space.xs, t.space.sm);
   // Model error: the composer is dimmed and not editable; the card above is where to act (E-5, Prism).
   const blocked = status === "error";
   const keys = composerNotice(status);
