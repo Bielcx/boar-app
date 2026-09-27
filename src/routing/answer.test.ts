@@ -764,7 +764,8 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
       return { events, result };
     };
     const compact = await run(() => {});
-    expect(compact.events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+    expect(compact.events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true, message: "The passages found don't support this answer." });
+    expect(compact.events.some((e) => e.type === "sources")).toBe(true);
     expect((compact.events.find((e) => e.type === "done") as any).finalText).toBe("");
     expect(compact.result.receipt.reasonCodes).toContain("grounding:all-citations-removed-declined-compact");
     const anyway = await run(() => {}, { answerAnyway: true });

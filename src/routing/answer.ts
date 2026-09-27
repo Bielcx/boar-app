@@ -961,7 +961,8 @@ export function createAnswerer(deps: AnswerDeps) {
           // as with no source, unless asked to answer anyway. The 4B keeps its (corrected) answer.
           if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
             reasonCodes.push("grounding:all-citations-removed-declined-compact");
-            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Não encontrei isso no acervo deste celular." : "I didn't find this in this phone's library." });
+            // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
+            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message: pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer." });
             finalText = "";
             return finish(genTier, "success", "", [], baseReceipt);
           }
