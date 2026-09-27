@@ -15,8 +15,16 @@ let fileSize = 1_000_000;
 let header: Record<string, string> | null = null;
 let inFlightInits = 0;
 let maxConcurrentInits = 0;
+/** Native messages the next initLlama calls reject with, in order. */
+const initFailures: string[] = [];
+const platform = { OS: "android" };
 
+vi.mock("react-native", () => ({ Platform: { get OS() { return platform.OS; } } }));
 vi.mock("llama.rn", () => ({
+  getBackendDevicesInfo: async () => [
+    { backend: "Metal", type: "gpu", deviceName: "MTL0", maxMemorySize: 0 },
+    { backend: "CPU", type: "cpu", deviceName: "CPU", maxMemorySize: 0 },
+  ],
   loadLlamaModelInfo: async () => {
     if (!header) throw new Error("no header");
     return header;
@@ -24,6 +32,8 @@ vi.mock("llama.rn", () => ({
   initLlama: async (params: { model: string }) => {
     const { model } = params;
     initParams.push(params);
+    const failure = initFailures.shift();
+    if (failure) throw new Error(failure);
     inFlightInits++;
     maxConcurrentInits = Math.max(maxConcurrentInits, inFlightInits);
     await new Promise((r) => setTimeout(r, 5));
@@ -79,6 +89,27 @@ beforeEach(() => {
   header = null;
   inFlightInits = 0;
   maxConcurrentInits = 0;
+  initFailures.length = 0;
+  platform.OS = "android";
+});
+
+describe("LlamaEngine Metal fallback (iPhone 13)", () => {
+  it("loads on CPU after the Metal init failure ('Failed to load model' in JS) and reports it", async () => {
+    platform.OS = "ios";
+    initFailures.push("Failed to load model"); // all llama.rn's JSI passes up; "MTL0" is only in the native log
+    const engine = new LlamaEngine();
+    const r = await engine.load("models/a.gguf");
+    expect(initParams).toHaveLength(2);
+    expect(initParams[0]).toMatchObject({ n_gpu_layers: 0, flash_attn_type: "off" });
+    expect(initParams[1]).toMatchObject({ n_gpu_layers: 0, devices: ["CPU"], flash_attn_type: "off" });
+    expect(r.backend).toEqual({ kind: "cpu-fallback", reason: "Failed to load model" });
+    expect(engine.getModelInfo()?.backend?.kind).toBe("cpu-fallback");
+  });
+
+  it("still fails with the load message when the CPU retry fails too", async () => {
+    initFailures.push("Failed to load model", "Failed to load model");
+    await expect(new LlamaEngine().load("models/a.gguf")).rejects.toThrow(/Failed to load "models\/a.gguf": Failed to load model/);
+  });
 });
 
 describe("LlamaEngine load/unload", () => {

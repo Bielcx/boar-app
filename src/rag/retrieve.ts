@@ -9,7 +9,7 @@ import {
   MIN_SEMANTIC_SIMILARITY,
 } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
-import { searchPacks } from "./packs";
+import { packHitToChunk, searchPacks, searchWikiPacks } from "./packs";
 
 export type { RetrievedChunk } from "./retrieve.types";
 
@@ -100,16 +100,28 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
  * source has anything relevant, this returns [] — never a forced top-K of
  * whatever happened to be least-irrelevant.
  */
-export async function retrieve(query: string, topK = 6): Promise<RetrievedChunk[]> {
-  const queryVec = await embeddingEngine.embed(query);
-  const [lexical, semantic, packs] = await Promise.all([
+export async function retrieve(
+  query: string,
+  topK = 6,
+  opts: { queryVec?: Float32Array; includeWikiPacks?: boolean } = {}
+): Promise<RetrievedChunk[]> {
+  const { includeWikiPacks = true } = opts;
+  const queryVec = opts.queryVec ?? (await embeddingEngine.embed(query));
+  const [lexical, semantic, packs, wiki] = await Promise.all([
     lexicalSearch(query, topK * 2),
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
+    includeWikiPacks ? searchWikiPacks(query, { k: topK, queryVec }).catch(() => []) : Promise.resolve([]),
   ]);
 
-  return fuseRetrievalResults([...lexical, ...packs.lexical], [...semantic, ...packs.semantic], topK);
+  // Large-pack passages from articles the question names come first, in the
+  // pack's own order; its keyword hits compete with everything else.
+  const named = wiki.flatMap((w) => w.hits.filter((h) => h.via === "title").map((h) => packHitToChunk(w.packId, h)));
+  const wikiLexical = wiki.flatMap((w) => w.hits.filter((h) => h.via !== "title").map((h) => packHitToChunk(w.packId, h)));
+  const fused = fuseRetrievalResults([...lexical, ...packs.lexical, ...wikiLexical], [...semantic, ...packs.semantic], topK);
+  const seen = new Set(named.map((c) => c.chunkId));
+  return [...named, ...fused.filter((c) => !seen.has(c.chunkId))].slice(0, Math.max(topK, named.length));
 }
 
 export { assemblePrompt } from "./pure";

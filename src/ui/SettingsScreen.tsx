@@ -3,14 +3,15 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
+import { voiceInBuild } from "../config/variant";
 import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
   Appearance,
+  getAnswerSettings,
+  setAnswerSettings,
   FontScale,
-  getAdaptiveRoutingEnabled,
-  getDeepResearchMode,
   getHapticsEnabled,
   getMaxTokens,
   getMemorySettings,
@@ -18,8 +19,6 @@ import {
   getVoiceInputEnabled,
   LanguageId,
   PaletteChoice,
-  setAdaptiveRoutingEnabled,
-  setDeepResearchMode,
   setHapticsEnabled,
   setVoiceInputEnabled,
 } from "../models/settings";
@@ -62,8 +61,8 @@ export function SettingsScreen() {
         const [personality, maxTokens, quickFirst, alwaysComplete, memory, haptics, voice] = await Promise.all([
           getPersonalityId(),
           getMaxTokens(),
-          getAdaptiveRoutingEnabled(),
-          getDeepResearchMode(),
+          getAnswerSettings().then((a) => a.quickFirst),
+          getAnswerSettings().then((a) => a.alwaysComplete),
           getMemorySettings(),
           getHapticsEnabled(),
           getVoiceInputEnabled(),
@@ -116,7 +115,7 @@ export function SettingsScreen() {
           title={t("flows.settings.quickFirst")}
           subtitle={t("flows.settings.quickFirstHint")}
           switch={{ value: values.quickFirst, onValueChange: (v) => {
-              update("quickFirst", v, setAdaptiveRoutingEnabled);
+              update("quickFirst", v, (quickFirst) => setAnswerSettings({ quickFirst }));
               announce(t(answerModeKey(v, values.alwaysComplete)));
             } }}
         />
@@ -125,7 +124,7 @@ export function SettingsScreen() {
           title={t("flows.settings.alwaysComplete")}
           subtitle={t("flows.settings.alwaysCompleteHint")}
           switch={{ value: values.alwaysComplete, onValueChange: (v) => {
-              update("alwaysComplete", v, setDeepResearchMode);
+              update("alwaysComplete", v, (alwaysComplete) => setAnswerSettings({ alwaysComplete }));
               announce(t(answerModeKey(values.quickFirst, v)));
             } }}
         />
@@ -149,19 +148,22 @@ export function SettingsScreen() {
       <Section title={t("flows.settings.appearance")}>
         <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
           <SegmentedControl<Appearance>
+            size="compact"
             label={t("flows.settings.theme")}
             value={appearance}
             onChange={setAppearance}
             options={[
-              { value: "system", label: t("flows.settings.themeSystem") },
-              { value: "light", label: t("flows.settings.themeLight") },
+              // Dark (Fogueira) is the default, so it comes first.
               { value: "dark", label: t("flows.settings.themeDark") },
+              { value: "light", label: t("flows.settings.themeLight") },
+              { value: "system", label: t("flows.settings.themeSystem") },
             ]}
           />
-          <Text variant="subhead" color="secondary">
+          <Text variant="label" color="secondary">
             {t("flows.settings.palette")}
           </Text>
           <SegmentedControl<PaletteChoice>
+            size="compact"
             label={t("flows.settings.palette")}
             value={palette}
             onChange={setPalette}
@@ -170,10 +172,11 @@ export function SettingsScreen() {
               { value: "luar", label: t("flows.settings.paletteLuar") },
             ]}
           />
-          <Text variant="subhead" color="secondary">
+          <Text variant="label" color="secondary">
             {t("flows.settings.textSize")}
           </Text>
           <SegmentedControl<FontScale>
+            size="compact"
             label={t("flows.settings.textSize")}
             value={fontScale}
             onChange={setFontScale}
@@ -183,10 +186,11 @@ export function SettingsScreen() {
               { value: "large", label: t("flows.settings.textLarge") },
             ]}
           />
-          <Text variant="subhead" color="secondary">
+          <Text variant="label" color="secondary">
             {t("flows.settings.language")}
           </Text>
           <SegmentedControl<LanguageId>
+            size="compact"
             label={t("flows.settings.language")}
             value={languageId}
             onChange={setLanguage}
@@ -204,9 +208,16 @@ export function SettingsScreen() {
         />
       </Section>
 
-      <Section title={t("flows.settings.input")} footer={t("flows.settings.voiceNote")}>
-        <ListRow icon="mic" title={t("flows.settings.voice")} switch={{ value: values.voice, onValueChange: (v) => update("voice", v, setVoiceInputEnabled) }} />
-      </Section>
+      {/* The offline build has no microphone permission: say so instead of offering a switch that contradicts the manifest (Prism P4-1). */}
+      {voiceInBuild() ? (
+        <Section title={t("flows.settings.input")} footer={t("flows.settings.voiceNote")}>
+          <ListRow icon="mic" title={t("flows.settings.voice")} switch={{ value: values.voice, onValueChange: (v) => update("voice", v, setVoiceInputEnabled) }} />
+        </Section>
+      ) : (
+        <Section title={t("flows.settings.input")}>
+          <ListRow icon="mic-off" title={t("flows.settings.voice")} subtitle={t("flows.settings.voiceNotInBuild")} />
+        </Section>
+      )}
 
       <Section>
         <ListRow icon="activity" title={t("flows.settings.performance")} onPress={() => navigation.navigate("Performance")} />

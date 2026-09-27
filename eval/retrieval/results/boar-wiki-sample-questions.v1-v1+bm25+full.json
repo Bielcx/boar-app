@@ -1,0 +1,355 @@
+{
+  "pack": "boar-wiki-sample.sqlite",
+  "packMeta": {
+    "format": "boar-knowledge-pack",
+    "formatVersion": "2",
+    "dims": "384",
+    "embeddingModelSha256": "",
+    "sources": "{\"enwiki\":{\"dataset\":\"HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)\",\"shards\":[\"000_00007.parquet\"],\"articles\":403973},\"enwikivoyage\":{\"dump\":\"enwikivoyage-latest-pages-articles.xml.bz2\",\"articles\":34002},\"redirects\":\"enwiki-latest-redirect.sql.gz\"}",
+    "license": "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    "articles": "437975",
+    "chunks": "2462151",
+    "indexedChunks": "2130224",
+    "dfMin": "2000",
+    "params": "{\"fullTop\":1000000,\"leadChars\":2500,\"chunkChars\":1000,\"blockKb\":64,\"zlevel\":12,\"limit\":0}",
+    "builtAt": "2026-09-26T19:07:53.543Z"
+  },
+  "questions": "eval/retrieval/questions.v1.jsonl",
+  "n": 160,
+  "measuredAt": "2026-09-26T19:56:12.847Z",
+  "results": {
+    "v1-baseline": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.85,
+        "recall@3": 0.938,
+        "recall@6": 0.963,
+        "mrr10": 0.896,
+        "p50ms": 361.6,
+        "p95ms": 1378.4
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.868,
+        "recall@3": 0.974,
+        "recall@6": 0.974,
+        "mrr10": 0.917,
+        "p50ms": 379.7,
+        "p95ms": 1413.4
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.833,
+        "recall@3": 0.905,
+        "recall@6": 0.952,
+        "mrr10": 0.878,
+        "p50ms": 361.6,
+        "p95ms": 1301.3
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 1,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 1,
+          "p50ms": 597.1,
+          "p95ms": 1413.4
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 462.9,
+          "p95ms": 1685.6
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 611.3,
+          "p95ms": 2078.1
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.9,
+          "mrr10": 0.838,
+          "p50ms": 818.2,
+          "p95ms": 2425.4
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.892,
+          "p50ms": 326.5,
+          "p95ms": 1071.6
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.887,
+          "p50ms": 169.4,
+          "p95ms": 389.5
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 215.2,
+          "p95ms": 508.4
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.55,
+          "recall@3": 0.75,
+          "recall@6": 0.85,
+          "mrr10": 0.654,
+          "p50ms": 197,
+          "p95ms": 465.9
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00410195",
+        "ret-voyage-named-00411176",
+        "ret-voyage-named-00426124"
+      ]
+    },
+    "bm25+title-weight+popularity": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.8,
+        "recall@3": 0.919,
+        "recall@6": 0.95,
+        "mrr10": 0.866,
+        "p50ms": 131,
+        "p95ms": 268.4
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.816,
+        "recall@3": 0.947,
+        "recall@6": 0.961,
+        "mrr10": 0.886,
+        "p50ms": 128.8,
+        "p95ms": 268.4
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.786,
+        "recall@3": 0.893,
+        "recall@6": 0.94,
+        "mrr10": 0.849,
+        "p50ms": 137.1,
+        "p95ms": 264.9
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 138,
+          "p95ms": 305.9
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.935,
+          "p50ms": 147.2,
+          "p95ms": 208.7
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.875,
+          "p50ms": 147.6,
+          "p95ms": 421.9
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.6,
+          "recall@3": 0.75,
+          "recall@6": 0.85,
+          "mrr10": 0.699,
+          "p50ms": 154.6,
+          "p95ms": 377.1
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 113,
+          "p95ms": 212.7
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 137.1,
+          "p95ms": 251.8
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 113.5,
+          "p95ms": 238.5
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.6,
+          "recall@3": 0.8,
+          "recall@6": 0.9,
+          "mrr10": 0.722,
+          "p50ms": 123.8,
+          "p95ms": 284.2
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-unviewed-descriptive-00192898",
+        "ret-unviewed-named-00192898",
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00411176",
+        "ret-voyage-named-00412553"
+      ]
+    },
+    "full (named titles first)": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.863,
+        "recall@3": 0.969,
+        "recall@6": 0.975,
+        "mrr10": 0.915,
+        "p50ms": 97.9,
+        "p95ms": 206.2
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.882,
+        "recall@3": 0.961,
+        "recall@6": 0.974,
+        "mrr10": 0.925,
+        "p50ms": 101.7,
+        "p95ms": 194.6
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.845,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.907,
+        "p50ms": 97.9,
+        "p95ms": 206.2
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 105.8,
+          "p95ms": 207
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 145.8,
+          "p95ms": 292.3
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 141.6,
+          "p95ms": 206.8
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 125.9,
+          "p95ms": 206.2
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 71.8,
+          "p95ms": 176.4
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 80.6,
+          "p95ms": 155.8
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 84,
+          "p95ms": 196.9
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.7,
+          "recall@3": 0.95,
+          "recall@6": 1,
+          "mrr10": 0.825,
+          "p50ms": 71,
+          "p95ms": 235.6
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692"
+      ]
+    }
+  }
+}

@@ -25,14 +25,14 @@ describe("modelRowView", () => {
     expect(v.state).toMatchObject({ kind: "downloading", phase: "copying" });
   });
 
-  it("reports hash progress while verifying, or null when the total is unknown", () => {
+  it("reports hash progress while verifying", () => {
     const v = view({
       download: { downloading: true, progress: 1, error: null, phase: "verifying", verifyBytes: 25, verifyTotal: 100 },
     });
     expect(v.state).toEqual({ kind: "verifying", progress: 0.25 });
-    expect(view({ download: { downloading: true, progress: 1, error: null, phase: "verifying" } }).state).toEqual({
+    expect(view({ download: { downloading: true, progress: 0.6, error: null, phase: "verifying" } }).state).toEqual({
       kind: "verifying",
-      progress: null,
+      progress: 0.6,
     });
   });
 
@@ -100,5 +100,13 @@ describe("canAutoRetry", () => {
     expect(canAutoRetry(failed("storage", true))).toBe(false);
     expect(canAutoRetry(view({ present: true, loadError: "oom" }).state)).toBe(false);
     expect(canAutoRetry(view({}).state)).toBe(false);
+  });
+});
+
+describe("error kinds from the trust layer", () => {
+  it("keeps an unreadable imported file as a permanent failure", () => {
+    const v = view({ download: { downloading: false, progress: 0, error: "unreadable", errorKind: "unknown-file", permanent: true } });
+    expect(v.state).toMatchObject({ kind: "failed", errorKind: "unknown-file", permanent: true });
+    expect(canAutoRetry(v.state)).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isFresh, toError, toPoint } from "./location.pure";
+import { isFresh, permissionBlock, toError, toPoint } from "./location.pure";
 
 describe("toPoint", () => {
   it("renames the fields and computes the fix age in seconds", () => {
@@ -29,5 +29,13 @@ describe("isFresh", () => {
     expect(isFresh(pos, 1000 + 60_000, 60_000)).toBe(true);
     expect(isFresh(pos, 1000 + 60_001, 60_000)).toBe(false);
     expect(isFresh(null, 0, 60_000)).toBe(false);
+  });
+});
+
+describe("permissionBlock", () => {
+  it("lets a granted permission through and never prompts by itself", () => {
+    expect(permissionBlock("granted")).toBeNull();
+    expect(permissionBlock("undetermined")).toEqual({ error: "prompt" });
+    expect(permissionBlock("denied")).toEqual({ error: "denied" });
   });
 });

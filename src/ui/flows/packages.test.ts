@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { MODEL_CATALOG, TIERS } from "../../models/manifest";
-import { PACKAGES, packageAssets, planPackage, storageShortfall, transferSeconds } from "./packages";
+import { COMPACT_ANSWER_MODEL, DEFAULT_ANSWER_MODEL, MODEL_CATALOG, TIERS } from "../../models/manifest";
+import { answerModelChoices, PACKAGES, packageAssets, planPackage, recommendPackage, storageShortfall, transferSeconds } from "./packages";
 
 const tier = (id: string) => TIERS.find((t) => t.id === id)!;
 
@@ -11,11 +11,11 @@ describe("PACKAGES", () => {
 });
 
 describe("packageAssets", () => {
-  it("always includes the required models plus the tier's packs", () => {
+  it("installs the search model, one answer model (the standard one by default) and the tier's packs", () => {
     const assets = packageAssets(tier("encyclopedia"), MODEL_CATALOG);
-    for (const m of MODEL_CATALOG.filter((m) => m.required)) expect(assets).toContain(m);
+    for (const m of MODEL_CATALOG.filter((m) => m.required && m.kind !== "llm")) expect(assets).toContain(m);
     expect(assets.map((a) => a.id)).toEqual(expect.arrayContaining(tier("encyclopedia").corpusPackIds));
-    expect(assets.filter((a) => a.kind === "llm" && !a.required)).toHaveLength(0);
+    expect(assets.filter((a) => a.kind === "llm").map((a) => a.id)).toEqual([DEFAULT_ANSWER_MODEL.id]);
   });
 });
 
@@ -58,5 +58,51 @@ describe("storageShortfall", () => {
     expect(storageShortfall(100, 40)).toBe(60);
     expect(storageShortfall(100, 400)).toBe(0);
     expect(storageShortfall(100, 0)).toBe(0);
+  });
+});
+
+describe("answer model choice", () => {
+  const embedding = MODEL_CATALOG.find((m) => m.kind === "embedding" && m.required)!;
+  const big = { ...MODEL_CATALOG[0], id: "qwen3-4b", kind: "llm" as const, required: false, answerTier: "default" as const, sizeBytes: 2_500 };
+  const small = { ...MODEL_CATALOG[0], id: "qwen2.5-1.5b", kind: "llm" as const, required: false, answerTier: "compact" as const, sizeBytes: 1_000 };
+
+  it("reads default and compact from answerTier", () => {
+    const choices = answerModelChoices([embedding, big, small]);
+    expect(choices.default?.id).toBe("qwen3-4b");
+    expect(choices.compact?.id).toBe("qwen2.5-1.5b");
+  });
+
+  it("reads the manifest's standard and compact answer models", () => {
+    const choices = answerModelChoices(MODEL_CATALOG);
+    expect(choices.default?.id).toBe(DEFAULT_ANSWER_MODEL.id);
+    expect(choices.compact?.id).toBe(COMPACT_ANSWER_MODEL.id);
+  });
+
+  it("falls back to the required language model when no answerTier is set", () => {
+    const legacy = [embedding, { ...big, answerTier: undefined, required: true }];
+    const choices = answerModelChoices(legacy);
+    expect(choices.default?.id).toBe("qwen3-4b");
+    expect(choices.compact).toBeUndefined();
+  });
+
+  it("installs the chosen answer model with the search model and the packs", () => {
+    const assets = packageAssets(tier("full"), [embedding, big, small, ...MODEL_CATALOG.filter((m) => m.kind === "corpus")], small);
+    expect(assets.filter((a) => a.kind === "llm").map((a) => a.id)).toEqual(["qwen2.5-1.5b"]);
+    expect(assets).toContain(embedding);
+  });
+
+});
+
+describe("recommendPackage", () => {
+  it("recommends the richest package that fits", () => {
+    expect(recommendPackage([{ id: "essential", shortfall: 0 }, { id: "encyclopedia", shortfall: 0 }])).toBe("encyclopedia");
+  });
+
+  it("falls back to a smaller package when the richer one doesn't fit", () => {
+    expect(recommendPackage([{ id: "essential", shortfall: 0 }, { id: "encyclopedia", shortfall: 10 }])).toBe("essential");
+  });
+
+  it("recommends the smallest package when nothing fits", () => {
+    expect(recommendPackage([{ id: "essential", shortfall: 5 }, { id: "encyclopedia", shortfall: 10 }])).toBe("essential");
   });
 });

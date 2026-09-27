@@ -37,19 +37,18 @@ export function cosineSimilarityInt8(query: Float32Array, bytes: Uint8Array): nu
   return dot / (Math.sqrt(normQ) * Math.sqrt(normV));
 }
 
-// bge-small-en-v1.5 cosine similarity heuristic: below this, a chunk isn't
-// actually about the query, it's just whatever happened to be "closest" out
-// of everything in the knowledge base — brute-force top-K with no floor
-// means even a query with nothing relevant on-device always gets K chunks
-// back, which then get force-fed into the prompt as "Context" the model is
-// told to answer from. Not a precise cutoff (no real device/embedding
-// runtime available to measure this corpus's actual score distribution —
-// see retrieve.relevance.test.ts), just cheap, evidence-informed-as-far-as-
-// possible insurance against near-random matches being presented as
-// relevant. Left unchanged rather than invented/re-guessed — moving it
-// without real score-distribution data to justify a new number would be
-// exactly the mistake it's meant to prevent.
-export const MIN_SEMANTIC_SIMILARITY = 0.45;
+// bge-small-en-v1.5 cosine floor for a semantic hit to count as relevant.
+// Without one, brute-force top-K always returns K chunks even when nothing
+// on the device is about the question, and they get fed to the model as
+// context. Measured on 2026-09-26 (eval/retrieval/questions.v1, 160
+// questions against Wikipedia article leads; docs/KNOWLEDGE_PACKS.md):
+// question → right article: p5 0.573, median 0.776; question → random
+// article: median 0.380, p95 0.483, p99 0.530. The old floor of 0.45 let
+// 13% of random articles through, which is how "Which signature algorithms
+// are quantum resistant?" got answered from the RSA article when no
+// post-quantum text was installed. 0.55 keeps 98% of right articles and
+// 0.6% of random ones.
+export const MIN_SEMANTIC_SIMILARITY = 0.55;
 
 /**
  * Chunks given to the model for a chat answer. Each chunk adds prompt

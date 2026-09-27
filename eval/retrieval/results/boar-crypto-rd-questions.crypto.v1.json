@@ -1,0 +1,296 @@
+{
+  "pack": "boar-crypto-rd.sqlite",
+  "packMeta": {
+    "format": "boar-knowledge-pack",
+    "formatVersion": "2",
+    "dims": "384",
+    "embeddingModelSha256": "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
+    "sources": "{\"eips\":{\"documents\":1208,\"licenses\":{\"CC0 1.0\":1208}},\"bips\":{\"documents\":180,\"licenses\":{\"BSD-2-Clause OR OPUBL-1.0\":4,\"BSD-2-Clause\":64,\"BSD-3-Clause OR CC0-1.0\":10,\"PD\":42,\"MIT\":3,\"CC0-1.0\":26,\"BSD-3-Clause\":27,\"CC-BY-4.0\":1,\"BSD-2-Clause OR FSFAP\":1,\"CC0-1.0 OR FSFAP\":2}},\"ethspecs\":{\"documents\":156,\"licenses\":{\"CC0 1.0\":129,\"CC BY-SA 4.0\":27}},\"ethereumorg\":{\"documents\":228,\"licenses\":{\"MIT\":228}},\"enwiki\":{\"documents\":1369,\"licenses\":{\"CC BY-SA 4.0\":1369}}}",
+    "license": "CC0 1.0; BSD-2-Clause OR OPUBL-1.0; BSD-2-Clause; BSD-3-Clause OR CC0-1.0; PD; MIT; CC0-1.0; BSD-3-Clause; CC-BY-4.0; BSD-2-Clause OR FSFAP; CC0-1.0 OR FSFAP; CC BY-SA 4.0",
+    "manifestSha256": "006eada262530989527fe05b7d3f2fed43f3c89bf0404393f1060c2092943acf",
+    "name": "Ethereum and cryptography",
+    "articles": "3141",
+    "chunks": "54998",
+    "indexedChunks": "53680",
+    "dfMin": "2000",
+    "params": "{\"fullTop\":1000000,\"leadChars\":2500,\"chunkChars\":1000,\"blockKb\":64,\"zlevel\":12,\"limit\":0,\"embedTop\":0}",
+    "builtAt": "2026-09-27T00:06:00.175Z"
+  },
+  "questions": "eval/retrieval/questions.crypto.v1.jsonl",
+  "n": 20,
+  "measuredAt": "2026-09-27T00:06:59.324Z",
+  "results": {
+    "v1-baseline": {
+      "all": {
+        "n": 20,
+        "recall@1": 0.4,
+        "recall@3": 0.65,
+        "recall@6": 0.8,
+        "mrr10": 0.568,
+        "p50ms": 180.9,
+        "p95ms": 659.4
+      },
+      "dev": {
+        "n": 10,
+        "recall@1": 0.5,
+        "recall@3": 0.8,
+        "recall@6": 0.8,
+        "mrr10": 0.66,
+        "p50ms": 243.2,
+        "p95ms": 659.4
+      },
+      "test": {
+        "n": 10,
+        "recall@1": 0.3,
+        "recall@3": 0.5,
+        "recall@6": 0.8,
+        "mrr10": 0.475,
+        "p50ms": 180.9,
+        "p95ms": 452.4
+      },
+      "byCategory": {
+        "crypto-descriptive": {
+          "n": 10,
+          "recall@1": 0.5,
+          "recall@3": 0.8,
+          "recall@6": 0.9,
+          "mrr10": 0.675,
+          "p50ms": 358.7,
+          "p95ms": 659.4
+        },
+        "crypto-named": {
+          "n": 10,
+          "recall@1": 0.3,
+          "recall@3": 0.5,
+          "recall@6": 0.7,
+          "mrr10": 0.46,
+          "p50ms": 173.3,
+          "p95ms": 365.3
+        }
+      },
+      "misses": [
+        "crypto-named-002",
+        "crypto-named-003",
+        "crypto-named-005",
+        "crypto-descriptive-014"
+      ]
+    },
+    "bm25+title-weight+popularity": {
+      "all": {
+        "n": 20,
+        "recall@1": 0.4,
+        "recall@3": 0.65,
+        "recall@6": 0.7,
+        "mrr10": 0.515,
+        "p50ms": 81,
+        "p95ms": 488.9
+      },
+      "dev": {
+        "n": 10,
+        "recall@1": 0.3,
+        "recall@3": 0.7,
+        "recall@6": 0.7,
+        "mrr10": 0.46,
+        "p50ms": 81,
+        "p95ms": 315.1
+      },
+      "test": {
+        "n": 10,
+        "recall@1": 0.5,
+        "recall@3": 0.6,
+        "recall@6": 0.7,
+        "mrr10": 0.57,
+        "p50ms": 160.1,
+        "p95ms": 488.9
+      },
+      "byCategory": {
+        "crypto-descriptive": {
+          "n": 10,
+          "recall@1": 0.4,
+          "recall@3": 0.6,
+          "recall@6": 0.6,
+          "mrr10": 0.483,
+          "p50ms": 52.8,
+          "p95ms": 160.1
+        },
+        "crypto-named": {
+          "n": 10,
+          "recall@1": 0.4,
+          "recall@3": 0.7,
+          "recall@6": 0.8,
+          "mrr10": 0.547,
+          "p50ms": 257.4,
+          "p95ms": 488.9
+        }
+      },
+      "misses": [
+        "crypto-named-003",
+        "crypto-named-005",
+        "crypto-descriptive-012",
+        "crypto-descriptive-014",
+        "crypto-descriptive-015",
+        "crypto-descriptive-020"
+      ]
+    },
+    "full (named titles first)": {
+      "all": {
+        "n": 20,
+        "recall@1": 0.65,
+        "recall@3": 0.8,
+        "recall@6": 0.9,
+        "mrr10": 0.728,
+        "p50ms": 56,
+        "p95ms": 236.7
+      },
+      "dev": {
+        "n": 10,
+        "recall@1": 0.7,
+        "recall@3": 0.9,
+        "recall@6": 0.9,
+        "mrr10": 0.767,
+        "p50ms": 119.8,
+        "p95ms": 172.1
+      },
+      "test": {
+        "n": 10,
+        "recall@1": 0.6,
+        "recall@3": 0.7,
+        "recall@6": 0.9,
+        "mrr10": 0.69,
+        "p50ms": 56,
+        "p95ms": 236.7
+      },
+      "byCategory": {
+        "crypto-descriptive": {
+          "n": 10,
+          "recall@1": 0.5,
+          "recall@3": 0.6,
+          "recall@6": 0.8,
+          "mrr10": 0.59,
+          "p50ms": 132.1,
+          "p95ms": 180.5
+        },
+        "crypto-named": {
+          "n": 10,
+          "recall@1": 0.8,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.867,
+          "p50ms": 30.7,
+          "p95ms": 236.7
+        }
+      },
+      "misses": [
+        "crypto-descriptive-014",
+        "crypto-descriptive-015"
+      ]
+    },
+    "full + lead-embedding rerank w0.2": {
+      "all": {
+        "n": 20,
+        "recall@1": 0.6,
+        "recall@3": 0.8,
+        "recall@6": 0.85,
+        "mrr10": 0.711,
+        "p50ms": 28.8,
+        "p95ms": 79.6
+      },
+      "dev": {
+        "n": 10,
+        "recall@1": 0.6,
+        "recall@3": 0.9,
+        "recall@6": 0.9,
+        "mrr10": 0.733,
+        "p50ms": 47.6,
+        "p95ms": 79.6
+      },
+      "test": {
+        "n": 10,
+        "recall@1": 0.6,
+        "recall@3": 0.7,
+        "recall@6": 0.8,
+        "mrr10": 0.689,
+        "p50ms": 28.8,
+        "p95ms": 67.3
+      },
+      "byCategory": {
+        "crypto-descriptive": {
+          "n": 10,
+          "recall@1": 0.4,
+          "recall@3": 0.6,
+          "recall@6": 0.7,
+          "mrr10": 0.539,
+          "p50ms": 47.6,
+          "p95ms": 79.6
+        },
+        "crypto-named": {
+          "n": 10,
+          "recall@1": 0.8,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.883,
+          "p50ms": 18.2,
+          "p95ms": 55.5
+        }
+      },
+      "misses": [
+        "crypto-descriptive-014",
+        "crypto-descriptive-015",
+        "crypto-descriptive-020"
+      ]
+    },
+    "full + lead-embedding rerank w0.5": {
+      "all": {
+        "n": 20,
+        "recall@1": 0.65,
+        "recall@3": 0.85,
+        "recall@6": 0.9,
+        "mrr10": 0.75,
+        "p50ms": 34.5,
+        "p95ms": 278.1
+      },
+      "dev": {
+        "n": 10,
+        "recall@1": 0.7,
+        "recall@3": 0.9,
+        "recall@6": 0.9,
+        "mrr10": 0.8,
+        "p50ms": 37.3,
+        "p95ms": 278.1
+      },
+      "test": {
+        "n": 10,
+        "recall@1": 0.6,
+        "recall@3": 0.8,
+        "recall@6": 0.9,
+        "mrr10": 0.7,
+        "p50ms": 34.5,
+        "p95ms": 261
+      },
+      "byCategory": {
+        "crypto-descriptive": {
+          "n": 10,
+          "recall@1": 0.4,
+          "recall@3": 0.7,
+          "recall@6": 0.8,
+          "mrr10": 0.55,
+          "p50ms": 37.7,
+          "p95ms": 278.1
+        },
+        "crypto-named": {
+          "n": 10,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 27.6,
+          "p95ms": 261
+        }
+      },
+      "misses": [
+        "crypto-descriptive-014",
+        "crypto-descriptive-015"
+      ]
+    }
+  }
+}

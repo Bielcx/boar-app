@@ -11,7 +11,7 @@ every status. Statuses are only what has been checked:
 Raw benchmark files (JSONL, answers, reports) are in [evidence/](evidence/);
 the demo videos and screenshots are in [demo/](demo/README.md).
 
-Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
+Last reviewed: 2026-09-26 (items 5, 10 and 14); 2026-09-25 for the rest. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
 (Dimensity 8300), 11.6 GB RAM, Android 16.
 
 | # | Requirement | Status |
@@ -20,7 +20,7 @@ Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
 | 2 | Operates within 12 GB of RAM | PASS |
 | 3 | Uses at most 50 GB for app, models, indexes and assets | PASS |
 | 4 | Works completely offline once installed | PASS |
-| 5 | No API calls, remote inference, web searches or network requests during use | PASS |
+| 5 | No API calls, remote inference, web searches or network requests during use | PARTIAL |
 | 6 | Doesn't require Google Play Services for core functionality | PASS |
 | 7 | Handles explanation, comparison, synthesis and reasoning | PARTIAL |
 | 8 | Responds at speeds usable for real lookups | PARTIAL |
@@ -56,8 +56,10 @@ Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
   (`LlamaEngine.estimateFit`).
 
 ### 3. 50 GB storage — PASS
-- Default install: about 1 GB of models (Qwen2.5-1.5B 0.99 GB, bge-small
-  0.04 GB) plus a few MB of knowledge base.
+- Default install from v1.1: about 2.5 GB of models (Qwen3-4B-Instruct-2507
+  2.50 GB, bge-small 0.04 GB), or about 1 GB with the compact answer model
+  (Qwen2.5-1.5B 0.99 GB), plus a few MB of knowledge base. v1.0.0 installed
+  the 1.5B.
 - Every optional catalog model (Phi-3.5-mini, Qwen2.5-7B, LFM2.5-8B-A1B,
   Gemma 4 E4B) adds about 17.4 GB, and the Wikipedia Vital Articles knowledge
   pack 0.16 GB, for about 18.6 GB in total.
@@ -76,21 +78,83 @@ Last reviewed: 2026-09-25. Test device: Xiaomi 2311DRK48G, MediaTek MT6897
   a follow-up and the knowledge pack answering
   ([demo/](demo/README.md), 2026-09-24).
 
-### 5. No network requests during use — PASS
-The only network code in the app (`src/`):
+### 5. No network requests during use — PARTIAL
+Two Android builds exist ([BUILD_VARIANTS.md](BUILD_VARIANTS.md)):
+
+| Build | Network permissions | How models arrive |
+|---|---|---|
+| **offline** (`make apk-offline`) | none: `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and the `CHANGE_*` ones are removed from the merged manifest | imported from files, checked by size + SHA-256 ([OFFLINE_INSTALL.md](OFFLINE_INSTALL.md)) |
+| downloader (`make apk-downloader`, the v1.0.0 release) | `INTERNET` | downloaded in the app, checked by size + SHA-256; file import also works |
+
+Permissions the published **v1.0.0** APK declares (`aapt dump permissions`):
+`INTERNET`, `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `VIBRATE`, `WAKE_LOCK`,
+`READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` (max SDK 32). It does
+**not** declare `ACCESS_NETWORK_STATE`; an earlier version of this page said it
+did. From the next release both builds drop `SYSTEM_ALERT_WINDOW` (left over
+from the development template) and the storage permissions (imports use the
+system file picker), and set `allowBackup="false"`, `usesCleartextTraffic="false"`
+and `dataExtractionRules` excluding every storage domain from cloud backup and
+device-to-device transfer (Android 12+ ignores `allowBackup` for transfers). The offline build also drops `RECORD_AUDIO`
+unless built with `EXPO_PUBLIC_BOAR_VOICE=1`.
+
+The only network code in the app (`src/`), both refusing to run in the offline
+build (`networkAllowed()`, `src/config/variant.ts`):
 - `ModelManager.downloadCatalogModel` — model and knowledge-pack downloads,
   started by the setup wizard or an explicit Download tap.
 - `src/services/modelBrowser.ts` — Hugging Face model search, only when the user
   searches.
 
-Inference, retrieval, chat history, telemetry and evaluation make no network
-calls. The APK holds `INTERNET` and `ACCESS_NETWORK_STATE` for those downloads
-only.
+A test (`src/config/networkAudit.test.ts`) fails if a new network call site
+appears anywhere else, or if a network/cloud client library (Firebase, Sentry,
+expo-updates, …) is added. CI audits the offline build's merged manifest on
+every pull request and builds and audits the full APK on `main`
+(`scripts/audit-offline-apk.sh`, which also rejects Play Services, Firebase,
+ML Kit, expo-updates, Retrofit, Ktor, Volley and Sentry classes in the dex).
+OkHttp is present in every React Native app; without `INTERNET` the OS refuses
+its sockets.
 
-Optional voice input (`modules/voice-input`) uses Android's system speech
-recognizer with offline preferred (`EXTRA_PREFER_OFFLINE`). Whether it
-recognizes offline depends on the phone's installed speech service; typing
-always works.
+Inference, retrieval, chat history, telemetry and evaluation make no network
+calls.
+
+Location ("restaurants near me") comes from the phone's GPS through the plain
+Android `LocationManager`, with no network provider, no Play Services and no
+reverse geocoding (`modules/offline-location`). It's asked for only on the first
+question that needs it, and it's never stored or sent. Both builds declare
+`ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`, never background location.
+
+Voice input is off by default. When turned on, BOAR uses Android 12+'s
+on-device speech recognizer. The regular system recognizer (usually Google's,
+which may send audio to its servers even with `EXTRA_PREFER_OFFLINE`) is used
+only if the user explicitly accepts that warning, and never in the offline
+build (`src/voice/voicePolicy.ts`). Typing always works.
+
+Evidence, offline APK (integration `b5903d0`, arm64, 131,441,642 bytes, sha256
+`d8be732965e250ca0b8fc6bf53992e3e0e6715087db3149e09fd0fdec5dab5a6`, built by
+the device lab on 2026-09-26), `scripts/audit-offline-apk.sh`:
+
+```
+== declared permissions (offline audit) ==
+android.permission.ACCESS_COARSE_LOCATION
+android.permission.ACCESS_FINE_LOCATION
+android.permission.VIBRATE
+android.permission.WAKE_LOCK
+team.sopa.aoair.offline.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+note: okhttp3 present (React Native core); inert without INTERNET
+RESULT: PASS (offline)
+```
+
+The same audit passes on an APK built from scratch by CI on GitHub's runners
+([run 36281067626](https://github.com/r4topunk/boar-app/actions/runs/36281067626),
+commit `2fdfd78`, 123,327,108 bytes, sha256
+`e80674063a725a361f40f72e977eff862b31d3ccb6c1e4edf1708e30f58a564a`, read with
+apkanalyzer): the same five permissions, `RESULT: PASS (offline)`.
+
+The device-lab APK's manifest (`aapt2 dump xmltree`) has `allowBackup=false`,
+`fullBackupContent=false`, `usesCleartextTraffic=false` and
+`dataExtractionRules=@xml/data_extraction_rules`.
+
+Why PARTIAL: a network capture of the offline build during use hasn't been
+recorded yet.
 
 ### 6. No Google Play Services — PASS
 - The release build's runtime dependencies contain no Play Services or Firebase
@@ -147,8 +211,11 @@ it's public at claim time (18).
   ([docs/KNOWLEDGE_PACKS.md](KNOWLEDGE_PACKS.md)).
 - Models: downloaded by the in-app setup wizard from the URLs in
   `src/models/manifest.ts`, which also records each file's size and SHA-256.
-  Downloads are verified by size on the device; the URLs point to each
-  repository's `main` branch rather than a pinned revision.
+  Every URL is pinned to an immutable revision (a Hugging Face commit, a repo
+  commit, or a release asset); `npm run manifest:verify` re-checks sizes and
+  hashes against the hosts. On the phone every download and every imported
+  file is hashed in streaming (native SHA-256 in 1 MiB chunks) and deleted if
+  it doesn't match.
 
 ### 11. Models and datasets documented — PASS
 [docs/MODELS.md](MODELS.md) and `src/models/manifest.ts`: every model and
@@ -170,7 +237,9 @@ then a correct answer at about 7 tok/s with Qwen2.5-1.5B.
 
 ### 14. Assets or download instructions — PASS
 The first-run setup wizard downloads every required model and optional
-knowledge pack in the app. `scripts/setup-models.sh` plus
+knowledge pack in the app (downloader build), or imports them from files
+(both builds; the only way in the offline build, see
+[OFFLINE_INSTALL.md](OFFLINE_INSTALL.md)). `scripts/setup-models.sh` plus
 `plugins/withBundledModels.js` is an alternative that bundles models into the
 APK (see [docs/MODELS.md](MODELS.md)).
 

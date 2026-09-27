@@ -1,15 +1,16 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { DocumentPickerAsset } from "expo-document-picker";
 import { useTranslation } from "react-i18next";
-import { Button, EmptyState, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, TextField, useAnnounce, useToast } from "./components";
+import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Screen, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
 import { CatalogModel, CORPUS_CATALOG } from "../models/manifest";
 import {
   deleteCustomCollection,
   exportCollection,
   importDocuments,
+  ImportCancelledError,
   ImportProgress,
   listCustomCollections,
   pickDocuments,
@@ -17,10 +18,15 @@ import {
 } from "../services/documentImporter";
 import type { CustomCollection } from "../rag/db";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
+import { CollectionIndexStatus, getCollectionIndexStatus, onCollectionIndexStatus } from "../rag/indexStatus";
 import { CatalogRow } from "./flows/CatalogRow";
+import { ImportList } from "./flows/ImportList";
+import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
-import { poiCatalogEntry, poiRegions } from "./flows/adapters";
+import { packName, placesInstall, poiCatalogEntry, poiRegions, topicPacks } from "./flows/adapters";
+import { CitySearch } from "./flows/CitySearch";
+import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
 
 function importPercent(p: ImportProgress): number | undefined {
@@ -36,6 +42,7 @@ export function KnowledgeScreen() {
   const catalog = useCatalog();
   const lang = i18n.language;
   const regions = poiRegions();
+  const packs = topicPacks();
   const { refresh } = catalog;
   const [collections, setCollections] = useState<CustomCollection[] | null>(null);
   const [seed, setSeed] = useState<SeedProgress | null>(null);
@@ -45,6 +52,9 @@ export function KnowledgeScreen() {
   const [importError, setImportError] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<CustomCollection | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [indexStatus, setIndexStatus] = useState<Record<string, CollectionIndexStatus>>(getCollectionIndexStatus);
+  const abortRef = useRef<AbortController | null>(null);
+  const [importingName, setImportingName] = useState("");
 
   const load = useCallback(async () => {
     await refresh();
@@ -57,6 +67,16 @@ export function KnowledgeScreen() {
     }, [load])
   );
   useEffect(() => onSeedProgress((p) => setSeed(p.done >= p.total ? null : p)), []);
+  useEffect(() => onCollectionIndexStatus(setIndexStatus), []);
+
+  /** One line for a collection's index state; undefined when there is nothing to say. */
+  const statusLine = (id: string): string | undefined => {
+    const st = indexStatus[id];
+    if (!st) return undefined;
+    if (st.state === "indexing") return t("flows.knowledge.indexing", { done: formatCount(st.done, lang), total: formatCount(st.total, lang) });
+    if (st.state === "error") return t("flows.knowledge.indexError", { error: st.error ?? "" });
+    return t("flows.knowledge.indexed");
+  };
 
   const downloadPack = async (pack: CatalogModel) => {
     await catalog.download(pack);
@@ -82,14 +102,23 @@ export function KnowledgeScreen() {
     const collectionName = name.trim() || files[0].name;
     setPicked(null);
     setImporting({ stage: "reading" });
+    setImportingName(collectionName);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      await importDocuments(files, collectionName, setImporting);
+      await importDocuments(files, collectionName, setImporting, controller.signal);
       announce(t("flows.knowledge.imported", { name: collectionName }));
       toast({ message: t("flows.knowledge.imported", { name: collectionName }), tone: "success" });
     } catch (e: any) {
-      setImportError(e?.message ?? String(e));
-      announce(t("flows.knowledge.importFailed"), { assertive: true });
+      // Cancelled by the user: back to where we were, no error.
+      if (e instanceof ImportCancelledError || e?.name === "AbortError") {
+        announce(t("flows.knowledge.importCancelled"));
+      } else {
+        setImportError(e?.message ?? String(e));
+        announce(t("flows.knowledge.importFailed"), { assertive: true });
+      }
     } finally {
+      abortRef.current = null;
       setImporting(null);
       setCollections(await listCustomCollections());
     }
@@ -114,10 +143,10 @@ export function KnowledgeScreen() {
   if (!catalog.loaded || collections === null) {
     return (
       <Screen>
-        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: 12 }}>
-          <Skeleton height={20} width="50%" />
-          <Skeleton height={72} />
-          <Skeleton height={72} />
+        <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
+          <Skeleton height={tokens.space.lg} width="50%" />
+          <Skeleton height={tokens.size.control * 2} />
+          <Skeleton height={tokens.size.control * 2} />
         </View>
       </Screen>
     );
@@ -127,37 +156,65 @@ export function KnowledgeScreen() {
 
   return (
     <Screen>
-      <Text variant="callout" color="secondary">
+      <Text variant="footnote" color="secondary">
         {t("flows.knowledge.intro")}
       </Text>
 
       {seed && (
-        <View style={{ gap: tokens.space.xs }}>
-          <Text variant="subhead">
-            {t("flows.knowledge.indexing", { done: formatCount(seed.done, i18n.language), total: formatCount(seed.total, i18n.language) })}
-          </Text>
+        <Card style={{ gap: tokens.space.md }}>
+          <Stat size="lg" label={t("flows.knowledge.indexingLabel")} value={String(Math.floor((seed.done / seed.total) * 100))} unit="%" />
           <Progress
             label={t("flows.knowledge.indexingLabel")}
             value={seed.done / seed.total}
-            valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, i18n.language), total: formatCount(seed.total, i18n.language) })}
+            valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
           />
-        </View>
+          <MetaLine items={[t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })]} />
+        </Card>
+      )}
+
+      {packs.length > 0 && (
+        <Section title={t("flows.knowledge.topicPacksTitle")} footer={t("flows.knowledge.topicPacksFooter")}>
+          {packs.map((pack) => (
+            <CatalogRow
+              key={pack.entry.id}
+              model={pack.entry}
+              title={packName(pack, lang)}
+              meta={t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) })}
+              details={[t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") })]}
+              view={catalog.view(pack.entry)}
+              onDownload={() => catalog.install([pack.entry])}
+              onRemove={() => catalog.remove(pack.entry)}
+            />
+          ))}
+        </Section>
       )}
 
       <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
-        <ListRow title={t("flows.knowledge.builtin")} subtitle={t("flows.knowledge.builtinSub")} />
+        <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
         {CORPUS_CATALOG.map((pack) => (
           <CatalogRow
             key={pack.id}
             model={pack}
+            details={[statusLine(pack.id)].filter((x): x is string => !!x)}
             view={catalog.view(pack)}
-            onDownload={() => downloadPack(pack)}
+            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.importFiles())}
             onRemove={() => catalog.remove(pack)}
           />
         ))}
       </Section>
 
+      {(catalog.imports.length > 0 || regions.some((r) => !canDownload(poiCatalogEntry(r)) && !catalog.statuses[poiCatalogEntry(r).id]?.present)) && (
+        <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
+          <View style={{ padding: tokens.space.base }}>
+            <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
+          </View>
+        </Section>
+      )}
+
       <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
+        <View style={{ padding: tokens.space.base }}>
+          <CitySearch catalog={catalog} />
+        </View>
         {regions.length === 0 ? (
           <View style={{ padding: tokens.space.base }}>
             <Text variant="callout" color="secondary">
@@ -174,14 +231,15 @@ export function KnowledgeScreen() {
                 key={r.id}
                 model={entry}
                 title={name}
-                meta={t("flows.places.meta", { places: formatCount(r.poiCount, lang), size: formatBytes(r.sizeBytes, lang) })}
+                meta={t("flows.places.count", { places: formatCount(r.poiCount, lang) })}
                 details={[
+                  t("flows.places.vegan", { vegan: formatCount(r.veganCount, lang), vegetarian: formatCount(r.vegetarianCount, lang) }),
                   cities.more > 0
                     ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more })
                     : cities.names.join(", "),
                 ].filter(Boolean)}
                 view={catalog.view(entry)}
-                onDownload={() => catalog.download(entry)}
+                onDownload={() => catalog.install(placesInstall(r))}
                 onRemove={() => catalog.remove(entry)}
               />
             );
@@ -235,10 +293,28 @@ export function KnowledgeScreen() {
       </Section>
 
       {importing && (
-        <View style={{ gap: tokens.space.xs }}>
-          <Text variant="subhead">{t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })}</Text>
+        <Card style={{ gap: tokens.space.md }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
+            <View style={{ flex: 1, gap: tokens.space.xxs }}>
+              <Text variant="label" color="field">
+                {t("flows.knowledge.importingLabel")}
+              </Text>
+              <Text variant="headline" numberOfLines={2}>
+                {importingName}
+              </Text>
+            </View>
+            {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
+          </View>
           <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
-        </View>
+          <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
+          <Button
+            size="sm"
+            variant="secondary"
+            label={t("common.cancel")}
+            accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
+            onPress={() => abortRef.current?.abort()}
+          />
+        </Card>
       )}
 
       {importError && (

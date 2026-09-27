@@ -9,14 +9,11 @@
  * until those land, and a row without them falls back to today's fields.
  */
 
+import type { IntegrityErrorKind } from "../../models/integrity";
+
 export type DownloadPhase = "downloading" | "copying" | "verifying" | "verified" | "error";
-export type DownloadErrorKind =
-  | "hash-mismatch"
-  | "size-mismatch"
-  | "network"
-  | "storage"
-  | "offline-variant"
-  | "unknown";
+/** The trust layer's error kinds (src/models/integrity.ts). */
+export type DownloadErrorKind = IntegrityErrorKind;
 export type FitVerdict = "resident" | "streaming" | "thrashing" | "insufficient";
 export type ModelRole = "answer" | "deep" | "search";
 
@@ -86,7 +83,8 @@ function stateOf(input: RowInput): RowState {
   }
   if (dl?.downloading) {
     if (dl.phase === "verifying") {
-      const progress = dl.verifyTotal ? (dl.verifyBytes ?? 0) / dl.verifyTotal : null;
+      // downloadManager reports hashed bytes as `progress` in this phase.
+      const progress = dl.verifyTotal ? (dl.verifyBytes ?? 0) / dl.verifyTotal : dl.progress;
       return { kind: "verifying", progress };
     }
     return { kind: "downloading", phase: dl.phase === "copying" ? "copying" : "downloading", progress: dl.progress };

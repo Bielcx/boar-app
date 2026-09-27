@@ -1,0 +1,132 @@
+{
+  "pack": "boar-wiki-sample.sqlite",
+  "packMeta": {
+    "format": "boar-knowledge-pack",
+    "formatVersion": "2",
+    "dims": "384",
+    "embeddingModelSha256": "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
+    "sources": "{\"enwiki\":{\"dataset\":\"HuggingFaceFW/finewiki (enwiki, Enterprise HTML dumps of August 2025)\",\"shards\":[\"000_00007.parquet\"],\"articles\":403973},\"enwikivoyage\":{\"dump\":\"enwikivoyage-latest-pages-articles.xml.bz2\",\"articles\":34002},\"redirects\":\"enwiki-latest-redirect.sql.gz\",\"pageviews\":\"pageviews-en-20250815.tsv\",\"days\":1}",
+    "license": "CC BY-SA 4.0 (Wikipedia, Wikivoyage)",
+    "articles": "437975",
+    "chunks": "2462151",
+    "indexedChunks": "2130224",
+    "dfMin": "2000",
+    "params": "{\"fullTop\":1000000,\"leadChars\":2500,\"chunkChars\":1000,\"blockKb\":64,\"zlevel\":12,\"limit\":0,\"embedTop\":33333}",
+    "builtAt": "2026-09-26T20:30:01.050Z"
+  },
+  "questions": "eval/retrieval/questions.v1.jsonl",
+  "n": 160,
+  "measuredAt": "2026-09-26T21:52:48.271Z",
+  "results": {
+    "full (named titles first)": {
+      "all": {
+        "n": 160,
+        "recall@1": 0.863,
+        "recall@3": 0.969,
+        "recall@6": 0.969,
+        "mrr10": 0.914,
+        "p50ms": 107.2,
+        "p95ms": 222.4
+      },
+      "dev": {
+        "n": 76,
+        "recall@1": 0.882,
+        "recall@3": 0.961,
+        "recall@6": 0.961,
+        "mrr10": 0.923,
+        "p50ms": 107.9,
+        "p95ms": 194.6
+      },
+      "test": {
+        "n": 84,
+        "recall@1": 0.845,
+        "recall@3": 0.976,
+        "recall@6": 0.976,
+        "mrr10": 0.907,
+        "p50ms": 106.4,
+        "p95ms": 231.4
+      },
+      "byCategory": {
+        "retrieval-descriptive-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 138.8,
+          "p95ms": 781.2
+        },
+        "retrieval-descriptive-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.942,
+          "p50ms": 149.5,
+          "p95ms": 274.6
+        },
+        "retrieval-descriptive-unviewed": {
+          "n": 20,
+          "recall@1": 0.85,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.925,
+          "p50ms": 147.7,
+          "p95ms": 418.2
+        },
+        "retrieval-descriptive-voyage": {
+          "n": 20,
+          "recall@1": 0.8,
+          "recall@3": 0.85,
+          "recall@6": 0.85,
+          "mrr10": 0.832,
+          "p50ms": 127.3,
+          "p95ms": 195.9
+        },
+        "retrieval-named-head": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.925,
+          "p50ms": 69,
+          "p95ms": 178.7
+        },
+        "retrieval-named-tail": {
+          "n": 20,
+          "recall@1": 0.9,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.95,
+          "p50ms": 102,
+          "p95ms": 217.6
+        },
+        "retrieval-named-unviewed": {
+          "n": 20,
+          "recall@1": 0.95,
+          "recall@3": 1,
+          "recall@6": 1,
+          "mrr10": 0.975,
+          "p50ms": 70.6,
+          "p95ms": 194
+        },
+        "retrieval-named-voyage": {
+          "n": 20,
+          "recall@1": 0.7,
+          "recall@3": 0.95,
+          "recall@6": 0.95,
+          "mrr10": 0.817,
+          "p50ms": 70.5,
+          "p95ms": 270.3
+        }
+      },
+      "misses": [
+        "ret-head-named-00280751",
+        "ret-voyage-descriptive-00415185",
+        "ret-voyage-descriptive-00426124",
+        "ret-voyage-descriptive-00437692",
+        "ret-voyage-named-00421765"
+      ]
+    }
+  }
+}

@@ -1,4 +1,7 @@
 import { requireOptionalNativeModule, EventSubscription } from "expo-modules-core";
+import * as FileSystem from "expo-file-system/legacy";
+import { APP_VARIANT, voiceInBuild } from "../config/variant";
+import { RecognitionMode, VoiceSupport, voicePolicy } from "./voicePolicy";
 
 export type VoiceEvent =
   | { type: "start" }
@@ -9,38 +12,80 @@ export type VoiceEvent =
 
 interface VoiceInputNativeModule {
   isAvailable(): Promise<boolean>;
-  startListening(): Promise<void>;
+  /** Absent in builds before on-device support: treat as "system". */
+  getRecognitionMode?(): Promise<RecognitionMode>;
+  startListening(requireOnDevice: boolean): Promise<void>;
   stopListening(): Promise<void>;
   addListener(eventName: string, listener: (event: any) => void): EventSubscription;
 }
 
 const VoiceInputNative = requireOptionalNativeModule<VoiceInputNativeModule>("VoiceInput");
 
-/**
- * Whether an on-device speech recognition service is available at all.
- * Android's SpeechRecognizer needs a system-provided recognition service
- * (Google's, or an OEM's) — commonly absent on GrapheneOS / de-Googled
- * builds with no such service installed. Returns false there rather than
- * pretending to work.
- */
-export async function isVoiceInputAvailable(): Promise<boolean> {
-  if (!VoiceInputNative) return false;
+// Consent to the system recognition service lives in its own file, not
+// settings.json, so it can't be flipped as a side effect of other settings.
+const CONSENT_PATH = `${FileSystem.documentDirectory}voice-consent.json`;
+
+export async function getSystemVoiceServiceAccepted(): Promise<boolean> {
   try {
-    return await VoiceInputNative.isAvailable();
+    return JSON.parse(await FileSystem.readAsStringAsync(CONSENT_PATH)).systemServiceAccepted === true;
   } catch {
     return false;
   }
 }
 
 /**
- * Starts one listening session, requesting on-device (offline) recognition
- * via EXTRA_PREFER_OFFLINE (see modules/voice-input). Resolves with the
+ * Records the user's explicit "yes, use the phone's speech service even
+ * though it may go online". Only meaningful in the downloader build.
+ */
+export async function setSystemVoiceServiceAccepted(accepted: boolean): Promise<void> {
+  await FileSystem.writeAsStringAsync(CONSENT_PATH, JSON.stringify({ systemServiceAccepted: accepted }));
+}
+
+async function recognitionMode(): Promise<RecognitionMode> {
+  if (!VoiceInputNative) return "unavailable";
+  try {
+    if (VoiceInputNative.getRecognitionMode) return await VoiceInputNative.getRecognitionMode();
+    return (await VoiceInputNative.isAvailable()) ? "system" : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
+
+/**
+ * What voice input can do on this phone under BOAR's policy
+ * (src/voice/voicePolicy.ts): on-device only, unless the user accepted the
+ * system service; never the system service in the offline build. The UI
+ * shows `reason` — "system-needs-consent" is where to offer the warning.
+ */
+export async function getVoiceSupport(): Promise<VoiceSupport> {
+  return voicePolicy({
+    mode: await recognitionMode(),
+    variant: APP_VARIANT,
+    voiceInBuild: voiceInBuild(),
+    systemServiceAccepted: await getSystemVoiceServiceAccepted(),
+  });
+}
+
+/** Whether the mic button can work right now under the policy above. */
+export async function isVoiceInputAvailable(): Promise<boolean> {
+  return (await getVoiceSupport()).usable;
+}
+
+/**
+ * Starts one listening session: on-device recognition, or the system
+ * service only if getVoiceSupport() allows it (see modules/voice-input). Resolves with the
  * final transcript once the recognizer reports a result, or null on
  * error/cancel. `onEvent` is optional, for UI feedback (e.g. partial
  * results, listening state) beyond the final resolved text.
  */
-export function startListening(onEvent?: (event: VoiceEvent) => void): Promise<string | null> {
-  if (!VoiceInputNative) return Promise.resolve(null);
+export async function startListening(onEvent?: (event: VoiceEvent) => void): Promise<string | null> {
+  if (!VoiceInputNative) return null;
+  const support = await getVoiceSupport();
+  if (!support.usable) {
+    onEvent?.({ type: "error", code: support.reason, message: `Voice input unavailable: ${support.reason}` });
+    return null;
+  }
+  const native = VoiceInputNative;
 
   return new Promise((resolve) => {
     const subscriptions: EventSubscription[] = [];
@@ -54,22 +99,22 @@ export function startListening(onEvent?: (event: VoiceEvent) => void): Promise<s
     };
 
     subscriptions.push(
-      VoiceInputNative.addListener("onSpeechStart", () => onEvent?.({ type: "start" })),
-      VoiceInputNative.addListener("onSpeechEnd", () => onEvent?.({ type: "end" })),
-      VoiceInputNative.addListener("onPartialResults", (e: { text: string }) =>
+      native.addListener("onSpeechStart", () => onEvent?.({ type: "start" })),
+      native.addListener("onSpeechEnd", () => onEvent?.({ type: "end" })),
+      native.addListener("onPartialResults", (e: { text: string }) =>
         onEvent?.({ type: "partial", text: e.text })
       ),
-      VoiceInputNative.addListener("onResults", (e: { text: string }) => {
+      native.addListener("onResults", (e: { text: string }) => {
         onEvent?.({ type: "result", text: e.text });
         finish(e.text);
       }),
-      VoiceInputNative.addListener("onError", (e: { code: string; message: string }) => {
+      native.addListener("onError", (e: { code: string; message: string }) => {
         onEvent?.({ type: "error", code: e.code, message: e.message });
         finish(null);
       })
     );
 
-    VoiceInputNative.startListening().catch(() => finish(null));
+    native.startListening(support.requireOnDevice).catch(() => finish(null));
   });
 }
 

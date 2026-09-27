@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, IconName, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
+import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, useToast } from "../components";
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
 import { formatBytes } from "./format";
 import type { RowState, RowView } from "./modelRowState";
+import type { MemoryFit } from "../../inference/memoryFit";
+import { canDownload } from "./useCatalog";
 
 interface Props {
   model: CatalogModel;
@@ -19,10 +21,12 @@ interface Props {
   busy?: boolean;
   /** Overrides the catalog label (e.g. a translated region name). */
   title?: string;
-  /** Replaces the kind · size · license line. */
+  /** Replaces the license line (the size always sits on the right of the name). */
   meta?: string;
   /** Extra lines under the meta line (e.g. cities covered). */
   details?: string[];
+  /** Memory estimate, for the numbers in the "won't fit" explanation. */
+  fit?: MemoryFit;
 }
 
 type Seal = { label: string; tone: Tone; emphasis: "solid" | "soft" | "outline"; icon?: IconName };
@@ -51,7 +55,7 @@ function seal(state: RowState, t: TFunction): Seal {
 
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -62,6 +66,10 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const { state } = view;
   const b = seal(state, t);
   const size = formatBytes(model.sizeBytes, i18n.language);
+  // No network in this build, or no published URL yet: the item comes in as a file.
+  const offline = !canDownload(model);
+  const getLabel = offline ? t("flows.row.importFile", { size }) : t("flows.row.download", { size });
+  const getIcon = offline ? ("file-plus" as const) : ("download" as const);
   const installed = state.kind === "installed" || state.kind === "in-use" || (state.kind === "failed" && state.errorKind === "load");
   const removable = !model.required && (installed || model.id.startsWith("hf-"));
 
@@ -79,23 +87,34 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
 
   return (
     <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
-      <View style={{ gap: tokens.space.xxs }}>
-        <Text variant="headline">{title ?? model.label}</Text>
-        <Text variant="footnote" color="secondary">
-          {meta ?? [t(`flows.row.kind.${model.kind}`), size, model.license].join(" · ")}
+      {/* The mockup's catalog card: kind overline and status seal, then the name with its size, then one metadata line. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
+        <Text variant="label" color="field" style={{ flex: 1 }}>
+          {t(`flows.row.kind.${model.kind}`)}
         </Text>
+        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+      </View>
+      <View style={{ gap: tokens.space.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.md }}>
+          <Text variant="headline" style={{ flex: 1 }}>
+            {title ?? model.label}
+          </Text>
+          <Text variant="headline" numeric>
+            {size}
+          </Text>
+        </View>
+        <MetaLine items={meta ? [meta] : [model.license]} />
         {details?.map((d) => (
-          <Text key={d} variant="footnote" color="tertiary">
+          <Text key={d} variant="footnote" color="secondary">
             {d}
           </Text>
         ))}
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
-        <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
-        {view.fitWarning && (
+      {view.fitWarning && (
+        <View style={{ flexDirection: "row" }}>
           <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
-        )}
-      </View>
+        </View>
+      )}
 
       {(state.kind === "downloading" || state.kind === "verifying") && (
         <Progress
@@ -116,7 +135,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Text variant="footnote" color="danger">
             {t(`flows.row.error.${state.errorKind}`)}
           </Text>
-          <Text variant="caption" color="tertiary" selectable>
+          <Text variant="caption" color="secondary" selectable>
             {state.message}
           </Text>
         </View>
@@ -124,14 +143,14 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
 
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         {view.primary === "download" && (
-          <Button size="sm" label={t("flows.row.download", { size })} icon="download" onPress={onDownload} />
+          <Button size="sm" label={getLabel} icon={getIcon} onPress={onDownload} />
         )}
         {view.primary === "explain" && (
           <Button
             size="sm"
             variant="secondary"
-            label={t("flows.row.download", { size })}
-            icon="download"
+            label={getLabel}
+            icon={getIcon}
             accessibilityHint={t("flows.row.fit.insufficient")}
             onPress={() => setExplainOpen(true)}
           />
@@ -167,7 +186,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <>
             <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setExplainOpen(false)} />
             <Button
-              label={t("flows.row.downloadAnyway", { size })}
+              label={offline ? t("flows.row.importAnyway", { size }) : t("flows.row.downloadAnyway", { size })}
               variant="secondary"
               fullWidth
               onPress={() => {
@@ -177,7 +196,17 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             />
           </>
         }
-      />
+      >
+        {fit && (
+          <Text variant="callout" numeric>
+            {t("flows.row.fitDetail", {
+              need: formatBytes(fit.anonBytes, i18n.language),
+              free: formatBytes(fit.availableBytes, i18n.language),
+              total: formatBytes(fit.totalBytes, i18n.language),
+            })}
+          </Text>
+        )}
+      </Sheet>
 
       <Sheet
         visible={confirmOpen}

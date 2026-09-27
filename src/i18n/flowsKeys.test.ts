@@ -16,6 +16,8 @@ const FLOW_FILES = [
   "EvaluationScreen.tsx",
   "AboutScreen.tsx",
   "flows/CatalogRow.tsx",
+  "flows/ImportList.tsx",
+  "flows/CitySearch.tsx",
   "navigation/RootNavigator.tsx",
 ].map((f) => join(__dirname, "..", "ui", f));
 
@@ -50,11 +52,15 @@ const DYNAMIC_KEYS = [
   ...expand("flows.onboarding.point", ["1", "2", "3"]),
   ...expand("flows.onboarding.package.", ["essential.name", "essential.body", "encyclopedia.name", "encyclopedia.body"]),
   ...expand("flows.onboarding.step", ["2Title", "3Title"]),
+  ...expand("flows.onboarding.", ["doneAnswer", "doneKnowledge", "donePlaces", "doneIndex"]),
+  ...expand("flows.onboarding.", ["doneTitle", "indexTitle", "importTitle", "step3Title", "doneBody", "indexSub", "importSub", "step3Sub"]),
+  ...expand("flows.onboarding.stage.", ["start", "choose", "install", "index"]),
   "flows.onboarding.languageAnnounce",
+  ...expand("flows.onboarding.answerTier.", ["default", "compact"]),
   ...expand("flows.places.reason.", ["timezone", "location", "manual"]),
   ...expand("flows.performance.band.", ["fast", "ok", "slow"]),
   ...expand("flows.performance.outcome.", ["success", "failure", "cancelled"]),
-  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "offline-variant", "load", "unknown"]),
+  ...expand("flows.row.error.", ["network", "storage", "hash-mismatch", "size-mismatch", "unknown-file", "too-large", "no-source", "offline-variant", "load", "unknown"]),
   ...expand("flows.row.fit.", ["streaming", "thrashing", "insufficient"]),
   ...expand("flows.row.fitShort.", ["streaming", "thrashing", "insufficient"]),
   ...expand("flows.row.kind.", ["llm", "embedding", "corpus"]),
@@ -68,6 +74,8 @@ function staticKeys(): string[] {
   for (const file of FLOW_FILES) {
     const source = readFileSync(file, "utf8");
     for (const m of source.matchAll(/\b(?:t|tr)\(\s*"([\w.-]+)"/g)) keys.add(m[1]);
+    // Any "flows.*" literal, including ones picked by a ternary inside t(...).
+    for (const m of source.matchAll(/"(flows\.[\w.-]+[\w-])"/g)) keys.add(m[1]);
   }
   for (const k of DYNAMIC_KEYS) keys.add(k);
   return [...keys].sort();

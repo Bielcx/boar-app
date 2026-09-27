@@ -101,7 +101,7 @@ export interface AnswerDeps {
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
-/** City path: only a fix that is already there (cached) counts for PlacesArea.deviceInside. */
+/** City path: a fix that is not in by the end of the POI search is ignored for PlacesArea.deviceInside. */
 export const DEVICE_INSIDE_TIMEOUT_MS = 150;
 /** A named city's reach from its center for deviceInside (metro areas included). */
 export const DEVICE_INSIDE_RADIUS_M = 25_000;
@@ -236,7 +236,7 @@ export function createAnswerer(deps: AnswerDeps) {
 
       let center: { lat: number; lon: number };
       let area: Extract<AnswerEvent, { type: "places" }>["area"];
-      let deviceNow: Promise<Awaited<ReturnType<GeoProviders["getLocation"]>> | null> | null = null;
+      let deviceNow: { value: Awaited<ReturnType<GeoProviders["getLocation"]>> | null } | null = null;
       if (intent.near.kind === "place") {
         const place = await geo.resolvePlace(intent.near.name).catch(() => null);
         if (!place) {
@@ -245,11 +245,11 @@ export function createAnswerer(deps: AnswerDeps) {
         }
         center = { lat: place.lat, lon: place.lon };
         area = { kind: "city", label: place.name, place: { name: place.name, country: place.country } };
-        // Runs alongside the POI search; never prompts (GeoProviders contract) and never waits for GPS.
-        deviceNow = Promise.race([
-          geo.getLocation({ timeoutMs: DEVICE_INSIDE_TIMEOUT_MS }).catch(() => null),
-          new Promise<null>((r) => setTimeout(() => r(null), DEVICE_INSIDE_TIMEOUT_MS + 50)),
-        ]);
+        // Runs alongside the POI search; never prompts (GeoProviders contract). Read only if it
+        // has already answered when the search ends: the list never waits for it.
+        const pending = { value: null as Awaited<ReturnType<GeoProviders["getLocation"]>> | null };
+        deviceNow = pending;
+        geo.getLocation({ timeoutMs: DEVICE_INSIDE_TIMEOUT_MS }).then((v) => (pending.value = v), () => {});
       } else {
         const loc = await geo.getLocation({ timeoutMs: LOCATION_TIMEOUT_MS }).catch(() => ({ error: "unavailable" as const }));
         if ("error" in loc) {
@@ -280,7 +280,7 @@ export function createAnswerer(deps: AnswerDeps) {
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
       if (deviceNow) {
-        const here = await deviceNow;
+        const here = deviceNow.value;
         if (here && !("error" in here) && distanceMeters(here, center) <= DEVICE_INSIDE_RADIUS_M) {
           area.deviceInside = true;
           reasonCodes.push("places:device-inside");
@@ -518,6 +518,7 @@ export function createAnswerer(deps: AnswerDeps) {
           const r = await deps.engine.load(m.filename);
           loadMs += deps.now() - ls;
           if (r.warning) emit({ type: "warning", answerId, code: "model_streams_from_storage", message: r.warning });
+          if (r.backend?.kind === "cpu-fallback") reasonCodes.push("backend:cpu-fallback");
           return null;
         } catch (e: any) {
           return e?.message ?? String(e);

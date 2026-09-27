@@ -1,0 +1,34 @@
+import { describe, it, expect, vi } from "vitest";
+import { geoProvidersFrom, GeoSources } from "./geoWiring";
+
+function sources(over: Partial<GeoSources> = {}): GeoSources {
+  return {
+    installedPoiPacks: async () => [],
+    getCurrentPoint: async () => ({ lat: 1, lon: 2, accuracyM: 5, ageS: 0 }),
+    resolvePlace: async () => null,
+    searchPois: async () => ({ pois: [], radiusUsedM: 3000, coverage: "none", criterion: "distance", timingsMs: { search: 0 } }),
+    ...over,
+  };
+}
+
+describe("geoProvidersFrom", () => {
+  it("has places only when a pack is installed", async () => {
+    expect(await geoProvidersFrom(sources()).hasPlaces!()).toBe(false);
+    expect(await geoProvidersFrom(sources({ installedPoiPacks: async () => [{}] })).hasPlaces!()).toBe(true);
+    expect(await geoProvidersFrom(sources({ installedPoiPacks: () => Promise.reject(new Error("io")) })).hasPlaces!()).toBe(false);
+  });
+
+  it("forwards location, place and POI calls unchanged", async () => {
+    const getCurrentPoint = vi.fn(async () => ({ error: "denied" as const }));
+    const resolvePlace = vi.fn(async () => ({ name: "Lisbon", lat: 38.7, lon: -9.1, kind: "city" }));
+    const searchPois = vi.fn(sources().searchPois);
+    const p = geoProvidersFrom(sources({ getCurrentPoint, resolvePlace, searchPois }));
+
+    expect(await p.getLocation({ timeoutMs: 1234 })).toEqual({ error: "denied" });
+    expect(getCurrentPoint).toHaveBeenCalledWith({ timeoutMs: 1234 });
+    expect((await p.resolvePlace("Lisbon"))?.name).toBe("Lisbon");
+    const q = { center: { lat: 38.7, lon: -9.1 }, diet: ["vegan" as const], limit: 5 };
+    await p.searchPois(q);
+    expect(searchPois).toHaveBeenCalledWith(q);
+  });
+});

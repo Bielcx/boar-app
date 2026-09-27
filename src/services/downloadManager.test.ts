@@ -10,7 +10,7 @@ vi.mock("download-wake-lock", () => ({
 type Deferred = { resolve: () => void; reject: (e: unknown) => void };
 const pending = new Map<string, Deferred>();
 const downloadMock = vi.fn(
-  (asset: { id: string }) =>
+  (asset: { id: string }, _onProgress?: (p: any) => void) =>
     new Promise<void>((resolve, reject) => {
       pending.set(asset.id, { resolve, reject });
     })
@@ -21,8 +21,8 @@ const signalCancelMock = vi.fn(async (asset: { id: string }) => {
 
 vi.mock("../models/ModelManager", () => ({
   ModelManager: class {
-    downloadCatalogModel(asset: any) {
-      return downloadMock(asset);
+    downloadCatalogModel(asset: any, onProgress?: (p: any) => void) {
+      return downloadMock(asset, onProgress);
     }
     signalCancelDownload(asset: any) {
       return signalCancelMock(asset);
@@ -32,6 +32,7 @@ vi.mock("../models/ModelManager", () => ({
 }));
 
 import { getDownloadState, resetDownloadState, restartDownload, startDownload } from "./downloadManager";
+import { AssetIntegrityError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -114,5 +115,34 @@ describe("download wake lock", () => {
     pending.get("a")!.resolve();
     await expect(p).resolves.toBeUndefined();
     expect(getDownloadState("a")?.progress).toBe(1);
+  });
+});
+
+describe("download phases and error kinds", () => {
+  it("goes downloading -> verifying -> verified", async () => {
+    const p = startDownload(asset("a"));
+    const onProgress = downloadMock.mock.calls[0][1]!;
+    expect(getDownloadState("a")?.phase).toBe("downloading");
+    onProgress({ phase: "downloading", totalBytesWritten: 50, totalBytesExpectedToWrite: 100 });
+    expect(getDownloadState("a")).toMatchObject({ phase: "downloading", progress: 0.5 });
+    onProgress({ phase: "verifying", totalBytesWritten: 25, totalBytesExpectedToWrite: 100 });
+    expect(getDownloadState("a")).toMatchObject({ phase: "verifying", progress: 0.25, downloading: true });
+    pending.get("a")!.resolve();
+    await p;
+    expect(getDownloadState("a")).toMatchObject({ phase: "verified", progress: 1, downloading: false });
+  });
+
+  it("exposes kind and permanent for integrity failures so the UI can skip auto-retry", async () => {
+    const p = startDownload(asset("a"));
+    pending.get("a")!.reject(new AssetIntegrityError("hash-mismatch", "wrong sha256", true));
+    await p;
+    expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "hash-mismatch", permanent: true });
+  });
+
+  it("treats plain errors as transient (retry allowed)", async () => {
+    const p = startDownload(asset("a"));
+    pending.get("a")!.reject(new Error("socket closed"));
+    await p;
+    expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "unknown", permanent: false });
   });
 });

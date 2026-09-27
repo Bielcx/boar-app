@@ -61,5 +61,12 @@ class BundledAssetsModule : Module() {
 
       destFile.length()
     }
+
+    // iOS-only concern (iCloud backup). Android's app data backup is governed
+    // by the manifest's allowBackup/dataExtractionRules instead, so this only
+    // reports whether the path exists.
+    AsyncFunction("excludeFromBackup") { path: String ->
+      File(path.removePrefix("file://")).exists()
+    }
   }
 }

@@ -177,7 +177,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
                     onPress={() => toggle(id)}
                     style={{ minHeight: tokens.size.touch + 4, paddingHorizontal: tokens.space.base, paddingVertical: tokens.space.md, flexDirection: "row", alignItems: "center", gap: tokens.space.md }}
                   >
-                    <Icon name={on ? "check-square" : "square"} color={on ? tokens.color.accent.text : tokens.color.text.tertiary} />
+                    <Icon name={on ? "check-square" : "square"} color={on ? tokens.color.accent.text : tokens.color.text.secondary} />
                     <Text variant="body" style={{ flex: 1 }}>
                       {c.label}
                     </Text>
@@ -233,7 +233,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
               queries: progress.queryCount,
             })}
           </Text>
-          <Text variant="footnote" color="tertiary" numberOfLines={2}>
+          <Text variant="footnote" color="secondary" numberOfLines={2}>
             {progress.config.label} — {progress.query.query}
           </Text>
         </View>
@@ -268,11 +268,11 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
                     {(r.outcome ?? "—").toUpperCase()}
                   </Text>
                 </View>
-                <Text variant="caption" color="tertiary">
+                <Text variant="caption" color="secondary">
                   {r.modelId ?? "—"} · {r.taskType ?? "—"} · {r.modelResidency ?? "—"} ·{" "}
                   {r.retrievalUsed ? r.retrievedTitles.slice(0, 2).join(", ") : t("evaluation.noRetrieval")}
                 </Text>
-                <Text variant="caption" color="tertiary" numeric>
+                <Text variant="caption" color="secondary" numeric>
                   {r.tokPerSec ? `${r.tokPerSec.toFixed(1)} t/s` : "—"} · load {formatMs(r.modelLoadMs)} · TTFT {formatMs(r.ttftMs)} · total{" "}
                   {formatMs(r.totalLatencyMs)}
                 </Text>

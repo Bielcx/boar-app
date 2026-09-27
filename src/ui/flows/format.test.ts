@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatSeconds, minutesLeft } from "./format";
+import { formatBytes, formatBytesParts, formatSeconds, minutesLeft } from "./format";
 
 describe("formatBytes", () => {
   it("uses the locale's decimal separator", () => {
@@ -9,6 +9,12 @@ describe("formatBytes", () => {
 
   it("picks the unit by size", () => {
     expect(formatBytes(986 * 1024 ** 2, "en")).toBe("986 MB");
+    // Never four digits of the smaller unit (iOS shot: "1,000 MB on disk").
+    expect(formatBytes(1000 * 1024 ** 2, "en")).toBe("1 GB");
+    expect(formatBytes(1023 * 1024 ** 2, "en")).toBe("1 GB");
+    expect(formatBytes(999 * 1024 ** 2, "en")).toBe("999 MB");
+    expect(formatBytes(1010 * 1024, "en")).toBe("1 MB");
+    expect(formatBytesParts(1.25 * 1024 ** 3, "pt")).toEqual({ value: "1,3", unit: "GB" });
     expect(formatBytes(2.5 * 1024 ** 2, "en")).toBe("2.5 MB");
     expect(formatBytes(600 * 1024, "en")).toBe("600 KB");
   });

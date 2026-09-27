@@ -1,4 +1,4 @@
-.PHONY: help setup install check-android start run-android build-eas test typecheck clean knowledge-pack knowledge-pack-small
+.PHONY: help setup install check-android start run-android build-eas test typecheck clean knowledge-pack knowledge-pack-small apk-offline apk-downloader apk-both audit-apk
 
 help:
 	@echo "BOAR - Adaptive Local Intelligence"
@@ -8,6 +8,10 @@ help:
 	@echo "make start        - Start Expo dev server"
 	@echo "make run-android  - Build & run on connected Android device (needs Android SDK)"
 	@echo "make build-eas    - Build APK via Expo EAS Cloud (no local Android SDK needed)"
+	@echo "make apk-offline  - Release APK with NO network permission (models imported from files)"
+	@echo "make apk-downloader - Release APK that downloads models in-app (declares INTERNET)"
+	@echo "make apk-both     - Both variants, into dist/, each audited"
+	@echo "make audit-apk APK=path.apk - Fail if an APK declares INTERNET or ships network/cloud libs"
 	@echo "make test         - Run unit tests"
 	@echo "make typecheck    - Run TypeScript type checking"
 	@echo "make clean        - Remove generated native folders & build caches"
@@ -60,6 +64,18 @@ clean-android:
 
 build-eas:
 	npx eas-cli build --platform android --profile preview
+
+# Build variants (docs/BUILD_VARIANTS.md). Local Android SDK/NDK + JDK 17 needed.
+apk-offline:
+	scripts/build-variant.sh offline
+
+apk-downloader:
+	scripts/build-variant.sh downloader
+
+apk-both: apk-downloader apk-offline
+
+audit-apk:
+	scripts/audit-offline-apk.sh $(APK)
 
 test:
 	npm test

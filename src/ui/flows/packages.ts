@@ -16,9 +16,32 @@ export const PACKAGES: { id: PackageId; tier: SetupTier }[] = [
   { id: "encyclopedia", tier: "encyclopedia" },
 ];
 
-export function packageAssets(tier: TierDefinition, catalog: CatalogModel[]): CatalogModel[] {
+/** The answer model a package installs: "default" (bigger, better answers) or "compact" (low-RAM phones). */
+export type AnswerTier = "default" | "compact";
+
+/**
+ * The answer models the setup can offer. Uses the manifest's answerTier when
+ * present; before that field exists, the required language model is the
+ * default and there is no compact option.
+ */
+export function answerModelChoices(catalog: CatalogModel[]): Partial<Record<AnswerTier, CatalogModel>> {
+  const llms = catalog.filter((m) => m.kind === "llm");
+  const byTier = (tier: AnswerTier) => llms.find((m) => m.answerTier === tier);
+  return {
+    default: byTier("default") ?? llms.find((m) => m.required),
+    compact: byTier("compact"),
+  };
+}
+
+/**
+ * Everything a package installs: the required non-language assets (the
+ * search model), the chosen answer model, and the tier's knowledge packs.
+ */
+export function packageAssets(tier: TierDefinition, catalog: CatalogModel[], answerModel?: CatalogModel): CatalogModel[] {
+  const llm = answerModel ?? answerModelChoices(catalog).default;
   return [
-    ...catalog.filter((m) => m.required),
+    ...catalog.filter((m) => m.required && m.kind !== "llm"),
+    ...(llm ? [llm] : []),
     ...catalog.filter((m) => m.kind === "corpus" && tier.corpusPackIds.includes(m.id)),
   ];
 }
@@ -66,4 +89,15 @@ export function transferSeconds(bytes: number, bytesPerSec: number | undefined):
 export function storageShortfall(downloadBytes: number, freeBytes: number): number {
   if (freeBytes <= 0) return 0;
   return Math.max(0, downloadBytes - freeBytes);
+}
+
+/**
+ * The package setup recommends and pre-selects: the richest one whose
+ * download fits the free space measured on the phone (PACKAGES is ordered
+ * smallest first). Unknown free space never blocks; if nothing fits, the
+ * smallest package.
+ */
+export function recommendPackage(plans: { id: PackageId; shortfall: number }[]): PackageId {
+  const fitting = plans.filter((p) => p.shortfall === 0);
+  return (fitting[fitting.length - 1] ?? plans[0]).id;
 }

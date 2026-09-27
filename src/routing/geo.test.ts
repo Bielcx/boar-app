@@ -233,12 +233,16 @@ describe("answer(): places path", () => {
     expect((await ask("vegan restaurants in São Paulo")).places!.area.deviceInside).toBeUndefined();
   });
 
-  it("G-3: a GPS that doesn't answer at once never delays the city list", async () => {
+  it("G-3: a fix that is not in when the POI search ends is ignored; the list never waits", async () => {
     geo.getLocation = () => new Promise(() => {});
     const t = Date.now();
     const { places } = await ask("vegan restaurants in São Paulo");
     expect(places!.area.deviceInside).toBeUndefined();
-    expect(Date.now() - t).toBeLessThan(DEVICE_INSIDE_TIMEOUT_MS + 300);
+    expect(Date.now() - t).toBeLessThan(50);
+
+    geo = makeGeo();
+    geo.getLocation = () => new Promise((r) => setTimeout(() => r({ lat: -23.56, lon: -46.65 }), DEVICE_INSIDE_TIMEOUT_MS));
+    expect((await ask("vegan restaurants in São Paulo")).places!.area.deviceInside).toBeUndefined();
   });
 
   it("a candidate the gazetteer doesn't know falls back to the device, never to the model", async () => {

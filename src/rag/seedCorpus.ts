@@ -1,17 +1,25 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { getDb, insertChunk, ChunkRecord } from "./db";
+import { getDb, insertChunk, deleteSeedChunks, deleteSeedChunksWithPrefix, ChunkRecord } from "./db";
+import { closePack } from "./packs";
+import { clearCollectionIndexStatus, setCollectionIndexStatus } from "./indexStatus";
+
+export {
+  getCollectionIndexStatus,
+  onCollectionIndexStatus,
+  type CollectionIndexState,
+  type CollectionIndexStatus,
+} from "./indexStatus";
 import { embeddingEngine } from "./embed";
 import minimumCorpus from "../../assets/corpus/corpus.json";
-import { CORPUS_CATALOG } from "../models/manifest";
+import { CORPUS_CATALOG, CatalogModel } from "../models/manifest";
 
 /**
  * Knowledge base sources, layered:
  *
- * 1. APP_TOPIC_DOCS — a handful of docs about the app's own architecture
- *    (useful for the bounty's own eval questions about MoE/mmap/RAM budgeting).
- * 2. minimumCorpus (assets/corpus/corpus.json) — 300 Wikipedia-derived docs,
- *    bundled directly in the JS bundle, always present, no download needed.
- * 3. Downloaded corpus packs (CORPUS_CATALOG entries, "standard"/"full"
+ * 1. minimumCorpus (assets/corpus/corpus.json) — 300 Wikipedia article
+ *    introductions, bundled directly in the JS bundle, always present, no
+ *    download needed.
+ * 2. Downloaded corpus packs (CORPUS_CATALOG entries, "standard"/"full"
  *    tiers) — read from disk if the user downloaded them via Settings or
  *    the first-run tier picker; skipped if not present.
  *
@@ -28,93 +36,50 @@ function slug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-const APP_TOPIC_DOCS: SeedDoc[] = [
-  {
-    id: "app-moe-ram",
-    title: "Mixture-of-Experts models and phone RAM",
-    source: "aoair seed corpus",
-    body:
-      "A Mixture-of-Experts (MoE) model has many 'expert' sub-networks but only " +
-      "routes each token through a small subset of them (the active parameters). " +
-      "Total parameter count determines disk footprint (all experts must be " +
-      "stored), but RAM usage during inference tracks the active parameters " +
-      "actually touched per token, plus the KV cache for the current context. " +
-      "This is why an MoE model with, say, 100B total but 8B active parameters " +
-      "can run in far less RAM than a dense 100B model, provided weights are " +
-      "streamed from disk (mmap) rather than fully resident.",
-  },
-  {
-    id: "app-mmap-streaming",
-    title: "mmap-based weight streaming vs. full RAM loading",
-    source: "aoair seed corpus",
-    body:
-      "Memory-mapping (mmap) a GGUF model file lets the OS page in only the " +
-      "weight blocks actually touched during inference, backed by the file on " +
-      "disk rather than requiring the whole file to be read into RAM upfront. " +
-      "This trades some latency (first-touch page faults, and repeated faults " +
-      "if the OS evicts pages under memory pressure) for a dramatically lower " +
-      "resident memory floor. Fully loading weights into RAM (or locking them " +
-      "with mlock) avoids page-fault latency and eviction thrashing, at the " +
-      "cost of requiring RAM at least as large as the active working set. On " +
-      "memory-constrained phones, mmap streaming is usually the right default; " +
-      "it loses when storage I/O is slow enough that page faults dominate " +
-      "generation latency, e.g. on slow eMMC storage under heavy background load.",
-  },
-  {
-    id: "app-bm25-vs-cosine",
-    title: "BM25 lexical search vs. cosine similarity over embeddings",
-    source: "aoair seed corpus",
-    body:
-      "BM25 (used by SQLite's FTS5) ranks documents by term frequency and " +
-      "inverse document frequency, rewarding exact keyword and phrase matches. " +
-      "It's fast, needs no model, and is precise for queries with distinctive " +
-      "vocabulary, but misses paraphrases and synonyms. Cosine similarity over " +
-      "dense embeddings captures semantic closeness even without shared " +
-      "keywords, but can retrieve topically related-but-irrelevant chunks and " +
-      "needs a trained embedding model. Hybrid retrieval (combining both, as " +
-      "this app does) helps when a query mixes exact terms with a broader " +
-      "conceptual ask; it can hurt if the two signals disagree and the fusion " +
-      "weighting isn't tuned for the corpus, effectively adding noise instead " +
-      "of complementary signal.",
-  },
-  {
-    id: "app-grapheneos",
-    title: "GrapheneOS and Google Play Services",
-    source: "aoair seed corpus",
-    body:
-      "GrapheneOS is a privacy- and security-focused Android fork that does " +
-      "not ship Google Play Services by default. Play Services provides many " +
-      "convenience APIs apps rely on, including on-device AI features like " +
-      "Gemini Nano access via AICore, push notifications (FCM), location " +
-      "fusion, and Play Integrity attestation. Apps that depend on these APIs " +
-      "either fail or fall back to degraded behavior on GrapheneOS. An offline " +
-      "AI app targeting GrapheneOS compatibility must reimplement equivalent " +
-      "functionality itself — bundling its own inference engine (e.g. " +
-      "llama.cpp) rather than calling a Play-Services-mediated model API.",
-  },
-  {
-    id: "app-ram-budgeting",
-    title: "Budgeting RAM for on-device LLM inference",
-    source: "aoair seed corpus",
-    body:
-      "On a phone with a 12GB RAM budget for an offline AI app, the usable " +
-      "headroom for the LLM's active weight working set is whatever remains " +
-      "after OS/app overhead, the embedding model's resident memory, and the " +
-      "KV cache for the chosen context length. KV cache size scales with " +
-      "context length, number of layers, and attention head dimensions; a " +
-      "longer context window directly reduces the RAM left for model weights. " +
-      "Quantization (e.g. Q4_K_M) reduces both weight size and the working-set " +
-      "footprint compared to higher precision, which is why quantized GGUF " +
-      "models are the standard choice for phone-class inference.",
-  },
+/**
+ * Ids of seed docs that earlier versions installed and this one no longer
+ * ships. They're deleted from existing installs on the next seed run.
+ *
+ * The app-* ids were five hand-written notes (MoE and RAM, mmap streaming,
+ * BM25 vs cosine, GrapheneOS, RAM budgeting) that answered the eval's own
+ * reasoning questions, which inflated its retrieval results. Only text taken
+ * from a citable source belongs in the knowledge base.
+ */
+export const RETIRED_SEED_IDS = [
+  "app-moe-ram",
+  "app-mmap-streaming",
+  "app-bm25-vs-cosine",
+  "app-grapheneos",
+  "app-ram-budgeting",
 ];
 
-const MINIMUM_CORPUS_DOCS: SeedDoc[] = (
-  minimumCorpus as Array<{ title: string; source: string; body: string }>
-).map((d) => ({ ...d, id: `wiki-min-${slug(d.title)}` }));
+/** Collection id of the corpus bundled in the app; downloaded JSON packs use their catalog id. */
+export const BUILTIN_COLLECTION_ID = "builtin";
 
-async function loadDownloadedCorpusPacks(): Promise<SeedDoc[]> {
-  const docs: SeedDoc[] = [];
+type SeedCollection = { id: string; docs: SeedDoc[]; error?: string };
+
+/** Seed-corpus chunk ids are `wiki-<collection>-<title slug>`; "min" is the bundled corpus. */
+function chunkIdPrefix(collectionId: string): string {
+  return `wiki-${collectionId === BUILTIN_COLLECTION_ID ? "min" : collectionId}-`;
+}
+
+/** First doc wins when two titles share a slug, so a collection's size matches what gets indexed. */
+function toSeedDocs(collectionId: string, docs: Array<{ title: string; source: string; body: string }>): SeedDoc[] {
+  const byId = new Map<string, SeedDoc>();
+  for (const d of docs) {
+    const id = `${chunkIdPrefix(collectionId)}${slug(d.title)}`;
+    if (!byId.has(id)) byId.set(id, { ...d, id });
+  }
+  return [...byId.values()];
+}
+
+const MINIMUM_CORPUS_DOCS: SeedDoc[] = toSeedDocs(
+  BUILTIN_COLLECTION_ID,
+  minimumCorpus as Array<{ title: string; source: string; body: string }>
+);
+
+async function loadDownloadedCorpusPacks(): Promise<SeedCollection[]> {
+  const collections: SeedCollection[] = [];
   for (const pack of CORPUS_CATALOG) {
     if (pack.format === "sqlite-pack") continue;
     const path = `${FileSystem.documentDirectory}${pack.filename}`;
@@ -122,23 +87,25 @@ async function loadDownloadedCorpusPacks(): Promise<SeedDoc[]> {
     if (!info.exists) continue;
     try {
       const raw = await FileSystem.readAsStringAsync(path);
-      const parsed = JSON.parse(raw) as Array<{ title: string; source: string; body: string }>;
-      for (const d of parsed) {
-        docs.push({ ...d, id: `wiki-${pack.id}-${slug(d.title)}` });
-      }
-    } catch (e) {
+      collections.push({ id: pack.id, docs: toSeedDocs(pack.id, JSON.parse(raw)) });
+    } catch (e: any) {
       console.warn(`Failed to load corpus pack ${pack.id}:`, e);
+      collections.push({ id: pack.id, docs: [], error: String(e?.message ?? e) });
     }
   }
-  return docs;
+  return collections;
 }
 
 export interface SeedProgress {
-  /** Documents checked so far, including ones already indexed. */
+  /** Documents checked so far across all collections, including ones already indexed. */
   done: number;
   total: number;
   /** Title of the document being indexed. */
   title: string;
+  /** The collection being indexed: BUILTIN_COLLECTION_ID or a corpus pack's catalog id. */
+  collectionId: string;
+  collectionDone: number;
+  collectionTotal: number;
 }
 
 // On globalThis rather than in the module: a dev hot reload re-runs this
@@ -155,6 +122,27 @@ export function onSeedProgress(listener: (p: SeedProgress) => void): () => void 
   return () => listeners.delete(listener);
 }
 
+const setStatus = setCollectionIndexStatus;
+
+/**
+ * Removes a downloaded corpus pack from the knowledge base, before its file
+ * is deleted: a JSON pack's indexed chunks are deleted (otherwise they keep
+ * showing up in answers), and a SQLite pack's open connection is closed.
+ * Returns how many chunks were deleted.
+ */
+export async function removeCorpusPackIndex(pack: Pick<CatalogModel, "id" | "format">): Promise<number> {
+  if (pack.format === "sqlite-pack") {
+    await closePack(pack.id);
+    return 0;
+  }
+  if (pack.id === BUILTIN_COLLECTION_ID) return 0;
+  // Let a run in progress finish first, or it would re-insert what's deleted here.
+  await running.__boarSeeding?.catch(() => {});
+  const removed = await deleteSeedChunksWithPrefix(chunkIdPrefix(pack.id));
+  clearCollectionIndexStatus(pack.id);
+  return removed;
+}
+
 /**
  * The setup wizard and the chat screen can both ask for this at once (and a
  * dev reload can repeat it), so concurrent callers share one run instead of
@@ -169,7 +157,15 @@ export function seedKnowledgeBaseIfEmpty(): Promise<void> {
 
 async function seedNow(): Promise<void> {
   const db = await getDb();
-  const allDocs = [...APP_TOPIC_DOCS, ...MINIMUM_CORPUS_DOCS, ...(await loadDownloadedCorpusPacks())];
+  await deleteSeedChunks(RETIRED_SEED_IDS);
+  const collections: SeedCollection[] = [
+    { id: BUILTIN_COLLECTION_ID, docs: MINIMUM_CORPUS_DOCS },
+    ...(await loadDownloadedCorpusPacks()),
+  ];
+  const total = collections.reduce((n, c) => n + c.docs.length, 0);
+  for (const c of collections) {
+    if (c.error) setStatus(c.id, { state: "error", done: 0, total: 0, error: c.error });
+  }
 
   // This runs on every ChatScreen mount — including every time Settings
   // closes and the user returns to chat, not just on first app launch —
@@ -189,31 +185,56 @@ async function seedNow(): Promise<void> {
   const { count } = (await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) as count FROM chunks WHERE collection_id IS NULL`
   )) ?? { count: 0 };
-  if (count === allDocs.length) return;
+  if (count === total) {
+    for (const c of collections) {
+      if (!c.error) setStatus(c.id, { state: "indexed", done: c.docs.length, total: c.docs.length });
+    }
+    return;
+  }
 
   let lastReport = 0;
-  for (const [i, doc] of allDocs.entries()) {
-    // About four updates a second is enough to show it's moving.
-    const now = Date.now();
-    if (now - lastReport > 250 || i === allDocs.length - 1) {
-      lastReport = now;
-      listeners.forEach((l) => l({ done: i + 1, total: allDocs.length, title: doc.title }));
+  let done = 0;
+  for (const c of collections) {
+    if (c.error) continue;
+    setStatus(c.id, { state: "indexing", done: 0, total: c.docs.length });
+    try {
+      for (const [i, doc] of c.docs.entries()) {
+        done++;
+        // About four updates a second is enough to show it's moving.
+        const now = Date.now();
+        if (now - lastReport > 250 || done === total) {
+          lastReport = now;
+          const p: SeedProgress = {
+            done,
+            total,
+            title: doc.title,
+            collectionId: c.id,
+            collectionDone: i + 1,
+            collectionTotal: c.docs.length,
+          };
+          listeners.forEach((l) => l(p));
+        }
+
+        const existing = await db.getFirstAsync<{ chunk_id: string }>(
+          `SELECT chunk_id FROM chunks WHERE chunk_id = ?`,
+          [doc.id]
+        );
+        if (existing) continue;
+
+        const chunk: ChunkRecord = {
+          chunkId: doc.id,
+          docId: doc.id,
+          title: doc.title,
+          body: doc.body,
+          source: doc.source,
+        };
+        const embedding = await embeddingEngine.embed(`${doc.title}\n${doc.body}`);
+        await insertChunk(chunk, embedding);
+      }
+      setStatus(c.id, { state: "indexed", done: c.docs.length, total: c.docs.length });
+    } catch (e: any) {
+      setStatus(c.id, { state: "error", done: 0, total: c.docs.length, error: String(e?.message ?? e) });
+      throw e;
     }
-
-    const existing = await db.getFirstAsync<{ chunk_id: string }>(
-      `SELECT chunk_id FROM chunks WHERE chunk_id = ?`,
-      [doc.id]
-    );
-    if (existing) continue;
-
-    const chunk: ChunkRecord = {
-      chunkId: doc.id,
-      docId: doc.id,
-      title: doc.title,
-      body: doc.body,
-      source: doc.source,
-    };
-    const embedding = await embeddingEngine.embed(`${doc.title}\n${doc.body}`);
-    await insertChunk(chunk, embedding);
   }
 }
