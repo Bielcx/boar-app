@@ -49,3 +49,9 @@ export function emergencyNumbersAnswer(query: string, pt: boolean): string | nul
     ? `Números de emergência (tabela offline do app): ${lines.join(" ")} Em caso de risco à vida, ligue imediatamente.`
     : `Emergency numbers (the app's offline table): ${lines.join(" ")} If a life is at risk, call right away.`;
 }
+
+/** The emergency numbers line of the first listed country the text names, or null. */
+export function emergencyNumbersLine(text: string, pt: boolean): string | null {
+  const hit = COUNTRIES.find((c) => c.names.test(text));
+  return hit ? (pt ? `Emergência — ${hit.pt}` : `Emergency — ${hit.en}`) : null;
+}

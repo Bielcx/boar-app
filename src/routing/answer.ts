@@ -60,6 +60,7 @@ import { ptLexicon } from "../rag/ptLexiconAsset";
 import { attributeCitations, checkCitations } from "./citations";
 import { calculate } from "./calculators";
 import { emergencyNumbersAnswer } from "./emergencyNumbers";
+import { isSnakebiteFirstAid, snakebiteFirstAidCard } from "./firstAidCards";
 import type { LoadFailureKind } from "../inference/loadError";
 import { DepthModel, planAnswer, resolveDeepModel, AnswerPlan, deepAutoIneligibility } from "./depth";
 import { isCompactModel, pickDefaultAnswerModel, tooBigForLowRam } from "./defaultModel";
@@ -518,6 +519,15 @@ export function createAnswerer(deps: AnswerDeps) {
       // exactly, before anything else: "Minha conta do jantar deu 2.450 baht…" is a sum, not a restaurant
       // search (Sextant 3ccf7c0, mth-003-pt went to task:places).
       if (!req.reuseSources && req.tier !== "deep") {
+        // Snakebite first aid: a fixed card from the WHO text, never a pack passage (Boar, after 3ffd7e0).
+        if (isSnakebiteFirstAid(req.query)) {
+          const card = snakebiteFirstAidCard(req.query, isPortugueseQuestion(req.query));
+          markVisible();
+          const r: AnswerReceipt = { modelId: "grounding-guard", modelLabel: "First aid (WHO)", tokens: 0, tokPerSec: 0, ttftMs: deps.now() - t0, totalMs: deps.now() - t0, reasonCodes: ["answer:first-aid-card-snakebite"] };
+          emit({ type: "token", answerId, tier: "instant", text: card });
+          emit({ type: "done", answerId, tier: "instant", outcome: "success", receipt: r, cited: [] });
+          return { answerId, tier: "instant", outcome: "success", text: card, sources: [], receipt: r, cited: [] };
+        }
         // A country's emergency numbers: a fixed table, never a guess (Sextant trv-001-pt).
         const numbers = emergencyNumbersAnswer(req.query, isPortugueseQuestion(req.query));
         if (numbers) {
