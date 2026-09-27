@@ -51,18 +51,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#17110D",
-          "ios": {
-            "image": "./assets/splash-icon.png",
-            "resizeMode": "cover",
-            "backgroundColor": "#17110D"
-          },
-          "android": {
-            "image": "./assets/splash-icon-android.png",
-            "imageWidth": 360,
-            "resizeMode": "contain",
-            "backgroundColor": "#17110D"
-          }
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 360,
+          "resizeMode": "contain",
+          "backgroundColor": "#17110D"
         }
       ],
       "./plugins/withReleaseSigning",
