@@ -2,7 +2,7 @@ import React, { memo, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Icon, Mascot, Progress, Sheet, Text, useToast } from "../components";
+import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, useToast } from "../components";
 import { useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
@@ -187,12 +187,9 @@ export function ChatEmptyState({
               accessibilityLabel={tr("chat.empty.addKnowledge")}
               accessibilityHint={tr("chat.empty.addKnowledgeHint")}
             >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-                <Icon name="book-open" size="sm" color={t.color.text.secondary} />
-                <Text variant="footnote" color="secondary" style={{ flex: 1 }}>
-                  {tr("chat.empty.addKnowledge")}
-                </Text>
-              </View>
+              <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
+                {tr("chat.empty.addKnowledge")}
+              </IconText>
             </Card>
           )}
         </View>
@@ -309,12 +306,18 @@ export function ChatModelError({
               accessibilityLabel={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
               accessibilityState={{ expanded: details }}
               hitSlop={{ top: t.space.md, bottom: t.space.md, left: t.space.sm, right: t.space.sm }}
-              style={{ flexDirection: "row", alignItems: "center", gap: t.space.xxs }}
             >
-              <Text variant="caption" weight="semibold" color="secondary">
+              {/* Icon-align (Iris): one gap token, the chevron on the label's line. */}
+              <IconText
+                icon={details ? "chevron-up" : "chevron-down"}
+                iconPosition="end"
+                variant="caption"
+                weight="semibold"
+                color="secondary"
+                iconColor={t.color.text.secondary}
+              >
                 {tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
-              </Text>
-              <Icon name={details ? "chevron-up" : "chevron-down"} size="sm" color={t.color.text.secondary} />
+              </IconText>
             </Pressable>
           )}
         </View>
