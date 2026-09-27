@@ -17,8 +17,13 @@ export function sourceParts(source: string | undefined): SourceParts {
   const s = source?.trim();
   if (!s) return { name: null, url: null };
   const [head, ...tail] = s.split(/\s+[—–]\s+/);
+  if (tail.length > 0 && !URL_RE.test(head)) {
+    // After the dash: the URL, which may hold spaces (pack URLs carry the raw title, Prism SR-1),
+    // then an optional " (license)".
+    const rest = tail.join(" — ").replace(/\s+\([^()]*\)\s*$/, "").trim();
+    return { name: head.trim() || null, url: /^https?:\/\//i.test(rest) ? rest : rest.match(URL_RE)?.[0] ?? null };
+  }
   const url = s.match(URL_RE)?.[0] ?? null;
-  if (tail.length > 0 && !URL_RE.test(head)) return { name: head.trim() || null, url };
   if (!url) return { name: s, url: null };
   try {
     return { name: new URL(url).hostname.replace(/^www\./, ""), url };

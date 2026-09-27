@@ -13,6 +13,13 @@ describe("sourceParts", () => {
     });
   });
 
+  it("keeps a URL with spaces whole (pack URLs carry the raw title, Prism SR-1)", () => {
+    expect(sourceParts("Wikipedia — https://en.wikipedia.org/wiki/Quantum cryptography (CC BY-SA 4.0)")).toEqual({
+      name: "Wikipedia",
+      url: "https://en.wikipedia.org/wiki/Quantum cryptography",
+    });
+  });
+
   it("names a bare URL by its host, and keeps a plain name", () => {
     expect(sourceParts("https://www.wikem.org/wiki/Epistaxis")).toEqual({ name: "wikem.org", url: "https://www.wikem.org/wiki/Epistaxis" });
     expect(sourceParts("WikEM")).toEqual({ name: "WikEM", url: null });
