@@ -426,19 +426,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
     <View style={{ gap: t.space.md, alignSelf: "stretch" }}>
       <View style={{ gap: t.space.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-          <View
-            style={{
-              width: t.size.avatar,
-              height: t.size.avatar,
-              borderRadius: t.radius.full,
-              backgroundColor: t.color.bg.surface,
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
-            <Mascot size="avatarSm" />
-          </View>
+          <Mascot size="avatarSm" />
           <Text variant="headline" style={{ flexShrink: 1 }}>
             {tr("chat.assistantName")}
           </Text>

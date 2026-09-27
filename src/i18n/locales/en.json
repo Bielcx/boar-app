@@ -839,7 +839,8 @@
       "voiceCaveat": "Voice input uses the system recognizer, which may not be offline.",
       "tone": "Change tone",
       "offlineSeal": "Offline",
-      "offlineAnswersSeal": "Answers offline"
+      "offlineAnswersSeal": "Answers offline",
+      "offlineSealSpoken": "Offline: no network used"
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {

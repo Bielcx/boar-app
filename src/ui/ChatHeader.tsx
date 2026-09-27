@@ -28,7 +28,10 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
   const [offlineOpen, setOfflineOpen] = useState(false);
+  // Short "OFFLINE" like the mockup only where it is literally true (the build without INTERNET);
+  // the downloader build keeps "Answers offline" (HQ honesty rule R9). Readers hear the long form.
   const sealLabel = tr(OFFLINE_BUILD ? "chat.header.offlineSeal" : "chat.header.offlineAnswersSeal");
+  const sealSpoken = tr(OFFLINE_BUILD ? "chat.header.offlineSealSpoken" : "chat.header.offlineAnswersSeal");
   const fit = headerFit({
     width,
     fontScale,
@@ -52,19 +55,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
       <IconButton icon="menu" label={tr("chat.header.menu")} onPress={onOpenDrawer} />
       <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
         {fit.avatar && (
-          <View
-            style={{
-              width: t.size.avatar,
-              height: t.size.avatar,
-              borderRadius: t.radius.full,
-              backgroundColor: t.color.bg.surface,
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
-            <Mascot size="avatarSm" />
-          </View>
+          <Mascot size="avatar" />
         )}
         <View style={{ flexShrink: 1, flexGrow: 1 }}>
           <Text variant="headline" header numberOfLines={1}>
@@ -83,7 +74,7 @@ export function ChatHeader({ activeModelLabel, voiceEnabled, onOpenDrawer, onCyc
           style={{ minHeight: t.size.touch, minWidth: t.size.touch, alignItems: "center", justifyContent: "center" }}
         >
           {fit.seal === "text" ? (
-            <OfflineSeal label={sealLabel} />
+            <OfflineSeal label={sealLabel} accessibilityLabel={sealSpoken} />
           ) : (
             <View style={{ padding: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.field.soft }}>
               <Icon name="wifi-off" size="sm" color={t.color.field.text} />
