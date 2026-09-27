@@ -71,6 +71,23 @@ Scudo "corrupted chunk header") when the app was stopped and relaunched between 
 | `rs1.sh` | Erase everything right after launch; checks SIGABRT/tombstones, Setup shown, models/corpus/poi gone; streams `logcat -b all` from before the tap |
 | `shot.sh`, `tap.sh`, `wait-text.sh`, `matrix-shots.sh` | older portal-based helpers |
 
+## Mac mini (default for Android builds and e2e since 27/09)
+
+Heavy work runs on the mini through the shared lock (`~/boar/bin/heavy <owner> <cmd>`); SDK installs,
+clones, `npm ci` and prebuild run outside the lock with `nice -n 19`. Scripts in `e2e/scripts/mini/`:
+
+| Script | Where it runs | What it does |
+|---|---|---|
+| `install-sdk.sh` | outside the lock | cmdline-tools, platform-tools, android-36, build-tools 36, cmake 3.22.1, NDK 27.1 (stops below 12 GB free) |
+| `install-emu.sh` | outside the lock | emulator, `system-images;android-35;default;arm64-v8a` (AOSP, no GMS), AVD `boar_api35` (4 GB RAM), Maestro |
+| `prep-android.sh <sha> <variant>` | outside the lock | clone, checkout, `npm ci` (only if the lock file changed), `expo prebuild --clean` |
+| `gradle-android.sh` | **inside the lock** | `assembleRelease` arm64 with a disk watchdog, sha256, offline audit, then deletes intermediates (keeps `~/.gradle` and the llama.rn `.cxx`) |
+| `run-e2e.sh <apk> <flow>` | **inside the lock** | headless emulator (`-no-window`, wiped data), fresh install, push model/corpus files, Maestro flow, emulator off and AVD data removed |
+
+First measurements (27/09): `assembleRelease` 6eb9ca7 offline 271 s with warm caches (the first run
+needs ~15 GB of disk at peak); `10-offline-setup-and-source` **PASS** in 250 s total (boot 27 s,
+install + files 33 s, flow 182 s).
+
 ## Emulator gotchas
 
 - AOSP keyboard autocorrects `adb shell input text` ("Qujing" → "Quaking"): for text
