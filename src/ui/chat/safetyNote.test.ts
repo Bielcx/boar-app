@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isHealthQuestion, needsEmergencyNote, showsEmergencyNote, usesPreparednessPack } from "./safetyNote";
+import { answerShowsEmergencyNote, isHealthQuestion, needsEmergencyNote, showsEmergencyNote, usesPreparednessPack } from "./safetyNote";
 
 const prep = { chunkId: "pack:boar-preparedness:123" };
 const wiki = { chunkId: "pack:enwiki:9" };
@@ -75,5 +75,16 @@ describe("disasters need an action cue (Tusk 66b73c6)", () => {
     for (const q of ["Why do earthquakes happen near plate boundaries?", "Por que os terremotos acontecem perto das bordas das placas?", "What causes hurricanes?", "How to configure a firewall"]) {
       expect(needsEmergencyNote(q, [wiki])).toBe(false);
     }
+  });
+});
+
+describe("answerShowsEmergencyNote (Prism NB-1)", () => {
+  const src = [{ chunkId: "wiki:Nosebleed#0", docId: "wiki:Nosebleed" }];
+  it("shows the note for the engine's literal health excerpt, with no model text and no snippet", () => {
+    expect(answerShowsEmergencyNote({ sources: src, extract: "Pinch the nose. [1]", safety: true }, "Meu nariz esta sangrando, o que eu faco?", false)).toBe(true);
+  });
+  it("not before anything is on screen, and not for a places list", () => {
+    expect(answerShowsEmergencyNote({ sources: src, safety: true }, "nosebleed", false)).toBe(false);
+    expect(answerShowsEmergencyNote({ sources: src, extract: "x", safety: true }, "nosebleed", true)).toBe(false);
   });
 });

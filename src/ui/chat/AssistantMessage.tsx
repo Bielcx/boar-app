@@ -10,7 +10,7 @@ import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, type AnswerState, type TierState } from "./answerReducer";
 import { generatingSteps, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, relevancePercents, sourceParts } from "./sourceLabel";
-import { showsEmergencyNote } from "./safetyNote";
+import { answerShowsEmergencyNote } from "./safetyNote";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -642,7 +642,8 @@ function InstantSnippet({
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const snippet = answer.instant!;
-  const source = answer.sources[snippet.sourceIndex - 1];
+  // 0-based, as the engine sends it ("[n]" = sourceIndex + 1).
+  const source = answer.sources[snippet.sourceIndex];
   // Collapses to a short preview once the model's answer is done, unless the user chose otherwise.
   const autoCollapsed = answer.fast?.outcome === "success" && !isFinal;
   const expanded = userExpanded ?? !autoCollapsed;
@@ -666,12 +667,12 @@ function InstantSnippet({
         )}
         {source && (
           <Button
-            label={`[${snippet.sourceIndex}]`}
+            label={`[${snippet.sourceIndex + 1}]`}
             variant="ghost"
             size="sm"
             icon="book"
-            accessibilityLabel={tr("chat.snippet.openSource", { n: snippet.sourceIndex, title: source.title })}
-            onPress={() => onOpenSource(snippet.sourceIndex - 1)}
+            accessibilityLabel={tr("chat.snippet.openSource", { n: snippet.sourceIndex + 1, title: source.title })}
+            onPress={() => onOpenSource(snippet.sourceIndex)}
           />
         )}
       </View>
@@ -691,7 +692,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const extractiveOnly = !!answer.instantDone && !answer.fast && !answer.places;
   const instantOnly = !!answer.instantDone && !answer.fast;
   const lastTier = answer.deep ?? answer.fast;
-  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.places?.places.length);
+  const hasText = !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
   const done = !active && (lastTier?.outcome || instantOnly);
   const steps = active && !stopping ? generatingSteps(answer, tr) : null;
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
@@ -739,6 +740,15 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
 
       {answer.instant && !answer.weakSources && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
+      {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
+      {answer.extract ? (
+        <TierBody
+          tier={{ text: answer.extract, stage: null, outcome: answer.instantDone?.outcome }}
+          streaming={!answer.instantDone}
+          sourceTitles={sourceTitles}
+          onOpenSource={onOpenSource}
+        />
+      ) : null}
 
       {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
       {props.waitingLibrary ? (
@@ -801,14 +811,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
       {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
       {answer.weakSources && !answer.weakDeclined && done && !placesOnly && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} />}
-      {showsEmergencyNote({
-        question: props.question ?? "",
-        sources: answer.sources,
-        hasModelText: !!(answer.fast?.text || answer.deep?.text),
-        hasSnippet: !!answer.instant,
-        placesOnly,
-        safety: answer.safety,
-      }) && <EmergencyNote />}
+      {answerShowsEmergencyNote(answer, props.question ?? "", placesOnly) && <EmergencyNote />}
 
       {done && hasText && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>

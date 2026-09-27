@@ -30,7 +30,13 @@ export interface AnswerState {
   /** Global, deduplicated list: "[n]" in any tier's text is sources[n - 1]. */
   /** As the engine sent them, with relevance (0..1) when measured. */
   sources: SourceChunk[];
+  /** sourceIndex is 0-based into sources ("[n]" = sourceIndex + 1, as the engine sends it). */
   instant?: { text: string; sourceIndex: number; confidence: number };
+  /**
+   * The engine's literal excerpt answer, streamed as instant-tier tokens (health/safety with an
+   * on-topic source: lead, the source's steps with [n], emergency line). Prism NB-1: it was dropped.
+   */
+  extract?: string;
   fast?: TierState;
   deep?: TierState;
   /**
@@ -121,13 +127,17 @@ export function answerReducer(state: AnswerState, event: AnswerEvent): AnswerSta
       return updateTier(state, event.tier, (t) => ({ ...t, stage: event.stage, detail: event.detail }));
 
     case "token":
-      if (event.tier === "instant" || state[event.tier]?.outcome) return state;
+      if (event.tier === "instant") return state.instantDone ? state : { ...state, extract: (state.extract ?? "") + event.text };
+      if (state[event.tier]?.outcome) return state;
       return updateTier(state, event.tier, (t) => ({ ...t, stage: "generating", text: t.text + event.text }));
 
     case "done":
       if (event.safety) state = { ...state, safety: true };
       if (event.tier === "instant") {
         if (state.instantDone) return state;
+        state = withCited(state, (event as { cited?: unknown }).cited);
+        const finalText = (event as { finalText?: string }).finalText;
+        if (state.extract != null && finalText != null) state = { ...state, extract: finalText };
         return { ...state, instantDone: { outcome: event.outcome, receipt: event.receipt, error: event.error } };
       }
       if (state[event.tier]?.outcome) return state;

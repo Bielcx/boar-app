@@ -72,3 +72,12 @@ describe("cited in the stored answer (CT-2)", () => {
     expect(fromStoredAnswer("a", "t", toStoredAnswer({ ...state, cited: undefined })).cited).toBeUndefined();
   });
 });
+
+describe("the health excerpt in the stored answer (NB-1)", () => {
+  it("round-trips and is the text a later turn sees", () => {
+    const state = { answerIds: ["a"], sources: [], extract: "Pinch the nose. [1]", instantDone: { outcome: "success", receipt: { modelId: "extractive", modelLabel: "x", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 1, reasonCodes: [] } } } as AnswerState;
+    const back = fromStoredAnswer("a", "", toStoredAnswer(state));
+    expect(back.extract).toBe("Pinch the nose. [1]");
+    expect(answerTextForHistory(back)).toBe("Pinch the nose. [1]");
+  });
+});

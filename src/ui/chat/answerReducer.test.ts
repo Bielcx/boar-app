@@ -252,3 +252,19 @@ describe("CT-2 cited", () => {
     expect(deep.cited).toEqual([1, 3]);
   });
 });
+
+describe("NB-1 health excerpt (instant-tier tokens)", () => {
+  const receipt = { modelId: "extractive", modelLabel: "Source excerpt", tokens: 0, tokPerSec: 0, ttftMs: 0, totalMs: 500, reasonCodes: [] };
+  it("keeps the engine's literal excerpt, its cited source, and ignores tokens after done", () => {
+    const text = "Da fonte offline (em inglês):\nPinch the soft part of the nose. [1]\n\nEm uma emergência, ligue 192.";
+    let s = { answerIds: ["a"], sources: [] } as AnswerState;
+    s = answerReducer(s, { type: "token", answerId: "a", tier: "instant", text } as never);
+    expect(s.extract).toBe(text);
+    s = answerReducer(s, { type: "done", answerId: "a", tier: "instant", outcome: "success", receipt, cited: [1], safety: true } as never);
+    expect(s.instantDone?.outcome).toBe("success");
+    expect(s.cited).toEqual([1]);
+    expect(s.safety).toBe(true);
+    expect(answerReducer(s, { type: "token", answerId: "a", tier: "instant", text: "x" } as never).extract).toBe(text);
+    expect(answerPhase(s)).toBe("done");
+  });
+});
