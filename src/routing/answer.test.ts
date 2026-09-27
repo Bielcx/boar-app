@@ -648,20 +648,35 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources" });
   });
 
-  it("gate ea5978c: the compact model's uncited answer becomes the decline; answerAnyway keeps it with the line", async () => {
+  it("gate ea5978c: the compact model's uncited answer with no on-topic source becomes the decline; answerAnyway keeps it with the line", async () => {
+    const q = "Por que Canberra foi escolhida como capital da Austrália?"; // PT, no English words: unguarded
     f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async () => "It was a compromise.";
-    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    f.deps.englishNames = () => [];
+    f.deps.engine.generate = async () => "Foi um meio-termo.";
+    const { events, result } = await collect(q);
     expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
     expect((events.find((e) => e.type === "done") as any).finalText).toBe("");
     expect(result.receipt.reasonCodes).toContain("grounding:uncited-declined-compact");
 
     f = makeFake();
     f.retrieved = [CANBERRA];
-    f.deps.engine.generate = async () => "A compromise.";
+    f.deps.englishNames = () => [];
+    f.deps.engine.generate = async () => "Um meio-termo.";
     const events2: AnswerEvent[] = [];
-    await createAnswerer(f.deps).answer({ query: "Why was Canberra chosen as the capital of Australia?", answerAnyway: true }, (e) => events2.push(e), ctx).done;
-    expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
+    await createAnswerer(f.deps).answer({ query: q, answerAnyway: true }, (e) => events2.push(e), ctx).done;
+    expect((events2.find((e) => e.type === "done") as any).finalText).toMatch(/^Esta resposta não vem de uma fonte offline/);
+  });
+
+  it("Boar (B): the compact model with an on-topic source answers uncited, and the chat gets weak_sources", async () => {
+    f.retrieved = [CANBERRA];
+    f.deps.engine.generate = async () => "It was a compromise between Sydney and Melbourne.";
+    const { events, result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe("It was a compromise between Sydney and Melbourne.");
+    expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["grounding:uncited-on-topic", "grounding:uncited-warning"]));
+    const warning = events.find((e) => e.type === "warning") as any;
+    expect(warning).toMatchObject({ code: "weak_sources" });
+    expect(warning.declined).toBeUndefined();
+    expect(types(events).indexOf("warning")).toBeLessThan(types(events).indexOf("done"));
   });
 
   it("no source at all: a 4B answer that skipped the instruction still gets the line; one that said it doesn't twice", async () => {
@@ -864,6 +879,41 @@ describe("answer(): current events on every path (Prism CT-4)", () => {
     for (const { result } of runs) {
       expect(result.text).toMatch(/offline/);
       expect(result.receipt.reasonCodes).toContain("grounding:current-event");
+    }
+  });
+});
+
+describe("answer(): today in history (Boar/Piston R3)", () => {
+  const TITANIC = chunk("t", "Sinking of the Titanic", "RMS Titanic sank in the North Atlantic Ocean on 15 April 1912, after striking an iceberg. It was the largest ship afloat at the time.");
+  const SEP27 = chunk("s", "September 27", "September 27 is the 270th day of the year. Events: 1825 - The Stockton and Darlington Railway opens, the world's first public railway to use steam locomotives.");
+  const q = "What happened today in history?";
+  it("searches the device's date; a source without it is not on topic: the 4B's answer gets the line", async () => {
+    f.installed = [lfm];
+    f.activeId = "lfm8";
+    f.deps.today = () => new Date(2026, 8, 27);
+    const queries: string[] = [];
+    f.deps.retrieve = async (query) => (queries.push(query), [TITANIC]);
+    f.deps.engine.generate = async () => "On this day the US commemorates the 100th anniversary of the sinking of the RMS Titanic, April 15, 1912.";
+    const { events, result } = await collect(q);
+    expect(queries).toEqual(["September 27"]);
+    expect(events.find((e) => e.type === "sources")).toBeUndefined();
+    expect(result.receipt.reasonCodes).toContain("grounding:today-in-history");
+    expect((events.find((e) => e.type === "done") as any).finalText).toMatch(/^This answer is not from an offline source/);
+  });
+  it("the compact model with no source naming the date: no model call, the decline", async () => {
+    f.deps.today = () => new Date(2026, 8, 27);
+    f.retrieved = [TITANIC];
+    const { events } = await collect(q);
+    expect(f.generations).toHaveLength(0);
+    expect(events.find((e) => e.type === "warning")).toMatchObject({ code: "weak_sources", declined: true });
+  });
+  it("a source naming the date is on topic, in PT too", async () => {
+    f.deps.today = () => new Date(2026, 8, 27);
+    f.retrieved = [TITANIC, SEP27];
+    for (const query of [q, "O que aconteceu hoje na história?"]) {
+      const { events } = await collect(query);
+      const sources = (events.find((e) => e.type === "sources") as any).sources as RetrievedChunk[];
+      expect(sources.map((c) => c.title), query).toEqual(["September 27"]);
     }
   });
 });
