@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../theme";
 import { AMBIENT_LIGHT_STRENGTH, emberGradient, MOON_ALPHA } from "../theme/ambient";
 
@@ -14,6 +15,10 @@ export function Ambient() {
   const { tokens: t, palette } = useTheme();
   const g = t.color.glow;
   const strength = t.scheme === "dark" ? 1 : AMBIENT_LIGHT_STRENGTH;
+  const insets = useSafeAreaInsets();
+  // The moon sits below the top bar (safe area + one touch-height row), so it never cuts the header's
+  // controls in half (Prism LU-2); it peeks in from the right edge as in the mockup.
+  const moonTop = insets.top + t.size.touch + t.space.md;
   return (
     <View
       pointerEvents="none"
@@ -26,7 +31,7 @@ export function Ambient() {
           style={{
             position: "absolute",
             right: -80,
-            top: -80,
+            top: moonTop,
             width: 220,
             height: 220,
             borderRadius: 999,
