@@ -68,6 +68,12 @@ describe.each(combos)("%s / %s", (id, mode) => {
     for (const [fg, bg] of pairs) expect(c(p, fg, bg), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("keeps primary text >= 4.5:1 on every soft fill (Banner body)", () => {
+    for (const bg of ["accentSoft", "fieldSoft", "successSoft", "warningSoft", "dangerSoft", "infoSoft"] as (keyof ResolvedPalette)[]) {
+      expect(c(p, "textPrimary", bg), `textPrimary on ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("keeps primary and secondary text >= 4.5:1 on a selected option (accentSoft)", () => {
     expect(c(p, "textPrimary", "accentSoft")).toBeGreaterThanOrEqual(4.5);
     expect(c(p, "textSecondary", "accentSoft")).toBeGreaterThanOrEqual(4.5);

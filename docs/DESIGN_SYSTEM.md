@@ -127,7 +127,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Screen` | Scaffold: canvas, safe area (bottom+sides by default; the native header owns the top), keyboard-aware scroll (`keyboardShouldPersistTaps="handled"`), optional sticky `footer`; `space.gutter` (20) on the sides; `center` centres short content vertically (welcome, error states) | Title announced by the native stack |
 | `Text` | All text. `variant`, `color`, `numeric`, `weight`, `align`, `header` | Headers for titles; OS font scale on |
 | `Icon` | Feather glyph | Hidden unless `label` |
-| `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
+| `Button` | Pill. `primary` (ember fill + glow, one per screen), `secondary` (raised fill), `outline`, `ghost`, `destructive` (danger fill); `tone="danger"` on `ghost`/`outline` for a destructive entry point whose confirmation comes next (Remove → Sheet); `sm`; `icon`; `loading`; `fullWidth` | role button, `disabled`/`busy` state, ≥ touch min |
 | `IconButton` | Icon-only; `plain` / `surface` (neutral disc: header chrome) / `tonal` (soft accent: counts as the screen's accent) / `filled`; `selected` | `label` required, `selected` state |
 | `Card` | Grouped content; `level`, `onPress` | Button role when pressable |
 | `Section` | Titled group; `inset` draws the grouped surface with hairlines; `footer` explains effect | Title is a header |
@@ -143,7 +143,7 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 | `Badge` | Status seal, pill, caps: `solid` = ACTIVE, `soft` = CACHED, `outline` = DOWNLOADING (tone) / NOT ON DISK (neutral); `dot` + `caps={false}` for compatibility seals | Text always present |
 | `OfflineSeal` | `pill` (ember, crossed wifi, header; keep the visible label to one word, "OFFLINE", and put the full sentence in `accessibilityLabel`), `moon`, `card` (two lines). Only when no network use is guaranteed | One accessible label |
 | `Ambient` | Light pattern behind hero screens (usually via `Screen ambient`) | Hidden from readers |
-| `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss | Live region (danger assertive) |
+| `Banner` | Inline notice (info/success/warning/danger/field) with optional action and dismiss. Tone = soft fill + icon; only `danger` gets a border | Live region (danger assertive) |
 | `Toast` | `useToast()({ message, tone, icon, actionLabel, onAction })` | Announced; ≥ 5s + 60ms/char (6s with action); sits above the composer |
 | `Sheet` | Confirmations and short tasks; `footer` actions listed safest first (Cancel, then Delete; drawn with the last on top); `returnFocusRef` = the trigger | Modal, focus to title and back to the trigger on close, Android back/scrim close, `accessibilityViewIsModal` |
 | `TextField` | Visible `label` (or `accessibilityLabel`), `helper`, `error`, `autoGrow` + `maxRows`, `leading`/`trailing` | Label is the name (not placeholder), error as hint + live |
@@ -167,7 +167,7 @@ Patterns:
 - **Errors** say what happened, why if known, and the next action (`EmptyState tone="error"` or `Banner tone="danger"`). No raw "Error: …" strings.
 - **Streaming**: announce start and end once (`useAnnounce`), never per token.
 - **Dense result lists** (places, sources, models): one row per item inside one inset surface, hairlines between rows, max two text lines, the key number in a right-aligned column with `numeric` and a unit, provenance once in the footer in `field` color, "Show N more" instead of nested scroll. Reference: the geo result card spec (`review/ui-qa/specs/geo-result-card.md`).
-- Keyboard: the shell mounts `KeyboardProvider` (react-native-keyboard-controller). `Screen` scrolls focused inputs into view. The chat composer should use the controller's `KeyboardStickyView` / `KeyboardAvoidingView`.
+- Keyboard: the shell mounts `KeyboardProvider` (react-native-keyboard-controller). `Screen` scrolls focused inputs into view. The chat composer should use the controller's `KeyboardStickyView` / `KeyboardAvoidingView`. A `KeyboardAvoidingView` below a header or safe-area inset **must** set `automaticOffset`: in 1.21.x it compares its `onLayout` y (relative to its parent) with the keyboard's screen position, so without it the padding comes up short by everything above it and the composer hides behind the keyboard (Quill K-1). `Screen`'s `KeyboardAwareScrollView` uses the focused input's window position and is not affected.
 - Safe area: per screen through `Screen edges`. The shell has no global `SafeAreaView`; legacy screens are wrapped in `RootNavigator.tsx` until migrated.
 
 ## 9. Navigation

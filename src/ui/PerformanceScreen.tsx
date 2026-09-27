@@ -16,7 +16,7 @@ import {
 import { getAppPeakRssBytes } from "../services/telemetry";
 import { PerfBand, PERF_BANDS_PROVISIONAL, recordTokPerSec, summarizeRecent, tokPerSecBand, ttftBand } from "./flows/perfBands";
 import { useCatalog } from "./flows/useCatalog";
-import { formatBytes, formatRate, formatSeconds } from "./flows/format";
+import { formatBytes, formatRam, formatRate, formatSeconds } from "./flows/format";
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -182,14 +182,14 @@ export function PerformanceScreen() {
         </Section>
       )}
 
-      <Section title={t("flows.performance.fits")} footer={t("flows.performance.fitsFooter", { ram: formatBytes(RAM_BUDGET_BYTES, lang), storage: formatBytes(STORAGE_BUDGET_BYTES, lang) })}>
+      <Section title={t("flows.performance.fits")} footer={t("flows.performance.fitsFooter", { ram: formatRam(RAM_BUDGET_BYTES, lang), storage: formatBytes(STORAGE_BUDGET_BYTES, lang) })}>
         <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
           {peakRss > 0 && (
             <Meter
               label={t("flows.performance.memory")}
               used={peakRss}
               total={RAM_BUDGET_BYTES}
-              text={t("flows.performance.ofLimit", { used: formatBytes(peakRss, lang), limit: formatBytes(RAM_BUDGET_BYTES, lang) })}
+              text={t("flows.performance.ofLimit", { used: formatRam(peakRss, lang), limit: formatRam(RAM_BUDGET_BYTES, lang) })}
             />
           )}
           <Meter
@@ -203,7 +203,7 @@ export function PerformanceScreen() {
           </Text>
           {catalog.deviceRamBytes > 0 && (
             <Text variant="footnote" color="secondary">
-              {t("flows.performance.deviceRam", { ram: formatBytes(catalog.deviceRamBytes, lang) })}
+              {t("flows.performance.deviceRam", { ram: formatRam(catalog.deviceRamBytes, lang) })}
             </Text>
           )}
         </View>

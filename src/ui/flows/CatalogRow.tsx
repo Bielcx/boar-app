@@ -6,10 +6,11 @@ import { Badge, Button, IconName, MetaLine, Progress, Sheet, Text, useAnnounce, 
 import type { Tone } from "../theme";
 import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
-import { formatBytes } from "./format";
+import { formatBytes, formatRam } from "./format";
 import type { RowState, RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { canDownload } from "./useCatalog";
+import type { FileImport } from "./useCatalog";
 
 interface Props {
   model: CatalogModel;
@@ -29,6 +30,8 @@ interface Props {
   fit?: MemoryFit;
   /** The kind overline; off where the whole screen is one kind (Knowledge, Prism KN-3). */
   showKind?: boolean;
+  /** The file this row asked for (useCatalog.importFor): its check, refusal or mismatch shows here. */
+  fileImport?: FileImport;
 }
 
 type Seal = { label: string; tone: Tone; emphasis: "solid" | "soft" | "outline"; icon?: IconName };
@@ -57,7 +60,7 @@ function seal(state: RowState, t: TFunction): Seal {
 
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true, fileImport }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -147,6 +150,27 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         </View>
       )}
 
+      {fileImport && (
+        <View style={{ gap: tokens.space.xs }} accessibilityLiveRegion="polite">
+          {fileImport.status === "importing" ? (
+            <>
+              <Text variant="footnote" color="secondary">
+                {t("flows.row.importChecking", { name: fileImport.name })}
+              </Text>
+              <Progress label={t("flows.row.importChecking", { name: fileImport.name })} value={fileImport.progress} />
+            </>
+          ) : fileImport.status === "failed" ? (
+            <Text variant="footnote" color="danger">
+              {`${fileImport.name}: ${t(`flows.row.error.${fileImport.errorKind ?? "unknown"}`)}`}
+            </Text>
+          ) : (
+            <Text variant="footnote" color="warning">
+              {t("flows.row.importOther", { name: fileImport.name })}
+            </Text>
+          )}
+        </View>
+      )}
+
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         {view.primary === "download" && (
           <Button size="sm" label={getLabel} icon={getIcon} onPress={onDownload} />
@@ -176,6 +200,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <Button
             size="sm"
             variant="ghost"
+            tone="danger"
             label={t("flows.row.remove")}
             accessibilityHint={view.removeBlocked ? t("flows.row.inUseHint") : undefined}
             onPress={() => (view.removeBlocked ? toast({ message: t("flows.row.inUseHint") }) : setConfirmOpen(true))}
@@ -206,9 +231,9 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         {fit && (
           <Text variant="callout" numeric>
             {t("flows.row.fitDetail", {
-              need: formatBytes(fit.anonBytes, i18n.language),
-              free: formatBytes(fit.availableBytes, i18n.language),
-              total: formatBytes(fit.totalBytes, i18n.language),
+              need: formatRam(fit.anonBytes, i18n.language),
+              free: formatRam(fit.availableBytes, i18n.language),
+              total: formatRam(fit.totalBytes, i18n.language),
             })}
           </Text>
         )}

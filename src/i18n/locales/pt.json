@@ -321,6 +321,8 @@
       "failed": "Falhou",
       "failedAnnounce": "{{name}} falhou. Dá para tentar de novo.",
       "verified": "Arquivo conferido",
+      "importChecking": "Conferindo {{name}}",
+      "importOther": "{{name}} é outro item, não este. Escolha o arquivo deste item.",
       "unverified": "Instalado, sem verificação",
       "role": {
         "answer": "Respostas",

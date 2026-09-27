@@ -12,26 +12,19 @@ import { getActiveModelId, setActiveModelId } from "../../models/settings";
 import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discoveredModels";
 import { getDownloadState, importAssetFile, startDownload, subscribeDownloads } from "../../services/downloadManager";
 import * as DocumentPicker from "expo-document-picker";
-import { AssetIntegrityError, IntegrityErrorKind, isAbortError } from "../../models/integrity";
+import { AssetIntegrityError, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
 import { fitFor, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
+import { FileImport, importFor } from "./fileImport";
+export type { FileImport };
 
 export const modelManager = new ModelManager();
 
 /** One picked file on its way in (offline build, or "import a file"). */
-export interface FileImport {
-  name: string;
-  status: "importing" | "verified" | "failed";
-  /** 0..1 of the file hashed so far. */
-  progress: number;
-  assetId?: string;
-  errorKind?: IntegrityErrorKind;
-  message?: string;
-}
 
 /** Downloadable only with network and a published URL; everything else comes in as a file. */
 export function canDownload(model: Pick<CatalogModel, "sourceUrl">): boolean {
@@ -59,6 +52,8 @@ export interface CatalogState {
   imports: FileImport[];
   /** Opens the system file picker and imports each chosen file. A cancelled picker does nothing. */
   importFiles: () => Promise<void>;
+  /** The file a row asked for, while it matters: being checked, refused, or matched to another item. */
+  importFor: (id: string) => FileImport | undefined;
   /** Downloads what can be downloaded; opens the file picker when any item must be imported. */
   install: (models: CatalogModel[]) => Promise<void>;
   /** Stops the import in progress; the cancelled file leaves the list without an error. */
@@ -178,7 +173,7 @@ export function useCatalog(): CatalogState {
   const [imports, setImports] = useState<FileImport[]>([]);
   const importAbort = useRef<AbortController | null>(null);
   const cancelImports = useCallback(() => importAbort.current?.abort(), []);
-  const importFiles = useCallback(async () => {
+  const pickAndImport = useCallback(async (forIds?: string[]) => {
     const picked = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: false, type: "*/*" });
     if (picked.canceled || picked.assets.length === 0) return;
     const files = picked.assets;
@@ -186,7 +181,7 @@ export function useCatalog(): CatalogState {
       setImports((prev) => prev.map((f) => (f.name === name ? { ...f, ...next } : f)));
     setImports((prev) => [
       ...prev.filter((f) => !files.some((p) => p.name === f.name)),
-      ...files.map((f) => ({ name: f.name, status: "importing" as const, progress: 0 })),
+      ...files.map((f) => ({ name: f.name, status: "importing" as const, progress: 0, forIds })),
     ]);
     const controller = new AbortController();
     importAbort.current = controller;
@@ -219,15 +214,17 @@ export function useCatalog(): CatalogState {
     importAbort.current = null;
     await refresh();
   }, [refresh]);
+  // Bound to buttons as onPress: never let the press event through as forIds.
+  const importFiles = useCallback(() => pickAndImport(), [pickAndImport]);
 
   const install = useCallback(
     async (models: CatalogModel[]) => {
       const missing = models.filter((m) => !statuses[m.id]?.present);
       const toImport = missing.filter((m) => !canDownload(m));
       await Promise.all(missing.filter(canDownload).map((m) => download(m)));
-      if (toImport.length > 0) await importFiles();
+      if (toImport.length > 0) await pickAndImport(toImport.map((m) => m.id));
     },
-    [statuses, download, importFiles]
+    [statuses, download, pickAndImport]
   );
 
   const usedBytes = Object.values(statuses).reduce((sum, s) => sum + (s.present ? s.sizeOnDiskBytes : 0), 0);
@@ -251,6 +248,7 @@ export function useCatalog(): CatalogState {
     use,
     imports,
     importFiles,
+    importFor: (id: string) => importFor(imports, id),
     install,
     cancelImports,
   };

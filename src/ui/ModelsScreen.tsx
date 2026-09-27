@@ -83,6 +83,7 @@ export function ModelsScreen() {
           key={m.id}
           model={m}
           view={catalog.view(m)}
+          fileImport={catalog.importFor(m.id)}
           fit={catalog.fit(m)}
           busy={catalog.loadingId !== null}
           onDownload={() => catalog.install([m])}

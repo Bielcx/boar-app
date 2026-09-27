@@ -15,6 +15,8 @@ export interface ButtonProps extends Omit<PressableProps, "children" | "style"> 
   iconPosition?: "start" | "end";
   loading?: boolean;
   fullWidth?: boolean;
+  /** `danger` recolours `ghost` and `outline` for a destructive entry point (Remove, Delete) whose confirmation comes next. */
+  tone?: "default" | "danger";
   style?: StyleProp<ViewStyle>;
 }
 
@@ -31,6 +33,7 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
   loading,
   disabled,
   fullWidth,
+  tone = "default",
   style,
   onPress,
   ...rest
@@ -45,6 +48,11 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
     ghost: { bg: "transparent", bgPressed: c.bg.sunken, fg: c.accent.text, border: "transparent" },
     destructive: { bg: c.status.danger.fill, bgPressed: c.status.danger.fill, fg: c.accent.on, border: "transparent" },
   }[variant];
+  const danger = tone === "danger" && (variant === "ghost" || variant === "outline");
+  if (danger) {
+    palette.fg = c.status.danger.solid;
+    if (variant === "outline") palette.border = c.status.danger.solid;
+  }
   const height = size === "sm" ? t.size.controlSm : t.size.touch;
   const slop = Math.max(0, (t.size.touch - height) / 2);
 
