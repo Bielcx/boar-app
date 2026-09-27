@@ -56,7 +56,11 @@ function cardSubtitle(r: PlacesResult, locale: string, t: T): string {
     parts.push(t("chat.places.inCity", { city: r.area.place?.name ?? r.area.label ?? "" }));
   }
   // "Best" is never popularity: say how the list is ordered.
-  parts.push(t(r.criterion === "distance" ? "chat.places.byDistance" : "chat.places.byDiet"));
+  // A named city lists no distances (the search centres on the city): say what the distance is from (Prism OM-1).
+  const city = r.area.kind === "city";
+  parts.push(
+    t(r.criterion === "distance" ? (city ? "chat.places.byDistanceCity" : "chat.places.byDistance") : city ? "chat.places.byDietCity" : "chat.places.byDiet")
+  );
   return parts.join(" · ");
 }
 
