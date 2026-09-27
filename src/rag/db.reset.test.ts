@@ -8,7 +8,7 @@ vi.mock("expo-sqlite", () => ({
     const conn = {
       n,
       finishRead: () => release(),
-      execAsync: async (sql: string) => void (/DELETE|VACUUM|defer_foreign_keys/.test(sql) && log.push(sql.trim())),
+      execAsync: async (sql: string) => void (/DELETE|VACUUM|defer_foreign_keys|wal_checkpoint/.test(sql) && log.push(sql.trim())),
       runAsync: async () => ({ changes: 0 }),
       getAllAsync: async (sql: string) =>
         /sqlite_master/.test(sql)
@@ -54,6 +54,7 @@ describe("wipeDatabase (RS-1 v2)", () => {
       'DELETE FROM "chat_messages"',
       "COMMIT",
       "VACUUM",
+      "PRAGMA wal_checkpoint(TRUNCATE)",
     ]);
     expect(log.some((l) => /close|deleteDatabase/.test(l))).toBe(false);
     expect(await db.getFirstAsync("SELECT 1")).toEqual({ ok: 1 });

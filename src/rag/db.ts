@@ -58,9 +58,9 @@ export function wipeDatabase(): Promise<void> {
   resetting ??= (async () => {
     abortAllWork();
     await writeChain.catch(() => {});
-    const current = dbPromise;
-    if (!current) return;
-    const { db } = await current;
+    // Opened here if nothing opened it yet in this process ("Erase everything" right after launch): an unopened
+    // database still holds the old data. Not through getDb(), which waits for this very reset.
+    const { db } = await (dbPromise ??= openAndMigrate().then((d) => guard(d, "knowledge base")));
     const tables = await db.getAllAsync<{ name: string; sql: string | null }>(
       "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
     );
@@ -72,6 +72,10 @@ export function wipeDatabase(): Promise<void> {
       for (const name of data) await db.execAsync(`DELETE FROM "${name.replace(/"/g, '""')}"`);
     });
     await db.execAsync("VACUUM").catch((e) => console.warn("[db] VACUUM after wipe failed:", e?.message ?? e));
+    // journal_mode is WAL: pages with the erased text can sit in the -wal file until a checkpoint.
+    await db
+      .execAsync("PRAGMA wal_checkpoint(TRUNCATE)")
+      .catch((e) => console.warn("[db] WAL checkpoint after wipe failed:", e?.message ?? e));
   })().finally(() => {
     resetting = null;
   });
