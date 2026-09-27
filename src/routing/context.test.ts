@@ -803,12 +803,17 @@ describe("wrongScriptSentences (Sextant trv-007-pt)", () => {
   });
 });
 
-describe("isHealthQuestion: a translation request is not health (Sextant lng-009)", () => {
-  it("translating a phrase that names a condition is a language question; asking what to do is health", () => {
-    expect(isHealthQuestion("How do I say 'I am allergic to peanuts' in French?")).toBe(false);
-    expect(isHealthQuestion("Como se diz 'sou alérgico a amendoim' em francês?")).toBe(false);
+describe("isHealthQuestion: health for the content, translation for the form (Sextant lng-009, gate 52a2310)", () => {
+  it("a phrase to translate with health content stays health; a phrase without it does not", () => {
+    expect(isHealthQuestion("How do I say 'I am allergic to peanuts' in French?")).toBe(true);
+    expect(isHealthQuestion("How do I say I am allergic to peanuts in French?")).toBe(true);
+    expect(isHealthQuestion("Como se diz 'sou alérgico a amendoim' em francês?")).toBe(true);
+    expect(isHealthQuestion("How do I say 'I need my insulin' in Spanish?")).toBe(true);
     expect(isHealthQuestion("What do I do if I'm allergic to peanuts?")).toBe(true);
-    expect(isHealthQuestion("I'm allergic to peanuts and my throat is swelling, what should I do?")).toBe(true);
-    expect(isHealthQuestion("How do I stop a nosebleed?")).toBe(true);
+    expect(isHealthQuestion("How do I greet someone politely in Korean?")).toBe(false);
+    expect(isHealthQuestion("What is the difference between 'tu' and 'vous' in French?")).toBe(false);
+    expect(isHealthQuestion("Which direction is Arabic written in, and how do you say hello in Arabic?")).toBe(false);
+    expect(isHealthQuestion("How do I say thank you in Thai, and does it change if I'm a man or a woman?")).toBe(false);
+    expect(isHealthQuestion("Como se diz obrigado em tailandês, e muda se eu for homem ou mulher?")).toBe(false);
   });
 });

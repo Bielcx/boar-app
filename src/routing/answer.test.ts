@@ -1411,15 +1411,17 @@ describe("answer(): a phrase question with no source is declined by both models 
   });
 });
 
-describe("answer(): lng-009, a translation request that names an allergy (gate 537bb24)", () => {
-  it("goes to the model as a language question, not to the health guard", async () => {
+describe("answer(): lng-009, an allergy phrase to translate (gate 52a2310)", () => {
+  it("stays on the health path: no source, no answer from memory", async () => {
     f.installed = [lfm];
     f.activeId = "lfm8";
     f.retrieved = [];
-    f.deps.engine.generate = async () => "In French: « Je suis allergique aux arachides. »";
+    const calls: unknown[] = [];
+    f.deps.engine.generate = async (...a: unknown[]) => { calls.push(a); return "Je suis allergique au peanut."; };
     const { result } = await collect("How do I say 'I am allergic to peanuts' in French?");
-    expect(result.receipt.reasonCodes.some((c) => /health/.test(c))).toBe(false);
-    expect(result.text).toMatch(/Je suis allergique aux arachides/);
+    expect(result.receipt.reasonCodes).toContain("grounding:health-no-source");
+    expect(calls).toHaveLength(0);
+    expect(result.text).not.toMatch(/allergique/);
   });
 });
 
