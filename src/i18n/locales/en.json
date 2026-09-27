@@ -742,7 +742,8 @@
       "modelError": "The model didn't load. Fix it above to send.",
       "placeholderLoading": "Type while the model loads",
       "placeholderIndexing": "Type while the library is indexed",
-      "indexing": "Sending starts once the offline library is indexed"
+      "indexing": "Sending starts once the offline library is indexed",
+      "focusHint": "Type a question first"
     },
     "stage": {
       "searching": "Searching sources…",
@@ -1068,14 +1069,18 @@
       "general": {
         "title": "The model didn’t start",
         "body": "The engine couldn’t open the model.",
-        "hint": "Try again. If it keeps failing, check the model in Settings. The engine said:"
+        "hint": "Try again. If it keeps failing, check the model in Settings."
       },
       "rawLabel": "Engine error: {{error}}",
       "engine": {
-        "title": "The model didn’t load on this phone",
-        "body": "The model file is on this phone, but the engine couldn’t start it here (first on the GPU, then on the CPU).",
-        "hint": "Try again. If it keeps failing, try a smaller model in Settings (this can also be a memory limit). The engine said:"
-      }
+        "title": "Model didn’t load",
+        "body": "The file is on this phone; the engine couldn’t start it.",
+        "hint": "Try again. If it keeps failing, choose a smaller model in Settings.",
+        "details": "It tried the GPU, then the CPU. This can also be a memory limit. The engine said:"
+      },
+      "status": "{{model}} not loaded",
+      "details": "Details",
+      "hideDetails": "Hide details"
     },
     "safety": {
       "emergencyNote": "Not a substitute for emergency services. In an emergency, call your local emergency number."

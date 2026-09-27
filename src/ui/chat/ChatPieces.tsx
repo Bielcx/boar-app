@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
@@ -110,26 +110,26 @@ export function ChatEmptyState({
   const t = useTokens();
   const { t: tr } = useTranslation();
   return (
-    // The mockup's layout (spec-chat-vazio): top-aligned under the header with three suggestions; centred when
-    // fewer (Iris), so a lone card doesn't leave a gap above the composer.
+    // The mockup's layout (spec-chat-vazio): mascot, wordmark, tagline, then the suggestions.
     <View
       style={{
         flexGrow: 1,
-        justifyContent: showsKnowledgeHint(suggestions.length) ? "center" : "flex-start",
+        // Top-aligned under the header, as the mockup; what is left over stays above the composer (Iris).
+        justifyContent: "flex-start",
         gap: t.space.lg,
         marginTop: -t.space.xs,
       }}
     >
       <View style={{ alignItems: "center" }}>
         <Mascot glow />
-        {/* The wordmark overlaps the mascot's base by 20, as in the mockup. Starts with the visible word, then the
+        {/* The wordmark overlaps the mascot's feet by a few points, as in the mockup. Starts with the visible word, then the
             screen's title for readers (Prism, in the spirit of WCAG 2.5.3). */}
         <Text
           variant="wordmark"
           align="center"
           header
           accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}
-          style={{ marginTop: -t.space.lg }}
+          style={{ marginTop: -t.space.xs }}
         >
           {tr("chat.assistantName")}
         </Text>
@@ -220,12 +220,15 @@ export function ChatModelError({
   onRelaunchWizard,
   onRetry,
   compact,
+  modelLabel,
 }: {
   error: string;
   /** The engine's classified cause (ModelLoadError.kind); without it the text is read (modelErrorKind). */
   kind?: ModelErrorKind;
   /** Above a conversation: no mascot, no vertical centring. */
   compact?: boolean;
+  /** Names the model in the status line under the mascot ("Qwen3 4B not loaded"). */
+  modelLabel?: string;
   onOpenSettings: () => void;
   onRelaunchWizard?: () => void;
   onRetry: () => void;
@@ -234,15 +237,24 @@ export function ChatModelError({
   const { t: tr } = useTranslation();
   const kind = engineKind ?? modelErrorKind(error);
   const setupLeads = modelErrorPrimary(kind) === "setup" && !!onRelaunchWizard;
+  const [details, setDetails] = useState(false);
+  const raw = showsRawError(kind) ? error.trim() : "";
+  // The mockup's rhythm (spec-chat-erro): mascot 120, status 6 below, card 14 below, the block centred.
   return (
-    <View style={compact ? undefined : { flexGrow: 1, justifyContent: "center", gap: t.space.xl, paddingVertical: t.space.xl }}>
+    <View style={compact ? undefined : { flexGrow: 1, justifyContent: "center", paddingVertical: t.space.xl }}>
       {!compact && (
-        <View style={{ alignItems: "center" }}>
+        <View style={{ alignItems: "center", gap: t.space.xs + t.space.xxs, marginBottom: t.space.cardGap }}>
           <Mascot size="md" dim />
+          {modelLabel ? (
+            <Text variant="footnote" color="secondary" align="center">
+              {tr("chat.modelError.status", { model: modelLabel })}
+            </Text>
+          ) : null}
         </View>
       )}
       <Card
         accessibilityRole="alert"
+        radius="hero"
         style={{ gap: t.space.md, borderWidth: t.size.border, borderColor: t.color.status.danger.solid }}
       >
         <View style={{ alignSelf: "flex-start" }}>
@@ -256,15 +268,36 @@ export function ChatModelError({
             {tr(`chat.modelError.${kind}.body`)}
           </Text>
         </View>
-        <View style={{ gap: t.space.sm, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.canvas }}>
+        <View style={{ padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.canvas }}>
           <Text variant="footnote" color="secondary">{tr(`chat.modelError.${kind}.hint`)}</Text>
-          {/* The engine's own words, whole and selectable, so a user can report them. */}
-          {showsRawError(kind) && error.trim().length > 0 && (
-            <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error })}>
-              {error.trim()}
-            </Text>
-          )}
         </View>
+        {/* The engine's own words stay available (selectable, to report them) behind "Details", closed by default,
+            so the card keeps the mockup's height (Iris). */}
+        {raw.length > 0 && (
+          <View style={{ gap: t.space.xs }}>
+            <Button
+              label={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
+              variant="ghost"
+              size="sm"
+              icon={details ? "chevron-up" : "chevron-down"}
+              accessibilityState={{ expanded: details }}
+              style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
+              onPress={() => setDetails((d) => !d)}
+            />
+            {details && (
+              <View style={{ gap: t.space.xs }}>
+                {kind === "engine" && (
+                  <Text variant="footnote" color="secondary">
+                    {tr("chat.modelError.engine.details")}
+                  </Text>
+                )}
+                <Text variant="code" color="secondary" selectable accessibilityLabel={tr("chat.modelError.rawLabel", { error: raw })}>
+                  {raw}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
           <View style={{ flexGrow: 1, flexBasis: "40%" }}>
             <Button label={tr("chat.modelError.settings")} variant="secondary" fullWidth onPress={onOpenSettings} />

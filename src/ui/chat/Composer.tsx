@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { IconButton, Text } from "../components";
@@ -29,7 +29,9 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
   const t = useTokens();
   const { t: tr } = useTranslation();
   const ready = status === "ready";
-  const canSend = ready && !generating && value.trim().length > 0;
+  const field = useRef<TextInput>(null);
+  useImperativeHandle(ref, () => field.current as TextInput);
+  const empty = value.trim().length === 0;
   const keys = composerNotice(status);
   const line = keys.line ? tr(keys.line) : undefined;
   const hint = keys.hint ? tr(keys.hint) : undefined;
@@ -53,7 +55,8 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
           {line}
         </Text>
       )}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm }}>
+      {/* In the model-error state the whole composer is dimmed, as the mockup: the card above is where to act (E-5). */}
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, opacity: status === "error" ? 0.45 : 1 }}>
         {voiceEnabled && (
           <VoiceInputButton disabled={!ready} onTranscript={(text) => onChange(value ? `${value} ${text}` : text)} />
         )}
@@ -71,7 +74,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
           }}
         >
           <TextInput
-            ref={ref}
+            ref={field}
             value={value}
             onChangeText={onChange}
             accessibilityLabel={tr("chat.composer.label")}
@@ -115,15 +118,16 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
             <View style={{ width: t.space.base, height: t.space.base, borderRadius: t.space.xs, backgroundColor: t.color.accent.solid }} />
           </Pressable>
         ) : (
+          // With the model ready, send is always the ember disc (the mockup): with an empty field it puts the
+          // focus there instead of sending nothing. Neutral and disabled only when the model can't answer.
           <IconButton
             icon="arrow-up"
             variant="filled"
             size="lg"
             label={tr("chat.composer.send")}
-            // Why sending is off, for screen readers (visually: the line above, or the error card).
-            accessibilityHint={hint}
-            disabled={!canSend}
-            onPress={onSend}
+            accessibilityHint={!ready ? hint : empty ? tr("chat.composer.focusHint") : undefined}
+            disabled={!ready}
+            onPress={() => (empty ? field.current?.focus() : onSend())}
           />
         )}
       </View>

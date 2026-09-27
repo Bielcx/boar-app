@@ -742,7 +742,8 @@
       "modelError": "O modelo não carregou. Resolva acima para enviar.",
       "placeholderLoading": "Digite enquanto o modelo carrega",
       "placeholderIndexing": "Digite enquanto o acervo é indexado",
-      "indexing": "O envio libera quando o acervo offline terminar de indexar"
+      "indexing": "O envio libera quando o acervo offline terminar de indexar",
+      "focusHint": "Digite uma pergunta primeiro"
     },
     "stage": {
       "searching": "Buscando nas fontes…",
@@ -1068,14 +1069,18 @@
       "general": {
         "title": "O modelo não iniciou",
         "body": "O motor não conseguiu abrir o modelo.",
-        "hint": "Tente de novo. Se continuar falhando, confira o modelo em Ajustes. O motor disse:"
+        "hint": "Tente de novo. Se continuar falhando, confira o modelo em Ajustes."
       },
       "rawLabel": "Erro do motor: {{error}}",
       "engine": {
-        "title": "O modelo não carregou neste celular",
-        "body": "O arquivo do modelo está neste celular, mas o motor não conseguiu iniciá-lo aqui (primeiro na GPU, depois na CPU).",
-        "hint": "Tente de novo. Se continuar, tente um modelo menor em Ajustes (também pode ser falta de memória). O motor disse:"
-      }
+        "title": "O modelo não carregou",
+        "body": "O arquivo está no celular; o motor não conseguiu iniciá-lo.",
+        "hint": "Tente de novo. Se continuar, escolha um modelo menor em Ajustes.",
+        "details": "Tentou na GPU e depois na CPU. Também pode ser falta de memória. O motor disse:"
+      },
+      "status": "{{model}} não carregado",
+      "details": "Detalhes",
+      "hideDetails": "Ocultar detalhes"
     },
     "safety": {
       "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."
