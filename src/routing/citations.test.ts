@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { attributeCitations, checkCitations, citationSupport } from "./citations";
+import { attributeCitations, checkCitations, citationSupport, dedupeCitations } from "./citations";
 import type { RetrievedChunk } from "../rag/retrieve.types";
 
 const src = (title: string, body: string): RetrievedChunk => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" });
@@ -52,9 +52,24 @@ describe("attributeCitations (the inverse of CT-1)", () => {
     expect(attributeCitations("Liboqs, an open-source library, integrates several quantum-resistant signature algorithms.", [pqc]).added).toEqual([1]);
   });
 
+  it("Prism CIT-2: a citation written after the period belongs to that sentence (no '[1]. [1]')", () => {
+    const r = attributeCitations("A monsoon is a seasonal reversing wind accompanied by changes in precipitation. [1]", [MONSOON]);
+    expect(r.text).toBe("A monsoon is a seasonal reversing wind accompanied by changes in precipitation. [1]");
+    expect(r.added).toEqual([]);
+  });
+
   it("never without support, never to a short sentence, never twice", () => {
     expect(attributeCitations("Ice cream is sold on beaches.", [MONSOON]).added).toEqual([]);
     expect(attributeCitations("Monsoon.", [MONSOON]).added).toEqual([]);
     expect(attributeCitations("A monsoon is a seasonal reversing wind [1].", [MONSOON]).text).toBe("A monsoon is a seasonal reversing wind [1].");
+  });
+});
+
+describe("dedupeCitations (Prism CIT-2)", () => {
+  it("one [n] per sentence end", () => {
+    expect(dedupeCitations("The ITCZ moves [1]. [1]")).toBe("The ITCZ moves [1].");
+    expect(dedupeCitations("The ITCZ moves [1] [1].")).toBe("The ITCZ moves [1].");
+    expect(dedupeCitations("A [1]. B [2].")).toBe("A [1]. B [2].");
+    expect(dedupeCitations("A [1] [2].")).toBe("A [1] [2].");
   });
 });
