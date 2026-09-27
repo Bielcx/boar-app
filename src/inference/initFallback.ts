@@ -20,8 +20,13 @@ export interface BackendInfo {
   reason?: string;
 }
 
-/** Errors that a CPU-only retry can fix: GPU/Metal backend start-up, or llama.cpp's terse context failure. */
-export const BACKEND_INIT_ERROR = /metal|\bmtl\d*\b|\bgpu\b|backend|xpc_error|flash.?attn|failed to initialize context/i;
+/**
+ * Errors that a CPU-only retry can fix: GPU/Metal backend start-up, or llama.cpp's terse context failure.
+ * llama.rn's JSI init (cpp/jsi/RNLlamaJSI.cpp) rejects with only "Failed to load model"; the Metal
+ * details go to the native log. A missing file is caught before initLlama, so a corrupt file is
+ * the only other cause, and it costs one extra CPU attempt that surfaces the same error.
+ */
+export const BACKEND_INIT_ERROR = /metal|\bmtl\d*\b|\bgpu\b|backend|xpc_error|flash.?attn|failed to initialize context|failed to load model/i;
 
 /** CPU device names from getBackendDevicesInfo(); ["CPU"] (ggml's name) when they can't be read. */
 export async function cpuDeviceNames(

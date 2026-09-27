@@ -12,7 +12,7 @@ vi.mock("llama.rn", () => ({
   ],
   initLlama: async (params: any) => {
     state.inits.push(params);
-    if (state.failGpu && params.n_gpu_layers !== 0) throw new Error("failed to initialize MTL0 backend");
+    if (state.failGpu && params.n_gpu_layers !== 0) throw new Error("Failed to load model");
     return {
     // Like llama.rn: a second call while one is running is rejected.
     embedding: async (text: string) => {
