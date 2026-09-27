@@ -126,6 +126,8 @@ type TypeSpec = {
 
 /** Baloo 2 (display) for the wordmark, titles, buttons and big numbers; Lexend (text) for everything read. */
 const TYPE_SCALE = {
+  /** The one figure a screen is about (download %, mockup 56). Capped: it is already large. */
+  hero: { face: "display", weight: 800, size: 56, leading: 1, tracking: -1.2, maxScale: 1.2 },
   display: { face: "display", weight: 800, size: 34, leading: 1.1, tracking: -0.7, maxScale: 1.5 },
   title1: { face: "display", weight: 800, size: 26, leading: 1.15, tracking: -0.5 },
   title2: { face: "display", weight: 800, size: 22, leading: 1.2, tracking: -0.4 },

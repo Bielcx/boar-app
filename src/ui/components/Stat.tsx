@@ -11,14 +11,14 @@ export interface StatProps {
   unit?: string;
   /** Overline above the number ("DOWNLOAD", "DOWNLOADING WEIGHTS"). */
   label?: string;
-  /** lg = hero (34), md = card lead (26), sm = inline trailing figure (17). */
-  size?: "lg" | "md" | "sm";
+  /** xl = the screen's one figure (56, download %), lg = 34, md = card lead (26), sm = inline trailing figure (17). */
+  size?: "xl" | "lg" | "md" | "sm";
   align?: "left" | "right";
   color?: TextColor;
 }
 
-const VALUE_VARIANT = { lg: "display", md: "title1", sm: "headline" } as const;
-const UNIT_VARIANT = { lg: "title3", md: "headline", sm: "footnote" } as const;
+const VALUE_VARIANT = { xl: "hero", lg: "display", md: "title1", sm: "headline" } as const;
+const UNIT_VARIANT = { xl: "title2", lg: "title3", md: "headline", sm: "footnote" } as const;
 
 /** A number that leads: big, tabular, with its unit and an optional overline. One per card at most. */
 export function Stat({ value, unit, label, size = "md", align = "left", color = "primary" }: StatProps) {
@@ -27,7 +27,7 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
     <View
       accessible
       accessibilityLabel={[label, unit ? `${value} ${unit}` : value].filter(Boolean).join(": ")}
-      style={{ alignItems: align === "right" ? "flex-end" : "flex-start", gap: t.space.xxs }}
+      style={{ alignItems: align === "right" ? "flex-end" : "flex-start", gap: t.space.xs }}
     >
       {label ? <Text variant="label" color="field">{label}</Text> : null}
       <View style={{ flexDirection: "row", alignItems: "baseline", gap: t.space.xxs }}>
