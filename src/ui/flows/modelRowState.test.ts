@@ -136,3 +136,21 @@ describe("mayCloseApp (CR-1: Qwen3-4B on 3.8 GB got the app killed)", () => {
     expect(modelRowView({ present: true, roles: [], fit: "thrashing" })).toMatchObject({ mayCloseApp: false, fitWarning: "thrashing" });
   });
 });
+
+describe("load crash and confirmation (CR-2)", () => {
+  const row = (o: Partial<RowInput>) => modelRowView({ present: true, roles: [], ...o });
+
+  it("a risky model asks before Use until the user confirms it", () => {
+    expect(row({ mayCloseApp: true }).confirmUse).toBe(true);
+    expect(row({ mayCloseApp: true, largeConfirmed: true }).confirmUse).toBe(false);
+  });
+
+  it("a model whose last load killed the app says 'Didn't open here' and asks again, even if confirmed", () => {
+    const v = row({ loadCrashed: true, largeConfirmed: true, fit: "thrashing" });
+    expect(v).toMatchObject({ didNotOpen: true, mayCloseApp: true, confirmUse: true, fitWarning: null });
+  });
+
+  it("an ordinary model never asks", () => {
+    expect(row({})).toMatchObject({ didNotOpen: false, mayCloseApp: false, confirmUse: false });
+  });
+});

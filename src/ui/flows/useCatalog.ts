@@ -15,7 +15,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
-import { fitFor, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
+import { fitFor, largeModelConfirmedIds, loadCrashedIds, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { mayCloseApp, ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
@@ -75,6 +75,8 @@ export function useCatalog(): CatalogState {
   const [freeBytes, setFreeBytes] = useState(0);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [loadErrors, setLoadErrors] = useState<Record<string, string>>({});
+  const [crashedIds, setCrashedIds] = useState<string[]>([]);
+  const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
   const [, setTick] = useState(0);
   const deviceRamBytes = useMemo(() => {
     try {
@@ -92,6 +94,8 @@ export function useCatalog(): CatalogState {
     setStatuses(Object.fromEntries(all.map((s) => [s.asset.id, s])));
     setActiveLlmId((await getActiveModelId("llm")) ?? defaultId("llm"));
     setActiveEmbeddingId((await getActiveModelId("embedding")) ?? defaultId("embedding"));
+    setCrashedIds(await loadCrashedIds());
+    setConfirmedIds(await largeModelConfirmedIds());
     try {
       setFreeBytes(await FileSystem.getFreeDiskStorageAsync());
     } catch {
@@ -120,10 +124,12 @@ export function useCatalog(): CatalogState {
         loadError: loadErrors[model.id] ?? null,
         fit: fitFor(model)?.verdict,
         mayCloseApp: mayCloseApp(model, answerModelChoices(MODEL_CATALOG).compact?.sizeBytes, deviceRamBytes),
+        loadCrashed: crashedIds.includes(model.id),
+        largeConfirmed: confirmedIds.includes(model.id),
       });
     },
     // getDownloadState reads module state; the tick re-renders on each change.
-    [statuses, activeLlmId, activeEmbeddingId, loadingId, loadErrors, deviceRamBytes]
+    [statuses, activeLlmId, activeEmbeddingId, loadingId, loadErrors, deviceRamBytes, crashedIds, confirmedIds]
   );
 
   const download = useCallback(

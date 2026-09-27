@@ -46,6 +46,10 @@ export interface RowInput {
   fit?: FitVerdict;
   /** Loading it can get the app killed on this phone (mayCloseApp). */
   mayCloseApp?: boolean;
+  /** Its last load did kill the app here (Tusk's load marker, CR-2). */
+  loadCrashed?: boolean;
+  /** The user already chose "Use anyway" for it. */
+  largeConfirmed?: boolean;
 }
 
 export type RowState =
@@ -75,6 +79,10 @@ export interface RowView {
   fitWarning: FitVerdict | null;
   /** Loading it can get the app killed here: the row says so instead of "May be slow", and Use asks first (CR-1). */
   mayCloseApp: boolean;
+  /** Its last load killed the app here: the seal says "Didn't open here" (CR-2). */
+  didNotOpen: boolean;
+  /** Use asks for confirmation first (risky and not confirmed yet, or it already crashed). */
+  confirmUse: boolean;
 }
 
 /**
@@ -127,10 +135,13 @@ function stateOf(input: RowInput): RowState {
 
 export function modelRowView(input: RowInput): RowView {
   const state = stateOf(input);
-  const closes = input.mayCloseApp ?? false;
+  const didNotOpen = input.loadCrashed ?? false;
+  const closes = (input.mayCloseApp ?? false) || didNotOpen;
   // The stronger warning replaces "May be slow".
   const fitWarning = !closes && input.fit && input.fit !== "resident" ? input.fit : null;
-  const base = { removeBlocked: state.kind === "in-use", fitWarning, mayCloseApp: closes };
+  // A crash withdraws the confirmation (Tusk), so it asks again even if confirmed before.
+  const confirmUse = didNotOpen || (closes && !input.largeConfirmed);
+  const base = { removeBlocked: state.kind === "in-use", fitWarning, mayCloseApp: closes, didNotOpen, confirmUse };
   switch (state.kind) {
     case "not-installed":
       return { ...base, state, primary: fitWarning === "insufficient" ? "explain" : "download", tone: "neutral" };
