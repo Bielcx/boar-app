@@ -1080,6 +1080,55 @@ const QUANTUM_SAFE = /\bquantum[- ](resistant|safe|secure|proof)\b|\b(resistant|
 // Negation or contrast in the sentence ("RSA is widely used, while lattice schemes are quantum resistant").
 const CLAIM_NEGATED = /\b(not|no|none|never|isn't|aren't|vulnerable|broken|break|breaks|breaking|breakable|threat\w*|migrat\w*|shor|unlike|instead of|rather than|replac\w*|weak\w*|insecure|while|whereas|but|however|compared|versus|vs)\b|n[ãa]o\b|nenhum\w*|\bnem\b|vulner[áa]ve|quebr|enquanto|mas\b|diferente/i;
 
+// Languages with their own script: what a question asks for, and the Unicode script its words must be in.
+const LANGUAGE_SCRIPTS: Array<[RegExp, RegExp]> = [
+  [/\bthai\b|tailand[êe]s/i, /\p{Script=Thai}/u],
+  [/\bjapanese\b|japon[êe]s/i, /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u],
+  [/\bkorean\b|coreano/i, /\p{Script=Hangul}/u],
+  [/\b(chinese|mandarin|cantonese)\b|chin[êe]s|mandarim/i, /\p{Script=Han}/u],
+  [/\barabic\b|[áa]rabe/i, /\p{Script=Arabic}/u],
+  [/\brussian\b|\brusso\b/i, /\p{Script=Cyrillic}/u],
+  [/\bgreek\b|\bgrego\b/i, /\p{Script=Greek}/u],
+  [/\bhebrew\b|hebraico/i, /\p{Script=Hebrew}/u],
+  [/\bhindi\b/i, /\p{Script=Devanagari}/u],
+  [/\bkhmer\b|cambojano|khmer/i, /\p{Script=Khmer}/u],
+  [/\b(lao|laotian)\b|laosiano/i, /\p{Script=Lao}/u],
+];
+const NON_LATIN_LETTER = /[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}\s\d]/u;
+
+/**
+ * Sentences of an answer whose non-Latin words are in the wrong script for the language the question asks about
+ * (Sextant trv-007-pt, gate 39a2508: "Obrigado em tailandês é 'សួស្តី'" — Khmer, not Thai). Only the script is
+ * checked: a wrong word in the right script isn't caught. No language with its own script asked: none.
+ */
+export function wrongScriptSentences(query: string, answer: string): string[] {
+  const expected = LANGUAGE_SCRIPTS.filter(([asks]) => asks.test(query)).map(([, script]) => script);
+  if (!expected.length) return [];
+  return splitSentences(answer).filter((sentence) =>
+    [...sentence].some((ch) => NON_LATIN_LETTER.test(ch) && !expected.some((script) => script.test(ch)))
+  );
+}
+
+const LANGUAGE_NAMES =
+  "thai|japanese|korean|chinese|mandarin|cantonese|arabic|russian|greek|hebrew|hindi|khmer|lao|vietnamese|indonesian|malay|turkish|spanish|french|german|italian|portuguese|tailand[êe]s|japon[êe]s|coreano|chin[êe]s|mandarim|[áa]rabe|russo|grego|hebraico|vietnamita|indon[ée]sio|turco|espanhol|franc[êe]s|alem[ãa]o|italiano|portugu[êe]s";
+const PHRASE_ASK = new RegExp(
+  `\\b(how (do|would|can|should) (i|you|we) say|how to say|how do (you|i) greet|what('s| is| are) [^?]{1,40} in (${LANGUAGE_NAMES})|translate)\\b|(?<![\\p{L}])(como (se )?diz|como (eu )?(falo|digo|cumprimento)|como se fala|como se escreve|como [ée] [^?]{1,40} em (${LANGUAGE_NAMES}))(?![\\p{L}])`,
+  "iu"
+);
+
+/**
+ * "Como se diz obrigado em tailandês, e muda se eu for homem ou mulher?" (Sextant trv-007, 91b17a2): with no
+ * phrasebook in the library, every model answer (the old control's too) said it doesn't change with gender (it
+ * does: khop khun khrap / kha), one in Khmer script. A phrase or translation question with no source is declined
+ * by both models instead of being answered from memory.
+ */
+export function isPhraseQuestion(query: string): boolean {
+  // Narrowed to what the models invent: whether a phrase changes with the speaker's gender (politeness particles).
+  // Every phrase question would also decline lng-001/006/009/010 on s32 (4B refusals, limit 2/32).
+  return PHRASE_ASK.test(query) && GENDER_ASK.test(query);
+}
+const GENDER_ASK = /\b(man or (a )?woman|men and women|male|female|gender|by sex)\b|(?<![\p{L}])(homem ou (uma )?mulher|homens e mulheres|g[êe]nero|sexo|masculino|feminino)(?![\p{L}])/iu;
+
 /** Sentences of an answer that call classical public-key crypto (RSA, ECC, DSA, DH) quantum resistant. */
 export function falseQuantumClaims(answer: string): string[] {
   return splitSentences(answer).filter((s) => CLASSICAL_PK.test(s) && QUANTUM_SAFE.test(s) && !CLAIM_NEGATED.test(s));

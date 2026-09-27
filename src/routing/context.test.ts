@@ -8,6 +8,7 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  wrongScriptSentences,
   stripModelDisclaimer,
   isPortugueseQuestion,
   excerptRules,
@@ -788,5 +789,16 @@ describe("stripModelDisclaimer (gate cd1478a: the notice twice)", () => {
   });
   it("leaves an answer that doesn't open with a notice alone", () => {
     for (const t of ["The offline library is a feature of this app.", "Esta resposta depende do país.", "RSA is broken by quantum computers."]) expect(stripModelDisclaimer(t, false)).toBe(t);
+  });
+});
+
+describe("wrongScriptSentences (Sextant trv-007-pt)", () => {
+  it("Khmer given as Thai is caught; Thai given as Thai is not", () => {
+    const q = "Como se diz obrigado em tailandês, e muda se eu for homem ou mulher?";
+    expect(wrongScriptSentences(q, 'Obrigado em tailandês é "សួស្តី" (sàa-ssàa), e não muda com o sexo.')).toHaveLength(1);
+    expect(wrongScriptSentences(q, 'Obrigado em tailandês é "ขอบคุณ" (khob khun); homens dizem "khrap" e mulheres "kha".')).toEqual([]);
+    expect(wrongScriptSentences("How do I say hello in Japanese?", "Hello is こんにちは (konnichiwa).")).toEqual([]);
+    expect(wrongScriptSentences("How do I say hello in Japanese?", "Hello is 안녕하세요.")).toHaveLength(1);
+    expect(wrongScriptSentences("What is the capital of France?", "Paris (Париж in Russian).")).toEqual([]);
   });
 });
