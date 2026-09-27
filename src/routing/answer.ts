@@ -22,6 +22,7 @@ import {
   isCurrentEventQuery,
   currentEventAnswer,
   mentionsNow,
+  withSeekCare,
   PT_ANSWER_LANGUAGE,
   situationNote,
   isPortugueseQuestion,
@@ -842,7 +843,7 @@ export function createAnswerer(deps: AnswerDeps) {
             continue;
           }
           // A question that also asks about afterwards gets that part too, or is told it isn't there (dng-004-pt).
-          const withAfter = withAfterPart(req.query, first, fullSources, k, pt, rules);
+          const withAfter = withSeekCare(withAfterPart(req.query, first, fullSources, k, pt, rules), fullSources, k, rules);
           text = safeHealthExcerpt(withAfter) ? withAfter : first;
           // A general passage for a specific situation says so (dng-005: a flood, and Wikivoyage's "Water › Buy").
           const note = situationNote(req.query, fullSources[k], pt);

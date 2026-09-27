@@ -1295,6 +1295,18 @@ describe("answer(): the answer language next to a PT question (gate bc7db6d: 8/2
   });
 });
 
+describe("answer(): dng-003, a child's scald gets the source's 'seek care' line (gate bc7db6d)", () => {
+  it("the Ready.gov excerpt plus the article's 'require immediate medical attention', with its own [n]", async () => {
+    const T = "US government: Preventing and Treating Burns (Ready.gov)";
+    f.retrieved = [
+      chunk("m", T, "How to Treat Minor Burns: - Remove all clothing, diapers, jewelry and metal from the burned area. - Use cool water, not cold water or ice. - Hold the burned skin under cool running water for 10 to 15 minutes until it is less painful."),
+      chunk("o", T, "There are three types of burns. You can care for most minor first or second-degree burns at home. A third-degree burn is the most serious; it penetrates the entire thickness of the skin. These burns require immediate medical attention."),
+    ];
+    const { result } = await collect("Meu filho derramou água fervendo no braço. O que eu faço?");
+    expect(result.text).toMatch(/cool running water for 10 to 15 minutes[^\n]*\[1\]\n\nThese burns require immediate medical attention\. \[2\]\n\nEm uma emergência/);
+  });
+});
+
 describe("answer(): today's date (Prism TD-1)", () => {
   it("a question about today gets the device's date next to it; others don't", async () => {
     f.installed = [lfm];

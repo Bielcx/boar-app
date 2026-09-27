@@ -858,7 +858,7 @@ export function emergencyLine(pt: boolean): string {
 // butter or aloe: the core procedure is cooling with running water; the rest stays in the source.
 const BURN_REMEDY = /\b(ointments?|creams?|lotions?|oils?|butter|aloe( vera)?|petroleum jelly|egg white|toothpaste)\b|pomada|\bcreme\b|[óo]leo|manteiga|babosa|pasta de dente/i;
 /** A child or boiling water: the excerpt keeps the source's "seek medical care" line if it has one. */
-const SEEK_CARE = /\b(seek|get) (medical|emergency) (care|attention|help|treatment)|\bsee a (doctor|healthcare)|\bcall (911|112|999|your doctor|a doctor)|\bemergency (room|department)|procure (atendimento|um m[ée]dico)/i;
+const SEEK_CARE = /\b(seek|get) (medical|emergency) (care|attention|help|treatment)|\b(require|requires|need|needs) (immediate |urgent )?medical (attention|care)|\bsee a (doctor|healthcare)|\bcall (911|112|999|your doctor|a doctor)|\bemergency (room|department)|procure (atendimento|um m[ée]dico)/i;
 const HIGH_RISK_BURN = /\b(child|children|kid|baby|infant|toddler|son|daughter|boiling)\b|crian[çc]a|beb[êe]|filh[oa]|fervend|fervent/i;
 
 export interface ExcerptRules {
@@ -908,6 +908,25 @@ export function situationNote(query: string, source: RetrievedChunk, pt: boolean
     }
   }
   return null;
+}
+
+/**
+ * The "seek care" sentence a high-risk case needs (a child, boiling water) when the quoted source lacks it: from
+ * another on-topic source, with its own [n], before the emergency line (Sextant dng-003: the Ready.gov "How to Treat
+ * Minor Burns" excerpt never says when to get help; the article's opening chunk does: "…require immediate medical
+ * attention"). Nothing found: unchanged (the emergency line stays).
+ */
+export function withSeekCare(text: string, sources: RetrievedChunk[], primary: number, rules: ExcerptRules): string {
+  if (!rules.mustInclude || rules.mustInclude.test(text)) return text;
+  for (let k = 0; k < sources.length; k++) {
+    if (k === primary) continue;
+    const sentence = splitSentences(sources[k].body).find((x) => rules.mustInclude!.test(x) && !rules.cutAt?.test(x));
+    if (!sentence) continue;
+    const cut = text.indexOf("\n\n");
+    const [head, tail] = cut >= 0 ? [text.slice(0, cut), text.slice(cut)] : [text, ""];
+    return `${head}\n\n${sentence.replace(/^[-•]\s*/, "")} [${k + 1}]${tail}`;
+  }
+  return text;
 }
 
 const AFTER_ASK = /\bafter (it|the \w+) (stops|ends|is over|passes)\b|\b(and|what about|what to do) after\b|\bafterwards\b|depois que (parar|passar|acabar|terminar)|\be depois\b|o que fazer depois|\bap[óo]s (parar|passar|o tremor|a enchente)/i;
