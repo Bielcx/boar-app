@@ -8,6 +8,8 @@ import {
   isHealthQuestion,
   isSafetyQuery,
   isCurrentEventQuery,
+  passageLanguage,
+  sourceLanguageLead,
   temperatureConversion,
   healthExtract,
   isTodayInHistory,
@@ -621,5 +623,17 @@ describe("onTopic: two consecutive question terms (Sextant cmp-009)", () => {
     expect(onTopic("What happened in the 1906 earthquake?", c("1513 Marash earthquake", "The 1513 Marash earthquake affected Marash in 1513."))).toBe(false);
     expect(onTopic("What causes the northern lights?", c("United States Northern Command", "USNORTHCOM is a unified combatant command of the U.S. Department of Defense."))).toBe(false);
     expect(onTopic("What is the tragedy of the commons?", c("Black Down and Sampford Common", "Black Down and Sampford Common is a Site of Special Scientific Interest in Somerset."))).toBe(false);
+  });
+});
+
+describe("passageLanguage / sourceLanguageLead", () => {
+  it("reads the passage's function words", () => {
+    expect(passageLanguage("A monsoon is traditionally a seasonal reversing wind.")).toBe("en");
+    expect(passageLanguage("A monção é um vento sazonal que muda de direção.")).toBe("pt");
+    expect(passageLanguage("EIP-1559")).toBeNull();
+    expect(sourceLanguageLead(true, "The Earth's axis is tilted.")).toBe("Da fonte offline (em inglês):");
+    expect(sourceLanguageLead(true, "A monção é um vento sazonal.")).toBeNull();
+    expect(sourceLanguageLead(false, "The Earth's axis is tilted.")).toBeNull();
+    expect(sourceLanguageLead(false, "A monção é um vento sazonal que muda de direção.")).toBe("From the offline source (in Portuguese):");
   });
 });

@@ -652,6 +652,30 @@ export function currentEventAnswer(pt: boolean): string {
 }
 
 /** Portuguese questions over mostly English sources can't be matched word for word; the guard skips them. */
+const PT_WORDS = /^(o|a|os|as|um|uma|de|do|da|dos|das|em|no|na|nos|nas|que|para|com|por|pelo|pela|se|mais|como|mas|foi|sao|nao|ao|aos|e|ou|entre|sobre|tambem|ela|ele|seu|sua|isso|esta|este)$/;
+const EN_WORDS = /^(the|a|an|of|in|on|and|or|to|is|are|was|were|for|with|by|from|that|this|it|as|at|be|which|its)$/;
+
+/** The language a passage reads in, by its function words: "pt", "en", or null when unclear. */
+export function passageLanguage(text: string): "pt" | "en" | null {
+  const words = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z]+/g) ?? [];
+  const pt = words.filter((w) => PT_WORDS.test(w)).length;
+  const en = words.filter((w) => EN_WORDS.test(w)).length;
+  if (pt + en < 2) return null;
+  return pt > en ? "pt" : en > pt ? "en" : null;
+}
+
+/**
+ * The lead of a source's words shown to a reader of another language (Quill/Sextant q8: "O que é uma
+ * monção?" got the English Monsoon lead with no word that it is in English). The engine reads the
+ * passage, not the UI's language: imported documents may be PT. Null when the languages match.
+ */
+export function sourceLanguageLead(questionPt: boolean, passage: string): string | null {
+  const lang = passageLanguage(passage);
+  if (questionPt && lang === "en") return "Da fonte offline (em inglês):";
+  if (!questionPt && lang === "pt") return "From the offline source (in Portuguese):";
+  return null;
+}
+
 export const PT_QUESTION = /\b(como|o que|quando|onde|qual|quais|por que|porque|devo|fazer|posso|existe|quem|quanto)\b/i;
 
 /** Longest health excerpt shown as the answer (about 120 words). */
