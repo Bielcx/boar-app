@@ -17,6 +17,8 @@ let serverBody: Buffer = Buffer.alloc(0);
 let serverAnnouncedSize: number | null = null;
 let dropConnectionAt: number | null = null;
 let ignoreRange = false;
+// Resolve with no result after this many bytes, as a paused/stalled native download does.
+let stallAt: number | null = null;
 const requestedOffsets: number[] = [];
 
 vi.mock("expo-file-system/legacy", () => ({
@@ -53,6 +55,11 @@ vi.mock("expo-file-system/legacy", () => ({
       cb({ totalBytesWritten: from, totalBytesExpectedToWrite: total });
       if (paused) return undefined;
       const kept = from > 0 ? files.get(dest)!.subarray(0, from) : Buffer.alloc(0);
+      if (stallAt !== null && stallAt > from) {
+        put(dest, Buffer.concat([kept, body.subarray(0, stallAt - from)]));
+        stallAt = null;
+        return undefined;
+      }
       if (dropConnectionAt !== null && dropConnectionAt > from) {
         put(dest, Buffer.concat([kept, body.subarray(0, dropConnectionAt - from)]));
         dropConnectionAt = null;
@@ -103,7 +110,7 @@ vi.mock("./fileHash", () => ({
 import { ModelManager, resetVerifiedCacheForTests } from "./ModelManager";
 import { registerAssetProvider, unregisterAssetProvider } from "./assetRegistry";
 import * as manifestModule from "./manifest";
-import { AssetIntegrityError } from "./integrity";
+import { AssetIntegrityError, DownloadError } from "./integrity";
 import type { CatalogModel } from "./manifest";
 
 const body = Buffer.from("pretend this is a GGUF file");
@@ -133,6 +140,7 @@ beforeEach(() => {
   copyHook = null;
   dropConnectionAt = null;
   ignoreRange = false;
+  stallAt = null;
   requestedOffsets.length = 0;
   fakeSizes.clear();
 });
@@ -273,6 +281,11 @@ describe("interrupted downloads resume from the last byte", () => {
     dropConnectionAt = 10;
     const e = await rejection(mm.downloadCatalogModel(a));
     expect(e).toMatchObject({ kind: "network", permanent: false });
+    expect(e).toBeInstanceOf(DownloadError);
+    expect((e as DownloadError).detail).toEqual({ code: "interrupted", bytesDone: 10, bytesTotal: body.length });
+    // The exception text stays in the log, out of what the UI may show.
+    expect(e.message).not.toContain("unexpected end of stream");
+    expect(e.message).toBe(`Download of ${a.label} was interrupted at 10 of ${body.length} bytes. Retry to continue from there.`);
     expect(files.get(DEST)!.length).toBe(10);
     // The UI sees it as not installed, with the resume point.
     expect(await mm.statusOf(a)).toMatchObject({ present: false, partialBytes: 10 });
@@ -282,6 +295,18 @@ describe("interrupted downloads resume from the last byte", () => {
     expect(requestedOffsets).toEqual([0, 10]);
     expect(files.get(DEST)).toEqual(body);
     expect(await mm.statusOf(a)).toMatchObject({ present: true, checksumOk: true });
+  });
+
+  it("reports a stalled download as paused, with the bytes so far and the stall time, and resumes it", async () => {
+    const a = asset();
+    stallAt = 7;
+    const e = await rejection(new ModelManager([a]).downloadCatalogModel(a));
+    expect(e).toBeInstanceOf(DownloadError);
+    expect(e).toMatchObject({ kind: "network", permanent: false });
+    expect((e as DownloadError).detail).toEqual({ code: "paused", bytesDone: 7, bytesTotal: body.length, stallS: 60 });
+    expect(e.message).toMatch(/paused \(no progress for 60s\)/);
+    await new ModelManager([a]).downloadCatalogModel(a);
+    expect(files.get(DEST)).toEqual(body);
   });
 
   it("still rejects a resumed file whose bytes don't hash right", async () => {

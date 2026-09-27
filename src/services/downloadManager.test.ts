@@ -32,7 +32,7 @@ vi.mock("../models/ModelManager", () => ({
 }));
 
 import { getDownloadState, resetDownloadState, restartDownload, startDownload } from "./downloadManager";
-import { AssetIntegrityError } from "../models/integrity";
+import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
 const asset = (id: string) => ({ id, sizeBytes: 100 }) as any;
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -137,6 +137,14 @@ describe("download phases and error kinds", () => {
     pending.get("a")!.reject(new AssetIntegrityError("hash-mismatch", "wrong sha256", true));
     await p;
     expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "hash-mismatch", permanent: true });
+  });
+
+  it("passes a stopped download's code and numbers through, for a translated message", async () => {
+    const p = startDownload(asset("a"));
+    const detail = { code: "paused", bytesDone: 40, bytesTotal: 100, stallS: 60 } as const;
+    pending.get("a")!.reject(new DownloadError(detail, "Download of A paused (no progress for 60s)"));
+    await p;
+    expect(getDownloadState("a")).toMatchObject({ phase: "error", errorKind: "network", permanent: false, errorDetail: detail });
   });
 
   it("treats plain errors as transient (retry allowed)", async () => {

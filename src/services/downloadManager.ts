@@ -1,6 +1,6 @@
 import { ModelManager, DownloadProgress } from "../models/ModelManager";
 import { CatalogModel } from "../models/manifest";
-import { errorKindOf, IntegrityErrorKind } from "../models/integrity";
+import { downloadErrorDetailOf, DownloadErrorDetail, errorKindOf, IntegrityErrorKind } from "../models/integrity";
 import type { HashProgress } from "../models/fileHash";
 import { holdWakeLockForDownload } from "./downloadWakeLock";
 
@@ -37,6 +37,12 @@ export interface DownloadState {
   errorKind?: IntegrityErrorKind;
   /** Retrying the same source won't help; don't auto-retry (see AssetIntegrityError). */
   permanent?: boolean;
+  /**
+   * Set when a download stopped part-way (errorKind "network"): a stable code
+   * plus the numbers, so the UI can say it in the user's language. `error`
+   * keeps the English text.
+   */
+  errorDetail?: DownloadErrorDetail;
   bytesWritten?: number;
   bytesExpected?: number;
   speedBytesPerSec?: number;
@@ -220,6 +226,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
         error: e?.message ?? String(e),
         errorKind: kind,
         permanent,
+        errorDetail: downloadErrorDetailOf(e),
       });
       downloadTimestamps.delete(asset.id);
     })
