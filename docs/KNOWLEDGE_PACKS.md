@@ -364,6 +364,14 @@ commit `9b1ea56` (v1 stays at `6a65cc2`). Portuguese questions now put the
 right article first: "O que fazer em caso de queimadura?" → *Burn*, "O que fazer
 num terremoto?" → *Earthquake*, "Como parar um sangramento nasal?" → *Nosebleed*.
 
+**v3** (2026-09-27, the published one): Ready.gov writes a procedure as sibling headings ("1. Drop (or Lock)",
+"2. Cover", "3. Hold On"), so v2's "Earthquakes (Ready.gov) § Protect Yourself During Earthquakes" held only the
+hidden "Image" label of its illustration and each step was a tiny section of its own. The HTML extractor now keeps a
+numbered heading as a step of the section above and drops visually-hidden labels; only the government shard was
+fetched again. Nearly empty government-page chunks: 112 → 106 of ~1,970 (the rest are link lists). Pack
+**16,490,496 bytes**, SHA-256 `53d8bcefd8ac65648eb959da2f0761cfb9efcb668822c4030f188312b764865e`, dataset commit
+`6e336fe` (v2 stays at `9b1ea56`).
+
 Attribution: CC BY-SA 4.0 requires crediting each page; the app shows every
 passage's source title, URL and license, and the pack's `meta.license` lists
 all licenses. Public-domain text needs no license, but the source is still

@@ -87,8 +87,17 @@ async function extract() {
     const food = join(o.work, "current-food.osm.pbf");
     const geo = join(o.work, "current-food.geojsonseq");
     execFileSync("curl", ["-fsSL", "-C", "-", "--retry", "20", "--retry-all-errors", "-o", pbf, leaf.pbf]);
+    // A download resumed after a long pause (the job is paused while the machine builds) can end up corrupt
+    // ("invalid BlobHeader size"): start that extract over once instead of stopping the whole run.
+    try {
+      execFileSync("osmium", ["tags-filter", "--overwrite", "-o", food, pbf, ...FILTER], { stdio: ["ignore", "ignore", "pipe"] });
+    } catch (e) {
+      log(`${leaf.id}: unreadable download (${String(e.stderr ?? e.message).trim().slice(0, 80)}), downloading again`);
+      rmSync(pbf, { force: true });
+      execFileSync("curl", ["-fsSL", "--retry", "20", "--retry-all-errors", "-o", pbf, leaf.pbf]);
+      execFileSync("osmium", ["tags-filter", "--overwrite", "-o", food, pbf, ...FILTER]);
+    }
     const header = spawnSync("osmium", ["fileinfo", "-g", "header.option.osmosis_replication_timestamp", pbf], { encoding: "utf8" }).stdout.trim();
-    execFileSync("osmium", ["tags-filter", "--overwrite", "-o", food, pbf, ...FILTER]);
     execFileSync("osmium", ["export", "--overwrite", "-f", "geojsonseq", "-a", "type,id", "-o", geo, food]);
     const gz = createGzip();
     const tmp = `${out}.part`;

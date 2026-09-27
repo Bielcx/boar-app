@@ -20,8 +20,13 @@ export function htmlToText(html) {
   main = main
     .replace(/<(script|style|noscript|nav|header|footer|form|aside|svg|button|iframe)\b[\s\S]*?<\/\1>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<h1[^>]*>[\s\S]*?<\/h1>/i, " ");
+    .replace(/<h1[^>]*>[\s\S]*?<\/h1>/i, " ")
+    // Screen-reader-only labels ("Image" above an illustration) aren't content.
+    .replace(/<(div|span|label|p)\b[^>]*class="[^"]*visually-hidden[^"]*"[^>]*>[\s\S]*?<\/\1>/gi, " ");
   const text = main
+    // A numbered step written as a heading ("1. Drop (or Lock)", Ready.gov) is a step of the section above, not a
+    // section of its own: kept as a list item so the whole procedure stays in one passage.
+    .replace(/<h[2-6][^>]*>\s*(\d{1,2})[.)]\s*([\s\S]*?)<\/h[2-6]>\s*/gi, (_, n, t) => `\n- ${n}. ${t.replace(/<[^>]+>/g, "").trim()}: `)
     .replace(/<h([2-4])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, l, t) => `\n\n${"#".repeat(Number(l))} ${t.replace(/<[^>]+>/g, "").trim()}\n\n`)
     .replace(/<li[^>]*>/gi, "\n- ")
     .replace(/<\/(p|div|section|ul|ol|table|tr|blockquote)>/gi, "\n\n")
