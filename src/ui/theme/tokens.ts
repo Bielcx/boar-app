@@ -141,8 +141,10 @@ const TYPE_SCALE = {
   /** The chat's empty-state wordmark (mockup 40). */
   wordmark: { face: "display", weight: 800, size: 40, leading: 1, tracking: -0.8, maxScale: 1.3 },
   display: { face: "display", weight: 800, size: 34, leading: 1.1, tracking: -0.7, maxScale: 1.5 },
-  title1: { face: "display", weight: 800, size: 26, leading: 1.15, tracking: -0.5 },
-  title2: { face: "display", weight: 800, size: 22, leading: 1.2, tracking: -0.4 },
+  // Screen titles stop growing at 1.6x: past that a one-word title ('Knowledge', 'Performance',
+  // 'Conhecimento') is wider than a 375 pt screen and iOS breaks it mid-word (Harbor, AX-XL, 6eb9ca7).
+  title1: { face: "display", weight: 800, size: 26, leading: 1.15, tracking: -0.5, maxScale: 1.6 },
+  title2: { face: "display", weight: 800, size: 22, leading: 1.2, tracking: -0.4, maxScale: 1.6 },
   title3: { face: "display", weight: 700, size: 18, leading: 1.25, tracking: -0.2 },
   headline: { face: "display", weight: 700, size: 17, leading: 1.3, tracking: -0.2 },
   /** Title of a choice card (mockup OptionCard 16). */
