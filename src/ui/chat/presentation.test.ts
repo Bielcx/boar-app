@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -187,5 +187,21 @@ describe("generatingSteps (mockup: all steps from the start)", () => {
 
   it("is null once the answer is done", () => {
     expect(generatingSteps({ ...base, fast: { text: "x", stage: null, outcome: "success" } } as AnswerState, t)).toBeNull();
+  });
+});
+
+describe("bootEntranceTiming (splash → chat, Iris/Prism)", () => {
+  const d = { slow: 320, base: 220 };
+  it("waits 320 ms and fades 220 ms on the first mount after launch", () => {
+    expect(bootEntranceTiming(true, false, d)).toEqual({ delay: 320, fade: 220 });
+  });
+
+  it("with reduce motion keeps the wait and drops the fade (the delay keeps the two boars apart)", () => {
+    expect(bootEntranceTiming(true, true, d)).toEqual({ delay: 320, fade: 0 });
+  });
+
+  it("shows at once on later mounts", () => {
+    expect(bootEntranceTiming(false, false, d)).toBeNull();
+    expect(bootEntranceTiming(false, true, d)).toBeNull();
   });
 });
