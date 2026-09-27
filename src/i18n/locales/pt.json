@@ -241,7 +241,7 @@
         "directComplete": "Sempre escreve a resposta completa: divide a pergunta, pesquisa cada parte e confere o resultado. Mais lento.",
         "directModel": "O modelo escolhido sempre responde. Peça a resposta completa quando precisar."
       },
-      "library": "Biblioteca",
+      "library": "Acervo",
       "models": "Modelos",
       "knowledge": "Conhecimento",
       "history": "Histórico de conversas",
@@ -316,14 +316,14 @@
     "row": {
       "copying": "Copiando",
       "downloading": "Baixando",
-      "verifying": "Conferindo o arquivo",
+      "verifying": "Conferindo",
       "loading": "Carregando",
       "failed": "Falhou",
       "failedAnnounce": "{{name}} falhou. Dá para tentar de novo.",
-      "verified": "Arquivo conferido",
+      "verified": "Conferido",
       "importChecking": "Conferindo {{name}}",
       "importOther": "{{name}} é outro item, não este. Escolha o arquivo deste item.",
-      "unverified": "Instalado, sem verificação",
+      "unverified": "Não conferido",
       "active": "Ativo",
       "usedFor": "Usado para: {{roles}}",
       "role": {
@@ -332,13 +332,13 @@
         "search": "Busca"
       },
       "kind": {
-        "llm": "Modelo de linguagem",
+        "llm": "Modelo de IA",
         "embedding": "Modelo de busca",
         "corpus": "Conhecimento"
       },
       "progressLabel": "Progresso de {{name}}",
       "fit": {
-        "streaming": "Maior que a memória deste celular: partes são lidas do armazenamento quando preciso, então fica mais lento.",
+        "streaming": "Maior que a memória deste celular, então roda mais devagar.",
         "thrashing": "Pode ficar lento neste celular: usa quase toda a memória.",
         "insufficient": "Não cabe: este celular não tem memória livre suficiente para rodá-lo."
       },
@@ -370,21 +370,22 @@
       "removeBody": "Libera {{size}} neste celular. Dá para adicionar de novo depois.",
       "removed": "{{name}} removido",
       "wontFitTitle": "{{name}} não cabe neste celular",
-      "downloadAnyway": "Baixar mesmo assim ({{size}})",
+      "downloadAnyway": "Baixar",
       "fitDetail": "Ele precisa de cerca de {{need}} de memória de trabalho que não dá para ler do armazenamento; há cerca de {{free}} livres de {{total}}. Estimativa.",
-      "importFile": "Importar arquivo ({{size}})",
-      "importAnyway": "Importar mesmo assim ({{size}})",
+      "importFile": "Importar {{size}}",
+      "importAnyway": "Importar",
+      "anywayHint": "{{size}} · pode não abrir neste celular",
       "notOnDisk": "Não baixado",
       "fitShort": {
         "resident": "Cabe na memória",
-        "streaming": "Lê do armazenamento",
+        "streaming": "Mais lento aqui",
         "thrashing": "Pode ficar lento",
         "insufficient": "Não cabe"
       },
       "mayClose": "Pode fechar o app",
       "mayCloseWhy": "grande demais para a memória deste celular",
       "didNotOpen": "Não abriu aqui",
-      "wontFitHere": "Grande demais para este celular",
+      "wontFitHere": "Grande demais",
       "wontFitWhy": "precisa de mais memória do que este celular tem",
       "wontFitNumbers": "precisa de ~{{need}} de memória · este celular tem {{total}}",
       "didNotOpenBefore": "O BOAR fechou da última vez que carregou o ",
@@ -410,7 +411,7 @@
       "allInstalled": "Todos os modelos do catálogo estão instalados.",
       "advanced": "Avançado",
       "searchTitle": "Buscar no Hugging Face",
-      "searchFooter": "Adicione outros modelos GGUF. Eles não foram testados com o BOAR e podem não ter checksum.",
+      "searchFooter": "Adicione outros modelos. O BOAR não os testou e talvez não consiga conferir o arquivo.",
       "searchIntro": "A busca usa a internet. Os modelos adicionados aparecem em Disponíveis.",
       "searchPlaceholder": "Nome do modelo, por exemplo qwen 3b",
       "searchButton": "Buscar",
@@ -420,9 +421,9 @@
       "repoMeta": "{{downloads}} downloads · {{likes}} curtidas",
       "repoHint": "Mostra os arquivos que dá para adicionar",
       "filesFailed": "Não foi possível listar os arquivos. Tente de novo.",
-      "noGguf": "Nenhum arquivo GGUF neste repositório.",
-      "noChecksum": "sem checksum",
-      "addToList": "Adicionar aos modelos",
+      "noGguf": "Nenhum arquivo de modelo compatível aqui.",
+      "noChecksum": "sem conferência",
+      "addToList": "Adicionar",
       "added": "{{name}} adicionado aos modelos",
       "addFailed": "Não foi possível adicionar: {{error}}",
       "nowAnswering": "{{name}} agora escreve as respostas",
@@ -433,11 +434,12 @@
       "deepTitle": "Modelo para respostas completas",
       "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a {{min}} tokens/s ou mais.",
       "deepAuto": "Automático",
-      "deepAutoSub": "O maior modelo instalado que cabe e roda a {{min}} tokens/s ou mais aqui.",
-      "deepNone": "Nenhum: sempre o modelo de respostas",
+      "deepAutoSub": "O maior modelo instalado que cabe e é rápido o bastante aqui.",
+      "deepNone": "Nenhum",
+      "deepNoneSub": "Sempre usar o modelo de respostas",
+      "wordsRate": "~{{rate}} palavras/s",
       "notMeasured": "Ainda não medido neste celular",
       "lowRamNotAuto": "Não entra no automático neste celular: grande demais para a memória dele.",
-      "rate": "{{rate}} tok/s",
       "samples_one": "{{count}} resposta medida aqui · {{date}}",
       "samples_other": "Mediana de {{count}} respostas medidas aqui · {{date}}",
       "usedLabel": "Usado pelo BOAR",
@@ -457,7 +459,7 @@
       "yourCollections": "Suas coleções",
       "emptyTitle": "Adicione seus documentos",
       "emptyBody": "PDFs, textos ou notas. O BOAR vai citá-los nas respostas.",
-      "add": "Adicionar documentos",
+      "add": "Adicionar arquivos",
       "collectionMeta": "{{docs}} · {{chunks}} · {{size}}",
       "docs_one": "{{value}} documento",
       "docs_other": "{{value}} documentos",
@@ -479,7 +481,7 @@
       "importingLabel": "Progresso da importação",
       "imported": "{{name}} adicionada",
       "importFailed": "Não foi possível importar os documentos",
-      "pickAgain": "Escolher arquivos de novo",
+      "pickAgain": "Escolher de novo",
       "nameTitle": "Dê um nome à coleção",
       "filesPicked_one": "{{count}} arquivo selecionado",
       "filesPicked_other": "{{count}} arquivos selecionados",
@@ -571,7 +573,7 @@
       "phoneMemory": "Memória",
       "phoneFree": "Espaço livre",
       "phoneEngine": "Roda em",
-      "phoneEngineValue": "llama.cpp, neste celular",
+      "phoneEngineValue": "No próprio celular",
       "introBody": "Pesquisa com IA que roda inteira no seu celular. Depois de configurada, funciona sem internet, suas perguntas não saem do celular e cada resposta mostra as fontes que usou.",
       "meta": {
         "onDisk": "{{size}} no disco depois de instalar",
@@ -589,11 +591,11 @@
       "package": {
         "essential": {
           "name": "Essencial",
-          "body": "Modelos de resposta e de busca, mais as coleções básicas de temas da Wikipédia."
+          "body": "Modelos de resposta e de busca, mais coleções básicas da Wikipédia."
         },
         "encyclopedia": {
           "name": "Enciclopédia",
-          "body": "O Essencial mais o pacote de Artigos Vitais da Wikipédia, para perguntas mais amplas."
+          "body": "O Essencial mais 50 mil artigos da Wikipédia, para perguntas mais amplas."
         }
       },
       "recommended": "Recomendado",
@@ -662,7 +664,8 @@
       "minutesLeft_other": "faltam cerca de {{count}} min",
       "indexFailed": "A criação do índice falhou",
       "downloadFailed": "Um download falhou",
-      "restart": "Downloads travados? Reiniciar",
+      "restart": "Reiniciar downloads",
+      "restartHint": "Os downloads pararam de avançar?",
       "keepOpen": "Mantenha o BOAR aberto até terminar. Se você sair, o download pode pausar; ele continua de onde parou quando você voltar.",
       "doneTitle": "Pronto",
       "doneBody": "Tudo roda offline a partir de agora.",
@@ -678,7 +681,7 @@
       "doneAnnounce": "Configuração concluída. O BOAR está pronto.",
       "open": "Abrir o BOAR",
       "languageAnnounce": "Idioma: Português",
-      "smallerPackage": "Escolher um pacote menor",
+      "smallerPackage": "Pacote menor",
       "importTitle": "Importe os arquivos",
       "importSub": "Esta versão não acessa a internet. Copie os arquivos para o celular e escolha-os aqui.",
       "importHow": "A lista de arquivos e onde baixar cada um estão no guia de instalação offline:",
@@ -713,20 +716,20 @@
         "manual": "Escolhida por você."
       },
       "noRegionHere": "Ainda não há pacote de lugares para a sua região.",
-      "useLocation": "Usar minha localização",
+      "useLocation": "Usar localização",
       "locationDeclined": "Localização não permitida. A sugestão usa o fuso horário.",
       "locationUnavailable": "Não foi possível obter a localização. Tente de novo ao ar livre.",
       "rationaleTitle": "Usar sua localização?",
       "rationaleBody": "O BOAR lê sua posição pelo GPS do celular, que funciona sem internet, para sugerir lugares perto de você. Ela nunca sai do celular.",
       "notNow": "Agora não",
       "continue": "Continuar",
-      "openSettings": "Abrir ajustes do app",
-      "otherRegion": "Escolher outra região",
+      "openSettings": "Abrir ajustes",
+      "otherRegion": "Outra região",
       "vegan": "{{vegan}} com opção vegana · {{vegetarian}} vegetarianos"
     },
     "import": {
       "title": "Importar arquivos",
-      "footer": "Cada arquivo é conferido por tamanho e SHA-256 contra o catálogo. O nome do arquivo não importa.",
+      "footer": "Cada arquivo é conferido com o catálogo, então o nome não importa.",
       "pick": "Escolher arquivos",
       "checking": "Conferindo {{name}}",
       "checkingValue": "Conferindo, {{pct}}%",
@@ -744,21 +747,23 @@
       "noCity": "Nenhuma cidade com esse nome no índice offline.",
       "population": "{{value}} habitantes",
       "needGazetteer": "Para buscar cidades offline, instale o índice de lugares do mundo ({{size}}).",
-      "areaOf": "Área de {{city}} (~{{km}} km)",
+      "areaOf": "Área de {{city}}",
       "regionOf": "Região inteira: {{region}}",
       "noPack": "Ainda não há pacote de lugares para esta cidade.",
       "installed": "Instalado",
-      "byFile": "Instalado por arquivo",
+      "byFile": "Só por arquivo",
       "addHint": "Adiciona ao que a configuração instala",
-      "otherCity": "Buscar outra cidade",
-      "goingTo": "Vai viajar?",
-      "tripChosen": "Incluir {{label}}"
+      "otherCity": "Outra cidade",
+      "goingTo": "Adicionar viagem",
+      "goingToTitle": "Vai viajar?",
+      "goingToHint": "Lugares offline do seu destino",
+      "areaKm": "~{{km}} km"
     },
     "catalog": {
       "label": {
         "corpus-standard": "Base de conhecimento padrão (+1.000 temas)",
         "corpus-full": "Base de conhecimento completa (+4.000 temas)",
-        "wiki-vital5": "Artigos essenciais da Wikipédia (+50.000 artigos)"
+        "wiki-vital5": "Artigos essenciais da Wikipédia"
       }
     }
   },

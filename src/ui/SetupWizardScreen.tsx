@@ -813,16 +813,20 @@ function TravelCard({
       {trip ? (
         <ListRow
           icon="navigation"
-          title={t("flows.travel.tripChosen", { label: trip.label })}
-          value={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
+          title={trip.label}
+          // The size goes under the name: a row with a switch has no room for a value (the switch says "include").
+          subtitle={formatBytes(trip.assets.reduce((n, a) => n + a.sizeBytes, 0), lang)}
           switch={{ value: true, onValueChange: (v) => !v && onTrip(null) }}
         />
       ) : (
-        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base, gap: tokens.space.xs }}>
           <Button ref={tripRef} size="sm" variant="outline" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
+          <Text variant="footnote" color="secondary">
+            {t("flows.travel.goingToHint")}
+          </Text>
         </View>
       )}
-      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingTo")} returnFocusRef={tripRef}>
+      <Sheet visible={tripOpen} onClose={() => setTripOpen(false)} title={t("flows.travel.goingToTitle")} returnFocusRef={tripRef}>
         <CitySearch
           catalog={catalog}
           onChoose={(choice) => {
@@ -1430,6 +1434,10 @@ function InstallStep({
       )}
 
       {stalled && !offline && (
+        <View style={{ gap: tokens.space.xs }}>
+        <Text variant="footnote" color="secondary">
+          {t("flows.onboarding.restartHint")}
+        </Text>
         <Button
           variant="secondary"
           icon="refresh-cw"
@@ -1438,6 +1446,7 @@ function InstallStep({
             for (const { asset, state } of states) if (state.kind !== "installed" && state.kind !== "in-use") restartDownload(asset).finally(() => catalog.refresh());
           }}
         />
+        </View>
       )}
 
     </Screen>
