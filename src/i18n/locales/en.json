@@ -883,7 +883,8 @@
       "noModelTitle": "No model installed",
       "noModelBody": "Download or import a model to start asking questions.",
       "setup": "Set up a model",
-      "loadErrorTitle": "The model didn't load"
+      "loadErrorTitle": "The model didn't load",
+      "preparing": "Preparing the model…"
     },
     "empty": {
       "title": "Ask anything",

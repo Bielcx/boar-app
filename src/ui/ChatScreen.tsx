@@ -71,6 +71,12 @@ import { installedKnowledgeIds } from "./chat/knowledgeApi";
 
 const VERBATIM_MESSAGE_COUNT = 6;
 
+/** A model's catalog entry by id (built-in catalog or models picked from the Hugging Face browser). */
+async function catalogModelById(id: string, kind: "llm" | "embedding"): Promise<CatalogModel | undefined> {
+  const candidates = [...MODEL_CATALOG, ...(await listDiscoveredModels())];
+  return candidates.find((m) => m.id === id && m.kind === kind);
+}
+
 async function resolveActiveModel(kind: "llm" | "embedding"): Promise<CatalogModel> {
   const activeId = await getActiveModelId(kind);
   const fallback = REQUIRED_MODELS.find((m) => m.kind === kind)!;
@@ -230,13 +236,28 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       setLoadError(null);
       setReady(false);
       setModelsRequested(false);
-      const llm = await resolveActiveModel("llm");
+      // Preload the model answer() will really use (Tusk, CR-1/CR-2): on a low-RAM phone the saved large model
+      // may be skipped, or one that crashed the app; loading the saved one would risk the very OOM it avoids.
+      const effective = await effectiveAnswerModel();
+      const llm = effective ? (await catalogModelById(effective.id, "llm")) ?? (await resolveActiveModel("llm")) : null;
       const emb = await resolveActiveModel("embedding");
-      setActiveModel(llm);
-      setLoadStatus({ label: t("chat.model.loading", { label: llm.label }) });
+      if (llm) setActiveModel(llm);
+      const loadingLabel = llm ? t("chat.model.loading", { label: llm.label }) : t("chatScreen.initializingCore");
+      setLoadStatus({ label: loadingLabel });
       // Both loads start here, before any question: the search's query vector waits in the embedder's queue
-      // behind its own load, and answer() waits for the model's (Tusk).
-      const loads = Promise.all([llamaEngine.load(llm.filename), embeddingEngine.load(emb.filename)]);
+      // behind its own load, and answer() waits for the model's (Tusk). No model can run (null): no preload;
+      // answer() says no_model.
+      const loads = Promise.all([
+        llm
+          ? llamaEngine.load(llm.filename, {
+              // The real load progress (Tusk 70141cf): reading the weights. At 1 the first boot still compiles
+              // Metal on iOS (~22 s), so the bar turns indeterminate with "Preparing the model…" until done.
+              onProgress: (f) =>
+                setLoadStatus(f >= 1 ? { label: t("chat.model.preparing") } : { label: loadingLabel, progress: f }),
+            })
+          : Promise.resolve(),
+        embeddingEngine.load(emb.filename),
+      ]);
       setModelsRequested(true);
       await loads;
       startAppMemoryTracking();
@@ -638,9 +659,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         getHidePromptIdeas().then((hide) => setShowSuggestions(!hide));
         installedKnowledgeIds().then(setKnowledge).catch(() => undefined);
         effectiveAnswerModel().then(setEffective).catch(() => undefined);
-        // Settings loads a newly chosen LLM itself; only re-run the full init if what's loaded doesn't match.
-        const llm = await resolveActiveModel("llm");
-        if (ready && llamaEngine.getModelInfo()?.filename === llm.filename) setActiveModel(llm);
+        // Settings loads a newly chosen LLM itself; only re-run the full init if what's loaded isn't the model
+        // answer() will use (the effective one, CR-1: may differ from the saved one on a low-RAM phone).
+        const effective = await effectiveAnswerModel();
+        const llm = effective ? await catalogModelById(effective.id, "llm") : undefined;
+        if (ready && llm && llamaEngine.getModelInfo()?.filename === llm.filename) setActiveModel(llm);
         else initModels();
       })();
       // eslint-disable-next-line react-hooks/exhaustive-deps
