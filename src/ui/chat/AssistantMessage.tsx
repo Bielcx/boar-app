@@ -1026,16 +1026,25 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       )}
       {!active && phase === "done" && canDeepen(answer) && (
         // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
-        // TextAction brings the touch minimum (Prism CH-7).
-        <TextAction
-          leadingIcon="layers"
-          onPress={props.onDeepen}
-          label={
-            answer.deepAvailable?.estSeconds
-              ? tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
-              : tr("chat.actions.deepen")
-          }
-        />
+        // TextAction brings the touch minimum (Prism CH-7). The estimate is a support fact beside the
+        // action, not part of its label (Prism CH-9); readers hear both in the action's name.
+        <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
+          <TextAction
+            leadingIcon="layers"
+            onPress={props.onDeepen}
+            label={tr("chat.actions.deepen")}
+            accessibilityLabel={
+              answer.deepAvailable?.estSeconds
+                ? tr("chat.actions.deepenEstSpoken", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
+                : undefined
+            }
+          />
+          {answer.deepAvailable?.estSeconds ? (
+            <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+              <MetaLine items={[tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })]} variant="caption" />
+            </View>
+          ) : null}
+        </View>
       )}
     </View>
   );

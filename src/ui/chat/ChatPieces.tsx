@@ -2,8 +2,8 @@ import React, { memo, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, TextAction, useToast } from "../components";
-import { useTheme, useTokens } from "../theme";
+import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, TextAction, useOpticalLine, useToast } from "../components";
+import { icon, useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
 import { showsKnowledgeHint } from "./suggestions";
@@ -115,6 +115,8 @@ export const ChatEmptyState = memo(function ChatEmptyState({
   const [firstAfterBoot] = useState(() => !bootHeroShown);
   bootHeroShown = true;
   const heroAppear = useBootEntrance(firstAfterBoot);
+  // The add-knowledge card's support line starts under its label's text.
+  const addLine = useOpticalLine("footnote");
   return (
     // The mockup's layout (spec-chat-vazio): mascot, wordmark, tagline, then the suggestions.
     <View
@@ -185,12 +187,18 @@ export const ChatEmptyState = memo(function ChatEmptyState({
               onPress={onAddKnowledge}
               radius="card"
               padding="compact"
-              accessibilityLabel={tr("chat.empty.addKnowledge")}
+              accessibilityLabel={`${tr("chat.empty.addKnowledge")}, ${tr("chat.empty.addKnowledgeWhy")}`}
               accessibilityHint={tr("chat.empty.addKnowledgeHint")}
             >
-              <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
-                {tr("chat.empty.addKnowledge")}
-              </IconText>
+              {/* The action as the label, the reason on a support line under its text (Prism CH-10). */}
+              <View style={{ gap: t.space.xxs }}>
+                <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
+                  {tr("chat.empty.addKnowledge")}
+                </IconText>
+                <Text variant="caption" color="secondary" style={{ paddingLeft: addLine.iconSize + icon.gap }}>
+                  {tr("chat.empty.addKnowledgeWhy")}
+                </Text>
+              </View>
             </Card>
           )}
         </View>
