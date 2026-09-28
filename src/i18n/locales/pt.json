@@ -384,6 +384,7 @@
       "typical_one": "Típico (última {{count}} resposta)",
       "typical_other": "Típico (últimas {{count}} respostas)",
       "typicalFooter": "Medianas. As palavras por segundo são estimadas.",
+      "showMore": "Mostrar mais",
       "band": {
         "fast": "Rápido",
         "ok": "Ok",

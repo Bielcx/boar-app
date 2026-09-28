@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { useTokens } from "../theme";
+import { childKey } from "../components/childKey";
 
 /**
  * Catalog rows inside one Section. Section insets every item after the first
@@ -13,7 +14,7 @@ export function CatalogList({ children }: { children: React.ReactNode }) {
   return (
     <View>
       {items.map((child, i) => (
-        <React.Fragment key={i}>
+        <React.Fragment key={childKey(child, i)}>
           {i > 0 && <View style={{ height: t.size.hairline, backgroundColor: t.color.line.row, marginLeft: t.space.md + t.space.xxs }} />}
           {child}
         </React.Fragment>

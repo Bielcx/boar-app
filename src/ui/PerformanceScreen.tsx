@@ -230,6 +230,9 @@ function residencyKey(r: ExecutionTelemetryRecord): string {
   return `flows.performance.residency.${r.modelResidency ?? "unknown"}`;
 }
 
+/** Log rows mounted per page. */
+const LOGS_PAGE = 30;
+
 export function PerformanceLogsScreen() {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
@@ -237,6 +240,8 @@ export function PerformanceLogsScreen() {
   const { records, error, load, setRecords } = useRecords();
   const [exporting, setExporting] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  // Up to 200 records: mount them a page at a time, not 200 rows in one JS task (perf audit #29).
+  const [shown, setShown] = useState(LOGS_PAGE);
   const lang = i18n.language;
 
   const doExport = async (format: "json" | "csv") => {
@@ -287,7 +292,7 @@ export function PerformanceLogsScreen() {
         <Button size="sm" variant="ghost" label={t("flows.performance.clear")} onPress={() => setClearOpen(true)} />
       </View>
       <Section>
-        {records.map((r) => {
+        {records.slice(0, shown).map((r) => {
           const rate = recordTokPerSec(r);
           const parts = [
             r.ttftMs != null && `${t("flows.performance.startLabel")} ${formatSeconds(r.ttftMs, lang)}`,
@@ -309,6 +314,9 @@ export function PerformanceLogsScreen() {
           );
         })}
       </Section>
+      {records.length > shown && (
+        <Button size="sm" variant="secondary" label={t("flows.performance.showMore")} onPress={() => setShown((n) => n + LOGS_PAGE)} />
+      )}
 
       <Sheet
         visible={clearOpen}

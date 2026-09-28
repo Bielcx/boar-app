@@ -1,7 +1,7 @@
 import React, { forwardRef } from "react";
-import { Text as RNText, TextProps as RNTextProps } from "react-native";
+import { Text as RNText, TextProps as RNTextProps, TextStyle } from "react-native";
 import { fontFamilyFor, useTokens, variantFace } from "../theme";
-import type { TextVariant } from "../theme";
+import type { TextVariant, Tokens } from "../theme";
 
 export type TextColor = "primary" | "secondary" | "tertiary" | "accent" | "field" | "onAccent" | "danger" | "success" | "warning" | "info";
 
@@ -23,6 +23,34 @@ const HEADER_VARIANTS: TextVariant[] = ["display", "title1", "title2", "title3"]
  * The only way to draw text. Respects the OS font scale and the in-app size preference.
  * Forwards its ref, e.g. to move screen-reader focus to a title.
  */
+const TABULAR: TextStyle = { fontVariant: ["tabular-nums"] };
+
+/** The colour of a role, without building a 10-entry map on every render (perf audit #24). */
+function colorFor(t: Tokens, color: TextColor): string {
+  switch (color) {
+    case "primary":
+      return t.color.text.primary;
+    case "secondary":
+      return t.color.text.secondary;
+    case "tertiary":
+      return t.color.text.tertiary;
+    case "accent":
+      return t.color.text.accent;
+    case "field":
+      return t.color.text.field;
+    case "onAccent":
+      return t.color.text.onAccent;
+    case "danger":
+      return t.color.status.danger.solid;
+    case "success":
+      return t.color.status.success.solid;
+    case "warning":
+      return t.color.status.warning.solid;
+    case "info":
+      return t.color.status.info.solid;
+  }
+}
+
 export const Text = forwardRef<RNText, TextProps>(function Text({
   variant = "body",
   color = "primary",
@@ -35,18 +63,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
 }, ref) {
   const t = useTokens();
   const { maxFontSizeMultiplier, ...typeStyle } = t.type[variant];
-  const colorValue = {
-    primary: t.color.text.primary,
-    secondary: t.color.text.secondary,
-    tertiary: t.color.text.tertiary,
-    accent: t.color.text.accent,
-    field: t.color.text.field,
-    onAccent: t.color.text.onAccent,
-    danger: t.color.status.danger.solid,
-    success: t.color.status.success.solid,
-    warning: t.color.status.warning.solid,
-    info: t.color.status.info.solid,
-  }[color];
+  const colorValue = colorFor(t, color);
   const isHeader = header ?? HEADER_VARIANTS.includes(variant);
   return (
     <RNText
@@ -56,7 +73,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
       style={[
         typeStyle,
         { color: colorValue },
-        numeric && { fontVariant: ["tabular-nums"] },
+        numeric && TABULAR,
         // Custom fonts: switch family per weight instead of setting fontWeight.
         weight && { fontFamily: fontFamilyFor(variantFace(variant), WEIGHTS[weight]) },
         align && { textAlign: align },
