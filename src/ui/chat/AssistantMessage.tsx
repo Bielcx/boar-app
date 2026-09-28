@@ -20,6 +20,7 @@ import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
 import { lineSlop } from "./touch";
 import { chatLargeText } from "./largeText";
 import { Reveal } from "./Reveal";
+import { useSmoothText } from "./useSmoothText";
 import { Swap } from "./Swap";
 import { useMotion } from "../theme/motion";
 
@@ -215,9 +216,13 @@ const TierBody = memo(function TierBody({
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
+  const { reduceMotion } = useTheme();
   const split = splitThinking(tier.text);
-  // Invented citations are cleaned only once the answer is done (sources are final then).
-  const shown = streaming ? split.answer : splitInlineBullets(cleanCitations(split.answer, sourceTitles.length));
+  // v2 P1: the text flows at a steady pace, newest characters fading in; reduce motion shows it as it comes.
+  const smooth = useSmoothText(split.answer, streaming, !reduceMotion);
+  const live = streaming || !smooth.settled;
+  // Invented citations are cleaned only once the answer is done (sources are final then) and on screen.
+  const shown = live ? smooth.text : splitInlineBullets(cleanCitations(split.answer, sourceTitles.length));
   const onCitationPress = useCallback((n: number) => onOpenSource(n - 1), [onOpenSource]);
   return (
     <View style={{ gap: t.space.sm }}>
@@ -234,7 +239,8 @@ const TierBody = memo(function TierBody({
           content={shown}
           sourceTitles={sourceTitles}
           onCitationPress={onCitationPress}
-          isStreaming={streaming}
+          isStreaming={live}
+          tail={live ? smooth.tail : undefined}
         />
       )}
     </View>

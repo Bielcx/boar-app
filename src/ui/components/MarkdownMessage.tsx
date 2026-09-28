@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { IconButton, Text, useToast } from ".";
 import { useTokens } from "../theme";
 import { parseMarkdown, sameBlock, type Block, type Inline } from "../chat/markdown";
+import { toneTail, type TailTone } from "../chat/streamReveal";
 
 interface Props {
   content: string;
@@ -12,38 +13,47 @@ interface Props {
   sourceTitles?: string[];
   onCitationPress?: (n: number) => void;
   isStreaming?: boolean;
+  /** The newest characters still fading in (SEND-MOTION v2 P1), drawn in the last block. */
+  tail?: Tail;
 }
+
+type Tail = { tertiary: number; secondary: number };
+const NO_TAIL: Tail = { tertiary: 0, secondary: 0 };
 
 function Inlines({
   inlines,
   sourceTitles,
   onCitationPress,
+  tail = NO_TAIL,
 }: {
   inlines: Inline[];
   sourceTitles: string[];
   onCitationPress?: (n: number) => void;
+  tail?: Tail;
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   return (
     <>
-      {inlines.map((part, i) => {
+      {toneTail(inlines, tail).map(({ part, tone }, i) => {
+        // A fading character takes a lighter text tone (nested Text has color, not opacity).
+        const color: TailTone | undefined = tone ?? undefined;
         switch (part.type) {
           case "bold":
             return (
-              <Text key={i} weight="semibold">
+              <Text key={i} weight="semibold" color={color}>
                 {part.text}
               </Text>
             );
           case "italic":
             return (
-              <Text key={i} style={{ fontStyle: "italic" }}>
+              <Text key={i} style={{ fontStyle: "italic" }} color={color}>
                 {part.text}
               </Text>
             );
           case "code":
             return (
-              <Text key={i} variant="mono" style={{ backgroundColor: t.color.bg.sunken }}>
+              <Text key={i} variant="mono" style={{ backgroundColor: t.color.bg.sunken }} color={color}>
                 {part.text}
               </Text>
             );
@@ -53,7 +63,7 @@ function Inlines({
             return (
               <Text
                 key={i}
-                color="field"
+                color={color ?? "field"}
                 weight="semibold"
                 numeric
                 onPress={onCitationPress ? () => onCitationPress(part.n) : undefined}
@@ -65,7 +75,13 @@ function Inlines({
               </Text>
             );
           default:
-            return part.text;
+            return color ? (
+              <Text key={i} color={color}>
+                {part.text}
+              </Text>
+            ) : (
+              part.text
+            );
         }
       })}
     </>
@@ -126,15 +142,17 @@ interface BlockProps {
   onCitationPress?: (n: number) => void;
   /** Streaming cursor drawn inline at the end of this block's text (the last block). */
   caret?: boolean;
+  /** The fading tail (the last block while streaming). */
+  tail?: Tail;
 }
 
 const sameTitles = (a: string[], b: string[]) => a === b || (a.length === b.length && a.every((x, i) => x === b[i]));
 
-function BlockContent({ block, sourceTitles, onCitationPress, caret: withCaret }: BlockProps) {
+function BlockContent({ block, sourceTitles, onCitationPress, caret: withCaret, tail }: BlockProps) {
   const t = useTokens();
   const caret = withCaret ? <Caret /> : null;
   const inl = (inlines: Inline[]) => (
-    <Inlines inlines={inlines} sourceTitles={sourceTitles} onCitationPress={onCitationPress} />
+    <Inlines inlines={inlines} sourceTitles={sourceTitles} onCitationPress={onCitationPress} tail={tail} />
   );
   switch (block.type) {
     case "heading":
@@ -194,7 +212,12 @@ function BlockContent({ block, sourceTitles, onCitationPress, caret: withCaret }
 const BlockView = memo(
   BlockContent,
   (a: BlockProps, b: BlockProps) =>
-    a.caret === b.caret && a.onCitationPress === b.onCitationPress && sameTitles(a.sourceTitles, b.sourceTitles) && sameBlock(a.block, b.block)
+    a.caret === b.caret &&
+    a.tail?.tertiary === b.tail?.tertiary &&
+    a.tail?.secondary === b.tail?.secondary &&
+    a.onCitationPress === b.onCitationPress &&
+    sameTitles(a.sourceTitles, b.sourceTitles) &&
+    sameBlock(a.block, b.block)
 );
 
 const NO_TITLES: string[] = [];
@@ -205,6 +228,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
   sourceTitles = NO_TITLES,
   onCitationPress,
   isStreaming,
+  tail,
 }: Props) {
   const t = useTokens();
   const blocks = useMemo(() => parseMarkdown(content, sourceTitles.length), [content, sourceTitles.length]);
@@ -220,6 +244,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
           sourceTitles={sourceTitles}
           onCitationPress={onCitationPress}
           caret={inlineCaret && i === blocks.length - 1}
+          tail={i === blocks.length - 1 ? tail : undefined}
         />
       ))}
       {/* Nothing streamed yet, or the last block is code/table: the cursor on its own line. */}
