@@ -154,3 +154,11 @@ export function parseMarkdown(text: string, sourceCount: number): Block[] {
 export function inlineText(inlines: Inline[]): string {
   return inlines.map((i) => (i.type === "cite" ? `[${i.n}]` : i.text)).join("");
 }
+
+/**
+ * Same content, for the renderer's memo: parseMarkdown builds new objects on every streamed frame, and
+ * only the block being written changes, so the finished blocks above it skip their re-render.
+ */
+export function sameBlock(a: Block, b: Block): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}

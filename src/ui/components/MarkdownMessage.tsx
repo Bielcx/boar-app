@@ -4,7 +4,7 @@ import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { IconButton, Text, useToast } from ".";
 import { useTokens } from "../theme";
-import { parseMarkdown, type Block, type Inline } from "../chat/markdown";
+import { parseMarkdown, sameBlock, type Block, type Inline } from "../chat/markdown";
 
 interface Props {
   content: string;
@@ -108,19 +108,31 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   );
 }
 
-function BlockView({
-  block,
-  sourceTitles,
-  onCitationPress,
-  caret,
-}: {
+/** The mockup's streaming cursor: a 9x17 ember bar right after the last word ("…treatment▌"), hidden from screen readers. */
+function Caret() {
+  const t = useTokens();
+  return (
+    <View
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{ width: t.space.sm + 1, height: t.space.base + 1, borderRadius: t.space.xxs, marginLeft: t.space.xxs, backgroundColor: t.color.accent.solid }}
+    />
+  );
+}
+
+interface BlockProps {
   block: Block;
   sourceTitles: string[];
   onCitationPress?: (n: number) => void;
   /** Streaming cursor drawn inline at the end of this block's text (the last block). */
-  caret?: React.ReactNode;
-}) {
+  caret?: boolean;
+}
+
+const sameTitles = (a: string[], b: string[]) => a === b || (a.length === b.length && a.every((x, i) => x === b[i]));
+
+function BlockContent({ block, sourceTitles, onCitationPress, caret: withCaret }: BlockProps) {
   const t = useTokens();
+  const caret = withCaret ? <Caret /> : null;
   const inl = (inlines: Inline[]) => (
     <Inlines inlines={inlines} sourceTitles={sourceTitles} onCitationPress={onCitationPress} />
   );
@@ -175,26 +187,30 @@ function BlockView({
   }
 }
 
+/**
+ * Memoized by content: while an answer streams, parseMarkdown hands back new objects every frame, but only
+ * the block being written changed; the ones above it (and their native text) stay as they are.
+ */
+const BlockView = memo(
+  BlockContent,
+  (a: BlockProps, b: BlockProps) =>
+    a.caret === b.caret && a.onCitationPress === b.onCitationPress && sameTitles(a.sourceTitles, b.sourceTitles) && sameBlock(a.block, b.block)
+);
+
+const NO_TITLES: string[] = [];
+
 /** Renders an answer's Markdown with design-system type; "[n]" citations open the source. */
 export const MarkdownMessage = memo(function MarkdownMessage({
   content,
-  sourceTitles = [],
+  sourceTitles = NO_TITLES,
   onCitationPress,
   isStreaming,
 }: Props) {
   const t = useTokens();
   const blocks = useMemo(() => parseMarkdown(content, sourceTitles.length), [content, sourceTitles.length]);
-  // The mockup's streaming cursor: a 9x17 ember bar right after the last word ("…treatment▌"). An inline View
-  // inside the last text block, hidden from screen readers (they hear stage changes, never tokens).
-  const caret = isStreaming ? (
-    <View
-      importantForAccessibility="no-hide-descendants"
-      accessibilityElementsHidden
-      style={{ width: t.space.sm + 1, height: t.space.base + 1, borderRadius: t.space.xxs, marginLeft: t.space.xxs, backgroundColor: t.color.accent.solid }}
-    />
-  ) : null;
+  // The cursor sits inside the last text block (readers hear stage changes, never tokens).
   const last = blocks[blocks.length - 1];
-  const inlineCaret = !!caret && !!last && last.type !== "code" && last.type !== "table";
+  const inlineCaret = !!isStreaming && !!last && last.type !== "code" && last.type !== "table";
   return (
     <View style={{ gap: t.space.sm }}>
       {blocks.map((block, i) => (
@@ -203,11 +219,11 @@ export const MarkdownMessage = memo(function MarkdownMessage({
           block={block}
           sourceTitles={sourceTitles}
           onCitationPress={onCitationPress}
-          caret={inlineCaret && i === blocks.length - 1 ? caret : undefined}
+          caret={inlineCaret && i === blocks.length - 1}
         />
       ))}
       {/* Nothing streamed yet, or the last block is code/table: the cursor on its own line. */}
-      {caret && !inlineCaret && caret}
+      {isStreaming && !inlineCaret && <Caret />}
     </View>
   );
 });

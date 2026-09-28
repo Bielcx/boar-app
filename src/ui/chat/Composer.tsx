@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
@@ -27,7 +27,7 @@ interface Props {
  * Question field with send/stop. Stays editable while an answer streams so
  * the next question can be written; only sending waits.
  */
-export const Composer = forwardRef<TextInput, Props>(function Composer(
+const ComposerView = forwardRef<TextInput, Props>(function Composer(
   { value, onChange, onSend, onStop, status, generating, stopping, voiceEnabled, canSend = status === "ready" },
   ref
 ) {
@@ -152,3 +152,6 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
     </View>
   );
 });
+
+// Memoized: the chat screen re-renders on every streamed frame; the composer only when its props change.
+export const Composer = memo(ComposerView);

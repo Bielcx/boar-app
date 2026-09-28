@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Badge, Banner, Button, Card, Icon, IconButton, IconSlot, IconText, LARGE_TEXT_SCALE, LineSlot, Mascot, MetaLine, Text, TextAction, useOpticalLine, type IconName } from "../components";
@@ -16,6 +16,7 @@ import { weakNoteShowsBody } from "./uncitedPreface";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
+import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -94,7 +95,7 @@ function StepSpinner() {
  * with its icon; on the right a check when done, the turning ring on the current one, a small dot for the
  * ones still to come. Visual only; the reader hears stage changes through the screen's announcer.
  */
-function StepsCard({ steps }: { steps: GeneratingStep[] }) {
+const StepsCard = memo(function StepsCard({ steps }: { steps: GeneratingStep[] }) {
   const t = useTokens();
   // Icon-align round: leading icon and trailing status on the optical centre of the label's first line.
   const line = useOpticalLine("footnote");
@@ -121,7 +122,7 @@ function StepsCard({ steps }: { steps: GeneratingStep[] }) {
       ))}
     </Card>
   );
-}
+}, (a, b) => sameSteps(a.steps, b.steps));
 
 /** Seconds since the answer started, as the mockup's pill at the right of the name (the receipt takes its place when done). */
 function Elapsed({ locale, step }: { locale: string; step?: string }) {
@@ -180,7 +181,7 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
   );
 }
 
-function TierBody({
+const TierBody = memo(function TierBody({
   tier,
   streaming,
   sourceTitles,
@@ -196,6 +197,7 @@ function TierBody({
   const split = splitThinking(tier.text);
   // Invented citations are cleaned only once the answer is done (sources are final then).
   const shown = streaming ? split.answer : splitInlineBullets(cleanCitations(split.answer, sourceTitles.length));
+  const onCitationPress = useCallback((n: number) => onOpenSource(n - 1), [onOpenSource]);
   return (
     <View style={{ gap: t.space.sm }}>
       {split.thinking || split.thinkingInProgress ? (
@@ -210,13 +212,13 @@ function TierBody({
         <MarkdownMessage
           content={shown}
           sourceTitles={sourceTitles}
-          onCitationPress={(n) => onOpenSource(n - 1)}
+          onCitationPress={onCitationPress}
           isStreaming={streaming}
         />
       )}
     </View>
   );
-}
+});
 
 /**
  * The measured receipt: a short numbers-only line ("1.4 s · 16 tok/s") that
@@ -347,9 +349,10 @@ function RelevanceBar({ band }: { band: RelevanceBand | null }) {
  * row per article (passages of the same article are grouped, Iris) that
  * expands in place into a well: the source's name as the overline, its URL in
  * normal case (Prism S-2), and each passage with its citation number and first
- * lines. The full passage opens in the source sheet.
+ * lines. The full passage opens in the source sheet. Memoized on the fields it reads: during a Deepen
+ * the card stays still while the deep text streams.
  */
-function SourceList({
+const SourceList = memo(function SourceList({
   answer,
   onOpenSource,
   only,
@@ -504,7 +507,9 @@ function SourceList({
       {related && related.length > 0 && <RelatedSources answer={answer} indexes={related} />}
     </Card>
   );
-}
+}, (a, b) =>
+  a.onOpenSource === b.onOpenSource && sameAnswerFields(a.answer, b.answer, ["sources"]) && sameNumbers(a.only, b.only) && sameNumbers(a.related, b.related)
+);
 
 /**
  * Retrieved but not cited (Prism CT-2): collapsed under "Related in your library", no number
@@ -739,7 +744,8 @@ function Notice({ tier, snippetShown, interrupted, onRetry }: { tier?: TierState
   }
 }
 
-function InstantSnippet({
+/** Memo on the fields it reads (the snippet, the sources, whether the model's pass is done): still while text streams below. */
+const InstantSnippet = memo(function InstantSnippet({
   answer,
   isFinal,
   onOpenSource,
@@ -791,7 +797,12 @@ function InstantSnippet({
       </View>
     </Card>
   );
-}
+}, (a, b) =>
+  a.isFinal === b.isFinal &&
+  a.onOpenSource === b.onOpenSource &&
+  sameAnswerFields(a.answer, b.answer, ["instant", "sources"]) &&
+  a.answer.fast?.outcome === b.answer.fast?.outcome
+);
 
 export const AssistantMessage = memo(function AssistantMessage(props: AssistantMessageProps) {
   const { answer, active, stopping, interrupted, feedback, locale, onOpenSource } = props;
@@ -802,7 +813,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   // Nothing on the topic ("weak") or found but not cited ("uncited"): no sources card, a note instead.
   const sourceless = noSourceKind(answer);
   // No strong source: no [n] citations (weak-sources spec rule 4).
-  const sourceTitles = sourceless === "weak" ? [] : answer.sources.map((s) => s.title);
+  // Memoized on the sources: a new list every token would re-render every Markdown block (TierBody memo).
+  const sourceTitles = useMemo(() => (sourceless === "weak" ? [] : answer.sources.map((s) => s.title)), [sourceless, answer.sources]);
 
   const placesOnly = !!answer.places && !answer.fast;
   const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
