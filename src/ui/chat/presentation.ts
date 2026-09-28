@@ -386,6 +386,15 @@ export function noticeShown(tier: { outcome?: string } | undefined, interrupted?
 }
 
 /**
+ * The step the running pill shows (iPhone v9): the current one, or the last one once the model's steps are
+ * over, so the pill doesn't crossfade "Writing · 6 s" into "6 s" in place (two texts of different widths
+ * over each other) right before it crossfades into the receipt. One swap only: pill → receipt.
+ */
+export function pillStep(current: string | undefined, last: string | undefined): string | undefined {
+  return current ?? last;
+}
+
+/**
  * Whether the instant snippet folds to its preview on its own: once the model's answer is done, unless the
  * snippet is the final answer, or the model's answer was declined (Prism F2-10): then "the passage above is
  * what the library says" and the passage is the answer, so it stays whole (folding it also shrank a long

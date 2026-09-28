@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { answerReceiptShort, snippetAutoCollapses, noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { answerReceiptShort, pillStep, snippetAutoCollapses, noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -472,5 +472,13 @@ describe("snippetAutoCollapses (Prism F2-10)", () => {
   });
   it("stays whole when the model's answer was declined: the passage is the answer", () => {
     expect(snippetAutoCollapses({ fast: { outcome: "success" }, weakDeclined: true }, false)).toBe(false);
+  });
+});
+
+describe("pillStep (iPhone v9: 'Writing · 6 s' over '6 s' in the header)", () => {
+  it("shows the current step, and keeps the last one once the steps are over", () => {
+    expect(pillStep("Writing", "Reading")).toBe("Writing");
+    expect(pillStep(undefined, "Writing")).toBe("Writing");
+    expect(pillStep(undefined, undefined)).toBeUndefined();
   });
 });

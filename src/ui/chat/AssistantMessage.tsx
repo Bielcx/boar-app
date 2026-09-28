@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineAfterSnippet, declineCopy, answerReceiptShort, snippetAutoCollapses, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, type GeneratingStep } from "./presentation";
+import { declineAfterSnippet, declineCopy, answerReceiptShort, pillStep, snippetAutoCollapses, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { withoutUncitedPreface } from "./uncitedPreface";
@@ -998,6 +998,11 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
     showsAnswerBody(answer) && !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
   const done = !active && (lastTier?.outcome || instantOnly);
   const steps = running && !stopping ? generatingSteps(answer, tr) : null;
+  // The pill keeps its last step until it becomes the receipt (one swap, not two).
+  const currentStep = steps?.find((x) => x.status === "active")?.short;
+  const lastStep = useRef<string | undefined>(undefined);
+  if (currentStep) lastStep.current = currentStep;
+  const shownStep = pillStep(currentStep, lastStep.current);
   const ringStill = !stepSpinnerRuns(answer);
   // D3: the card shrinks at the first words while they take its place (the pill keeps the progress).
   const stepsShown = stepsCardShown(answer, steps);
@@ -1043,7 +1048,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
                     <Elapsed
                       locale={locale}
                       // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
-                      step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
+                      step={props.waitingLibrary ? tr("chat.stepShort.prepare") : shownStep}
                     />
                   ) : (
                     receipt && <ReceiptToggle r={receipt} hidden={active} />
