@@ -44,4 +44,10 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(decline).not.toMatch(/accessibilityElementsHidden>\s*\{tr\("chat\.weak\.answerAnywayHint"\)/);
     expect(decline.match(/answerAnywayHint/g)).toHaveLength(1);
   });
+  it("CX-7: the no-strong-source marker is a status (no card, no caps), read as text", () => {
+    const note = read("AssistantMessage.tsx").match(/function WeakSourceNote[\s\S]*?\n}\n/)![0];
+    expect(note).not.toMatch(/<Card\b/);
+    expect(note).not.toMatch(/variant="(label|badge)"[^>]*>\s*\{title\}/);
+    expect(note).toMatch(/accessibilityRole="text"/);
+  });
 });

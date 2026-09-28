@@ -606,10 +606,11 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
   const title = tr(uncited ? "chat.weak.titleUncited" : "chat.weak.title");
   const body = tr(uncited ? "chat.weak.bodyUncited" : incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body");
   return (
-    <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
+    // A status, not a card (Prism CX-7): a card with a caps title read as an empty sources card or a button.
+    <View style={{ gap: t.space.sm }}>
       {/* The marker is read, never decorative (Iris/Prism): "No strong source on this phone". */}
       <View accessible accessibilityRole="text" accessibilityLabel={`${title}. ${body}`} style={{ gap: t.space.sm }}>
-        <IconText icon="book" variant="label" color="secondary" iconColor={t.color.text.secondary}>
+        <IconText icon="book" variant="footnote" weight="semibold" color="secondary" iconColor={t.color.text.secondary}>
           {title}
         </IconText>
         {/* The one warning of the answer, in the app's language (the text no longer repeats it, CX-5). */}
@@ -651,7 +652,7 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
           ))}
         </View>
       )}
-    </Card>
+    </View>
   );
 }
 
