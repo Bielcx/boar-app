@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Easing as RNEasing, type EasingFunction as RNEasingFunction } from "react-native";
+import { Easing as RNEasing, type EasingFunction as RNEasingFunction, LayoutAnimation } from "react-native";
 import { cubicBezier, Easing, Keyframe, LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { useTheme } from "./ThemeContext";
 import { CURVE, crossfadeSpec, type Curve, motionSpec, type MotionRole, type MotionSpec } from "./motionSpec";
@@ -101,6 +101,23 @@ export function buildMotion(reduceMotion: boolean) {
     },
     /** Reanimated `layout`: size/position changes of siblings and containers. */
     layout: LinearTransition.duration(layoutSpec.duration).easing(reCurves[layoutSpec.curve]).reduceMotion(ReduceMotion.Never),
+    /**
+     * Call right before a state change that folds or unfolds content (Details, "Show more N", a model's
+     * files): the whole next layout animates with `layout`, so the rows below slide instead of jumping
+     * and the new content fades in (TR-6). RN LayoutAnimation, because it moves every sibling in the
+     * commit, which per-view Reanimated `layout` cannot do without tagging each one. Its curve is the
+     * closest built-in (easeInEaseOut); under reduce motion it does nothing (layout is instant).
+     */
+    animateNextLayout() {
+      if (layoutSpec.duration === 0) return;
+      const fade = { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity };
+      LayoutAnimation.configureNext({
+        duration: layoutSpec.duration,
+        create: fade,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+        delete: fade,
+      });
+    },
     /** Reanimated 4 CSS transition for a box that moves or resizes (`layout`), e.g. a segment's sliding pill. */
     layoutProps(properties: ("left" | "top" | "width" | "height")[]) {
       const [lx1, ly1, lx2, ly2] = CURVE[layoutSpec.curve];

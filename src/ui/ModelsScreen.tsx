@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, EmptyState, ListRow, MetaLine, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
 import { useTokens } from "./theme";
+import { useMotion } from "./theme/motion";
 import { screenRhythm } from "./flows/rhythm";
 import { catalogLabel, isAdvancedModel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
@@ -234,6 +235,7 @@ export function ModelSearchScreen() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState<SearchState>({ kind: "idle" });
   const [open, setOpen] = useState<string | null>(null);
+  const motion = useMotion();
   const [files, setFiles] = useState<Record<string, HFGgufFile[] | "loading" | "error">>({});
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -250,6 +252,8 @@ export function ModelSearchScreen() {
   };
 
   const toggle = async (repoId: string) => {
+    // Opening or closing a repo's files slides the results below (TR-6).
+    motion.animateNextLayout();
     if (open === repoId) return setOpen(null);
     setOpen(repoId);
     if (Array.isArray(files[repoId])) return;
