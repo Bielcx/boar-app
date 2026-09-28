@@ -42,11 +42,21 @@ function isGreeting(trimmed: string): boolean {
   return segments.length > 0 && segments.every((seg) => GREETING_PHRASE_RE.test(seg));
 }
 
+/**
+ * Questions to or about the assistant and chit-chat, where the knowledge base can only add noise
+ * (scripts/rag-calibrate.mjs: "whats your name?" retrieved Name 0.69, "tell me a joke" Joke 0.75,
+ * "what time is it?" Noon 0.71). Anchored on the whole message, so "what is the name of the
+ * capital of Australia" still retrieves.
+ */
+const CONVERSATION_RE =
+  /^(?:what'?s?\s+(?:is\s+)?your\s+name|who\s+are\s+you|what\s+are\s+you|what\s+can\s+you\s+do|(?:how\s+)?can\s+you\s+help(?:\s+me)?|who\s+(?:made|built|created|trained)\s+you|are\s+you\s+(?:an?\s+)?(?:ai|bot|robot|human|real|person|chatgpt|online|offline)|how\s+do\s+you\s+work|(?:tell\s+me\s+)?(?:a\s+)?joke|what\s+time\s+is\s+it|what'?s?\s+(?:is\s+)?the\s+time|what\s+day\s+is\s+(?:it|today)|what'?s?\s+(?:is\s+)?today'?s\s+date)(?:\s+(?:please|again|now|today))?[\s!.?~]*$/i;
+
 export function classifyTask(query: string): TaskType {
   const trimmed = query.trim();
   if (!trimmed) return "unknown";
 
   if (isGreeting(trimmed)) return "greeting";
+  if (CONVERSATION_RE.test(trimmed)) return "conversation";
 
   for (const { type, test } of PATTERNS) {
     if (test.test(trimmed)) return type;
@@ -76,6 +86,7 @@ export function isRetrievalIrrelevant(taskType: TaskType): boolean {
     taskType === "calculate" ||
     taskType === "translate" ||
     taskType === "code" ||
-    taskType === "greeting"
+    taskType === "greeting" ||
+    taskType === "conversation"
   );
 }

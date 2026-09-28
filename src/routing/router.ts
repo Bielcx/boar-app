@@ -93,7 +93,7 @@ function findProfile(models: ModelProfile[], role: ModelRole): ModelProfile | un
  * picked the low-overhead preset for everyday chat.
  */
 function preferredRole(taskType: TaskType, preset: RoutingPreset): ModelRole {
-  if (taskType === "greeting") return "fast";
+  if (taskType === "greeting" || taskType === "conversation") return "fast";
   if (taskType === "research" || taskType === "compare" || preset === "research") {
     return "reasoning";
   }
