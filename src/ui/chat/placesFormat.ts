@@ -1,9 +1,11 @@
 import type { Place, PlaceDiet, PlacesArea } from "./answerEvents";
 
+import { numberFormat as cachedFormat } from "./numberFormat";
+
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
 function numberFormat(locale: string, digits: number): Intl.NumberFormat {
-  return new Intl.NumberFormat(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return cachedFormat(locale, digits, digits);
 }
 
 /**

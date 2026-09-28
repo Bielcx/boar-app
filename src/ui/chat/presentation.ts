@@ -1,6 +1,7 @@
 import { CALCULATOR_MODEL_ID, EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID, type AnswerReceipt } from "./answerEvents";
 import { answerPhase, noSourceKind, type AnswerPhase, type AnswerState } from "./answerReducer";
 import { formatSeconds } from "./shareFormat";
+import { numberFormat } from "./numberFormat";
 import { placesEmptyTitle } from "./placesFormat";
 import { chatModelName, chatModelNameById, type NameableModel } from "./modelName";
 import { answerSourceSplit } from "./sourceLabel";
@@ -130,7 +131,7 @@ export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: s
 /** Tokens as an approximate word count ("8"): whole words, one decimal under 1. The caller adds "~". The chat says words, never tokens (Prism UX-1). */
 export function approxWords(tokens: number, locale: string): string {
   const words = toWords(tokens);
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: words < 1 ? 1 : 0 }).format(words);
+  return numberFormat(locale, 0, words < 1 ? 1 : 0).format(words);
 }
 
 /**
