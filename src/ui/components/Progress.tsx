@@ -31,11 +31,11 @@ export function Progress({ value, valueText, label, tone = "accent", height = 10
   useEffect(() => {
     if (!indeterminate || reduceMotion) return;
     const loop = Animated.loop(
-      Animated.timing(sweep, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
+      Animated.timing(sweep, { toValue: 1, duration: t.motion.loop.sweep, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
     );
     loop.start();
     return () => loop.stop();
-  }, [indeterminate, reduceMotion, sweep]);
+  }, [indeterminate, reduceMotion, sweep, t.motion]);
 
   const pct = value === undefined ? 0 : Math.round(Math.min(1, Math.max(0, value)) * 100);
   return (
