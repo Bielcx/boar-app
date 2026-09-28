@@ -8,7 +8,7 @@ import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-c
 import "./src/i18n";
 import { LanguageProvider } from "./src/i18n/LanguageContext";
 import { ModelManager } from "./src/models/ModelManager";
-import { ThemeProvider, useTokens } from "./src/ui/theme";
+import { ThemeProvider, useTheme, useTokens } from "./src/ui/theme";
 import { FONT_FILES } from "./src/ui/theme/fontFiles";
 import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
@@ -50,6 +50,8 @@ let bootMounts = 0;
 
 function AppContent() {
   const t = useTokens();
+  // Saved theme, text size and reduce motion first: the first screen draws in them, not in the defaults (TR-13).
+  const { loaded: themeLoaded } = useTheme();
   const [initialRoute, setInitialRoute] = useState<"Main" | "Setup" | null>(null);
   // Brand fonts are bundled; this resolves from local assets. On error, fall
   // back to system fonts rather than blocking the app.
@@ -64,7 +66,7 @@ function AppContent() {
     })();
   }, []);
 
-  const ready = !!initialRoute && (fontsLoaded || !!fontError);
+  const ready = !!initialRoute && (fontsLoaded || !!fontError) && themeLoaded;
   // The native splash stays until the first screen can draw, then cuts straight to it. BootSplash (the
   // same art + tagline + bar) was measured on screen for 0-90 ms on iOS and Android (Harbor, Piston,
   // 1c09215): too short to read, it only flashed the tagline. Kept in src/ui/flows for a slower boot.

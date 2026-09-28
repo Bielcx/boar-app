@@ -35,6 +35,12 @@ interface ThemeContextType {
   setPalette: (palette: PaletteChoice) => Promise<void>;
   /** OS "reduce motion" preference. Skip non-essential animation when true. */
   reduceMotion: boolean;
+  /**
+   * The saved appearance, text size and palette, and the OS reduce-motion flag, are read. The app
+   * waits for it before its first screen, so a light-theme or large-text user never sees one frame
+   * in the defaults (Iris TR-13).
+   */
+  loaded: boolean;
 
   /** @deprecated Legacy color shape bridged from `tokens`. Migrate to `tokens.color`. */
   colors: Colors;
@@ -58,6 +64,7 @@ const ThemeContext = createContext<ThemeContextType>({
   palette: "fogueira",
   setPalette: async () => {},
   reduceMotion: false,
+  loaded: true,
   colors: legacyColorsFromTokens(defaultTokens.color),
   typography: getTypography("standard"),
   themeId: "midnight",
@@ -71,24 +78,34 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [palette, setPaletteState] = useState<PaletteChoice>("fogueira");
   const [themeId, setThemeIdState] = useState<ThemeId>("midnight");
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [prefsRead, setPrefsRead] = useState(false);
+  const [motionRead, setMotionRead] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [savedAppearance, savedScale, savedTheme, savedPalette] = await Promise.all([
-        getAppearance(),
-        getFontScale(),
-        getThemeId(),
-        getPaletteChoice(),
-      ]);
-      setPaletteState(savedPalette);
-      setAppearanceState(savedAppearance);
-      setFontScaleState(savedScale);
-      setThemeIdState(savedTheme);
+      try {
+        const [savedAppearance, savedScale, savedTheme, savedPalette] = await Promise.all([
+          getAppearance(),
+          getFontScale(),
+          getThemeId(),
+          getPaletteChoice(),
+        ]);
+        setPaletteState(savedPalette);
+        setAppearanceState(savedAppearance);
+        setFontScaleState(savedScale);
+        setThemeIdState(savedTheme);
+      } finally {
+        // A failed read keeps the defaults; it must never hold the app behind the splash.
+        setPrefsRead(true);
+      }
     })();
   }, []);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(setReduceMotion)
+      .catch(() => {})
+      .finally(() => setMotionRead(true));
     const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
     return () => sub.remove();
   }, []);
@@ -138,12 +155,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       palette,
       setPalette,
       reduceMotion,
+      loaded: prefsRead && motionRead,
       colors,
       typography,
       themeId,
       setTheme,
     }),
-    [tokens, scheme, appearance, setAppearance, fontScale, setFontScale, palette, setPalette, reduceMotion, colors, typography, themeId, setTheme]
+    [tokens, scheme, appearance, setAppearance, fontScale, setFontScale, palette, setPalette, reduceMotion, prefsRead, motionRead, colors, typography, themeId, setTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
