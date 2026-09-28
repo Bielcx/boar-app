@@ -161,8 +161,7 @@
       "answers": "Answers",
       "tone": "Tone",
       "length": "Maximum length",
-      "tokens_one": "{{count}} token",
-      "tokens_other": "{{count}} tokens",
+      "words": "~{{words}} words",
       "quickFirst": "Quick answer first",
       "alwaysComplete": "Always full answer",
       "answerMode": {
@@ -219,7 +218,7 @@
       "customHelper": "Tell the model how to answer, for example: \"Answer in bullet points.\""
     },
     "length": {
-      "footer": "The model stops after this many tokens. A token is about three quarters of a word.",
+      "footer": "The model stops writing at about this length.",
       "hint256": "A short paragraph",
       "hint512": "A few paragraphs",
       "hint1024": "A page",
@@ -363,7 +362,7 @@
       "showLarger_one": "Show {{count}} larger model",
       "showLarger_other": "Show {{count}} larger models",
       "deepTitle": "Model for full answers",
-      "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at {{min}} tokens/s or more.",
+      "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at ~{{min}} words/s or more.",
       "deepAuto": "Automatic",
       "deepAutoSub": "The largest installed model that fits and is fast enough here.",
       "deepNone": "None",
@@ -439,7 +438,7 @@
       "empty": "Ask a question to see measurements here.",
       "typical_one": "Typical (last {{count}} answer)",
       "typical_other": "Typical (last {{count}} answers)",
-      "typicalFooter": "Medians. A token is about three quarters of a word.",
+      "typicalFooter": "Medians. Words per second are estimated.",
       "band": {
         "fast": "Fast",
         "ok": "OK",

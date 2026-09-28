@@ -80,3 +80,19 @@ describe("control labels fit one line", () => {
     expect(over).toEqual([]);
   });
 });
+
+describe("no model jargon on the flow screens", () => {
+  it("no flows.* string says 'token' in EN or PT (words, ~12 words/s; Prism UX-2)", () => {
+    const hits: string[] = [];
+    const walk = (d: Dict, path: string) => {
+      for (const [k, v] of Object.entries(d)) {
+        if (typeof v === "string") {
+          if (/\btokens?\b/i.test(v)) hits.push(`${path}${k}: ${v}`);
+        } else walk(v, `${path}${k}.`);
+      }
+    };
+    walk((en as unknown as { flows: Dict }).flows, "en flows.");
+    walk((pt as unknown as { flows: Dict }).flows, "pt flows.");
+    expect(hits).toEqual([]);
+  });
+});

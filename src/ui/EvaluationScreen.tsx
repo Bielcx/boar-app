@@ -158,7 +158,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
         <Section title={t("evaluation.configsTitle")}>
           {models === null ? (
             <View style={{ padding: tokens.space.base }}>
-              <Skeleton height={40} />
+              <Skeleton height={tokens.size.row} />
             </View>
           ) : (
             <>

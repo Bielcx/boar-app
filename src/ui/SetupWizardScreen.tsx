@@ -807,12 +807,12 @@ function TravelCard({
               {locationNote}
             </Text>
           )}
-          {declined && <Button size="sm" variant="ghost" label={t("flows.places.openSettings")} onPress={() => Linking.openSettings()} />}
+          {declined && <Button size="sm" variant="secondary" label={t("flows.places.openSettings")} onPress={() => Linking.openSettings()} />}
         </View>
       )}
       {regions.length > 1 && (
         <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
-          <Button ref={otherRef} size="sm" variant="ghost" icon="map" label={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
+          <Button ref={otherRef} size="sm" variant="secondary" icon="map" label={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
         </View>
       )}
       {trip ? (
@@ -825,7 +825,7 @@ function TravelCard({
         />
       ) : (
         <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base, gap: tokens.space.xs }}>
-          <Button ref={tripRef} size="sm" variant="outline" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
+          <Button ref={tripRef} size="sm" variant="secondary" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
           <Text variant="footnote" color="secondary">
             {t("flows.travel.goingToHint")}
           </Text>

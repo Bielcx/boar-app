@@ -21,6 +21,7 @@ import {
 import { clearAllHistory } from "../services/chatHistory";
 import { getChatBridge } from "./navigation/chatBridge";
 import { RadioRow } from "./flows/RadioRow";
+import { toWords } from "./flows/format";
 
 export function SettingsToneScreen() {
   const tokens = useTokens();
@@ -91,7 +92,7 @@ export function SettingsLengthScreen() {
             <RadioRow
               key={n}
               title={t(`flows.length.hint${n}`)}
-              subtitle={t("flows.length.words", { count: n, words: Math.round(n * 0.75) })}
+              subtitle={t("flows.length.words", { count: n, words: Math.round(toWords(n)) })}
               selected={selected === n}
               onPress={() => {
                 setSelected(n);

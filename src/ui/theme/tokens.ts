@@ -281,6 +281,8 @@ export const size = {
   touch: MIN_TOUCH,
   /** Minimum height of a list row (ListRow, RadioRow, checkbox rows, toast): the touch minimum plus 4. */
   row: MIN_TOUCH + 4,
+  /** Loading placeholder for a card of metrics or a list block. */
+  skeletonCard: 120,
   iconSm: 16,
   icon: 20,
   iconLg: 24,

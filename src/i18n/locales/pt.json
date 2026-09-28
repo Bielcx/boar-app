@@ -161,8 +161,7 @@
       "answers": "Respostas",
       "tone": "Tom",
       "length": "Tamanho máximo",
-      "tokens_one": "{{count}} token",
-      "tokens_other": "{{count}} tokens",
+      "words": "~{{words}} palavras",
       "quickFirst": "Resposta rápida",
       "alwaysComplete": "Sempre resposta completa",
       "answerMode": {
@@ -219,7 +218,7 @@
       "customHelper": "Diga ao modelo como responder, por exemplo: \"Responda em tópicos.\""
     },
     "length": {
-      "footer": "O modelo para depois desse número de tokens. Um token é cerca de três quartos de uma palavra.",
+      "footer": "O modelo para de escrever perto desse tamanho.",
       "hint256": "Um parágrafo curto",
       "hint512": "Alguns parágrafos",
       "hint1024": "Uma página",
@@ -363,7 +362,7 @@
       "showLarger_one": "Mostrar {{count}} modelo maior",
       "showLarger_other": "Mostrar {{count}} modelos maiores",
       "deepTitle": "Modelo para respostas completas",
-      "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a {{min}} tokens/s ou mais.",
+      "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a ~{{min}} palavras/s ou mais.",
       "deepAuto": "Automático",
       "deepAutoSub": "O maior modelo instalado que cabe e é rápido o bastante aqui.",
       "deepNone": "Nenhum",
@@ -439,7 +438,7 @@
       "empty": "Faça uma pergunta para ver as medidas aqui.",
       "typical_one": "Típico (última {{count}} resposta)",
       "typical_other": "Típico (últimas {{count}} respostas)",
-      "typicalFooter": "Medianas. Um token é cerca de três quartos de uma palavra.",
+      "typicalFooter": "Medianas. As palavras por segundo são estimadas.",
       "band": {
         "fast": "Rápido",
         "ok": "Ok",

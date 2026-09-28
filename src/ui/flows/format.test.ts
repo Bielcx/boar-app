@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatBytesParts, formatRam, formatSeconds, failureLines, minutesAbout, minutesLeft, readableErrorDetail } from "./format";
+import { formatBytes, formatBytesParts, formatRam, formatSeconds, failureLines, minutesAbout, minutesLeft, readableErrorDetail, toWords } from "./format";
 
 describe("formatBytes", () => {
   it("uses the locale's decimal separator", () => {
@@ -98,5 +98,12 @@ describe("failureLines (download errors translated from Ledger's codes, MD-4)", 
   it("without a code, the readable English detail", () => {
     const r = failureLines({ errorKind: "storage", message: "needs 3000000000 bytes (ENOSPC)" }, t, "en");
     expect(r).toEqual({ cause: "flows.row.error.storage", detail: "needs 3 GB" });
+  });
+});
+
+describe("toWords", () => {
+  it("shows a token count as about three quarters as many words", () => {
+    expect(toWords(1024)).toBe(768);
+    expect(Math.round(toWords(5))).toBe(4);
   });
 });
