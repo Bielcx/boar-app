@@ -1,13 +1,14 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, useWindowDimensions, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, TextAction, useOpticalLine, useToast } from "../components";
+import { Badge, Button, Card, Icon, IconText, LARGE_TEXT_SCALE, Mascot, Progress, Sheet, Text, TextAction, useOpticalLine, useToast } from "../components";
 import { icon, useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
 import { showsKnowledgeHint } from "./suggestions";
 import { bootEntranceTiming } from "./presentation";
+import { chatLargeText } from "./largeText";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
@@ -117,6 +118,7 @@ export const ChatEmptyState = memo(function ChatEmptyState({
   const heroAppear = useBootEntrance(firstAfterBoot);
   // The add-knowledge card's support line starts under its label's text.
   const addLine = useOpticalLine("footnote");
+  const layout = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE);
   return (
     // The mockup's layout (spec-chat-vazio): mascot, wordmark, tagline, then the suggestions.
     <View
@@ -175,7 +177,7 @@ export const ChatEmptyState = memo(function ChatEmptyState({
                 <Text variant="caption" weight="semibold" color="field">
                   {tr(`chat.suggestionTopics.${k}`)}
                 </Text>
-                <Text variant="footnote" numberOfLines={2}>
+                <Text variant="footnote" numberOfLines={layout.suggestionLines}>
                   {q}
                 </Text>
               </Card>
@@ -281,6 +283,8 @@ export function ChatModelError({
   onRetry: () => void;
 }) {
   const t = useTokens();
+  // Prism CH-12: at large text the two buttons stack instead of breaking their words.
+  const layout = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE);
   const { t: tr } = useTranslation();
   const kind = engineKind ?? modelErrorKind(error);
   const setupLeads = modelErrorPrimary(kind) === "setup" && !!onRelaunchWizard;
@@ -344,10 +348,10 @@ export function ChatModelError({
           </View>
         )}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-          <View style={{ flexGrow: 1, flexBasis: "40%" }}>
+          <View style={{ flexGrow: 1, flexBasis: layout.errorButtonBasis }}>
             <Button label={tr("chat.modelError.settings")} variant="secondary" fullWidth onPress={onOpenSettings} />
           </View>
-          <View style={{ flexGrow: 1, flexBasis: "40%" }}>
+          <View style={{ flexGrow: 1, flexBasis: layout.errorButtonBasis }}>
             {setupLeads ? (
               <Button label={tr("chat.modelError.setup")} fullWidth onPress={onRelaunchWizard} />
             ) : (
