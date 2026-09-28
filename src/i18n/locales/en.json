@@ -1123,6 +1123,7 @@
       "declinedTitleIncomplete": "This phone’s library isn’t complete",
       "declinedBodyIncomplete": "Indexing stopped before the end, so the answer may be in the part that’s missing.",
       "bodyIncomplete": "Library incomplete, so a source may be missing. The model's answer can be wrong.",
+      "heldAfterSnippet": "The passage above is what the library says. The Fast model didn't confirm its own answer.",
       "answerAnywayHint": "It may be wrong."
     },
     "stepShort": {
