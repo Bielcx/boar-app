@@ -22,6 +22,7 @@ import { chatLargeText } from "./largeText";
 import { Reveal } from "./Reveal";
 import { useSmoothText } from "./useSmoothText";
 import { Swap } from "./Swap";
+import { StepsSlot } from "./StepsSlot";
 import { useMotion } from "../theme/motion";
 
 export interface AssistantMessageProps {
@@ -909,6 +910,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const ringStill = !stepSpinnerRuns(answer);
   // D3: the card shrinks at the first words while they take its place (the pill keeps the progress).
   const stepsShown = stepsCardShown(answer, steps);
+  const fastSteps = !answer.deep && stepsShown && !props.waitingLibrary;
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
@@ -1011,14 +1013,17 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             </Card>
           ) : null}
         </Block>
-        {/* Steps above where the text will be, sources below; the steps give way to the text (D3). */}
-        <Block shown={!answer.deep && stepsShown && !props.waitingLibrary}>
-          {steps && <StepsCard steps={steps} still={ringStill} />}
-        </Block>
-        <Block shown={fastBody}>
-          {fastBody && answer.fast && (
-            <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
-          )}
+        {/* The steps and the text share one slot: the card gives way to the first words in place (D3, v2 P3). */}
+        <Block shown={fastSteps || fastBody}>
+          <StepsSlot
+            steps={fastSteps && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
+            body={
+              fastBody && answer.fast ? (
+                <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
+              ) : null
+            }
+            released={!active || !!answer.fast?.outcome}
+          />
         </Block>
         <Block shown={noticeShown(answer.fast, interrupted && !answer.deep)}>
           <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
@@ -1031,11 +1036,12 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               <Text variant="label" color="secondary" header>
                 {tr("chat.deep.title")}
               </Text>
-              <Block shown={stepsShown} gap={t.space.sm}>
-                {steps && <StepsCard steps={steps} still={ringStill} />}
-              </Block>
               <View style={{ paddingTop: t.space.sm }}>
-                <TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
+                <StepsSlot
+                  steps={stepsShown && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
+                  body={<TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />}
+                  released={!active || !!answer.deep.outcome}
+                />
               </View>
               <Block shown={noticeShown(answer.deep, interrupted)} gap={t.space.sm}>
                 <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
