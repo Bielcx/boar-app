@@ -1,4 +1,4 @@
-.PHONY: help setup install check-android start run-android build-eas test typecheck clean knowledge-pack knowledge-pack-small
+.PHONY: help setup install check-android start run-android build-eas test typecheck review clean knowledge-pack knowledge-pack-small
 
 help:
 	@echo "BOAR - Adaptive Local Intelligence"
@@ -10,6 +10,7 @@ help:
 	@echo "make build-eas    - Build APK via Expo EAS Cloud (no local Android SDK needed)"
 	@echo "make test         - Run unit tests"
 	@echo "make typecheck    - Run TypeScript type checking"
+	@echo "make review       - CodeRabbit review of this branch against main (run before pushing)"
 	@echo "make clean        - Remove generated native folders & build caches"
 	@echo "make knowledge-pack        - Build the Wikipedia Vital Articles pack (~50k articles, hours)"
 	@echo "make knowledge-pack-small  - Build a smaller pack (Vital Articles level 4, ~10k articles)"
@@ -66,6 +67,10 @@ test:
 
 typecheck:
 	npm run typecheck
+
+# Needs the CodeRabbit CLI (https://www.coderabbit.ai/cli), signed in with `cr auth login`.
+review:
+	cr review --base main
 
 clean:
 	rm -rf android .expo node_modules
