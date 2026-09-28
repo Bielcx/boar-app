@@ -127,7 +127,9 @@ cities first, then Europe + the Americas + Asia, then Africa + Oceania.
 504 of 512 leaves extracted; the other 8 are 7 groupings whose members are all
 leaves (us, us-midwest/northeast/south/west, sea, south-africa-and-lesotho:
 ~28 GB of downloads skipped, the tiles step dedupes anyway) and enfield
-(inside London, served as HTML, not a PBF). ~58 GB downloaded in total.
+(inside London, served as HTML, not a PBF). About 58 GB of downloads after
+Phase 1 (from the servers' Content-Length, not metered), plus 11.5 GB of a
+`us` download started by mistake and deleted.
 
 | | Measured |
 |---|---|
