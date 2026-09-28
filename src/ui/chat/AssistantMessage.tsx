@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineAfterSnippet, declineCopy, generatingSteps, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { declineAfterSnippet, declineCopy, generatingSteps, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -68,16 +68,22 @@ function useElapsedSeconds(running: boolean): number {
  * The mockup's step indicator: an ember ring turning (static under reduce motion). Memoized, with the
  * interpolation built once (audit #11): a new one per render rebuilt the native animated graph per flush.
  */
-const StepSpinner = memo(function StepSpinner() {
+const StepSpinner = memo(function StepSpinner({ still = false }: { still?: boolean }) {
   const t = useTokens();
   const { reduceMotion } = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
+  // `still`: the answer's text is streaming and shows the progress; a loop running the whole generation
+  // asked for a frame on every vsync (GFXINFO 28/09). Same static ring as under reduce motion.
+  const turning = !reduceMotion && !still;
   useEffect(() => {
-    if (reduceMotion) return;
+    if (!turning) {
+      spin.setValue(0);
+      return;
+    }
     const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
-  }, [reduceMotion, spin]);
+  }, [turning, spin]);
   const rotate = useMemo(() => spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }), [spin]);
   const side = t.size.iconSm - t.space.xxs;
   return (
@@ -100,7 +106,7 @@ const StepSpinner = memo(function StepSpinner() {
  * with its icon; on the right a check when done, the turning ring on the current one, a small dot for the
  * ones still to come. Visual only; the reader hears stage changes through the screen's announcer.
  */
-const StepsCard = memo(function StepsCard({ steps }: { steps: GeneratingStep[] }) {
+const StepsCard = memo(function StepsCard({ steps, still }: { steps: GeneratingStep[]; still: boolean }) {
   const t = useTokens();
   // Icon-align round: leading icon and trailing status on the optical centre of the label's first line.
   const line = useOpticalLine("footnote");
@@ -117,7 +123,7 @@ const StepsCard = memo(function StepsCard({ steps }: { steps: GeneratingStep[] }
           ) : (
             <LineSlot line={line}>
               {s.status === "active" ? (
-                <StepSpinner />
+                <StepSpinner still={still} />
               ) : (
                 <View style={{ width: t.space.sm, height: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.line.hairline }} />
               )}
@@ -127,7 +133,7 @@ const StepsCard = memo(function StepsCard({ steps }: { steps: GeneratingStep[] }
       ))}
     </Card>
   );
-}, (a, b) => sameSteps(a.steps, b.steps));
+}, (a, b) => a.still === b.still && sameSteps(a.steps, b.steps));
 
 /** Seconds since the answer started, as the mockup's pill at the right of the name (the receipt takes its place when done). */
 function Elapsed({ locale, step }: { locale: string; step?: string }) {
@@ -845,6 +851,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
     showsAnswerBody(answer) && !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
   const done = !active && (lastTier?.outcome || instantOnly);
   const steps = active && !stopping ? generatingSteps(answer, tr) : null;
+  const ringStill = !stepSpinnerRuns(answer);
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
@@ -918,7 +925,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         </Card>
       ) : null}
       {/* The mockup's order: the steps above the streaming text, the sources below it. */}
-      {!answer.deep && steps && !props.waitingLibrary && <StepsCard steps={steps} />}
+      {!answer.deep && steps && !props.waitingLibrary && <StepsCard steps={steps} still={ringStill} />}
       {answer.fast && showsAnswerBody(answer) && (
         <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
       )}
@@ -930,7 +937,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           <Text variant="label" color="secondary" header>
             {tr("chat.deep.title")}
           </Text>
-          {steps && <StepsCard steps={steps} />}
+          {steps && <StepsCard steps={steps} still={ringStill} />}
           <TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
           <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
           {answer.deep.receipt && (

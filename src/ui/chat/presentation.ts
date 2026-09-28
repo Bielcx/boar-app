@@ -360,3 +360,14 @@ export function declineAfterSnippet(a: AnswerState): boolean {
 export function showsAnswerBody(a: AnswerState): boolean {
   return !a.weakDeclined;
 }
+
+/**
+ * Whether the step card's ring turns (GFXINFO 28/09: its native-driven loop invalidated the view on every
+ * vsync for the whole generation, one traversal per animation callback). Once the answer's text is on
+ * screen, the text and its caret show the progress: the ring stands still (as under reduce motion).
+ */
+export function stepSpinnerRuns(state: AnswerState): boolean {
+  // A Deepen shows its own steps: only the deep text counts there.
+  const written = state.deep ? state.deep.text : state.fast?.text || state.extract || "";
+  return !written.trim();
+}
