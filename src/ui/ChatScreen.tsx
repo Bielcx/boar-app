@@ -398,7 +398,6 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     const current = activeRef.current;
     if (!current?.handle) return;
     setStopping(true);
-    impact(ImpactFeedbackStyle.Heavy);
     await current.handle.stop();
   }, []);
 
