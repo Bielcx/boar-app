@@ -74,6 +74,12 @@ describe.each(combos)("%s / %s", (id, mode) => {
     }
   });
 
+  it("keeps secondary text >= 4.5:1 on every soft fill (details in status cards, Prism FL-13/UX-7)", () => {
+    for (const bg of ["accentSoft", "fieldSoft", "successSoft", "warningSoft", "dangerSoft", "infoSoft"] as (keyof ResolvedPalette)[]) {
+      expect(c(p, "textSecondary", bg), `textSecondary on ${bg}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("keeps primary and secondary text >= 4.5:1 on a selected option (accentSoft)", () => {
     expect(c(p, "textPrimary", "accentSoft")).toBeGreaterThanOrEqual(4.5);
     expect(c(p, "textSecondary", "accentSoft")).toBeGreaterThanOrEqual(4.5);
