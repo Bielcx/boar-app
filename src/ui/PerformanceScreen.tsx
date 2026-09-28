@@ -222,7 +222,11 @@ export function PerformanceScreen() {
 
       <Section title={t("flows.models.advanced")}>
         <ListRow icon="list" title={t("flows.performance.logsTitle")} value={String(records.length)} onPress={() => navigation.navigate("PerformanceLogs")} />
-        <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+        {/* A developer tool (English-only results, engine jargon): dev builds only (Prism FL-16). A connected
+            computer still starts an evaluation in any build through ChatScreen's device request. */}
+        {__DEV__ && (
+          <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+        )}
       </Section>
     </Screen>
   );
