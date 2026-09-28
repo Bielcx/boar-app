@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { RetrievedChunk } from "../rag/retrieve.types";
-import { assemblePrompt, assembleChatMessages } from "../rag/pure";
+import { answerPromptPrefix, assemblePrompt, assembleChatMessages } from "../rag/pure";
 import { AnswerDeps, createAnswerer, InstalledLlm } from "./answer";
 import type { AnswerEvent } from "./events";
 import type { AnswerSettings } from "../models/settings";
@@ -809,6 +809,19 @@ describe("answer(): topic guard for every snippet (Prism RT-1)", () => {
     });
     expect(big.result.text).toBe("Mold grows in damp bathrooms.");
     expect(big.result.receipt.reasonCodes).not.toContain("grounding:all-citations-removed-declined-compact");
+  });
+
+  it("Boar (A): the decline waits for attribution; a supported sentence gets its [n] back and the answer stands", async () => {
+    f.retrieved = [CANBERRA];
+    // The [1] is on a sentence from memory (removed); the first sentence is the source's own claim.
+    f.deps.engine.generate = async () =>
+      "The site of Canberra was selected for the nation's capital in 1908 as a compromise between Sydney and Melbourne. Its lake was filled in 1964 [1]. It is a popular rowing venue.";
+    const { result } = await collect("Why was Canberra chosen as the capital of Australia?");
+    expect(result.text).toBe(
+      "The site of Canberra was selected for the nation's capital in 1908 as a compromise between Sydney and Melbourne [1]. Its lake was filled in 1964. It is a popular rowing venue."
+    );
+    expect(result.receipt.reasonCodes).toEqual(expect.arrayContaining(["citations:removed-1", "citations:added-1"]));
+    expect(result.receipt.reasonCodes).not.toContain("grounding:all-citations-removed-declined-compact");
   });
 
   it("Boar (A): a compact answer that keeps one supported citation is not declined", async () => {
@@ -1693,6 +1706,36 @@ describe("answer(): execution telemetry (regression since 4e4f49d: nothing recor
     expect(result.outcome).toBe("error");
     expect(f.records).toHaveLength(1);
     expect(f.records[0]).toMatchObject({ modelId: "qwen1.5", outcome: "failure", errorMessage: "decode crashed" });
+  });
+
+  it("keeps the chat's tone prefix prefilled for the next question (engine.setAnswerPrefix)", async () => {
+    const prefixes: unknown[] = [];
+    f.deps.engine.setAnswerPrefix = (p) => prefixes.push(p);
+    f.deps.answerPrefix = answerPromptPrefix;
+    const { answer } = createAnswerer(f.deps);
+    await answer({ query: "What is the capital of Australia and where is it?" }, () => {}, { maxTokens: 256, systemPrompt: "Be brief." }).done;
+    expect(prefixes).toEqual([answerPromptPrefix("Be brief.")]);
+    // What the model got starts with it, so the prefilled part is reused.
+    expect(f.generations[0].messages![0].content.startsWith(answerPromptPrefix("Be brief.").system)).toBe(true);
+  });
+
+  it("records the peak of the app's memory from the load to the end (iOS showed an empty peak)", async () => {
+    // The footprint grows at load (KV cache, buffers) and during the answer, then falls back.
+    const readings = [900e6, 1400e6, 1650e6, 1500e6, 1450e6];
+    let i = 0;
+    f.deps.memoryBytes = () => readings[Math.min(i++, readings.length - 1)];
+    await collect("What is the capital of Australia and where is it?");
+    expect(f.records).toHaveLength(1);
+    expect(f.records[0].peakRssBytes).toBe(1650e6);
+  });
+
+  it("leaves the peak empty when the build has no memory readout", async () => {
+    f.deps.memoryBytes = () => {
+      throw new Error("RamMonitor not linked");
+    };
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("success");
+    expect(f.records[0].peakRssBytes).toBeUndefined();
   });
 
   it("a telemetry write failure never breaks the answer", async () => {
