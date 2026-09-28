@@ -242,26 +242,22 @@ export const MAX_CHUNKS_PER_ARTICLE = 2;
  * (scripts/rag-calibrate.mjs): the right sources for the evaluation questions scored 0.73-0.86,
  * while noise like "can you help me?" matched at 0.54-0.57.
  *
- * - ANSWER_MIN_SIMILARITY: nothing below it is sent to the model.
- * - RELEVANCE_WINDOW: nothing further than this below the best chunk, so one strong match
- *   doesn't bring weak ones along. That keeps the prompt, and the wait before the first word,
- *   short.
+ * Nothing below ANSWER_MIN_SIMILARITY is sent to the model. There's deliberately no cut relative
+ * to the best chunk: a comparison's second topic scores lower than its first, and a window of
+ * 0.06 below the best dropped it (French vs Industrial Revolution, immune system vs vaccine, in
+ * the on-phone evaluation of 2026-09-28).
  *
  * Chunks with no similarity (a keyword-only hit) are dropped: a word in common isn't enough.
  * Questions that share only a word with an article ("whats your name?" and Name at 0.69) are
  * kept out earlier, by classifyTask's "conversation" type.
  */
 export const ANSWER_MIN_SIMILARITY = 0.7;
-export const RELEVANCE_WINDOW = 0.06;
 
 export function gateByRelevance<T extends { similarity?: number }>(
   chunks: T[],
-  minSimilarity = ANSWER_MIN_SIMILARITY,
-  window = RELEVANCE_WINDOW
+  minSimilarity = ANSWER_MIN_SIMILARITY
 ): T[] {
-  const best = Math.max(-1, ...chunks.map((c) => c.similarity ?? -1));
-  const floor = Math.max(minSimilarity, best - window);
-  return chunks.filter((c) => c.similarity !== undefined && c.similarity >= floor);
+  return chunks.filter((c) => c.similarity !== undefined && c.similarity >= minSimilarity);
 }
 
 export interface ConversationTurn {

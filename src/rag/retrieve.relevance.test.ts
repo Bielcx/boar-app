@@ -109,9 +109,9 @@ describe("fuseRetrievalResults", () => {
 describe("gateByRelevance", () => {
   const c = (title: string, similarity?: number) => ({ title, similarity });
 
-  it("keeps the chunks close to the best one and above the floor", () => {
-    const out = gateByRelevance([c("Fall of the Western Roman Empire", 0.86), c("Western Roman Empire", 0.82), c("History of Rome", 0.77)]);
-    expect(out.map((x) => x.title)).toEqual(["Fall of the Western Roman Empire", "Western Roman Empire"]);
+  it("keeps every chunk above the floor, including a comparison's weaker second topic", () => {
+    const out = gateByRelevance([c("Industrial Revolution", 0.84), c("French Revolution", 0.74), c("Long Depression", 0.62)]);
+    expect(out.map((x) => x.title)).toEqual(["Industrial Revolution", "French Revolution"]);
   });
 
   it("returns nothing when no chunk reaches the floor", () => {
