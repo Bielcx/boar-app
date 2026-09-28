@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Icon, Text, useOpticalLine } from "../components";
+import { IconSlot, Text, useOpticalLine } from "../components";
 import { useTokens } from "../theme";
 import { selection } from "../../services/haptics";
 
@@ -26,7 +26,7 @@ export function RadioRow({ title, subtitle, selected, onPress }: Props) {
       }}
       style={({ pressed }) => [
         styles.row,
-        { minHeight: t.size.touch + 4, paddingHorizontal: t.space.md + t.space.xxs, paddingVertical: t.space.md, gap: t.space.md },
+        { minHeight: t.size.row, paddingHorizontal: t.space.md + t.space.xxs, paddingVertical: t.space.md, gap: t.space.md },
         pressed && { backgroundColor: t.color.bg.sunken },
       ]}
     >
@@ -39,9 +39,11 @@ export function RadioRow({ title, subtitle, selected, onPress }: Props) {
         )}
       </View>
       {/* The check sits on the title's optical line, at the row's end edge (icon-align). */}
-      <View style={{ width: line.iconSize, height: line.lineHeight, justifyContent: "center", transform: [{ translateY: line.offset }] }}>
-        {selected && <Icon name="check" size={line.iconSize} color={t.color.accent.text} edge="end" />}
-      </View>
+      {selected ? (
+        <IconSlot name="check" line={line} color={t.color.accent.text} edge="end" />
+      ) : (
+        <View style={{ width: line.iconSize }} />
+      )}
     </Pressable>
   );
 }

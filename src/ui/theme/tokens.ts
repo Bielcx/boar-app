@@ -279,6 +279,8 @@ export const MIN_TOUCH = Platform.OS === "ios" ? 44 : 48;
 
 export const size = {
   touch: MIN_TOUCH,
+  /** Minimum height of a list row (ListRow, RadioRow, checkbox rows, toast): the touch minimum plus 4. */
+  row: MIN_TOUCH + 4,
   iconSm: 16,
   icon: 20,
   iconLg: 24,

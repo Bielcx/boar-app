@@ -179,7 +179,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
                     accessibilityState={{ checked: on, disabled: running }}
                     accessibilityLabel={c.label}
                     onPress={() => toggle(id)}
-                    style={{ minHeight: tokens.size.touch + 4, paddingHorizontal: tokens.space.base, paddingVertical: tokens.space.md, flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}
+                    style={{ minHeight: tokens.size.row, paddingHorizontal: tokens.space.base, paddingVertical: tokens.space.md, flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}
                   >
                     <IconSlot name={on ? "check-square" : "square"} line={bodyLine} color={on ? tokens.color.accent.text : tokens.color.text.secondary} />
                     <Text variant="body" style={{ flex: 1 }}>

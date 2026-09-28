@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, Icon, IconName, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
+import { Badge, Button, Card, EmptyState, IconName, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
 import type { TextColor } from "./components/Text";
 import { icon as iconTokens, useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -604,9 +604,7 @@ function PackageStep({
               {catalogLabel(answerModel, t)}
             </Text>
             {choices.compact && choices.default && (
-              <View style={{ height: headlineLine.lineHeight, justifyContent: "center", transform: [{ translateY: headlineLine.offset }] }}>
-                <Icon name="chevron-right" size={headlineLine.iconSize} color={tokens.color.text.secondary} edge="end" />
-              </View>
+              <IconSlot name="chevron-right" line={headlineLine} color={tokens.color.text.secondary} edge="end" />
             )}
           </View>
           {answerFit && (
@@ -776,9 +774,10 @@ function TravelCard({
           {/* In the rhythm of the mockup's cards (Iris): title 16, one metadata line, the reason in a caption. */}
           <View style={{ paddingVertical: tokens.space.md - tokens.space.xxs, paddingHorizontal: tokens.space.md, gap: tokens.space.xs }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
-              <Text variant="cardTitle" style={{ flex: 1 }}>
+              {/* centerOnBox: iOS draws Baloo up to 4 pt high in its box, so the switch would sit low (icon-align). */}
+              <IconText variant="cardTitle" centerOnBox style={{ flex: 1 }}>
                 {t("flows.places.placesFor", { region: name })}
-              </Text>
+              </IconText>
               <Switch
                 label={t("flows.places.include", { region: name })}
                 value={selected?.id === region.id}

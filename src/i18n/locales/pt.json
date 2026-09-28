@@ -597,7 +597,7 @@
       "minutesLeft_other": "faltam cerca de {{count}} min",
       "indexFailed": "A criação do índice falhou",
       "downloadFailed": "Um download falhou",
-      "restart": "Reiniciar downloads",
+      "restart": "Baixar de novo",
       "restartHint": "Os downloads pararam de avançar?",
       "keepOpen": "Mantenha o BOAR aberto até terminar. Se você sair, o download pode pausar; ele continua de onde parou quando você voltar.",
       "doneTitle": "Pronto",

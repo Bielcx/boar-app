@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, EmptyState, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, useToast } from "./components";
+import { Badge, Button, EmptyState, IconText, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, useToast } from "./components";
 import type { Tone } from "./theme";
 import { useTokens } from "./theme";
 import { catalogLabel } from "./flows/catalogLabel";
@@ -61,9 +61,10 @@ function Metric({ label, value, band }: { label: string; value: string; band?: P
         {label}
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.sm }}>
-        <Text variant="headline" numeric>
+        {/* The value is Baloo: centred by its optical centre, or it rides ~4 pt above the label and seal on iOS (icon-align). */}
+        <IconText variant="headline" numeric centerOnBox>
           {value}
-        </Text>
+        </IconText>
         {band && <Badge label={t(`flows.performance.band.${band}`)} tone={BAND_TONE[band]} />}
       </View>
     </View>
