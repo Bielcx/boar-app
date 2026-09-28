@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineAfterSnippet, declineCopy, generatingSteps, noticeShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { declineAfterSnippet, declineCopy, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -873,6 +873,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const done = !active && (lastTier?.outcome || instantOnly);
   const steps = active && !stopping ? generatingSteps(answer, tr) : null;
   const ringStill = !stepSpinnerRuns(answer);
+  // D3: the card shrinks at the first words while they take its place (the pill keeps the progress).
+  const stepsShown = stepsCardShown(answer, steps);
   const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
@@ -963,8 +965,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             </Card>
           ) : null}
         </Block>
-        {/* The mockup's order: the steps above the streaming text, the sources below it. */}
-        <Block shown={!answer.deep && !!steps && !props.waitingLibrary}>
+        {/* Steps above where the text will be, sources below; the steps give way to the text (D3). */}
+        <Block shown={!answer.deep && stepsShown && !props.waitingLibrary}>
           {steps && <StepsCard steps={steps} still={ringStill} />}
         </Block>
         <Block shown={fastBody} follow>
@@ -983,7 +985,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               <Text variant="label" color="secondary" header>
                 {tr("chat.deep.title")}
               </Text>
-              <Block shown={!!steps} gap={t.space.sm}>
+              <Block shown={stepsShown} gap={t.space.sm}>
                 {steps && <StepsCard steps={steps} still={ringStill} />}
               </Block>
               <View style={{ paddingTop: t.space.sm }}>

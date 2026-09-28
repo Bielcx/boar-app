@@ -375,6 +375,16 @@ export function noticeShown(tier: { outcome?: string } | undefined, interrupted?
   return !!interrupted || ["interrupted", "stopped", "timeout", "error"].includes(tier.outcome);
 }
 
+/**
+ * SEND-MOTION D3 (Boar: option A): the steps card stays until the answer's own text starts, then shrinks
+ * while the text takes its place; the progress goes on in the header pill (time + step) and the caret.
+ * So at the end nothing leaves ABOVE the text (the card "vanishing out of nowhere" r4to saw). Option B
+ * (the mockup's order, card above the text until done) would be `!!steps` alone.
+ */
+export function stepsCardShown(state: AnswerState, steps: readonly unknown[] | null): boolean {
+  return !!steps && stepSpinnerRuns(state);
+}
+
 export function stepSpinnerRuns(state: AnswerState): boolean {
   // A Deepen shows its own steps: only the deep text counts there.
   const written = state.deep ? state.deep.text : state.fast?.text || state.extract || "";
