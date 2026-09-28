@@ -127,6 +127,26 @@ prove the JS/TS layer is internally consistent. There is no way to verify a
 real device install without a real device; don't claim success from
 typecheck/tests alone if the task was specifically about building/installing.
 
+## Before pushing: CodeRabbit review
+
+Run a local CodeRabbit review before every `git push`, in addition to
+typecheck and tests:
+
+```bash
+cr doctor                          # once: CLI installed and signed in
+cr review --agent --base main      # this branch against main, structured findings
+cr review --agent --uncommitted    # or only what isn't committed yet
+```
+
+`make review` runs the same review with readable output. A review can take
+several minutes, so run it in the background. Check each finding against the
+current code before acting on it: fix the ones that hold up, and note in one
+line why you skipped the others. Re-run once after fixing, not in a loop.
+
+If `cr doctor` says you are signed out, ask the person you're working with to
+run `cr auth login` (a browser sign-in) before you push. If they choose to push
+without the review, say so in the PR.
+
 ## Benchmarking models on a connected phone
 
 With a phone on USB, an agent can run the evaluation end to end without anyone
