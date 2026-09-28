@@ -39,6 +39,8 @@ interface Settings {
   deepModelId?: string | null;
   /** Ids of models the user confirmed to run on a low-RAM phone (CR-1: above the compact size, risk of an OOM kill). */
   largeModelConfirmedIds?: string[];
+  /** City each installed 1° places area was downloaded for ("t-N41E012" → "Rome"), to name it in Knowledge. */
+  placeTileNames?: Record<string, string>;
   /** CR-2: models whose last load killed the app (cleared by a successful load). */
   loadCrashedIds?: string[];
   /** The last load crash, until the chat shows it once (src/inference/loadGuard.ts consumeLoadCrash). */
@@ -433,6 +435,25 @@ export async function getAnswerSettings(): Promise<AnswerSettings> {
     largeModelConfirmedIds: s.largeModelConfirmedIds ?? [],
     loadCrashedIds: crashedIds(s.loadCrashedIds),
   };
+}
+
+/** City names of installed places areas, by tile id ("t-N41E012" → "Rome"). */
+export async function getPlaceTileNames(): Promise<Record<string, string>> {
+  return (await readSettings()).placeTileNames ?? {};
+}
+
+/** Names tiles after a city (a string) or forgets them (null). */
+export async function setPlaceTileNames(patch: Record<string, string | null>): Promise<void> {
+  return serialized(async () => {
+    const s = await readSettings();
+    const names = { ...(s.placeTileNames ?? {}) };
+    for (const [id, name] of Object.entries(patch)) {
+      if (name) names[id] = name;
+      else delete names[id];
+    }
+    s.placeTileNames = names;
+    await writeSettings(s);
+  });
 }
 
 export async function getLargeModelConfirmedIds(): Promise<string[]> {

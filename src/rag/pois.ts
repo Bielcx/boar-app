@@ -48,6 +48,13 @@ async function closeConn(file: string): Promise<void> {
   conn?.retire();
 }
 
+/** A tile file (t-*.sqlite) SQLite or PoiPack rejects as corrupt; never a transient error. */
+export function isUnreadableTile(file: string, e: unknown): boolean {
+  if (!tileBbox(file.replace(/\.sqlite$/, ""))) return false;
+  const msg = String((e as any)?.message ?? e);
+  return /not a places pack|not a database|malformed|corrupt/i.test(msg);
+}
+
 function openPack(file: string): Promise<PoiPack | null> {
   const hit = opened.get(file);
   if (hit) return Promise.resolve(hit);
@@ -66,6 +73,9 @@ function openPack(file: string): Promise<PoiPack | null> {
       } catch (e: any) {
         console.warn(`[pois] ${file} isn't a places pack:`, e?.message ?? e);
         await closeConn(file);
+        // A tile that can't be read is deleted, so the area shows as missing and can be fetched again;
+        // a tile that merely differs from the tile index is kept (ModelManager keptAcrossIndexUpdates).
+        if (isUnreadableTile(file, e)) await FileSystem.deleteAsync(`${FileSystem.documentDirectory}${POI_DIR}${file}`, { idempotent: true }).catch(() => {});
         return null;
       }
     })().finally(() => opening.delete(file));

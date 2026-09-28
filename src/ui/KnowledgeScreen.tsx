@@ -29,6 +29,7 @@ import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatCount } from "./flows/format";
 import { packName, placesInstall, poiCatalogEntry, poiRegions, topicPacks } from "./flows/adapters";
 import { CitySearch } from "./flows/CitySearch";
+import { PlaceAreaRows } from "./flows/PlaceAreaRows";
 import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
 
@@ -229,6 +230,7 @@ export function KnowledgeScreen() {
         <View style={{ padding: tokens.space.base }}>
           <CitySearch catalog={catalog} />
         </View>
+        <PlaceAreaRows catalog={catalog} />
         {regions.length === 0 ? (
           <View style={{ padding: tokens.space.base }}>
             <Text variant="callout" color="secondary">

@@ -17,6 +17,7 @@ import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, IconText, Sheet, T
 import { installedPoiCities } from "../flows/adapters";
 import { useTokens } from "../theme";
 import type { Place } from "./answerEvents";
+import { CityMapOffer } from "../flows/CityMapOffer";
 import type { AnswerState, PlacesResult } from "./answerReducer";
 import {
   coordinatesText,
@@ -493,6 +494,10 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
     return (
       <View style={{ gap: t.space.md }}>
         <EmptyState icon="map" title={emptyTitle} body={tr("chat.places.noneBody")} />
+        {/* No map covers the named city: offer the one that does (Tusk a9e1a3c; no_match keeps the list's filters as the reason). */}
+        {r.empty === "no_data" && r.area.place?.lat != null && r.area.place.lon != null && (
+          <CityMapOffer city={{ name: r.area.place.name, lat: r.area.place.lat, lon: r.area.place.lon }} onGetMap={onGetMap} />
+        )}
         {/* What the map does cover, one tap away (Prism P-5). */}
         <CityChips exclude={r.area.place?.name ?? r.area.label} onPick={onCity} />
       </View>

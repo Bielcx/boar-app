@@ -5,12 +5,12 @@
  *
  * - Memory fit and pack removal are wired (estimateMemoryFit, removeCorpusPackIndex).
  * - Places: POI_REGIONS, poiCatalogEntries, worldPlacesEntry and
- *   searchPlaces are wired. The preparedness pack is wired. Still interim: map tiles.
+ *   searchPlaces are wired, and so are the 1° tiles (tilesFor, loadTileCatalog). The preparedness pack is wired.
  * - Topic packs (preparedness, crypto) are wired.
  * - Position: modules/offline-location (GPS only, no Google Play Services) is wired.
  */
 import type { CatalogModel } from "../../models/manifest";
-import { confirmLargeModel as confirmLargeModelSetting, getLargeModelConfirmedIds, getLoadCrashedIds } from "../../models/settings";
+import { confirmLargeModel as confirmLargeModelSetting, getLargeModelConfirmedIds, getLoadCrashedIds, getPlaceTileNames, setPlaceTileNames } from "../../models/settings";
 import { loadGuard } from "../../inference/loadGuard";
 import * as Downloads from "../../services/downloadManager";
 import * as FileSystem from "expo-file-system/legacy";
@@ -21,8 +21,9 @@ import { catalogFit } from "./fit";
 import { topInstalledCities } from "./poi";
 import type { PoiCity, PoiRegion } from "./poi";
 import type { City } from "./travel";
-import { searchPlaces } from "../../rag/pois";
-import { POI_REGIONS, poiCatalogEntries, worldPlacesEntry } from "../../rag/poiRegions";
+import { closePoiPack, loadTileCatalog, POI_DIR, searchPlaces, tilesFor } from "../../rag/pois";
+import { POI_REGIONS, poiCatalogEntries, tileBbox, tileEntry, worldPlacesEntry, type PoiTile } from "../../rag/poiRegions";
+import { tileIdOf, type InstalledTile } from "./placeTiles";
 import type { NativePosition } from "../../services/location.pure";
 import * as OfflineLocation from "offline-location";
 // Importing the module also registers the pack with the asset registry.
@@ -44,6 +45,11 @@ export function fitFor(model: CatalogModel): MemoryFit | undefined {
 
 /** Deletes a JSON pack's indexed chunks or closes a sqlite pack, before the file goes. */
 export async function removePackIndex(model: CatalogModel): Promise<void> {
+  if (model.format === "poi-pack") {
+    // Places packs have no chunks in the index; stop reading the file before it goes.
+    await closePoiPack(model.filename);
+    return;
+  }
   await removeCorpusPackIndex(model);
 }
 
@@ -83,9 +89,54 @@ export async function searchCities(query: string, limit = 8): Promise<City[]> {
   return searchPlaces(q, limit);
 }
 
-/** Map tiles covering a city (Bramble's tilesFor). Interim: null until the tile catalog is decided and built. */
-export function cityAreaTiles(_lat: number, _lon: number, _radiusKm: number): CatalogModel[] | null {
-  return null;
+/**
+ * The places tiles covering a city (Bramble's tilesFor): [] when the tile
+ * index lists none there, null when the index can't be read (the city then
+ * offers its region only).
+ */
+export async function cityAreaTiles(lat: number, lon: number, radiusKm: number): Promise<CatalogModel[] | null> {
+  try {
+    return await tilesFor(lat, lon, radiusKm);
+  } catch (e: any) {
+    console.warn("[places] tile index unreadable:", e?.message ?? e);
+    return null;
+  }
+}
+
+/**
+ * Tiles on this phone (poi/t-*.sqlite), with their index entry when the index
+ * lists them. A tile the index doesn't list (an older file, or no gazetteer)
+ * still shows, sized as it is on disk, so it can be removed.
+ */
+export async function installedPlaceTiles(): Promise<InstalledTile[]> {
+  const dir = `${FileSystem.documentDirectory}${POI_DIR}`;
+  const files = await FileSystem.readDirectoryAsync(dir).catch(() => [] as string[]);
+  const ids = files.filter((f) => f.endsWith(".sqlite")).map((f) => f.slice(0, -".sqlite".length)).filter((id) => tileBbox(id));
+  if (ids.length === 0) return [];
+  const index = await loadTileCatalog().catch(() => new Map<string, PoiTile>());
+  return Promise.all(
+    ids.map(async (id) => {
+      const info = await FileSystem.getInfoAsync(`${dir}${id}.sqlite`).catch(() => null);
+      const bytes = info?.exists ? info.size ?? 0 : 0;
+      const known = index.get(id);
+      const entry = tileEntry(known ?? { id, sizeBytes: bytes, sha256: "", pois: 0, vegan: 0, osmDate: "" });
+      return { tileId: id, entry, bytes, pois: known?.pois };
+    })
+  );
+}
+
+/** Which city each installed tile was downloaded for. */
+export const placeTileNames = getPlaceTileNames;
+
+/** Remembers the city a set of tiles is for, to name them in Knowledge (the gazetteer and other assets are skipped). */
+export async function nameTilesAfter(city: string, assets: CatalogModel[]): Promise<void> {
+  const ids = assets.map(tileIdOf).filter((id): id is string => !!id);
+  if (ids.length > 0) await setPlaceTileNames(Object.fromEntries(ids.map((id) => [id, city])));
+}
+
+/** Forgets the names of removed tiles. */
+export async function forgetTileNames(tileIds: string[]): Promise<void> {
+  if (tileIds.length > 0) await setPlaceTileNames(Object.fromEntries(tileIds.map((id) => [id, null])));
 }
 
 export interface PackSource {
