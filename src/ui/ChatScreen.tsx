@@ -261,7 +261,19 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     })();
   }, []);
 
+  // initModels reads t and locale through refs (audit #36): with them as deps, a language change in Settings
+  // re-ran the whole init under the pushed screen (setReady(false), loads, seeding). One init at a time:
+  // coming back from a screen mid-load no longer starts a second, overlapping one.
+  const tRef = useRef(t);
+  tRef.current = t;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+  const initInFlight = useRef(false);
   const initModels = useCallback(async () => {
+    if (initInFlight.current) return;
+    initInFlight.current = true;
+    const t = tRef.current;
+    const locale = localeRef.current;
     // A new gate for this init; opened once the library is seeded (or on failure, so nothing hangs).
     if (libraryReady.current.done) libraryReady.current = makeGate(false);
     const gate = libraryReady.current;
@@ -324,8 +336,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       // The native message is the one worth showing (the RAM estimate is only in the log now).
       setLoadErrorKind(e instanceof ModelLoadError ? e.kind : undefined);
       setLoadError(e instanceof ModelLoadError ? e.native || e.message : e?.message ?? String(e));
+    } finally {
+      initInFlight.current = false;
     }
-  }, [t, locale]);
+  }, []);
 
   useEffect(() => {
     initModels();
