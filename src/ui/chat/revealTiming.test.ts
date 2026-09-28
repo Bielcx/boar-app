@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { motionSpec } from "../theme/motionSpec";
-import { REST, UNBOUNDED, boundsAfter, boundsAtStart, frameHeight, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealBounds, type RevealMove } from "./revealTiming";
+import { REST, UNBOUNDED, boundsAfter, hideFrom, boundsAtStart, frameHeight, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealBounds, type RevealMove } from "./revealTiming";
 
 describe("revealTiming (SEND-MOTION D2, DS §6 roles)", () => {
   it("shows as a layout change plus an enter fade", () => {
@@ -99,5 +99,18 @@ describe("Reveal never hides shown content (BUG-reveal-empty)", () => {
     expect(REST.minHeight).toBe(0);
     expect(REST.maxHeight).toBe(UNBOUNDED);
     expect(frameHeight(UNBOUNDED - 1, REST)).toBe(UNBOUNDED - 1);
+  });
+});
+
+describe("hideFrom (iPhone v9, F2-2: the declined text vanished in one frame)", () => {
+  it("starts from the content's height when the frame is at rest (unbounded cap)", () => {
+    expect(hideFrom(320, UNBOUNDED)).toBe(320);
+    // Folding from there: the content shows less at once, not only in the last frame.
+    const move = revealMove("hide", null, hideFrom(320, UNBOUNDED))!;
+    expect(frameHeight(320, { minHeight: 0, maxHeight: move.from * 0.5 })).toBe(160);
+  });
+  it("continues from a grow still opening (smaller than the content)", () => {
+    expect(hideFrom(320, 200)).toBe(200);
+    expect(hideFrom(320, -5)).toBe(0);
   });
 });

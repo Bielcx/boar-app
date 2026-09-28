@@ -111,3 +111,12 @@ export function boundsAfter(move: RevealMove): RevealBounds {
 export function frameHeight(content: number, b: RevealBounds): number {
   return Math.min(Math.max(content, b.minHeight), b.maxHeight);
 }
+
+/**
+ * Where a hide starts (iPhone v9, F2-2): from the height the block shows now, never from above it. A hide
+ * that began while a grow was still finishing kept the grow's bound, which can be REST's unbounded cap, so
+ * the frame only went under the content in the very last frame: the text "vanished in one frame".
+ */
+export function hideFrom(natural: number, currentMax: number): number {
+  return Math.max(0, Math.min(natural, currentMax));
+}

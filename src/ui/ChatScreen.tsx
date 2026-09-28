@@ -72,7 +72,7 @@ import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
-import { flushDelay } from "./chat/streamBatch";
+import { batchAnimatesLayout, flushDelay } from "./chat/streamBatch";
 import { createBottomPin, FOLLOW_SLACK, heightChanged, jumpToLatestShown, keepEndOnResize } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
@@ -260,9 +260,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     const batch = pendingEvents.current;
     if (batch.length === 0) return;
     pendingEvents.current = [];
-    // The end of an answer (done, a decline's warning) changes heights at rest: the snippet folding to its
-    // preview, the count becoming the source list (Prism F2-1/F2-2). One DS layout animation for that commit.
-    if (batch.some(({ event }) => event.type === "done" || event.type === "warning")) motionRef.current.animateNextLayout();
+    // The end of a normal answer folds the snippet to its preview: one DS layout animation for that commit
+    // (Prism F2-2). Not for a decline or with its warning: the text leaves through its Reveal there, and the
+    // native animation on the same view made it vanish in one frame (iPhone v9).
+    const declined = batch.some(({ messageId }) => {
+      const item = itemsRef.current.find((m) => m.id === messageId);
+      return item?.kind === "assistant" && !!item.answer.weakDeclined;
+    });
+    if (batchAnimatesLayout(batch.map((b) => b.event), declined)) motionRef.current.animateNextLayout();
     setItems((prev) => {
       let next = prev;
       for (const { messageId, event } of batch) next = updateAnswer(next, messageId, (a) => answerReducer(a, event));

@@ -4,7 +4,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "
 import { scheduleOnRN } from "react-native-worklets";
 import { useTheme } from "../theme";
 import { CURVE, type Curve } from "../theme/motionSpec";
-import { REST, boundsAfter, boundsAtStart, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealMove } from "./revealTiming";
+import { REST, boundsAfter, boundsAtStart, hideFrom, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealMove } from "./revealTiming";
 
 const curves: Record<Curve, ReturnType<typeof Easing.bezier>> = {
   standard: Easing.bezier(...CURVE.standard),
@@ -56,7 +56,12 @@ export function Reveal({
 
   // The safety net: once over (or past the deadline) a shown block is at REST and opaque; a hidden one unmounts.
   const deadline = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settle = useCallback(() => {
+  // Each move has an id; only the latest one may end the block's motion. A settle queued by an older move
+  // (its animation finished on the UI thread just as a hide began) unmounted the hiding block at once:
+  // the declined text and its sources "vanished in one frame" on the iPhone (v9, F2-2).
+  const runId = useRef(0);
+  const settle = useCallback((id?: number) => {
+    if (id != null && id !== runId.current) return;
     moving.current = false;
     if (deadline.current) clearTimeout(deadline.current);
     deadline.current = null;
@@ -69,9 +74,9 @@ export function Reveal({
     }
   }, [minHeight, maxHeight, opacity]);
   const arm = useCallback(
-    (ms: number) => {
+    (ms: number, id?: number) => {
       if (deadline.current) clearTimeout(deadline.current);
-      deadline.current = setTimeout(settle, ms);
+      deadline.current = setTimeout(() => settle(id), ms);
     },
     [settle]
   );
@@ -88,8 +93,13 @@ export function Reveal({
       const start = boundsAtStart(move);
       const end = boundsAfter(move);
       const bound = move.bound === "maxHeight" ? maxHeight : minHeight;
-      // A grow retargeted while it runs keeps going from where it is.
-      if (!moving.current) {
+      const id = ++runId.current;
+      if (!show) {
+        // A hide starts from what shows now, never from a grow's unbounded cap (hideFrom).
+        minHeight.value = REST.minHeight;
+        maxHeight.value = hideFrom(move.from, maxHeight.value);
+      } else if (!moving.current) {
+        // A grow retargeted while it runs keeps going from where it is.
         minHeight.value = start.minHeight;
         maxHeight.value = start.maxHeight;
       }
@@ -98,10 +108,10 @@ export function Reveal({
         if (!finished) return;
         minHeight.value = end.minHeight;
         maxHeight.value = end.maxHeight;
-        scheduleOnRN(settle);
+        scheduleOnRN(settle, id);
       });
       opacity.value = withTiming(show ? 1 : 0, { duration: timing.opacity.duration, easing: curves[timing.opacity.curve] });
-      arm(revealDeadline(timing));
+      arm(revealDeadline(timing), id);
     },
     [reduceMotion, minHeight, maxHeight, opacity, arm, settle]
   );
@@ -116,7 +126,13 @@ export function Reveal({
       return;
     }
     if (natural.current == null) {
-      setMounted(false);
+      // Never measured: no height to fold, but still no cut. Fade out, then go.
+      const id = ++runId.current;
+      const timing = revealTiming(false, reduceMotion);
+      opacity.value = withTiming(0, { duration: timing.opacity.duration, easing: curves[timing.opacity.curve] }, (finished) => {
+        if (finished) scheduleOnRN(settle, id);
+      });
+      arm(revealDeadline(timing), id);
       return;
     }
     run(revealMove("hide", null, natural.current)!, false);
