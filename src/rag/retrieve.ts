@@ -115,10 +115,14 @@ export async function retrieve(query: string, topK = 6): Promise<RetrievedChunk[
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
   ]);
 
-  // Fuse twice as many as needed, then keep only the ones that are actually close to the question:
-  // a strong first match must not drag weak ones along, and an unrelated question gets none.
-  const fused = fuseRetrievalResults([...lexical, ...packs.lexical], [...semantic, ...packs.semantic], topK * 2);
-  return gateByRelevance(fused).slice(0, topK);
+  // Keep only the candidates that are actually close to the question, then fuse: a strong first
+  // match must not drag weak ones along, an unrelated question gets none, and weak chunks can't
+  // take the top-K or per-article slots before the gate sees the rest.
+  return fuseRetrievalResults(
+    gateByRelevance([...lexical, ...packs.lexical]),
+    gateByRelevance([...semantic, ...packs.semantic]),
+    topK
+  );
 }
 
 export { assemblePrompt } from "./pure";

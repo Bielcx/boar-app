@@ -4,6 +4,9 @@
 // built with scripts/build-knowledge-pack.mjs.
 //
 //   node scripts/rag-calibrate.mjs [build/knowledge-pack/wiki-vital5.sqlite]
+//
+// It imports src/rag/pure.ts directly. Node 22.18+ and 23.6+ do that as is; on older Node 22
+// releases, add the flag: node --experimental-strip-types scripts/rag-calibrate.mjs
 import { DatabaseSync } from "node:sqlite";
 import { getLlama } from "node-llama-cpp";
 import { buildLexicalQuery, cosineSimilarityInt8, gateByRelevance } from "../src/rag/pure.ts";
