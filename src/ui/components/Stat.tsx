@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import { useTokens } from "../theme";
 import { Text } from "./Text";
 import type { TextColor } from "./Text";
@@ -17,11 +17,13 @@ export interface StatProps {
   color?: TextColor;
 }
 
-/** Trim of the hero's extra leading, per platform (measured on device against the mockup). */
+/**
+ * Trim of the hero's extra leading (measured on Android against the mockup, Prism A3-1 34efdf8). One
+ * value for both platforms: Text's iOS inset now draws the digits at Android's baseline (28/09); the
+ * old iOS trim (+0.09/-0.325) compensated digits riding 11 pt higher in the box.
+ */
 function xlTrim(size: number) {
-  return Platform.OS === "android"
-    ? { marginTop: -size * 0.125, marginBottom: -size * 0.13 }
-    : { marginTop: size * 0.09, marginBottom: -size * 0.325 };
+  return { marginTop: -size * 0.125, marginBottom: -size * 0.13 };
 }
 
 const VALUE_VARIANT = { xl: "hero", lg: "display", md: "title1", sm: "headline" } as const;
@@ -46,11 +48,8 @@ export function Stat({ value, unit, label, size = "md", align = "left", color = 
           color={color}
           numeric
           header={false}
-          // xl: `hero` keeps a 1.2 line box so iOS doesn't clip Baloo's ascenders; the digits sit high in
-          // it, so the trim is asymmetric (measured on device vs the mockup, Prism 2e7a026): +0.09 of the
-          // size above (overline → digits 21.5 pt) and -0.325 below (digits → bar 21 pt).
-          // Android centres the digits in the line box, so there the trim is symmetric (Prism A3-1, 34efdf8:
-          // overline→digits 33.5 and digits→bar 10 with the iOS values).
+          // xl: `hero` keeps a 1.2 line box; the digits sit centred in it on both platforms (Android's
+          // half-leading, iOS through Text's inset), so the trim is the same symmetric one.
           style={size === "xl" ? xlTrim(t.type.hero.fontSize ?? 0) : undefined}
         >
           {shown}

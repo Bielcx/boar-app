@@ -40,6 +40,7 @@ export function useOpticalLine(variant: TextVariant, role: IconRole = iconRoleFo
   const style = t.type[variant];
   const fontSize = (style.fontSize ?? 16) * k;
   const lineHeight = (style.lineHeight ?? fontSize) * k;
+  // Includes Text's iOS inset (theme/opticalCenter.ts), so the icon follows the glyphs it sits beside.
   const offset = opticalOffset({ face: shape.face, uppercase: shape.uppercase, fontSize, lineHeight, platform: Platform.OS === "ios" ? "ios" : "android" });
   // The in-app size preference is already in the type tokens; body 16 at 1.0 tells us its factor.
   const appScale = (t.type.body.fontSize ?? 16) / 16;
