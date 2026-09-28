@@ -42,9 +42,6 @@ export function formatSeconds(ms: number, locale: string): string {
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: s < 10 ? 1 : 0 }).format(s)} s`;
 }
 
-export function formatTokPerSec(tokPerSec: number, locale: string): string {
-  return new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(tokPerSec);
-}
 
 /** Question, answer, sources and a one-line provenance note, for the system share sheet. */
 export function formatForShare(
