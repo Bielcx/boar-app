@@ -60,6 +60,7 @@ export function phaseAnnouncement(
         return { message: empty ?? t("chat.announce.placesFound", { count: state.places.places.length }) };
       }
       if (state.weakDeclined) {
+        if (declineAfterSnippet(state)) return { message: t("chat.weak.heldAfterSnippet") };
         const c = declineCopy(state, libraryIncomplete);
         return { message: `${t(c.title)}. ${t(c.body)}` };
       }
@@ -329,6 +330,16 @@ export function declineCopy(a: AnswerState, libraryIncomplete = false): { title:
   return libraryIncomplete
     ? { title: "chat.weak.declinedTitleIncomplete", body: "chat.weak.declinedBodyIncomplete" }
     : { title: "chat.weak.declinedTitle", body: "chat.weak.declinedBody" };
+}
+
+/**
+ * A compact-model decline right under the library's own passage on the topic (Boar, Piston ecb83d3):
+ * a Portuguese question over English passages loses its citations in the check almost every time, so
+ * an error card there reads as a failure right after a hit. The decline becomes one quiet line under
+ * the passage instead; with no passage shown, the card stays. Presentation only, the engine is unchanged.
+ */
+export function declineAfterSnippet(a: AnswerState): boolean {
+  return !!a.weakDeclined && showsInstantSnippet(a);
 }
 
 /**

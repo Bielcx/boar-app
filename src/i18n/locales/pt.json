@@ -1123,6 +1123,7 @@
       "declinedTitleIncomplete": "O acervo deste celular está incompleto",
       "declinedBodyIncomplete": "A indexação parou antes do fim, então a resposta pode estar na parte que falta.",
       "bodyIncomplete": "Vem do modelo e pode errar. O acervo está incompleto, então pode faltar a fonte.",
+      "heldAfterSnippet": "O trecho acima é o que o acervo diz. O modelo Rápido não confirmou uma resposta própria.",
       "answerAnywayHint": "Pode estar errada."
     },
     "stepShort": {

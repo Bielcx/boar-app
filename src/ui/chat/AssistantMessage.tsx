@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineCopy, generatingSteps, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { declineAfterSnippet, declineCopy, generatingSteps, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { weakNoteShowsBody } from "./uncitedPreface";
@@ -605,6 +605,23 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
 }
 
 /**
+ * The decline under the library's own passage (declineAfterSnippet): one quiet line, no card, no
+ * error icon. The passage above is the answer; "Answer anyway" stays as a text action.
+ */
+function HeldAfterSnippet({ onAnswerAnyway }: { onAnswerAnyway?: () => void }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  return (
+    <View style={{ gap: t.space.xs, alignItems: "flex-start" }}>
+      <Text variant="footnote" color="secondary">
+        {tr("chat.weak.heldAfterSnippet")}
+      </Text>
+      {onAnswerAnyway && <TextAction label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} onPress={onAnswerAnyway} />}
+    </View>
+  );
+}
+
+/**
  * Weak-sources state A (Iris spec, Boar's decision): the compact model found nothing in this phone's
  * library and didn't guess. The card is the answer; "Answer anyway (may be wrong)" generates for the
  * same question (state B). No receipt, no primary ember, no amber.
@@ -919,7 +936,12 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           <SourceList answer={answer} onOpenSource={onOpenSource} only={split?.cited} related={split?.related} />
         )
       )}
-      {answer.weakDeclined && !active && <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />}
+      {answer.weakDeclined && !active &&
+        (declineAfterSnippet(answer) ? (
+          <HeldAfterSnippet onAnswerAnyway={props.onAnswerAnyway} />
+        ) : (
+          <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />
+        ))}
       {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
 
       {done && hasText && (

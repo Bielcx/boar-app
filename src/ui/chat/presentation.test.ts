@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, showsAnswerBody } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -353,6 +353,25 @@ describe("declineCopy (Tusk 237764a: the compact model's cited answer withheld)"
     const a = { answerIds: ["a"], sources: [], weakSources: true, weakDeclined: true } as AnswerState;
     expect(declineCopy(a).title).toBe("chat.weak.declinedTitle");
     expect(declineCopy(a, true).title).toBe("chat.weak.declinedTitleIncomplete");
+  });
+});
+
+describe("declineAfterSnippet (Boar, Piston ecb83d3: PT question, EN passage, citations removed)", () => {
+  const src = [{ chunkId: "c", docId: "d", title: "Monsoon", body: "b", score: 1, matchType: "hybrid" as const }];
+  const fast = { text: "", stage: null, outcome: "success" as const };
+  const held = { answerIds: ["a"], sources: src, weakSources: true, weakDeclined: true, instant: { text: "Da fonte offline (em inglês):\nA monsoon is…", sourceIndex: 0, confidence: 0.8 }, fast } as AnswerState;
+  it("under the instant passage → a quiet line, and the announcement says the same line, not the error card", () => {
+    expect(declineAfterSnippet(held)).toBe(true);
+    expect(phaseAnnouncement("done", held, t)?.message).toBe("chat.weak.heldAfterSnippet");
+  });
+  it("no passage shown → the card stays (nothing found, or the engine's excerpt answers)", () => {
+    expect(declineAfterSnippet({ ...held, instant: undefined })).toBe(false);
+    expect(declineAfterSnippet({ ...held, extract: "x" } as AnswerState)).toBe(false);
+    expect(declineAfterSnippet({ ...held, sources: [] })).toBe(false);
+    expect(phaseAnnouncement("done", { ...held, instant: undefined }, t)?.message).toBe("chat.weak.unsupportedTitle. chat.weak.unsupportedBody");
+  });
+  it("not a decline → no line", () => {
+    expect(declineAfterSnippet({ ...held, weakDeclined: undefined })).toBe(false);
   });
 });
 
