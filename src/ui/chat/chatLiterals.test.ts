@@ -34,4 +34,14 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(src).toMatch(/<Swap swapKey=\{pill\} style=\{\{ marginLeft: "auto", flexShrink: 1 \}\}>/);
     expect(src).toMatch(/pill === "elapsed" \? \([\s\S]*?<Elapsed[\s\S]*?<ReceiptToggle r=\{receipt\} hidden=\{active\} \/>/);
   });
+  it("CX-8: 'May be wrong.' comes before 'Answer anyway', seen and heard once", () => {
+    const decline = read("AssistantMessage.tsx").match(/function DeclinedNoSource[\s\S]*?\n}\n/)![0];
+    const warning = decline.indexOf('tr("chat.weak.answerAnywayHint")');
+    const button = decline.indexOf('<Button label={tr("chat.weak.answerAnyway")}');
+    expect(warning).toBeGreaterThan(-1);
+    expect(button).toBeGreaterThan(warning);
+    // Read by screen readers (not hidden) and not repeated as the button's hint.
+    expect(decline).not.toMatch(/accessibilityElementsHidden>\s*\{tr\("chat\.weak\.answerAnywayHint"\)/);
+    expect(decline.match(/answerAnywayHint/g)).toHaveLength(1);
+  });
 });

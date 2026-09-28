@@ -700,15 +700,16 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           {tr(body)}
         </Text>
       </View>
+      {/* The risk before the action, seen and heard (Prism CX-8; still not inside the label, Boar copy rule):
+          the reader hears "May be wrong." then the button, so the button carries no hint repeating it. */}
+      {onAnswerAnyway && (
+        <Text variant="caption" color="secondary">
+          {tr("chat.weak.answerAnywayHint")}
+        </Text>
+      )}
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.md }}>
         {onAnswerAnyway && (
-          <Button
-            label={tr("chat.weak.answerAnyway")}
-            accessibilityHint={tr("chat.weak.answerAnywayHint")}
-            variant="secondary"
-            size="sm"
-            onPress={onAnswerAnyway}
-          />
+          <Button label={tr("chat.weak.answerAnyway")} variant="secondary" size="sm" onPress={onAnswerAnyway} />
         )}
         {groups.length > 0 && (
           <TextAction
@@ -722,12 +723,6 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           />
         )}
       </View>
-      {/* The warning lives under the button, not inside it (Boar copy rule). */}
-      {onAnswerAnyway && (
-        <Text variant="caption" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
-          {tr("chat.weak.answerAnywayHint")}
-        </Text>
-      )}
       {open && (
         <View style={{ gap: t.space.sm }}>
           <Text variant="label" color="secondary" header>
