@@ -9,12 +9,14 @@ import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind }
 import { showsKnowledgeHint } from "./suggestions";
 import { bootEntranceTiming } from "./presentation";
 import { chatLargeText } from "./largeText";
+import { sourceSeal } from "./sourceLabel";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const toast = useToast();
+  const seal = source ? sourceSeal(source, { myDocuments: tr("chat.sources.myDocuments"), corpus: tr("chat.sources.corpus") }) : null;
   return (
     <Sheet
       visible={!!source}
@@ -38,11 +40,15 @@ export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk
     >
       {source && (
         <View style={{ gap: t.space.md }}>
-          <Badge
-            label={source.collectionId ? tr("chat.sources.myDocuments") : source.source || tr("chat.sources.corpus")}
-            icon={source.collectionId ? "file-text" : "book"}
-            tone="field"
-          />
+          {/* The source's name in the seal, its link as a caption (Prism CH-17: no upper-cased URL in a pill). */}
+          <View style={{ gap: t.space.xs, alignItems: "flex-start" }}>
+            <Badge label={seal!.label} icon={source.collectionId ? "file-text" : "book"} tone="field" />
+            {seal!.url && (
+              <Text variant="caption" color="secondary" selectable>
+                {seal!.url}
+              </Text>
+            )}
+          </View>
           <Text selectable>{source.body}</Text>
         </View>
       )}
