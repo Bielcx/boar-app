@@ -83,9 +83,10 @@ export function CityMapOffer({ city, onGetMap }: Props) {
           {t("flows.row.error.unknown")}
         </Text>
       )}
-      <Button size="sm" variant="primary" icon="download" label={t("flows.places.getCity", { city: city.name })} onPress={download} />
+      {/* Secondary: a primary here would be a second ember beside the composer (Prism FL-9); the city goes on the support line. */}
+      <Button size="sm" variant="secondary" icon="download" label={t("flows.places.getCity")} onPress={download} />
       <Text variant="footnote" color="secondary">
-        {t("flows.places.getCityHint", { size: formatBytes(bytes, i18n.language) })}
+        {t("flows.places.getCityHint", { city: city.name, size: formatBytes(bytes, i18n.language) })}
       </Text>
     </View>
   );

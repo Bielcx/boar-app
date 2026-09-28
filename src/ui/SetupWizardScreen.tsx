@@ -598,7 +598,7 @@ function PackageStep({
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
-            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" />}
+            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" />}
             <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
@@ -648,7 +648,7 @@ function PackageStep({
                     onUserAnswer(tierId);
                     setModelSheetOpen(false);
                   }}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
                 />
               );

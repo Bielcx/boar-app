@@ -204,7 +204,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
           {running ? (
-            <Button variant="destructive" label={stopping ? t("evaluation.stopping") : t("evaluation.stop")} onPress={handleStop} disabled={stopping} />
+            <Button variant="destructive" icon="square" label={stopping ? t("evaluation.stopping") : t("evaluation.stop")} onPress={handleStop} disabled={stopping} />
           ) : (
             <Button label={t("evaluation.run")} icon="play" onPress={handleRun} disabled={!canRun} />
           )}

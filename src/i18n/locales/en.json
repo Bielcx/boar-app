@@ -1,6 +1,6 @@
 {
   "common": {
-    "done": "DONE",
+    "done": "Done",
     "cancel": "Cancel",
     "close": "Close",
     "back": "Back",
@@ -58,14 +58,14 @@
     "summary": "{{queries}} queries × {{configs}} configs = {{total}} answers",
     "keepScreenOn": "Keep the screen on and the app open while it runs. Each answer is also printed to the Metro terminal as an [EVAL] line.",
     "chatBusy": "Wait for the current chat reply to finish before running an evaluation.",
-    "run": "▶ Run",
-    "stop": "■ Stop",
+    "run": "Run",
+    "stop": "Stop",
     "stopping": "Stopping…",
     "progress": "Config {{config}}/{{configs}} · Query {{query}}/{{queries}}",
     "savedTo": "Saved to {{path}}",
     "stoppedEarly": "Stopped early — partial results saved.",
-    "exportJsonl": "⬇ JSONL",
-    "exportCsv": "⬇ CSV",
+    "exportJsonl": "Export JSONL",
+    "exportCsv": "Export CSV",
     "exportFailedTitle": "Export failed",
     "runFailedTitle": "Evaluation failed",
     "deviceRequest": "Started from a connected computer (request {{id}}).",
@@ -572,7 +572,6 @@
         "default": "More accurate",
         "compact": "Fast"
       },
-      "suggested": "Suggested",
       "compactLowRam": "This phone has {{ram}} of memory or less, so Fast is selected. You can still choose More accurate."
     },
     "places": {
@@ -608,8 +607,8 @@
       "areaRemoved": "{{name}} removed",
       "import": "Import places",
       "importHint": "A places file (.sqlite) from a computer or another phone.",
-      "getCity": "Download {{city}}",
-      "getCityHint": "Offline map of places · {{size}}",
+      "getCity": "Download map",
+      "getCityHint": "Places in {{city}}, offline · {{size}}",
       "updateAvailable": "Update available",
       "gettingCity": "Downloading {{city}}",
       "cityReady": "{{city}} is on the phone. Ask again to see its places."
@@ -648,8 +647,8 @@
     },
     "catalog": {
       "label": {
-        "corpus-standard": "Standard knowledge base (+1,000 topics)",
-        "corpus-full": "Full knowledge base (+4,000 topics)",
+        "corpus-standard": "Standard library (+1,000 topics)",
+        "corpus-full": "Full library (+4,000 topics)",
         "wiki-vital5": "Wikipedia Vital Articles"
       }
     },
