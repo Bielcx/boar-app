@@ -1695,6 +1695,25 @@ describe("answer(): execution telemetry (regression since 4e4f49d: nothing recor
     expect(f.records[0]).toMatchObject({ modelId: "qwen1.5", outcome: "failure", errorMessage: "decode crashed" });
   });
 
+  it("records the peak of the app's memory from the load to the end (iOS showed an empty peak)", async () => {
+    // The footprint grows at load (KV cache, buffers) and during the answer, then falls back.
+    const readings = [900e6, 1400e6, 1650e6, 1500e6, 1450e6];
+    let i = 0;
+    f.deps.memoryBytes = () => readings[Math.min(i++, readings.length - 1)];
+    await collect("What is the capital of Australia and where is it?");
+    expect(f.records).toHaveLength(1);
+    expect(f.records[0].peakRssBytes).toBe(1650e6);
+  });
+
+  it("leaves the peak empty when the build has no memory readout", async () => {
+    f.deps.memoryBytes = () => {
+      throw new Error("RamMonitor not linked");
+    };
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("success");
+    expect(f.records[0].peakRssBytes).toBeUndefined();
+  });
+
   it("a telemetry write failure never breaks the answer", async () => {
     f.deps.recordExecution = async () => {
       throw new Error("sqlite locked");

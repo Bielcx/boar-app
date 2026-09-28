@@ -10,7 +10,8 @@
  * docs/ADAPTIVE_ROUTING.md for the routing rules.
  */
 import { defaultContextSize, llamaEngine } from "../inference/LlamaEngine";
-import { getDeviceTotalRamBytes } from "ram-monitor";
+import { Platform } from "react-native";
+import { getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
 import { retrieve } from "../rag/retrieve";
 import { seedKnowledgeBaseIfEmpty } from "../rag/seedCorpus";
 import { assemblePrompt, assembleChatMessages } from "../rag/pure";
@@ -90,4 +91,9 @@ export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAn
   getGeoProviders: () => geoProviders,
   getModelSpeeds: async () => measuredSpeeds(await listRecentExecutions(500)),
   recordExecution,
+  // iOS: the footprint (jetsam's figure; RSS counts clean mmap'd weights); the native module names it totalPssBytes.
+  memoryBytes: () => {
+    const m = getMemoryInfo();
+    return Platform.OS === "ios" ? m.totalPssBytes : m.rssBytes;
+  },
 });

@@ -178,7 +178,15 @@ export interface AnswerDeps {
    * (getModelSpeeds) read them. Answers with no model (instant excerpt, places, cards) record nothing.
    */
   recordExecution?(record: Omit<ExecutionTelemetryRecord, "id" | "createdAt">): Promise<void>;
+  /**
+   * The app's memory right now, for the execution record's peak (peakRssBytes). iOS: phys_footprint, what
+   * jetsam counts and what the "[BOAR mem] footprint_mb" log line shows; Android: VmRSS. 0 or a throw = unknown.
+   */
+  memoryBytes?(): number;
 }
+
+/** A generation samples the app's memory every this many tokens (plus load, first token and end). */
+export const MEMORY_SAMPLE_EVERY_TOKENS = 16;
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
@@ -639,8 +647,18 @@ export function createAnswerer(deps: AnswerDeps) {
 
       /** Set once the model is asked to generate: only then does the answer leave an execution record. */
       let generation: { modelId: string; residency: ModelResidency; firstTokenAt: number | null; decodeMs?: number; decodeTokens?: number } | null = null;
+      /** Highest memoryBytes() seen from the model load to the end of the answer (0 = no readout). */
+      let peakMemoryBytes = 0;
+      const sampleMemory = () => {
+        try {
+          peakMemoryBytes = Math.max(peakMemoryBytes, deps.memoryBytes?.() || 0);
+        } catch {
+          // No readout on this build: the record keeps a null peak.
+        }
+      };
       const record = (outcome: AnswerOutcome, r: AnswerReceipt, error?: { message: string }) => {
         if (!generation || !deps.recordExecution) return;
+        sampleMemory();
         const execOutcome: ExecutionOutcome = outcome === "success" ? "success" : outcome === "stopped" ? "cancelled" : "failure";
         deps
           .recordExecution({
@@ -659,6 +677,7 @@ export function createAnswerer(deps: AnswerDeps) {
             tokensGenerated: generation.decodeTokens ?? r.tokens,
             tokPerSec: r.tokPerSec,
             outcome: execOutcome,
+            ...(peakMemoryBytes > 0 ? { peakRssBytes: peakMemoryBytes } : {}),
             ...(outcome === "timeout" ? { errorMessage: "timeout" } : error ? { errorMessage: error.message } : {}),
           })
           .catch(() => {});
@@ -989,7 +1008,9 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const residentBefore = deps.engine.getModelInfo()?.filename ?? null;
       const residency: ModelResidency = residentBefore === genLlm.filename ? "resident" : residentBefore === null ? "cold" : "switched";
+      sampleMemory();
       const loadError = await ensureLoaded(genLlm, genTier);
+      sampleMemory();
       if (loadError) {
         return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
           code: errorCodeOf(loadError, "load"),
@@ -1011,7 +1032,7 @@ export function createAnswerer(deps: AnswerDeps) {
           markVisible();
           if (gen.mode === "single") stage("generating", genTier, genLlm.id);
         }
-        tokens++;
+        if (tokens++ % MEMORY_SAMPLE_EVERY_TOKENS === 0) sampleMemory();
         emit({ type: "token", answerId, tier: genTier, text: piece });
       };
 
