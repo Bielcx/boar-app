@@ -3,6 +3,8 @@ import type { Place } from "./answerEvents";
 import en from "../../i18n/locales/en.json";
 import pt from "../../i18n/locales/pt.json";
 import {
+  attributionCredit,
+  attributionSpoken,
   coordinatesText,
   areaCityName,
   cuisineLabels,
@@ -248,5 +250,22 @@ describe("placesEmptyTitle near me", () => {
   it("uses the 'near you' sentence, not the city one, for a near-me area (Piston)", () => {
     const r = { coverage: "none" as const, places: [], filters: ["vegan"], area: { kind: "near" as const, label: "near you" } };
     expect(placesEmptyTitle(r, t)).toBe('chat.places.noneNearFiltered{"filter":"vegan"}');
+  });
+});
+
+describe("attribution credit (Prism CH-25: the spoken name contains the visible credit)", () => {
+  const tr = (d: typeof en) => (key: string, opts?: Record<string, unknown>) => {
+    const v = key.split(".").reduce<any>((o, k) => o?.[k], d) as string;
+    return opts ? v.replace(/\{\{(\w+)\}\}/g, (_m, k) => String(opts[k])) : v;
+  };
+  it.each([
+    ["en", en, "en-US"],
+    ["pt", pt, "pt-BR"],
+  ] as const)("%s", (_l, d, locale) => {
+    const credit = attributionCredit([{ source: "osm", date: "2026-08" }], locale, tr(d));
+    expect(credit).toContain("OpenStreetMap");
+    const spoken = attributionSpoken(credit, tr(d));
+    expect(spoken.startsWith(credit)).toBe(true);
+    expect(spoken.length).toBeGreaterThan(credit.length);
   });
 });

@@ -340,3 +340,20 @@ export function agoText(ageS: number, t: T): string {
   if (h < 24) return t("chat.places.ago.h", { count: h });
   return t("chat.places.ago.d", { count: Math.round(h / 24) });
 }
+
+/** The places list's visible credit: "© OpenStreetMap contributors · data from Aug 2026", one per source. */
+export function attributionCredit(attribution: { source: Place["source"]; date?: string }[], locale: string, t: T): string {
+  return attribution
+    .map((a) => {
+      const date = formatDataDate(a.date, locale);
+      return [t(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), date && t("chat.places.dataFrom", { date })]
+        .filter(Boolean)
+        .join(" · ");
+    })
+    .join(" · ");
+}
+
+/** Its button's spoken name starts with what is visible (Prism CH-25, WCAG 2.5.3), then what it opens. */
+export function attributionSpoken(credit: string, t: T): string {
+  return `${credit}, ${t("chat.places.licenses")}`;
+}

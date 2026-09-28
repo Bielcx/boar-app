@@ -960,7 +960,7 @@
       "fromSource": "fonte {{source}}",
       "creditOsm": "© colaboradores do OpenStreetMap",
       "creditWikivoyage": "Wikivoyage",
-      "attributionLabel": "Fontes dos dados e licenças",
+      "licenses": "licenças",
       "licenseLine": "{{source}}: {{license}}",
       "showMore_one": "Mostrar mais {{count}}",
       "showMore_other": "Mostrar mais {{count}}",

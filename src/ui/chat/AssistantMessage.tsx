@@ -157,19 +157,22 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
-  const seconds = useElapsedSeconds(streaming && inProgress);
-  // The spoken label stays fixed while the counter ticks, so it isn't re-read every second.
-  const visible = streaming && inProgress ? tr("chat.reasoning.thinking", { seconds }) : open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show");
+  const counting = streaming && inProgress;
+  const seconds = useElapsedSeconds(counting);
+  const label = open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show");
   return (
     <View style={{ gap: t.space.xs }}>
-      {/* A secondary move in text.secondary, not ember (Prism CH-14). */}
-      <TextAction
-        label={visible}
-        leadingIcon="message-circle"
-        onPress={() => setOpen((o) => !o)}
-        accessibilityLabel={open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show")}
-        expanded={open}
-      />
+      {/* The label stays what it does (Prism CH-26: the spoken name is the visible one, and the pill no longer
+          shifts every second); the counter is a caption beside it, silent (readers hear the stages). */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
+        {/* A secondary move in text.secondary, not ember (Prism CH-14). */}
+        <TextAction label={label} leadingIcon="message-circle" onPress={() => setOpen((o) => !o)} expanded={open} />
+        {counting && (
+          <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+            <MetaLine items={[tr("chat.reasoning.thinking", { seconds })]} variant="caption" />
+          </View>
+        )}
+      </View>
       {open && (
         <Text
           variant="footnote"

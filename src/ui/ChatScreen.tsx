@@ -943,7 +943,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state. */}
         {!loadError && !ready && (items.length > 0 || modelsRequested) ? (
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
-            <Text variant="footnote" color="secondary">
+            {/* Seen, not read: the progress bar below speaks the same label (Prism CH-32). */}
+            <Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
               {loadStatus.label}
             </Text>
             <Progress label={loadStatus.label} value={loadStatus.progress} tone="accent" height={tk.space.xs} />

@@ -30,6 +30,8 @@ import {
   filterName,
   deviceClockApplies,
   formatDataDate,
+  attributionCredit,
+  attributionSpoken,
   showUseLocation,
   openStateAt,
   openStateLabel,
@@ -471,6 +473,7 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
   const [showLicense, setShowLicense] = useState(false);
   const clock = useMinuteClock();
   const r = answer.places!;
+  const credit = attributionCredit(r.attribution, locale, tr);
   // Open/closed needs the place's local time; only a "near" list shares the device's clock.
   const now = deviceClockApplies(r.area) ? clock : null;
 
@@ -562,19 +565,12 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
             onPress={() => setShowLicense((s) => !s)}
             accessibilityRole="button"
             accessibilityState={{ expanded: showLicense }}
-            accessibilityLabel={tr("chat.places.attributionLabel")}
+            accessibilityLabel={attributionSpoken(credit, tr)}
             style={{ minHeight: t.size.touch, justifyContent: "center" }}
           >
             {/* Icon-align: the map icon on the credit's first line (it wraps in PT). */}
             <IconText icon="map" variant="caption" color="field" iconColor={t.color.text.field}>
-              {r.attribution
-                .map((a) => {
-                  const date = formatDataDate(a.date, locale);
-                  return [tr(a.source === "osm" ? "chat.places.creditOsm" : "chat.places.creditWikivoyage"), date && tr("chat.places.dataFrom", { date })]
-                    .filter(Boolean)
-                    .join(" · ");
-                })
-                .join(" · ")}
+              {credit}
             </IconText>
           </Pressable>
           {showLicense && (
