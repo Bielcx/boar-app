@@ -928,6 +928,28 @@
       "caveatOk": "Entendi"
     },
     "places": {
+      "cuisine": {
+        "pizza": "Pizza",
+        "burger": "Hambúrguer",
+        "coffee_shop": "Café",
+        "ice_cream": "Sorveteria",
+        "italian": "Italiana",
+        "chinese": "Chinesa",
+        "regional": "Regional",
+        "sandwich": "Sanduíche",
+        "chicken": "Frango",
+        "mexican": "Mexicana",
+        "japanese": "Japonesa",
+        "kebab": "Kebab",
+        "indian": "Indiana",
+        "asian": "Asiática",
+        "sushi": "Sushi",
+        "thai": "Tailandesa",
+        "french": "Francesa",
+        "seafood": "Frutos do mar",
+        "greek": "Grega",
+        "american": "Americana"
+      },
       "title_one": "{{count}} lugar",
       "title_other": "{{count}} lugares",
       "titleFiltered_one": "{{filter}} · {{count}} lugar",

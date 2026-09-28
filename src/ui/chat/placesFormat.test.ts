@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { Place } from "./answerEvents";
+import en from "../../i18n/locales/en.json";
+import pt from "../../i18n/locales/pt.json";
 import {
   coordinatesText,
+  areaCityName,
   cuisineLabels,
   dietLabels,
   formatDistance,
@@ -80,7 +83,27 @@ describe("dietFlag", () => {
 
 describe("cuisineLabels", () => {
   it("formats OSM values and drops diet words", () => {
-    expect(cuisineLabels(["vegan", "fine_dining", "indian", "thai"])).toEqual(["Fine dining", "Indian"]);
+    const echo = (k: string) => k;
+    expect(cuisineLabels(["vegan", "fine_dining", "indian", "thai"], echo)).toEqual(["Fine dining", "chat.places.cuisine.indian"]);
+  });
+  it("names the 20 common values in the app's language, and every one has EN and PT copy", () => {
+    const echo = (k: string) => k;
+    expect(cuisineLabels(["ice_cream", "burger", "coffee_shop"], echo, 3)).toEqual(["chat.places.cuisine.ice_cream", "chat.places.cuisine.burger", "chat.places.cuisine.coffee_shop"]);
+    const all = ["pizza", "burger", "coffee_shop", "ice_cream", "italian", "chinese", "regional", "sandwich", "chicken", "mexican", "japanese", "kebab", "indian", "asian", "sushi", "thai", "french", "seafood", "greek", "american"];
+    for (const lang of [en, pt]) for (const c of all) expect(typeof (lang as any).chat.places.cuisine[c]).toBe("string");
+    expect((pt as any).chat.places.cuisine.ice_cream).toBe("Sorveteria");
+  });
+});
+
+describe("areaCityName (Piston ecb83d3: 'Em Rome' for 'Roma')", () => {
+  it("shows the city as the question wrote it, else the gazetteer's name", () => {
+    expect(areaCityName({ kind: "city", label: "Rome", place: { name: "Rome", asked: "Roma" } })).toBe("Roma");
+    expect(areaCityName({ kind: "city", label: "Rome", place: { name: "Rome", asked: "rome" } })).toBe("Rome");
+    expect(areaCityName({ kind: "city", label: "São Paulo", place: { name: "Sao Paulo", asked: "são paulo" } })).toBe("São Paulo");
+    expect(areaCityName({ kind: "city", place: { name: "Rio de Janeiro", asked: "rio de janeiro" } })).toBe("Rio de Janeiro");
+    expect(areaCityName({ kind: "city", place: { name: "Munich", asked: "munique" } })).toBe("Munique");
+    expect(areaCityName({ kind: "city", label: "Rome", place: { name: "Rome" } })).toBe("Rome");
+    expect(areaCityName({ kind: "near", label: "near you" })).toBe("");
   });
 });
 

@@ -50,12 +50,40 @@ export function dietLabels(diet: Place["diet"], t: T, flag?: Place["dietFlag"]):
   return out;
 }
 
-/** OSM cuisine values ("indian", "fine_dining") as display words, at most `max`. */
-export function cuisineLabels(cuisine: string[] | undefined, max = 2): string[] {
+/** The 20 most common OSM cuisine values, named in the app's language; any other shows as it came. */
+const CUISINES = new Set([
+  "pizza", "burger", "coffee_shop", "ice_cream", "italian", "chinese", "regional", "sandwich", "chicken", "mexican",
+  "japanese", "kebab", "indian", "asian", "sushi", "thai", "french", "seafood", "greek", "american",
+]);
+
+/** OSM cuisine values ("ice_cream", "fine_dining") as display words, at most `max`. */
+export function cuisineLabels(cuisine: string[] | undefined, t: T, max = 2): string[] {
   return (cuisine ?? [])
     .filter((c) => c && c !== "vegan" && c !== "vegetarian")
     .slice(0, max)
-    .map((c) => c.replace(/_/g, " ").replace(/^\w/, (ch) => ch.toUpperCase()));
+    .map((c) => (CUISINES.has(c) ? t(`chat.places.cuisine.${c}`) : c.replace(/_/g, " ").replace(/^\w/, (ch) => ch.toUpperCase())));
+}
+
+const PARTICLES = new Set(["de", "da", "do", "das", "dos", "e", "di", "del", "della", "la", "le", "les", "von", "van", "am", "im", "sur"]);
+const fold = (x: string) => x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+
+/**
+ * The city as the card names it: as the question wrote it ("Roma", not the gazetteer's "Rome"),
+ * with the gazetteer's spelling when they are the same word ("rome" → "Rome") unless only the
+ * question has the accents ("são paulo" over "Sao Paulo"), and capitals added to an all-lowercase
+ * name. The gazetteer name, else the label, otherwise.
+ */
+export function areaCityName(area: { kind?: "near" | "city"; label?: string; place?: { name: string; asked?: string } }): string {
+  const name = area.place?.name ?? (area.kind === "near" ? "" : area.label ?? "");
+  const asked = area.place?.asked?.trim();
+  if (!asked) return name;
+  const accented = (x: string) => x.normalize("NFKD") !== x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  if (fold(asked) === fold(name) && !(accented(asked) && !accented(name))) return name;
+  if (asked !== asked.toLowerCase()) return asked;
+  return asked
+    .split(" ")
+    .map((w, i) => (i > 0 && PARTICLES.has(w) ? w : w.replace(/^\p{L}/u, (ch) => ch.toUpperCase())))
+    .join(" ");
 }
 
 // ---- opening_hours: a deliberately small subset; anything else is "unknown" ----
@@ -184,7 +212,7 @@ export function openStateAt(p: Place, now: Date | null): OpenState | null {
 export function placeA11yLabel(p: Place, now: Date | null, locale: string, t: T): string {
   const parts = [p.name];
   if (p.distanceM != null) parts.push(spokenDistance(p.distanceM, locale, t));
-  parts.push(...dietLabels(p.diet, t, p.dietFlag), ...cuisineLabels(p.cuisine));
+  parts.push(...dietLabels(p.diet, t, p.dietFlag), ...cuisineLabels(p.cuisine, t));
   const state = openStateAt(p, now);
   if (state) parts.push(openStateLabel(state, t));
   if (p.address) parts.push(p.address);
@@ -194,7 +222,7 @@ export function placeA11yLabel(p: Place, now: Date | null, locale: string, t: T)
 
 /** The second line of a row: diet, cuisine and open state, " · " separated. */
 export function placeDetailLine(p: Place, now: Date | null, t: T): { text: string; closed: boolean } {
-  const parts = [...dietLabels(p.diet, t, p.dietFlag), ...cuisineLabels(p.cuisine)];
+  const parts = [...dietLabels(p.diet, t, p.dietFlag), ...cuisineLabels(p.cuisine, t)];
   const state = openStateAt(p, now);
   if (state) parts.push(openStateLabel(state, t));
   return { text: parts.join(" · "), closed: state?.open === false };
@@ -230,14 +258,14 @@ export function filterName(filters: string[] | undefined, t: T): string | null {
  * there are places, or when the card asks for a city instead.
  */
 export function placesEmptyTitle(
-  r: { coverage: "ok" | "none" | "no_pack" | "needs_place"; places: unknown[]; filters?: string[]; area: { kind?: "near" | "city"; label?: string; place?: { name: string } } },
+  r: { coverage: "ok" | "none" | "no_pack" | "needs_place"; places: unknown[]; filters?: string[]; area: { kind?: "near" | "city"; label?: string; place?: { name: string; asked?: string } } },
   t: T
 ): string | null {
   if (r.coverage === "needs_place") return null;
   if (r.coverage === "no_pack") return t("chat.places.noPackTitle");
   if (r.coverage === "ok" && r.places.length > 0) return null;
   // A "near me" area's label is "near you": never read it as a city ("…for near you", Piston).
-  const city = r.area.place?.name ?? (r.area.kind === "near" ? "" : r.area.label ?? "");
+  const city = areaCityName(r.area);
   // Mid-sentence, the filter reads in lower case ("No vegan places…"), not as the title label ("Vegan").
   const filter = filterName(r.filters, t)?.toLowerCase() ?? null;
   return city

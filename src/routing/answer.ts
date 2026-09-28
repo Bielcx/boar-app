@@ -65,6 +65,7 @@ import {
 import { canonicalHealthTerms, englishSearchTerms } from "./ptQuery";
 import { englishNamesIn } from "../rag/ptLexicon";
 import { ptLexicon } from "../rag/ptLexiconAsset";
+import { cleanPlaceName } from "../rag/poiPack";
 import { attributeCitations, checkCitations } from "./citations";
 import { calculate } from "./calculators";
 import { emergencyNumbersAnswer } from "./emergencyNumbers";
@@ -408,7 +409,8 @@ export function createAnswerer(deps: AnswerDeps) {
         }
         center = { lat: place.lat, lon: place.lon };
         // The point too: an empty answer can then offer the map covering the city (T2-8).
-        area = { kind: "city", label: place.name, place: { name: place.name, country: place.country, lat: place.lat, lon: place.lon } };
+        const asked = cleanPlaceName(intent.near.name).name;
+        area = { kind: "city", label: place.name, place: { name: place.name, ...(asked ? { asked } : {}), country: place.country, lat: place.lat, lon: place.lon } };
         // Runs alongside the POI search; never prompts (GeoProviders contract). Read only if it
         // has already answered when the search ends: the list never waits for it.
         const pending = { value: null as Awaited<ReturnType<GeoProviders["getLocation"]>> | null };
