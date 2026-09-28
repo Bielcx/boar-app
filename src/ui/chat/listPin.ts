@@ -20,10 +20,12 @@ const defaultSchedule: Schedule = (fn, ms) => {
 };
 
 /**
- * Keeps the chat list anchored at its end without jumps (SEND-MOTION D4). Two moves:
- * - `pin()`: a snap, for content growing a little (a token batch, a height animating frame by frame);
- * - `glide()`: one native animated scroll, for content appearing at once below the fold (a question sent).
- * While a glide runs, pins don't cut it: they are held, and one more glide follows it if any came in.
+ * Keeps the chat list anchored at its end without jumps (SEND-MOTION D4, v5). Two moves:
+ * - `glide()`: one native animated scroll to the end. Content growing while following the end glides
+ *   (a question sent, a block entering, the text's new line: Prism F2-5, where each line snapped 26 dp);
+ * - a snap, for the list's own layout (the keyboard, in the same frame) and under reduce motion.
+ * While a glide runs, nothing cuts it: changes are held, and one more glide follows it if any came in,
+ * so growth that keeps coming (streamed words) is a chain of glides, never a restart (audit #13).
  * Before, sending scrolled before the question was even in the list, and every layout of the closing
  * keyboard and of the new content snapped over that animation (the "things jump" of the send).
  */
@@ -68,8 +70,9 @@ export function createBottomPin(deps: {
       armed = true;
     },
     /**
-     * A change while following the end. `animated`: false under reduce motion. A "layout" change (the list's
-     * own height, the keyboard) snaps in the same frame and leaves an armed glide for the content.
+     * A change while following the end. `animated`: false under reduce motion. Content glides (held while
+     * a glide runs); a "layout" change (the list's own height, the keyboard) snaps in the same frame and
+     * leaves an armed glide for the content.
      */
     pin(animated = true, from: "content" | "layout" = "content") {
       if (armed && from === "content") return glide(animated);
@@ -77,6 +80,7 @@ export function createBottomPin(deps: {
         held = true;
         return;
       }
+      if (from === "content" && animated) return glide(true);
       deps.scrollToEnd(false, from === "layout");
     },
     /** The user took the list (a drag): nothing of ours moves it any more. */
@@ -88,4 +92,27 @@ export function createBottomPin(deps: {
       cancelTrailing = null;
     },
   };
+}
+
+/** Within this distance of the end the list still follows it (a new line may push it past the edge). */
+export const FOLLOW_SLACK = 120;
+
+/**
+ * Whether "Jump to latest" shows (Prism CX-6): more than a screen from the end, answer or not (a long
+ * conversation read back up had no way down once the answer was done); while an answer writes, as soon as
+ * the list stops following it (the new text lands out of view). It goes once the end is reached.
+ */
+export function jumpToLatestShown(p: { distance: number; viewport: number; generating: boolean }): boolean {
+  return p.generating ? p.distance >= FOLLOW_SLACK : p.distance > p.viewport;
+}
+
+/**
+ * Whether a change of the list's own height (the keyboard, the composer growing a line) keeps its end in
+ * view: when following the end, and always on the empty state (iPhone v8: with a 3-line composer the
+ * last suggestion was cut at the list's bottom edge; the empty state is taller than a keyboard-high list,
+ * so it counted as "not following"). There the hero goes up under the header's veil and the suggestions
+ * stay whole. Only when the list gets shorter: opening the chat, the empty state starts at its top.
+ */
+export function keepEndOnResize(p: { following: boolean; empty: boolean; shrank: boolean }): boolean {
+  return p.following || (p.empty && p.shrank);
 }

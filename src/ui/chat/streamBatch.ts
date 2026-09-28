@@ -11,3 +11,14 @@ export const STREAM_FLUSH_MS = 110;
 export function flushDelay(event: AnswerEvent): number {
   return event.type === "token" ? STREAM_FLUSH_MS : 0;
 }
+
+/**
+ * Whether a flushed batch gets the DS layout animation (the snippet folding to its preview when an answer is
+ * done, Prism F2-2). Not with a warning, nor for a declined answer: there the text leaves through its Reveal,
+ * and a native layout animation on the same view made it vanish in one frame (iPhone v9).
+ */
+export function batchAnimatesLayout(events: readonly AnswerEvent[], declined: boolean): boolean {
+  if (declined) return false;
+  if (events.some((e) => e.type === "warning")) return false;
+  return events.some((e) => e.type === "done");
+}

@@ -11,7 +11,8 @@ describe("chat spoken names (Prism minors)", () => {
     expect(reasoning).not.toMatch(/<TextAction[^>]*accessibilityLabel/);
   });
   it("CH-32: the loading strip's text is not read twice (Progress speaks it)", () => {
-    expect(read("../ChatScreen.tsx")).toMatch(/\{loadStatus\.label\}\s*<\/Text>\s*<Progress label=\{loadStatus\.label\}/);
+    // The text sits in a Swap for its crossfade (Prism L3-1); still hidden, the bar still speaks.
+    expect(read("../ChatScreen.tsx")).toMatch(/importantForAccessibility="no" accessibilityElementsHidden>\s*\{loadStatus\.label\}\s*<\/Text>\s*(<\/Swap>\s*)?<Progress label=\{loadStatus\.label\}/);
     expect(read("../ChatScreen.tsx")).toMatch(/<Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>\s*\{loadStatus\.label\}/);
   });
   it("CH-33: the drawer names the assistant as the header does, not a hardcoded caps word", () => {

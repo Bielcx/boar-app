@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
+import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Share, TextInput, View } from "react-native";
 import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
@@ -72,10 +72,13 @@ import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
-import { flushDelay } from "./chat/streamBatch";
-import { createBottomPin, heightChanged } from "./chat/listPin";
+import { batchAnimatesLayout, flushDelay } from "./chat/streamBatch";
+import { createBottomPin, FOLLOW_SLACK, heightChanged, jumpToLatestShown, keepEndOnResize } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
+import { Reveal } from "./chat/Reveal";
+import { loadStripKey, loadStripShown } from "./chat/loadStrip";
+import { headerVeil } from "./chat/listEdge";
 import { useMotion } from "./theme/motion";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
@@ -117,6 +120,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const tk = useTokens();
   const { reduceMotion } = useTheme();
   const motion = useMotion();
+  // For callbacks that must stay stable (the event flush, finish).
+  const motionRef = useRef(motion);
+  motionRef.current = motion;
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const announce = useAnnounce();
@@ -128,7 +134,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // Answers asked in this run (not restored from history): only these may take focus (the city prompt).
   const askedIds = useRef<Set<string>>(new Set());
   // Rows sent in this run that haven't entered yet (SEND-MOTION S1): each enters once.
-  const enterIds = useRef<Set<string>>(new Set());
+  const enterIds = useRef<Map<string, "now" | "afterSwap">>(new Map());
   // Which conversation the list shows (TR-10): changes on switching or starting one, not when the first
   // question creates the session (that would crossfade the list away mid-send).
   const [conversationKey, setConversationKey] = useState("initial");
@@ -168,7 +174,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // synchronous guard that closes the double-send race (set before any await).
   const activeRef = useRef<ActiveAnswer | null>(null);
   const [active, setActive] = useState<ActiveAnswer | null>(null);
-  const generating = active !== null;
+  // Answers whose model is done but whose text is still showing its last words (Prism CX-12): send and
+  // stop swap only once the text has finished, with the receipt.
+  const [revealing, setRevealing] = useState<ReadonlySet<string>>(new Set());
+  const generating = active !== null || revealing.size > 0;
   const [stopping, setStopping] = useState(false);
 
   const memorySettingsRef = useRef<MemorySettingsType>(DEFAULT_MEMORY_SETTINGS);
@@ -180,30 +189,38 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   // ---- list scrolling: follow the newest text unless the user scrolled up ----
   const followBottom = useRef(true);
-  const [showJump, setShowJump] = useState(false);
+  // Whether "Jump to latest" shows while an answer writes and otherwise (Prism CX-6, jumpToLatestShown).
+  const [jump, setJump] = useState({ writing: false, idle: false });
   const [composerHeight, setComposerHeight] = useState(0);
   const onComposerLayout = useCallback((e: LayoutChangeEvent) => setComposerHeight(e.nativeEvent.layout.height), []);
   // One anchor for every move to the end (SEND-MOTION D4): snaps for small growth, one native glide for
   // content appearing at once, and no snap ever cutting a glide (the send's jumps).
   const reduceMotionRef = useRef(reduceMotion);
   reduceMotionRef.current = reduceMotion;
+  // FlatList.scrollToEnd does nothing without items (VirtualizedList returns early): the empty state is the
+  // list's ListEmptyComponent, so there the scroll view's own scrollToEnd (iPhone v9: the becc519 re-pin
+  // never moved the empty state, and the last suggestion stayed cut by a 3-line composer).
+  const scrollListToEnd = useCallback((animated: boolean) => {
+    const list = listRef.current;
+    if (!list) return;
+    if (itemsRef.current.length > 0) list.scrollToEnd({ animated });
+    else (list.getNativeScrollRef() as unknown as ScrollView | null)?.scrollToEnd({ animated });
+  }, []);
   const bottomPin = useMemo(
     () =>
       createBottomPin({
         // Content: deferred a frame (on Android the reported content size can lag one layout behind).
         // The list's own layout: in the same frame, the content didn't change (audit #8/#10).
         scrollToEnd: (animated, sameFrame) =>
-          sameFrame
-            ? listRef.current?.scrollToEnd({ animated })
-            : requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated })),
+          sameFrame ? scrollListToEnd(animated) : requestAnimationFrame(() => scrollListToEnd(animated)),
       }),
     []
   );
   const glideToBottom = useCallback(() => bottomPin.glide(!reduceMotionRef.current), [bottomPin]);
   useEffect(() => () => bottomPin.cancel(), [bottomPin]);
-  // Content growing (a token batch, a restored session rendering in batches, a height animating) snaps:
-  // animated scrolls restarted on every batch fought each other (audit #13). Glides only where asked for:
-  // sending (armed, so it starts once the question is measured), the jump button, a model error.
+  // Content growing while following the end (a new line, a block entering, a restored session rendering)
+  // glides, chained by the pin's guard so no glide is restarted or cut (audit #13, Prism F2-5); sending
+  // arms one that starts once the question is measured. Reduce motion snaps.
   const onListContentSize = useCallback(() => {
     if (followBottom.current) bottomPin.pin(!reduceMotionRef.current);
   }, [bottomPin]);
@@ -213,21 +230,31 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const onListLayout = useCallback((e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;
     if (!heightChanged(listHeight.current, h)) return;
+    const shrank = listHeight.current != null && h < listHeight.current;
     listHeight.current = h;
-    if (followBottom.current) bottomPin.pin(!reduceMotionRef.current, "layout");
+    // The empty state too: its last suggestion stays whole as the keyboard or the composer takes room.
+    if (keepEndOnResize({ following: followBottom.current, empty: itemsRef.current.length === 0, shrank })) {
+      bottomPin.pin(!reduceMotionRef.current, "layout");
+    }
   }, [bottomPin]);
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     // Our own glide passes through "far from the end" on its way there: it still follows.
     if (bottomPin.gliding()) return;
-    followBottom.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 120;
-    setShowJump(!followBottom.current);
+    const distance = Math.max(0, contentSize.height - layoutMeasurement.height - contentOffset.y);
+    followBottom.current = distance < FOLLOW_SLACK;
+    const at = { distance, viewport: layoutMeasurement.height };
+    const next = { writing: jumpToLatestShown({ ...at, generating: true }), idle: jumpToLatestShown({ ...at, generating: false }) };
+    // A render only when the button would change.
+    setJump((j) => (j.writing === next.writing && j.idle === next.idle ? j : next));
   }, [bottomPin]);
   // A drag is the user's: a glide in flight or armed stops moving the list.
   const onListDrag = useCallback(() => bottomPin.cancel(), [bottomPin]);
 
   // ---- events: tokens batched (STREAM_FLUSH_MS) into one state update; everything else shows at once ----
   const pendingEvents = useRef<{ messageId: string; event: AnswerEvent }[]>([]);
+  // Answers declined in this run (their warning flushed), until a follow-up runs them again.
+  const declinedIds = useRef<Set<string>>(new Set());
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushEvents = useCallback(() => {
     if (flushTimer.current) clearTimeout(flushTimer.current);
@@ -235,6 +262,16 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     const batch = pendingEvents.current;
     if (batch.length === 0) return;
     pendingEvents.current = [];
+    // The end of a normal answer folds the snippet to its preview: one DS layout animation for that commit
+    // (Prism F2-2). Not for a decline or with its warning: the text leaves through its Reveal there, and the
+    // native animation on the same view made it vanish in one frame (iPhone v9).
+    // The decline's warning and the done come in separate flushes of the same tick, before the items (and
+    // itemsRef) show the decline: remember it here (probe cddf2a8: the done flush still got the animation).
+    for (const { messageId, event } of batch) {
+      if (event.type === "warning" && event.code === "weak_sources" && event.declined) declinedIds.current.add(messageId);
+    }
+    const declined = batch.some(({ messageId }) => declinedIds.current.has(messageId));
+    if (batchAnimatesLayout(batch.map((b) => b.event), declined)) motionRef.current.animateNextLayout();
     setItems((prev) => {
       let next = prev;
       for (const { messageId, event } of batch) next = updateAnswer(next, messageId, (a) => answerReducer(a, event));
@@ -467,6 +504,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   );
 
   const finish = useCallback(() => {
+    // No layout animation here (was F2-1): since CX-12 an answer with text ends on screen when its reveal
+    // drains, not in this commit; a decline's note mounts in it, and the native layout animation over a
+    // view mounting in a Reveal made it blink in whole for a frame (Prism F2-9).
     activeRef.current = null;
     setActive(null);
     setStopping(false);
@@ -495,8 +535,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       bottomPin.armGlide();
 
       const userItem: ChatItem = { kind: "user", id: `${Date.now()}-u`, text: query };
-      enterIds.current.add(userItem.id);
-      enterIds.current.add(assistantId);
+      // The first question replaces the empty state: it enters after that state has left (F2-4b).
+      const enterMode = itemsRef.current.length === 0 ? "afterSwap" : "now";
+      enterIds.current.set(userItem.id, enterMode);
+      enterIds.current.set(assistantId, enterMode);
       const assistantItem: ChatItem = {
         kind: "assistant",
         id: assistantId,
@@ -580,6 +622,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const item = itemsRef.current.find((m) => m.id === messageId);
       if (!item || item.kind !== "assistant" || activeRef.current || !canAsk) return;
       const sessionId = activeSessionId;
+      // A follow-up makes the answer live again, restored or not: its blocks move (iPhone v9, F2-2: on a
+      // reopened conversation "Answer with AI" ran with plain views, and the declined text vanished in a frame).
+      askedIds.current.add(messageId);
+      declinedIds.current.delete(messageId);
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
       let written!: () => void;
@@ -771,8 +817,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     setInput(q);
     inputRef.current?.focus();
   }, []);
+  const veil = useMemo(() => headerVeil(tk.color.bg.canvas), [tk.color.bg.canvas]);
   const listContentStyle = useMemo(
-    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
+    // paddingTop = the header veil's height: at the top the veil covers only this empty space (Prism CX-3).
+    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.base, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
     [tk]
   );
 
@@ -887,6 +935,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // The offline maps live in Knowledge › Places (the button said "Get the map" and opened Settings).
     getMap: () => navigation.navigate("Knowledge"),
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
+    revealing: (id, on) =>
+      setRevealing((prev) => {
+        if (prev.has(id) === on) return prev;
+        const next = new Set(prev);
+        if (on) next.add(id);
+        else next.delete(id);
+        return next;
+      }),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
     editQuestion: (text) => {
       setInput(text);
@@ -915,6 +971,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       useLocation: (id) => rowActions.current.useLocation?.(id),
       getMap: () => rowActions.current.getMap(),
       copyReceipt: (text) => rowActions.current.copyReceipt(text),
+      revealing: (id, on) => rowActions.current.revealing(id, on),
       copyQuestion: (text) => rowActions.current.copyQuestion(text),
       editQuestion: (text) => rowActions.current.editQuestion(text),
     }),
@@ -924,7 +981,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const activeId = active?.messageId ?? null;
   const renderItem = useCallback(
     ({ item }: { item: ChatItem }) => (
-      <EnterOnce enter={enterIds.current.has(item.id)} onEntered={() => enterIds.current.delete(item.id)}>
+      <EnterOnce enter={enterIds.current.get(item.id) ?? false} onEntered={() => enterIds.current.delete(item.id)}>
         {item.kind === "user" ? (
           <UserRow text={item.text} actions={actions} />
         ) : (
@@ -992,75 +1049,101 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             <Banner tone="warning" icon="book-open" message={t("chat.library.incomplete")} actionLabel={t("chat.actions.retry")} onAction={reseed} />
           </View>
         )}
-        {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state. */}
-        {!loadError && !ready && (items.length > 0 || modelsRequested) ? (
+        {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state.
+            It leaves in height (DS layout + exit; reduce motion: a short fade) instead of vanishing and
+            lifting the chat 46 dp in one frame; a new status crossfades, a counter updates in place (Prism L3-1). */}
+        <Reveal shown={loadStripShown({ loadError: !!loadError, ready, itemCount: items.length, modelsRequested })} appear={false}>
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
-            {/* Seen, not read: the progress bar below speaks the same label (Prism CH-32). */}
-            <Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
-              {loadStatus.label}
-            </Text>
+            <Swap swapKey={loadStripKey(loadStatus.label)}>
+              {/* Seen, not read: the progress bar below speaks the same label (Prism CH-32). */}
+              <Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
+                {loadStatus.label}
+              </Text>
+            </Swap>
             <Progress label={loadStatus.label} value={loadStatus.progress} tone="accent" height={tk.space.xs} />
           </View>
-        ) : null}
+        </Reveal>
 
         {/* TR-10: switching conversations crossfades the list (DS crossfade, keyed by the conversation). */}
         <Swap swapKey={conversationKey} style={{ flex: 1 }}>
-          <FlatList
-            ref={listRef}
-            style={{ flex: 1 }}
-            data={items}
-            keyExtractor={(m) => m.id}
-            renderItem={renderItem}
-            extraData={renderItem}
-            contentContainerStyle={listContentStyle}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            // With a conversation on screen, a model error comes in as the next message, above the composer: it
-            // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
-            ListFooterComponent={
-              items.length > 0 && loadError ? (
-                <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-              ) : null
-            }
-            ListEmptyComponent={
-              loadError ? (
-                <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-              ) : !modelsRequested ? (
-                <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
-              ) : (
-                // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
-                <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
-                  <ChatEmptyState
-                    suggestions={suggestions}
-                    onAddKnowledge={showSuggestions ? openKnowledge : undefined}
-                    onAsk={ask}
-                    onFill={fillQuestion}
-                  />
-                </Animated.View>
-              )
-            }
-            onContentSizeChange={onListContentSize}
-            onLayout={onListLayout}
-            onScroll={onListScroll}
-            onScrollBeginDrag={onListDrag}
-            scrollEventThrottle={100}
-          />
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={listRef}
+              style={{ flex: 1 }}
+              data={items}
+              keyExtractor={(m) => m.id}
+              renderItem={renderItem}
+              extraData={renderItem}
+              contentContainerStyle={listContentStyle}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              // With a conversation on screen, a model error comes in as the next message, above the composer: it
+              // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
+              ListFooterComponent={
+                items.length > 0 && loadError ? (
+                  <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+                ) : null
+              }
+              ListEmptyComponent={
+                loadError ? (
+                  <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+                ) : !modelsRequested ? (
+                  <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
+                ) : (
+                  // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
+                  // The swap half of the DS crossfade: the conversation enters right after it (F2-4b).
+                  <Animated.View exiting={motion.exiting({ swap: true })} style={{ flexGrow: 1 }}>
+                    <ChatEmptyState
+                      suggestions={suggestions}
+                      onAddKnowledge={showSuggestions ? openKnowledge : undefined}
+                      onAsk={ask}
+                      onFill={fillQuestion}
+                    />
+                  </Animated.View>
+                )
+              }
+              onContentSizeChange={onListContentSize}
+              onLayout={onListLayout}
+              onScroll={onListScroll}
+              onScrollBeginDrag={onListDrag}
+              scrollEventThrottle={100}
+            />
+            {/* Text scrolling under the header fades out instead of being cut through the letters (Prism CX-3). */}
+            <View
+              pointerEvents="none"
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: tk.space.base,
+                experimental_backgroundImage: veil,
+              }}
+            />
+          </View>
         </Swap>
 
-        {showJump && generating && (
-          // Above the composer as tall as it is now (it grows with lines and large text; Prism CH-28).
-          <View style={{ position: "absolute", right: tk.space.base, bottom: composerHeight + tk.space.sm }}>
+        {(generating ? jump.writing : jump.idle) && (
+          // Above the composer as tall as it is now (it grows with lines and large text; Prism CH-28); it comes
+          // and goes with the DS enter/exit (Prism CX-6).
+          <Animated.View
+            entering={motion.entering({ from: "below" })}
+            exiting={motion.exiting({ to: "below" })}
+            style={{ position: "absolute", right: tk.space.base, bottom: composerHeight + tk.space.sm }}
+          >
             <IconButton
               icon="arrow-down"
               variant="tonal"
               label={t("chat.jumpToLatest")}
               onPress={() => {
                 followBottom.current = true;
-                setShowJump(false);
+                setJump({ writing: false, idle: false });
                 glideToBottom();
               }}
             />
-          </View>
+          </Animated.View>
         )}
 
         <View onLayout={onComposerLayout}>
@@ -1111,6 +1194,7 @@ interface RowActions {
   useLocation?: (id: string) => void;
   getMap: () => void;
   copyReceipt: (text: string) => void;
+  revealing: (id: string, on: boolean) => void;
   copyQuestion: (text: string) => void;
   editQuestion: (text: string) => void;
 }
@@ -1159,6 +1243,7 @@ const AssistantRow = memo(function AssistantRow({
       onUseLocation: actions.useLocation ? () => actions.useLocation!(id) : undefined,
       onGetMap: actions.getMap,
       onCopyReceipt: actions.copyReceipt,
+      onRevealing: (on: boolean) => actions.revealing(id, on),
     }),
     [actions, id]
   );

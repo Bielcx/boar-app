@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { answerReceiptShort, pillStep, snippetAutoCollapses, noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -452,5 +452,33 @@ describe("stepsCardShown (SEND-MOTION D3, option A)", () => {
   });
   it("no steps (done, stopping): hidden", () => {
     expect(stepsCardShown({ sources: [], answerIds: [] } as unknown as AnswerState, null)).toBe(false);
+  });
+});
+
+describe("answerReceiptShort / receiptTagKey for a decline (Prism CX-9)", () => {
+  it("a decline shows its receipt, time only, no 'general knowledge' tag", () => {
+    expect(answerReceiptShort(true, receipt, "en", t)).toEqual([answerReceiptShort(false, receipt, "en", t)[0]]);
+    expect(answerReceiptShort(false, receipt, "en", t).length).toBe(2);
+    const declined = { sources: [], answerIds: [], weakSources: true, weakDeclined: true, fast: { text: "", stage: null, outcome: "success", receipt } };
+    expect(receiptTagKey(declined as unknown as AnswerState)).toBeNull();
+  });
+});
+
+describe("snippetAutoCollapses (Prism F2-10)", () => {
+  it("folds once the model's answer is done, not when the snippet is the final answer", () => {
+    expect(snippetAutoCollapses({ fast: { outcome: "success" } }, false)).toBe(true);
+    expect(snippetAutoCollapses({ fast: { outcome: "success" } }, true)).toBe(false);
+    expect(snippetAutoCollapses({ fast: {} }, false)).toBe(false);
+  });
+  it("stays whole when the model's answer was declined: the passage is the answer", () => {
+    expect(snippetAutoCollapses({ fast: { outcome: "success" }, weakDeclined: true }, false)).toBe(false);
+  });
+});
+
+describe("pillStep (iPhone v9: 'Writing · 6 s' over '6 s' in the header)", () => {
+  it("shows the current step, and keeps the last one once the steps are over", () => {
+    expect(pillStep("Writing", "Reading")).toBe("Writing");
+    expect(pillStep(undefined, "Writing")).toBe("Writing");
+    expect(pillStep(undefined, undefined)).toBeUndefined();
   });
 });

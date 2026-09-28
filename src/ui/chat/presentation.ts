@@ -166,6 +166,14 @@ export function receiptShort(r: AnswerReceipt, locale: string, t: T): string[] {
   return parts;
 }
 
+/**
+ * The collapsed receipt of an answer (Prism CX-9: a decline had none, against NOVO NORTE P2 "total time
+ * visible"). A decline shows its time only: the speed would measure text that isn't shown.
+ */
+export function answerReceiptShort(declined: boolean, r: AnswerReceipt, locale: string, t: T): string[] {
+  return declined ? [formatSeconds(r.totalMs, locale)] : receiptShort(r, locale, t);
+}
+
 /** The measured details shown when the receipt is expanded, as label/value rows. */
 export function receiptDetails(r: AnswerReceipt, locale: string, t: T): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];
@@ -292,6 +300,8 @@ export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fa
 export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | "chat.receipt.calculator" | null {
   // The exact conversion (Prism CALC-1): say by the name that no model wrote it, as the other tags do.
   if (!a.fast && a.instantDone?.receipt.modelId === CALCULATOR_MODEL_ID) return "chat.receipt.calculator";
+  // A decline answered nothing: "general knowledge" would be false (its card says what happened).
+  if (a.weakDeclined) return null;
   const kind = noSourceKind(a);
   return kind === "weak" ? "chat.weak.receipt" : kind === "uncited" ? "chat.weak.receiptUncited" : null;
 }
@@ -373,6 +383,25 @@ export function showsAnswerBody(a: AnswerState): boolean {
 export function noticeShown(tier: { outcome?: string } | undefined, interrupted?: boolean): boolean {
   if (!tier?.outcome) return false;
   return !!interrupted || ["interrupted", "stopped", "timeout", "error"].includes(tier.outcome);
+}
+
+/**
+ * The step the running pill shows (iPhone v9): the current one, or the last one once the model's steps are
+ * over, so the pill doesn't crossfade "Writing · 6 s" into "6 s" in place (two texts of different widths
+ * over each other) right before it crossfades into the receipt. One swap only: pill → receipt.
+ */
+export function pillStep(current: string | undefined, last: string | undefined): string | undefined {
+  return current ?? last;
+}
+
+/**
+ * Whether the instant snippet folds to its preview on its own: once the model's answer is done, unless the
+ * snippet is the final answer, or the model's answer was declined (Prism F2-10): then "the passage above is
+ * what the library says" and the passage is the answer, so it stays whole (folding it also shrank a long
+ * answer under the screen and made the list jump).
+ */
+export function snippetAutoCollapses(a: { fast?: { outcome?: string }; weakDeclined?: boolean }, isFinal: boolean): boolean {
+  return a.fast?.outcome === "success" && !isFinal && !a.weakDeclined;
 }
 
 /**

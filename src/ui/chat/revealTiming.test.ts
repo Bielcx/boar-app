@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { motionSpec } from "../theme/motionSpec";
-import { REST, UNBOUNDED, boundsAfter, boundsAtStart, frameHeight, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealBounds, type RevealMove } from "./revealTiming";
+import { REST, UNBOUNDED, boundsAfter, hideSteps, boundsAtStart, frameHeight, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealBounds, type RevealMove } from "./revealTiming";
 
 describe("revealTiming (SEND-MOTION D2, DS §6 roles)", () => {
   it("shows as a layout change plus an enter fade", () => {
@@ -33,6 +33,15 @@ describe("revealOnLayout", () => {
     expect(revealOnLayout(110, 60, false)).toBe("resize");
     expect(revealOnLayout(60, 180, true)).toBe("resize");
     expect(revealOnLayout(110, 110.2, true)).toBe("none");
+  });
+  it("waits for content past the gap before its first measure (Prism F2-7)", () => {
+    // A 12 pt gap, content not laid out yet: not a measure; the real layout then grows.
+    expect(revealOnLayout(null, 12, true, 12)).toBe("wait");
+    expect(revealOnLayout(null, 0, true, 0)).toBe("wait");
+    expect(revealOnLayout(null, 58, true, 12)).toBe("grow");
+    expect(revealOnLayout(null, 58, false, 12)).toBe("record");
+    // Once measured, a later empty layout is a real resize.
+    expect(revealOnLayout(58, 12, true, 12)).toBe("resize");
   });
 });
 
@@ -90,5 +99,29 @@ describe("Reveal never hides shown content (BUG-reveal-empty)", () => {
     expect(REST.minHeight).toBe(0);
     expect(REST.maxHeight).toBe(UNBOUNDED);
     expect(frameHeight(UNBOUNDED - 1, REST)).toBe(UNBOUNDED - 1);
+  });
+});
+
+describe("hideSteps (plan B, iPhone F2-2: nothing folds, it fades then its space closes)", () => {
+  it("fades over the DS exit role and never folds the height", () => {
+    const h = hideSteps(false);
+    expect(h.foldsHeight).toBe(false);
+    expect(h.fadeMs).toBe(motionSpec("exit", false).duration);
+    expect(h.curve).toBe("exit");
+    // Content keeps its full height while it fades: bounds stay at REST.
+    expect(frameHeight(320, REST)).toBe(320);
+  });
+  it("the deadline comes after the fade", () => {
+    for (const reduce of [false, true]) {
+      const h = hideSteps(reduce);
+      expect(h.deadlineMs).toBeGreaterThanOrEqual(h.fadeMs);
+    }
+  });
+  it("under reduce motion, the short fade still runs before the space closes (never 0: the text must not vanish)", () => {
+    expect(hideSteps(true).fadeMs).toBe(motionSpec("exit", true).duration);
+    expect(hideSteps(true).fadeMs).toBeGreaterThan(0);
+    // Folding instead would be instant there (the DS layout role is 0 under reduce motion): the probe's case.
+    expect(revealTiming(false, true).height.duration).toBe(0);
+    expect(hideSteps(true).foldsHeight).toBe(false);
   });
 });
