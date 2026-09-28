@@ -64,6 +64,7 @@
       ],
       "./plugins/withReleaseSigning",
       "./plugins/withIosSceneLifecycle",
+      "./plugins/withIosMetalOff",
       "expo-font"
     ],
     "extra": {
