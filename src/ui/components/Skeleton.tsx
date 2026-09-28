@@ -19,13 +19,13 @@ export function Skeleton({ width = "100%", height = 14, radius }: SkeletonProps)
     if (reduceMotion) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.55, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: t.motion.loop.pulse / 2, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.55, duration: t.motion.loop.pulse / 2, useNativeDriver: true }),
       ])
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse, reduceMotion]);
+  }, [pulse, reduceMotion, t.motion]);
   return (
     <Animated.View
       accessibilityElementsHidden

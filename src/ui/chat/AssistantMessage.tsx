@@ -80,10 +80,10 @@ const StepSpinner = memo(function StepSpinner({ still = false }: { still?: boole
       spin.setValue(0);
       return;
     }
-    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.linear, useNativeDriver: true }));
+    const loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: t.motion.loop.spin, easing: Easing.linear, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
-  }, [turning, spin]);
+  }, [turning, spin, t.motion]);
   const rotate = useMemo(() => spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }), [spin]);
   const side = t.size.iconSm - t.space.xxs;
   return (
