@@ -85,6 +85,7 @@ import {
   noPackAnswer,
   staleLocationAnswer,
   toPlace,
+  dedupPlaces,
   toSourceChunk,
 } from "./geo";
 import type {
@@ -477,6 +478,8 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
+      const pois = dedupPlaces(found.pois);
+      if (pois.length < found.pois.length) reasonCodes.push(`places:dedup-${found.pois.length - pois.length}`);
       if (deviceNow) {
         const here = deviceNow.value;
         if (here && !("error" in here) && distanceMeters(here, center) <= DEVICE_INSIDE_RADIUS_M) {
@@ -488,13 +491,13 @@ export function createAnswerer(deps: AnswerDeps) {
       // address: exact places with an address come first, ranking kept
       // within each group; approximate guide listings stay last.
       const ranked = byDistance
-        ? found.pois
+        ? pois
         : [
-            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && p.address),
-            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && !p.address),
+            ...pois.filter((p) => !p.approx && p.dietFlag !== "verify" && p.address),
+            ...pois.filter((p) => !p.approx && p.dietFlag !== "verify" && !p.address),
             // Doubtful diet tags stay after every trustworthy place, as the pack ranked them.
-            ...found.pois.filter((p) => !p.approx && p.dietFlag === "verify"),
-            ...found.pois.filter((p) => p.approx),
+            ...pois.filter((p) => !p.approx && p.dietFlag === "verify"),
+            ...pois.filter((p) => p.approx),
           ];
       const sources = ranked.map(toSourceChunk);
       const places = ranked.map((p, i) => toPlace(p, i, byDistance));
@@ -515,7 +518,7 @@ export function createAnswerer(deps: AnswerDeps) {
         filters,
         criterion,
         coverage: "ok",
-        truncated: ranked.length >= PLACES_LIMIT,
+        truncated: found.pois.length >= PLACES_LIMIT,
         attribution,
       });
       reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`, ...(found.region ? [`places:region-${found.region}`] : []));
