@@ -66,6 +66,8 @@ function seal(state: RowState, t: TFunction): Seal {
 
 /** The fit seal and its reason: one row that wraps, the reason as a caption (as on the setup model card). */
 const SEAL_ROW = { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: iconTokens.gapTight, rowGap: space.xs } as const;
+/** Large text: the reason goes under its seal at the full width (Prism AN-2, with b2e387f). */
+const SEAL_STACK = { alignItems: "flex-start", gap: space.xs } as const;
 
 function FitReason({ text }: { text?: string }) {
   return text ? (
@@ -162,8 +164,10 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         </View>
         {/* Without the kind overline, the seal sits on the metadata line, not alone above the title (Prism KN-6). */}
         {/* flex-start + a one-line slot: the seal stays on the metadata's FIRST line when it wraps (icon-align rule 1). */}
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: tokens.space.sm }}>
-          <View style={{ flex: 1 }}>
+        {/* Large text: the seal takes its own line under the metadata, which gets the full width; beside it at
+            200% the description broke into 8 lines of 1-3 words (Prism AN-2). */}
+        <View style={stackTitle ? { gap: tokens.space.xs } : { flexDirection: "row", alignItems: "flex-start", gap: tokens.space.sm }}>
+          <View style={stackTitle ? undefined : { flex: 1 }}>
             <MetaLine
               items={[
                 showRoles && state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
@@ -171,11 +175,16 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
               ]}
             />
           </View>
-          {!showKind && (
-            <View style={{ height: metaLine.lineHeight, justifyContent: "center" }}>
-              <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
-            </View>
-          )}
+          {!showKind &&
+            (stackTitle ? (
+              <View style={{ flexDirection: "row" }}>
+                <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+              </View>
+            ) : (
+              <View style={{ height: metaLine.lineHeight, justifyContent: "center" }}>
+                <Badge label={b.label} tone={b.tone} emphasis={b.emphasis} icon={b.icon} />
+              </View>
+            ))}
         </View>
         {details?.map((d) => (
           // Long lines (a pack's sources) fold to two lines (Iris).
@@ -196,18 +205,18 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         )}
       </View>
       {view.wontFit ? (
-        <View style={SEAL_ROW}>
+        <View style={stackTitle ? SEAL_STACK : SEAL_ROW}>
           {/* A fixed fact about a model that can't be chosen, not a risk: neutral outline, like NOT ON DISK (Iris). */}
           <Badge label={t("flows.row.wontFitHere")} tone="neutral" emphasis="outline" />
           <FitReason text={fitReason} />
         </View>
       ) : view.mayCloseApp ? (
-        <View style={SEAL_ROW}>
+        <View style={stackTitle ? SEAL_STACK : SEAL_ROW}>
           <Badge label={t(view.didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} />
           <FitReason text={fitReason} />
         </View>
       ) : view.fitWarning ? (
-        <View style={SEAL_ROW}>
+        <View style={stackTitle ? SEAL_STACK : SEAL_ROW}>
           <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
           <FitReason text={fitReason} />
         </View>
