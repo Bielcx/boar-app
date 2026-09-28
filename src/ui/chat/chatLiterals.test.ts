@@ -24,6 +24,10 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(composer).toMatch(/variant="stop"/);
     expect(composer).not.toMatch(/<Pressable\b/);
   });
+  it("Stop gives one haptic, the IconButton's (not a second one from stopActive)", () => {
+    const stop = read("../ChatScreen.tsx").match(/const stopActive = useCallback\([\s\S]*?\n  \}, \[\]\);/)![0];
+    expect(stop).not.toMatch(/impact\(/);
+  });
   it("CH-27: the finished receipt sits at the row's end, as the running pill", () => {
     expect(read("AssistantMessage.tsx")).toMatch(/<ReceiptToggle r=\{receipt\} hidden=\{active\} end \/>/);
   });
