@@ -1243,7 +1243,13 @@ function InstallStep({
           </View>
           <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
           {!allPresent && offline && activeImport && (
-            <Text variant="footnote" numberOfLines={1} ellipsizeMode="middle">
+            // Large text gets a second line before the middle ellipsis; the reader always hears the whole name (Prism FL-33).
+            <Text
+              variant="footnote"
+              numberOfLines={fontScale >= LARGE_TEXT_SCALE ? 2 : 1}
+              ellipsizeMode="middle"
+              accessibilityLabel={t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
+            >
               {t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
             </Text>
           )}
@@ -1292,7 +1298,7 @@ function InstallStep({
             <IconSlot name="plus-circle" line={subheadLine} color={tokens.color.status.success.solid} />
             <View style={{ flex: 1 }}>
               <Text variant="subhead">{t("flows.onboarding.category.extras")}</Text>
-              <Text variant="caption" color="secondary" numberOfLines={2}>
+              <Text variant="caption" color="secondary" numberOfLines={fontScale >= LARGE_TEXT_SCALE ? undefined : 2}>
                 {extras.join(", ")}
               </Text>
             </View>

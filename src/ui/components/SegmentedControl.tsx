@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { selection } from "../../services/haptics";
-import { useTokens } from "../theme";
-import { Icon, IconName } from "./Icon";
+import { icon as iconTokens, useTokens } from "../theme";
+import type { IconName } from "./Icon";
+import { IconText } from "./IconText";
 import { segmentsFit } from "./segmentFit";
-import { Text } from "./Text";
 
 export interface SegmentOption<T extends string> {
   value: T;
@@ -42,7 +42,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
     count: options.length,
     longestLabel: Math.max(...options.map((o) => o.label.length)),
     fontSize: (t.type.subhead.fontSize ?? 14) * fontScale,
-    chrome: t.space.sm * 2 + t.size.iconSm + t.space.xs,
+    chrome: t.space.sm * 2 + t.size.iconSm + iconTokens.gapTight,
     gap: inset,
   });
   const slop = compact ? COMPACT_INSET / 2 : 0;
@@ -81,7 +81,6 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: vertical ? "flex-start" : "center",
-                gap: t.space.xs,
                 paddingHorizontal: t.space.sm,
                 borderRadius: vertical ? t.radius.md : t.radius.full,
                 backgroundColor: selected ? t.color.bg.raised : "transparent",
@@ -93,11 +92,17 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
               pressed && !selected && { opacity: t.opacity.pressed },
             ]}
           >
-            {selected && !opt.icon && <Icon name="check" size="sm" color={t.color.text.primary} />}
-            {opt.icon && <Icon name={opt.icon} size="sm" color={selected ? t.color.text.primary : t.color.text.secondary} />}
-            <Text variant="subhead" color={selected ? "primary" : "secondary"} weight={selected ? "semibold" : "medium"}>
+            {/* IconText: the chip gap (6) and the glyph on the label's optical line (Prism FD-3). */}
+            <IconText
+              icon={opt.icon ?? (selected ? "check" : undefined)}
+              variant="subhead"
+              gap="tight"
+              color={selected ? "primary" : "secondary"}
+              iconColor={selected ? t.color.text.primary : t.color.text.secondary}
+              weight={selected ? "semibold" : "medium"}
+            >
               {opt.label}
-            </Text>
+            </IconText>
           </Pressable>
         );
       })}

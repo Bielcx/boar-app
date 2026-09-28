@@ -143,6 +143,8 @@ Never place an icon next to text with a bare `alignItems: "center"`. On iOS, eve
 | Something that is not a glyph (spinner, dot, radio) on a text line | `<LineSlot line={line}>…</LineSlot>`: same one-line box and nudge as IconSlot |
 | Chevron, check or x at a row's right edge | `<Icon … edge="end" />`, or `<IconSlot … edge="end" />` on a line: lines up the stroke, not the 24-grid box |
 
+Trailing marks, one rule (27-28/09): a **navigation** chevron (ListRow `onPress`, the platform's "opens a screen") is centred on the whole row, as iOS Settings and Android lists do. A **state** mark that belongs to the title (the check of a selected RadioRow/OptionCard, a disclosure chevron on a row you built, a seal) sits on the title's first line (`IconSlot`/`LineSlot`). Inline citation chips keep 20 pt visual with vertical slop to 44 and 6 pt side slop (documented trade-off: wider slop would overlap the next chip; measure on device before changing).
+
 Tokens: `icon.gap` 8 · `icon.gapTight` 6 · `icon.sizeBody` 16 · `icon.sizeTitle` 20 (titles, CTA `lg`, ListRow icon column) · `icon.sizeSeal` 13 · `icon.maxScale` 2. No literal gaps or icon sizes next to text.
 
 ## 8. Primitives and their accessibility contract
@@ -182,8 +184,8 @@ Patterns:
 - **Finish rules (UI priority, 26/09).** Full plan: `review/ui-qa/specs/ui-finish.md`.
   1. Dark Fogueira is the default (`DEFAULT_APPEARANCE`); light and Luar are options.
   2. Only tokens: no literal font size, margin, padding or color in a screen diff.
-  3. Screen rhythm: gutter 20 · between sections 24 (hero → content 32) · between cards 12 · card padding 16 · rows inside a card 8 · title ↔ overline 4.
-  4. Card hierarchy: title (`headline`) → one leading number (`Stat` or `trailing`) → one `MetaLine`. Never a stack of equal-weight "Label: value" lines. At most 3 sizes and 2 text tones per card.
+  3. Screen rhythm: gutter 20 · between blocks on a flow screen 14 (`screenRhythm`, measured on the mockup; the `Screen` default 24 is for screens outside the flows) · between cards 12 · card padding 16 (compact 12/14) · rows inside a card 8 · title ↔ overline 4 · row and Section inset 14 (`space.inset`).
+  4. Card hierarchy: title (`headline`) → one leading number (`Stat` or `trailing`) → one `MetaLine`. Never a stack of equal-weight "Label: value" lines. At most 3 sizes and 2 text tones per card. The caps overline in `field` (MODEL, LIBRARY) is the card's label, like `Stat`'s: it does not count as a tone; a status seal doesn't either (it is a mark, not text).
   5. Two surface levels per screen: `canvas` + `surface`. `raised` only for wells inside a card, the user's bubble, sheets.
   6. One accent per screen: ember on the primary action and the selection. `field` amber only for provenance / OFFLINE / verified facts.
   7. One badge style per meaning: a recommendation (RECOMMENDED, SUGGESTED FOR THIS PHONE) is `Badge tone="accent" emphasis="solid"`; status seals follow the Badge row above.

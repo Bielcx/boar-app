@@ -42,7 +42,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           minHeight: t.size.touch,
           paddingHorizontal: t.space.base,
           // Pill like the mockup's question field; a softer radius once it can grow past one line.
-          borderRadius: autoGrow || rest.multiline ? 24 : t.radius.full,
+          borderRadius: autoGrow || rest.multiline ? t.space.xl : t.radius.full,
           borderWidth: focused || error ? t.size.focusRing : t.size.border,
           borderColor,
           backgroundColor: t.color.bg.surface,

@@ -13,6 +13,7 @@ import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { Button, IconSlot, Progress, Screen, Section, Skeleton, Text, useOpticalLine, useToast } from "./components";
 import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
+import { screenRhythm } from "./flows/rhythm";
 import type { TextColor } from "./components";
 import { icon, useTokens } from "./theme";
 import { userErrorKey } from "./flows/userError";
@@ -139,7 +140,8 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   }, [deviceRequest, models]);
 
   return (
-    <Screen>
+    // The flow screens' 14 pt rhythm, like its siblings (Prism FL-29).
+    <Screen contentStyle={screenRhythm(tokens)}>
       {!onClose && <ScreenTitle>{t("flows.performance.evaluationTitle")}</ScreenTitle>}
       <View style={{ gap: tokens.space.xs }}>
         {onClose && !running && (

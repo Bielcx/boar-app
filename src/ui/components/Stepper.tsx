@@ -41,7 +41,8 @@ export function Stepper({ steps, current, accessibilityLabel }: StepperProps) {
             color={i === current ? "primary" : "secondary"}
             numberOfLines={1}
             adjustsFontSizeToFit
-            maxFontSizeMultiplier={1.3}
+            // The badge/chip cap (DS §3), not a lower one of its own (Prism FD-4); the spoken summary covers 2.0.
+            maxFontSizeMultiplier={1.5}
           >
             {step}
           </Text>
