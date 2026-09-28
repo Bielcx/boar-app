@@ -42,14 +42,14 @@ export const WORLD_PLACES_ID = "poi-world-places";
 
 /**
  * The world gazetteer used to resolve place names ("restaurants in Lisbon"), shipped with any places pack.
- * Carries the tile index (table tiles: 3,464 1° tiles, URLs pinned to HF commit c443554): phase 1 plus the target-city extracts.
+ * Carries the tile index (table tiles: 7,061 1° tiles, URLs pinned to HF commit 064d876): Europe, the Americas and Asia (447 of 512 extracts).
  */
 export const WORLD_PLACES = {
   filename: "poi/world-places.sqlite",
-  sizeBytes: 21700608,
-  sha256: "8b6cca48664f5fc59aab2a13ea2fe2d79f18c289bb7108001db4860b6082b36c",
+  sizeBytes: 22630400,
+  sha256: "95ef6b75322901f95bdc9bb811daab717b7b1ce18da495face77b9ae2a7d552a",
   license: "CC BY 4.0 (GeoNames)",
-  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/b9e77a26cfbf9b31f454d012e3218e65195d1333/places/world-places.sqlite",
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/7ef2380ca4487b39fff1f1b85c56b000dfc4b38b/places/world-places.sqlite",
   places: 34149,
 };
 
