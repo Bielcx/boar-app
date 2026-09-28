@@ -118,9 +118,33 @@ Bundled fonts (OFL 1.1, `@expo-google-fonts`, loaded from local assets in `App.t
 
 ## 6. Motion and haptics
 
-- Durations: `instant 90 · fast 150 · base 220 · slow 320` ms. Enter with `motion.easing.enter` (decelerate), exit with `exit` (accelerate), `standard` for in-place changes.
-- `reduceMotion` (from `useTheme()`) → duration 0 for transitions, no pulse/shimmer, static indeterminate progress. Primitives already do this.
-- Reanimated 4 is installed (the drawer needs it). Use it for gesture-driven or per-frame work (streaming caret, drag). For simple enter/exit, RN `Animated` with the native driver is enough, as the primitives do.
+Ask for a **role**, never a duration. `useMotion()` (`src/ui/theme/motion.ts`) is the only place that turns roles into animations; the numbers live in `theme/motionSpec.ts`. `motionGuard.test.ts` fails on any literal `duration:`/`delay:`/`.duration(n)` elsewhere.
+
+| role | duration | easing | use |
+|---|---|---|---|
+| `enter` | base 220 | `enter` (decelerate) | something appears: sheet, toast, content after a skeleton, new step, expanded item. May travel 8 pt (`from`). |
+| `exit` | fast 150 (swap: instant 90) | `exit` (accelerate) | something leaves. |
+| `change` | fast 150 | `standard` | state in place: selection border/fill, check, radio dot, stepper segment. Colour only, never moves. |
+| `layout` | base 220 | `standard` | a size or position changes: expand, "show more", a card that shrinks. |
+| loops | `motion.loop` spin 900 · sweep 1200 · pulse 1400 | linear (spin) | skeleton, indeterminate progress, spinner. |
+| delays | `motion.delay.skeleton` 150 | — | a skeleton shows only if the wait is longer. |
+
+```tsx
+const m = useMotion();
+<Animated.View entering={m.entering({ from: "below" })} exiting={m.exiting()} layout={m.layout} />  // Reanimated
+const x = m.crossfade("forward");            // content swap: 90 out, then 220 in
+<Animated.View key={step} entering={x.entering} exiting={x.exiting} />
+<Animated.View style={{ borderColor, ...m.colorTransition(["borderColor", "backgroundColor"]) }} />  // `change`; spread into ONE style object (the CSS transition keys are not accepted inside a style array)
+Animated.timing(v, { toValue: 1, ...m.timing("enter"), useNativeDriver: true });                     // RN Animated
+```
+
+Rules:
+1. A content swap is a short sequential crossfade (90 → 220), never two long animations in a row.
+2. Nothing changes height without `layout`. Nothing mounts or unmounts inside a row without its space reserved (a check that only exists when selected re-wraps the title).
+3. Navigation (stack push, drawer, back gesture) belongs to the system and takes no tokens.
+4. Reduce motion is applied by `motionSpec`: enter/exit become a 90 ms fade with no travel, `change` stays, `layout` is instant, loops stop. The builders set `ReduceMotion.Never` so Reanimated does not skip our reduced fade.
+5. Reanimated 4 for `entering`/`exiting`/`layout` and colour transitions; RN `Animated` with the native driver stays fine for plain opacity/transform (`m.timing(role)`).
+
 - Haptics go through `src/services/haptics.ts` (respects the user setting): `impact(Light)` on button press (built into Button/IconButton/ListRow), `selection()` on value changes (Switch, Segmented, Chip), `notification(Error)` on error toasts, `impact(Medium)` on destructive confirm. Don't add haptics to scrolling or streaming.
 
 ## 7. Icons

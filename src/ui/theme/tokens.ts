@@ -8,6 +8,7 @@ import type { FontScale } from "../../models/settings";
 import { fontFamilyFor, FontFace } from "./fonts";
 import { APP_FONT_SCALE, fontSizeOf, lineHeightOf, TYPE_SCALE, type TypeSpec } from "./typeScale";
 import { getPalette, PaletteId, ResolvedPalette } from "./palette";
+import { CURVE, DELAY, DURATION, LOOP, TRAVEL } from "./motionSpec";
 
 export type ColorScheme = "light" | "dark";
 
@@ -273,14 +274,18 @@ function buildElevation(scheme: ColorScheme, glow: string) {
 // Motion
 // ---------------------------------------------------------------------------
 
+/** Numbers live in motionSpec.ts; roles (enter/exit/change/layout) and the Reanimated builders in motion.ts. */
 export const motion = {
-  duration: { instant: 90, fast: 150, base: 220, slow: 320 },
-  /** Material 3 "standard" / "emphasized decelerate" curves. */
+  duration: DURATION,
+  /** Material 3 "standard" / "emphasized decelerate" / "emphasized accelerate" curves. */
   easing: {
-    standard: Easing.bezier(0.2, 0, 0, 1),
-    enter: Easing.bezier(0.05, 0.7, 0.1, 1),
-    exit: Easing.bezier(0.3, 0, 0.8, 0.15),
+    standard: Easing.bezier(...CURVE.standard),
+    enter: Easing.bezier(...CURVE.enter),
+    exit: Easing.bezier(...CURVE.exit),
   },
+  loop: LOOP,
+  delay: DELAY,
+  travel: TRAVEL,
   spring: { damping: 22, stiffness: 240, mass: 1 },
 } as const;
 

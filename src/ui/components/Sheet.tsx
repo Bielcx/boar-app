@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, findNodeHandle, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Animated, findNodeHandle, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { opacity, space, useTheme } from "../theme";
+import { useMotion } from "../theme/motion";
 import { IconButton } from "./IconButton";
 import { Text } from "./Text";
-import { sheetAnimates } from "./sheetMotion";
+import { sheetAnimates, sheetTravel } from "./sheetMotion";
 
 export interface SheetProps {
   visible: boolean;
@@ -45,8 +46,12 @@ export function Sheet({
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(0)).current;
   const titleRef = useRef<View>(null);
-  // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
-  const slideY = useMemo(() => progress.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }), [progress]);
+  const motion = useMotion();
+  const windowHeight = useWindowDimensions().height;
+  const [height, setHeight] = useState(0);
+  const travel = sheetTravel(height, windowHeight, reduceMotion);
+  // Built once per value (and travel), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
+  const slideY = useMemo(() => progress.interpolate({ inputRange: [0, 1], outputRange: [travel, 0] }), [progress, travel]);
 
   useEffect(() => {
     // Mounted closed (a row's confirm sheet, the setup pickers): nothing on screen to animate out,
@@ -54,11 +59,10 @@ export function Sheet({
     // and then moved screen-reader focus to its trigger (perf audit #12).
     if (!sheetAnimates(visible, mounted)) return;
     if (visible) setMounted(true);
-    const duration = reduceMotion ? 0 : visible ? t.motion.duration.base : t.motion.duration.fast;
+    // enter 220 decelerate / exit 150 accelerate; reduce motion: a 90 ms fade, no slide (DS §6).
     Animated.timing(progress, {
       toValue: visible ? 1 : 0,
-      duration,
-      easing: visible ? t.motion.easing.enter : t.motion.easing.exit,
+      ...motion.timing(visible ? "enter" : "exit"),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished && !visible) {
@@ -72,7 +76,7 @@ export function Sheet({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, progress, reduceMotion, t.motion]);
+  }, [visible, progress, motion]);
 
   if (!mounted) return null;
   const close = () => dismissible && onClose();
@@ -92,6 +96,7 @@ export function Sheet({
       <KeyboardAvoidingView behavior="padding" style={styles.anchor} pointerEvents="box-none">
         <Animated.View
           accessibilityViewIsModal
+          onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
           style={{
             maxHeight: "90%",
             backgroundColor: t.color.bg.raised,
@@ -101,6 +106,8 @@ export function Sheet({
             borderColor: t.color.line.hairline,
             paddingBottom: Math.max(insets.bottom, t.space.base),
             transform: [{ translateY: slideY }],
+            // Under reduce motion the sheet does not slide; it fades with the scrim.
+            opacity: reduceMotion ? progress : 1,
             ...(t.elevation[3] as object),
           }}
         >
