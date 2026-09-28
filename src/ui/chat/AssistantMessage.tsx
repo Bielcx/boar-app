@@ -280,7 +280,6 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
 function ReceiptDetails({ r, onCopy }: { r: NonNullable<ReturnType<typeof useReceipt>>; onCopy: (text: string) => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
-  if (!r.open) return null;
   const rows = [r.line, ...r.details.map((d) => `${d.label}: ${d.value}`)];
   return (
     <View style={{ gap: t.space.xxs, padding: t.space.md, borderRadius: t.radius.md, backgroundColor: t.color.bg.surface }}>
@@ -309,9 +308,11 @@ function Receipt({
   const t = useTokens();
   const r = useReceipt(receipt, locale)!;
   return (
-    <View style={{ gap: t.space.xs }}>
+    <View>
       <ReceiptToggle r={r} hidden={hidden} />
-      <ReceiptDetails r={r} onCopy={onCopy} />
+      <Reveal shown={r.open} spaceBefore={t.space.xs}>
+        <ReceiptDetails r={r} onCopy={onCopy} />
+      </Reveal>
     </View>
   );
 }
@@ -827,11 +828,24 @@ const BlockMotion = createContext<{ appear: boolean; gap: number }>({ appear: fa
  * One block of the answer under its header (SEND-MOTION): it enters, leaves and changes height animated,
  * carrying its own gap, so nothing appears, vanishes or jumps in a single frame. Always rendered in its
  * place (stable position); `shown` says whether it has content. `follow`: streamed text.
- * A restored answer doesn't move: plain views, no animated values for every block of the history.
+ * A restored answer doesn't move: plain views, no animated values for every block of the history, except
+ * `resizes`: blocks the user opens and closes ("Show more", a source, more places), animated there too.
  */
-function Block({ shown, follow, gap, children }: { shown: boolean; follow?: boolean; gap?: number; children?: ReactNode }) {
+function Block({
+  shown,
+  follow,
+  resizes,
+  gap,
+  children,
+}: {
+  shown: boolean;
+  follow?: boolean;
+  resizes?: boolean;
+  gap?: number;
+  children?: ReactNode;
+}) {
   const m = useContext(BlockMotion);
-  if (!m.appear) return shown ? <View style={{ paddingTop: gap ?? m.gap }}>{children}</View> : null;
+  if (!m.appear && !resizes) return shown ? <View style={{ paddingTop: gap ?? m.gap }}>{children}</View> : null;
   return (
     <Reveal shown={shown} appear={m.appear} follow={follow} spaceBefore={gap ?? m.gap}>
       {children}
@@ -893,7 +907,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   return (
     <BlockMotion.Provider value={motion}>
       <View style={{ alignSelf: "stretch" }}>
-        <View style={{ gap: t.space.sm }}>
+        <View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
             <Mascot size="avatarSm" />
             {/* The mockup's name in ember (Boar: the artifact wins over "one accent per screen"). */}
@@ -916,7 +930,10 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               </Swap>
             )}
           </View>
-          {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
+          {/* The receipt's details open and close in height (SEND-MOTION S10). */}
+          <Reveal shown={!!receipt?.open && !waitingForCity && !answer.weakDeclined} spaceBefore={t.space.sm}>
+            {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
+          </Reveal>
         </View>
 
         <Block shown={!!answer.streamsFromStorage}>
@@ -925,7 +942,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
         <Block shown={locating}>{locating && <LocatingPrompt onCity={props.onCity} />}</Block>
 
-        <Block shown={!!answer.places}>
+        <Block shown={!!answer.places} resizes>
           {answer.places && (
             <PlacesCard
               answer={answer}
@@ -939,7 +956,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           )}
         </Block>
 
-        <Block shown={showsInstantSnippet(answer)}>
+        <Block shown={showsInstantSnippet(answer)} resizes>
           {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
         </Block>
         {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
@@ -1029,7 +1046,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
         <Block shown={emergency}>{emergency && <EmergencyNote />}</Block>
 
-        <Block shown={sourcesShown}>
+        <Block shown={sourcesShown} resizes>
           {sourcesShown && (
             // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
             // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
