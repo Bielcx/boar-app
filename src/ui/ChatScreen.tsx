@@ -170,6 +170,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // ---- list scrolling: follow the newest text unless the user scrolled up ----
   const followBottom = useRef(true);
   const [showJump, setShowJump] = useState(false);
+  const [composerHeight, setComposerHeight] = useState(0);
+  const onComposerLayout = useCallback((e: LayoutChangeEvent) => setComposerHeight(e.nativeEvent.layout.height), []);
   const scrollToBottom = useCallback((animated = false) => {
     // Deferred a frame: on Android the reported content size can lag one layout behind.
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
@@ -943,7 +945,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state. */}
         {!loadError && !ready && (items.length > 0 || modelsRequested) ? (
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
-            <Text variant="footnote" color="secondary">
+            {/* Seen, not read: the progress bar below speaks the same label (Prism CH-32). */}
+            <Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
               {loadStatus.label}
             </Text>
             <Progress label={loadStatus.label} value={loadStatus.progress} tone="accent" height={tk.space.xs} />
@@ -988,7 +991,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
         />
 
         {showJump && generating && (
-          <View style={{ position: "absolute", right: tk.space.base, bottom: 96 }}>
+          // Above the composer as tall as it is now (it grows with lines and large text; Prism CH-28).
+          <View style={{ position: "absolute", right: tk.space.base, bottom: composerHeight + tk.space.sm }}>
             <IconButton
               icon="arrow-down"
               variant="tonal"
@@ -1002,18 +1006,20 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           </View>
         )}
 
-        <Composer
-          ref={inputRef}
-          value={input}
-          onChange={setInput}
-          onSend={send}
-          onStop={stopActive}
-          status={modelStatus(ready, loadError, indexing)}
-          canSend={canAsk}
-          generating={generating}
-          stopping={stopping}
-          voiceEnabled={voiceInputEnabled}
-        />
+        <View onLayout={onComposerLayout}>
+          <Composer
+            ref={inputRef}
+            value={input}
+            onChange={setInput}
+            onSend={send}
+            onStop={stopActive}
+            status={modelStatus(ready, loadError, indexing)}
+            canSend={canAsk}
+            generating={generating}
+            stopping={stopping}
+            voiceEnabled={voiceInputEnabled}
+          />
+        </View>
       </KeyboardAvoidingView>
 
       <Sheet

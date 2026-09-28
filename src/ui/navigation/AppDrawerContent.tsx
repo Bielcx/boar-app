@@ -86,7 +86,8 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
       <View style={[styles.brand, { paddingHorizontal: t.space.base, paddingVertical: t.space.md, gap: t.space.md }]}>
         <Mascot size="brand" />
         <View style={{ flex: 1 }} accessible accessibilityRole="header">
-          <Text variant="title2" accessibilityLabel="BOAR">
+          {/* The name as the chat header says it (a caps "BOAR" may be spelled out; Prism CH-33). */}
+          <Text variant="title2" accessibilityLabel={tr("chat.assistantName")}>
             boar
           </Text>
           <Text variant="footnote" color="field">
@@ -130,7 +131,8 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
                     },
                   ]}
                 >
-                  <Text variant="callout" numberOfLines={1} weight={active ? "semibold" : "regular"}>
+                  {/* Large text: two lines, so the title isn't only complete for screen readers (Prism CH-33). */}
+                  <Text variant="callout" numberOfLines={pinFooter ? 1 : 2} weight={active ? "semibold" : "regular"}>
                     {s.title}
                   </Text>
                   <Text variant="caption" color="tertiary">
