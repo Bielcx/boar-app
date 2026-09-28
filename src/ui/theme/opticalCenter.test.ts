@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baselineFromTop, opticalOffset } from "./opticalCenter";
+import { baselineFromTop, FACE_METRICS, iosAscenderInset, opticalOffset } from "./opticalCenter";
 
 describe("opticalOffset", () => {
   it("matches the measured iOS CTA: Baloo 17/20 caps centre ~4 pt above the box middle (ce4fe83 setup1, 'G' at -3.8)", () => {
@@ -29,5 +29,31 @@ describe("opticalOffset", () => {
     const one = opticalOffset({ face: "display", fontSize: 15, lineHeight: 19, platform: "ios" });
     const two = opticalOffset({ face: "display", fontSize: 30, lineHeight: 38, platform: "ios" });
     expect(two).toBeCloseTo(one * 2, 0);
+  });
+});
+
+describe("iosAscenderInset", () => {
+  // Baloo 2 ExtraBold TTF: 'b' yMax 661/1000, hhea 1078/-524.
+  const inkTop = (fontSize: number, lineHeight: number, platform: "ios" | "android", inset: number) =>
+    inset + baselineFromTop({ face: "display", fontSize, lineHeight, platform }) - FACE_METRICS.display.ascender * fontSize;
+
+  it("the 40/40 wordmark clips its 'b' on iOS without it (7.4 pt above the box: 'Doar')", () => {
+    expect(inkTop(40, 40, "ios", 0)).toBeCloseTo(-7.4, 1);
+    expect(inkTop(40, 40, "android", 0)).toBeGreaterThan(0);
+  });
+
+  it("with it the 'b' fits on iOS and sits where Android draws it, at 1.0 and at the 1.3 cap", () => {
+    for (const k of [1, 1.3]) {
+      const input = { face: "display" as const, fontSize: 40 * k, lineHeight: 40 * k };
+      const inset = iosAscenderInset({ ...input, platform: "ios" });
+      expect(inkTop(40 * k, 40 * k, "ios", inset)).toBeGreaterThanOrEqual(0);
+      expect(inkTop(40 * k, 40 * k, "ios", inset)).toBeCloseTo(inkTop(40 * k, 40 * k, "android", 0), 0);
+    }
+    expect(iosAscenderInset({ face: "display", fontSize: 40, lineHeight: 40, platform: "ios" })).toBeCloseTo(12.0, 1);
+  });
+
+  it("is 0 on Android and for lines as tall as the font, so their layout does not move", () => {
+    expect(iosAscenderInset({ face: "display", fontSize: 40, lineHeight: 40, platform: "android" })).toBe(0);
+    expect(iosAscenderInset({ face: "text", fontSize: 16, lineHeight: 24, platform: "ios" })).toBe(0);
   });
 });

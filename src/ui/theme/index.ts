@@ -4,7 +4,7 @@ import { spacing, radii, shadows } from "./spacing";
 import { ThemeProvider, useTheme, useTokens } from "./ThemeContext";
 export { buildTokens, toneColors, variantFace, variantShape, icon, space, radius, size, motion, opacity, MIN_TOUCH, MIN_FONT_SIZE, APP_FONT_SCALE } from "./tokens";
 export { fontFamilyFor, BUNDLED_FAMILIES } from "./fonts";
-export { opticalOffset, baselineFromTop, FACE_METRICS } from "./opticalCenter";
+export { opticalOffset, baselineFromTop, iosAscenderInset, FACE_METRICS } from "./opticalCenter";
 export type { FontFace, FontWeight } from "./fonts";
 export type { Tokens, ColorTokens, ColorScheme, TextVariant, Tone, TypeStyle } from "./tokens";
 export { getPalette, PALETTE_IDS, SOURCE_PALETTES } from "./palette";

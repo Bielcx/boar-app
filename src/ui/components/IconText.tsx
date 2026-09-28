@@ -1,6 +1,6 @@
 import React from "react";
 import { Platform, StyleProp, TextStyle, useWindowDimensions, View, ViewStyle } from "react-native";
-import { icon as iconTokens, opticalOffset, useTokens, variantShape } from "../theme";
+import { icon as iconTokens, iosAscenderInset, opticalOffset, useTokens, variantShape } from "../theme";
 import type { TextVariant } from "../theme";
 import { endBearing, Icon, IconName } from "./Icon";
 import { Text, TextColor, TextProps } from "./Text";
@@ -24,6 +24,8 @@ export interface OpticalLine {
   offset: number;
   /** Icon size for `role`, grown with the text. */
   iconSize: number;
+  /** iOS top padding that keeps the ascenders inside the box (0 on Android); see iosAscenderInset. */
+  ascenderInset: number;
 }
 
 /**
@@ -40,12 +42,13 @@ export function useOpticalLine(variant: TextVariant, role: IconRole = iconRoleFo
   const style = t.type[variant];
   const fontSize = (style.fontSize ?? 16) * k;
   const lineHeight = (style.lineHeight ?? fontSize) * k;
-  const offset = opticalOffset({ face: shape.face, uppercase: shape.uppercase, fontSize, lineHeight, platform: Platform.OS === "ios" ? "ios" : "android" });
+  const input = { face: shape.face, uppercase: shape.uppercase, fontSize, lineHeight, platform: Platform.OS === "ios" ? ("ios" as const) : ("android" as const) };
+  const offset = opticalOffset(input);
   // The in-app size preference is already in the type tokens; body 16 at 1.0 tells us its factor.
   const appScale = (t.type.body.fontSize ?? 16) / 16;
   const base = role === "title" ? iconTokens.sizeTitle : role === "seal" ? iconTokens.sizeSeal : iconTokens.sizeBody;
   const iconSize = Math.round(base * appScale * Math.min(k, iconTokens.maxScale));
-  return { lineHeight, offset, iconSize };
+  return { lineHeight, offset, iconSize, ascenderInset: iosAscenderInset(input) };
 }
 
 export interface LineSlotProps {
