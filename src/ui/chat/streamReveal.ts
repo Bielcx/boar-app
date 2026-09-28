@@ -4,7 +4,7 @@ import { motionSpec } from "../theme/motionSpec";
  * SEND-MOTION v2 P1: streamed text shows at a steady pace instead of in 110 ms jumps. Tokens still arrive in
  * batches (streamBatch); between them and the screen a clock reveals characters at the rate they come in,
  * speeding up so the text never trails the model by more than about a second, and draining quickly when
- * the answer is done. The newest characters fade in through the text tones (tertiary → secondary → primary).
+ * the answer is done. The newest characters fade in through the text tones (disabled → secondary → primary).
  * Pure: the hook (useSmoothText) only runs the clock.
  */
 
@@ -63,8 +63,11 @@ export interface RevealMark {
   at: number;
 }
 
-/** The fade window: the DS `change` role (a state changing in place). */
-export const FADE_MS = motionSpec("change", false).duration;
+/**
+ * The fade window: the DS `enter` role (something appears). With `change` (150 ms) and the DS's tertiary
+ * being secondary's colour, the fade had two quick steps only and read weak in the dark theme.
+ */
+export const FADE_MS = motionSpec("enter", false).duration;
 
 /**
  * How many of the last revealed characters are still fading in, per tone: the newest third of the
@@ -94,6 +97,10 @@ export function pruneMarks(marks: RevealMark[], now: number, windowMs = FADE_MS)
   return firstYoung <= 0 ? (firstYoung === 0 ? marks : marks.slice(-1)) : marks.slice(firstYoung - 1);
 }
 
+/**
+ * "tertiary" is drawn in text.disabled: the DS's tertiary is secondary's colour, and a fade needs a third,
+ * fainter step. Decorative and gone within a third of the window, it carries no information (DS rule).
+ */
 export type TailTone = "tertiary" | "secondary";
 
 /**

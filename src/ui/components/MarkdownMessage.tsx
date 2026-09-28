@@ -1,11 +1,11 @@
 import React, { memo, useMemo } from "react";
-import { View } from "react-native";
+import { Text as RNText, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { IconButton, Text, useToast } from ".";
+import { IconButton, Text, useToast, type TextColor } from ".";
 import { useTokens } from "../theme";
 import { parseMarkdown, sameBlock, type Block, type Inline } from "../chat/markdown";
-import { toneTail, type TailTone } from "../chat/streamReveal";
+import { toneTail } from "../chat/streamReveal";
 
 interface Props {
   content: string;
@@ -36,24 +36,26 @@ function Inlines({
   return (
     <>
       {toneTail(inlines, tail).map(({ part, tone }, i) => {
-        // A fading character takes a lighter text tone (nested Text has color, not opacity).
-        const color: TailTone | undefined = tone ?? undefined;
+        // A fading character takes a lighter text tone (nested Text has color, not opacity). The newest step
+        // is text.disabled: the DS's tertiary equals secondary, and the fade needs a fainter start.
+        const color: TextColor | undefined = tone === "secondary" ? "secondary" : undefined;
+        const faint = tone === "tertiary" ? { color: t.color.text.disabled } : null;
         switch (part.type) {
           case "bold":
             return (
-              <Text key={i} weight="semibold" color={color}>
+              <Text key={i} weight="semibold" color={color} style={faint}>
                 {part.text}
               </Text>
             );
           case "italic":
             return (
-              <Text key={i} style={{ fontStyle: "italic" }} color={color}>
+              <Text key={i} style={[{ fontStyle: "italic" }, faint]} color={color}>
                 {part.text}
               </Text>
             );
           case "code":
             return (
-              <Text key={i} variant="mono" style={{ backgroundColor: t.color.bg.sunken }} color={color}>
+              <Text key={i} variant="mono" style={[{ backgroundColor: t.color.bg.sunken }, faint]} color={color}>
                 {part.text}
               </Text>
             );
@@ -64,6 +66,7 @@ function Inlines({
               <Text
                 key={i}
                 color={color ?? "field"}
+                style={faint}
                 weight="semibold"
                 numeric
                 onPress={onCitationPress ? () => onCitationPress(part.n) : undefined}
@@ -75,10 +78,12 @@ function Inlines({
               </Text>
             );
           default:
-            return color ? (
-              <Text key={i} color={color}>
+            // A raw nested Text: it inherits the block's type (a heading stays a heading) and only
+            // changes the colour; the DS Text would reset it to body for the fade.
+            return color || faint ? (
+              <RNText key={i} style={faint ?? { color: t.color.text.secondary }}>
                 {part.text}
-              </Text>
+              </RNText>
             ) : (
               part.text
             );
