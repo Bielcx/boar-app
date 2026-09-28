@@ -614,6 +614,48 @@ export function stripModelDisclaimer(text: string, pt: boolean): string {
   return out;
 }
 
+// A reference list the model wrote itself (CT-A: "[1] Monsoon, Wikipedia, acessado em 1 de fevereiro de 2023" at the end of a
+// PT answer from the Rápido). The app's [n] are the only citations; the model's are invented. A header line ("Fontes:",
+// "References", "**Bibliografia**") starts a list; an entry is "[n] …" or "1. …" with a reference mark (Wikipedia, "acessado
+// em", "retrieved on", a URL). A header needs a colon or nothing after the word: "Sources of vitamin C: oranges" is content.
+const REF_HEADER =
+  /^\s*(?:#{1,6}\s*)?[*_]*(?:fontes?|sources?|refer[êe]ncias?(?: bibliogr[áa]ficas)?|references?|bibliografia|bibliography|works cited|obras citadas|cita[çc][õo]es|citations)[*_]*(?:\s*:[*_]*\s*(.*))?\s*$/i;
+const REF_ENTRY = /^\s*(?:[-*•]\s*)?(?:\[\d+\]|\d+[.)])\s*\S/;
+const REF_MARK =
+  /\bwikip[ée]dia\b|\bacessad[oa] em\b|\baccessed(?: on)?\b|\bretrieved (?:on|from)\b|\brecuperad[oa] em\b|\bconsultad[oa] em\b|\bdispon[íi]vel em\b|\bavailable (?:at|from)\b|https?:\/\/|\bwww\./i;
+const REF_DATE_LINE = /^\s*(?:retrieved (?:on|from)|accessed on|acessad[oa] em|consultad[oa] em|recuperad[oa] em)\b/i;
+const REF_INLINE_TAIL = /\s*\[\d+\]\s+[^\n[\]]{1,150}?,\s*(?:wikip[ée]dia|acessad[oa] em|accessed on|retrieved on)\b[^\n]*$/i;
+
+/**
+ * The answer without the model's own reference or bibliography lines ("Fonte(s):", "Referências", "[n] <Title>,
+ * Wikipedia, acessado em…", "Retrieved on…"): the citation comes only from the app's [n]. A "Fontes: [1][2]" line with
+ * nothing but markers keeps them, on the line before it, so the answer still cites what it cited.
+ */
+export function stripModelReferences(text: string): string {
+  const out: string[] = [];
+  let inRefs = false;
+  const lastKept = () => {
+    for (let i = out.length - 1; i >= 0; i--) if (out[i].trim()) return i;
+    return -1;
+  };
+  for (const line of text.split("\n")) {
+    const header = REF_HEADER.exec(line);
+    if (header) {
+      const rest = (header[1] ?? "").trim();
+      const markers = rest.match(/\[\d+\]/g) ?? [];
+      const k = lastKept();
+      if (markers.length && !rest.replace(/\[\d+\]|[\s,;.]/g, "") && k >= 0) out[k] = `${out[k].trimEnd()} ${markers.join("")}`;
+      inRefs = true;
+      continue;
+    }
+    if (inRefs && (!line.trim() || REF_ENTRY.test(line) || REF_MARK.test(line))) continue;
+    inRefs = false;
+    if ((REF_ENTRY.test(line) && REF_MARK.test(line)) || REF_DATE_LINE.test(line)) continue;
+    out.push(line.replace(REF_INLINE_TAIL, ""));
+  }
+  return out.join("\n").trimEnd();
+}
+
 /** When the offline library was built (Wikipedia and the packs' dumps). Update with the packs. */
 export const LIBRARY_SNAPSHOT = { en: "September 2026", pt: "setembro de 2026" };
 

@@ -1703,3 +1703,24 @@ describe("answer(): execution telemetry (regression since 4e4f49d: nothing recor
     expect(result.outcome).toBe("success");
   });
 });
+
+describe("answer(): the model's own reference list (CT-A)", () => {
+  it("removes '[1] Monsoon, Wikipedia, acessado em 1 de fevereiro de 2023' from the final text", async () => {
+    const line = "[1] Monsoon, Wikipedia, acessado em 1 de fevereiro de 2023";
+    f.deps.engine.generate = async (opts) => {
+      const pieces = ["Canberra is the capital of Australia [1].", "\n\n", line];
+      for (const p of pieces) opts.onToken?.(p);
+      opts.onTimings?.({ promptTokens: 100, promptMs: 10, predictedTokens: 3, predictedMs: 30 });
+      return pieces.join("");
+    };
+    const { events, result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.tier).toBe("fast");
+    expect(result.text).not.toContain("Monsoon");
+    expect(result.text).not.toContain("acessado");
+    expect(result.text).toMatch(/^Canberra is the capital of Australia \[1\]\.$/);
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.finalText).toBe(result.text);
+    expect(done.cited).toEqual([1]);
+    expect(result.receipt.reasonCodes).toContain("grounding:model-references-stripped");
+  });
+});

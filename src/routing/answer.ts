@@ -26,6 +26,7 @@ import {
   splitSentences,
   wrongScriptSentences,
   stripModelDisclaimer,
+  stripModelReferences,
   withSeekCare,
   PT_ANSWER_LANGUAGE,
   PT_ANSWER_LANGUAGE_NO_SOURCES,
@@ -1012,6 +1013,14 @@ export function createAnswerer(deps: AnswerDeps) {
       };
 
       generation = { modelId: genLlm.id, residency, firstTokenAt: null };
+      // CT-A: the model's own reference list ("[1] Monsoon, Wikipedia, acessado em…") goes; the app's [n] cite.
+      const withoutModelReferences = (t: string) => {
+        const stripped = stripModelReferences(t);
+        if (stripped === t.trimEnd()) return t;
+        reasonCodes.push("grounding:model-references-stripped");
+        finalText = stripped;
+        return stripped;
+      };
       try {
         if (gen.mode === "multipass") {
           const r = await deps.runMultipass(
@@ -1034,7 +1043,7 @@ export function createAnswerer(deps: AnswerDeps) {
               },
             }
           );
-          text = r.answer;
+          text = withoutModelReferences(r.answer);
           timedOut = !!r.timedOut;
           sources = r.citations;
         } else {
@@ -1050,10 +1059,12 @@ export function createAnswerer(deps: AnswerDeps) {
             onToken: health ? () => {} : onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };
-          text = await deps.engine.generate(
-            useTemplate
-              ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
-              : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+          text = withoutModelReferences(
+            await deps.engine.generate(
+              useTemplate
+                ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+                : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+            )
           );
           if (health) {
             // A known-dangerous instruction the model added ("blow your nose", "tilt the head back"): show the source instead.
