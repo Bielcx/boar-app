@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { MAX_TOKENS_OPTIONS } from "../constants/personalities";
 import { voiceInBuild } from "../config/variant";
-import { Button, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
+import { Button, IconText, ListRow, Screen, Section, SegmentedControl, Sheet, Text, useAnnounce, useToast } from "./components";
 import { useTheme, useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
@@ -276,9 +276,10 @@ export function SettingsScreen() {
       >
         <View style={{ gap: tokens.space.xs }}>
           {(["eraseModels", "eraseKnowledge", "eraseHistory", "eraseSettings"] as const).map((k) => (
-            <Text key={k} variant="callout" color="secondary">
-              • {t(`flows.settings.${k}`)}
-            </Text>
+            // A list mark from the icon set, not a "•" typed into the text (Prism FL-34).
+            <IconText key={k} icon="minus" variant="callout" color="secondary">
+              {t(`flows.settings.${k}`)}
+            </IconText>
           ))}
         </View>
       </Sheet>

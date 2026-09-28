@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, findNodeHandle, View } from "react-native";
+import { AccessibilityInfo, findNodeHandle, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Button, IconSlot, Progress, Text, useAnnounce, useOpticalLine } from "../components";
+import { Button, IconSlot, LARGE_TEXT_SCALE, Progress, Text, useAnnounce, useOpticalLine } from "../components";
 import { icon, useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
@@ -50,6 +50,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const line = useOpticalLine("subhead");
+  const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
   const announce = useAnnounce();
   const pickRef = useRef<View>(null);
   const busy = imports.some((f) => f.status === "importing");
@@ -114,7 +115,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
                   }
                 />
               </View>
-              <Text variant="subhead" numberOfLines={1} ellipsizeMode="middle" accessibilityLabel={f.name} style={{ flex: 1 }}>
+              <Text variant="subhead" numberOfLines={largeText ? 2 : 1} ellipsizeMode="middle" accessibilityLabel={f.name} style={{ flex: 1 }}>
                 {f.name}
               </Text>
             </View>
