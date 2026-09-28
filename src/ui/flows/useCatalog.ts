@@ -116,26 +116,32 @@ export function useCatalog({ liveProgress = false }: CatalogOptions = {}): Catal
     }
   }, []);
 
+  // Read everything first (in parallel), then set it all in one synchronous block: one render per
+  // refresh instead of one per await (~7 on every open and after each download/remove/use, audit #15).
   const refresh = useCallback(async () => {
-    const found = await listDiscoveredModels();
-    const tiles = await installedPlaceTiles();
+    const [found, tiles] = await Promise.all([listDiscoveredModels(), installedPlaceTiles()]);
     const extra = [...found, ...poiRegions().map(poiCatalogEntry), worldPlacesEntry(), ...topicPacks().map((p) => p.entry), ...tiles.map((t) => t.entry)];
-    const all = [...(await modelManager.statusAll()), ...(await Promise.all(extra.map((m) => modelManager.statusOf(m))))];
-    const byId = Object.fromEntries(all.map((s) => [s.asset.id, s]));
-    setDiscovered(found);
+    const [catalogStatuses, extraStatuses, tileNames, llmId, embeddingId, [crashed, confirmed], free] = await Promise.all([
+      modelManager.statusAll(),
+      Promise.all(extra.map((m) => modelManager.statusOf(m))),
+      placeTileNames(),
+      getActiveModelId("llm"),
+      getActiveModelId("embedding"),
+      // In order: reading the crashes runs a once-per-process migration that also withdraws confirmations.
+      loadCrashedIds().then(async (c) => [c, await largeModelConfirmedIds()] as const),
+      FileSystem.getFreeDiskStorageAsync().catch(() => 0),
+    ]);
+    const byId = Object.fromEntries([...catalogStatuses, ...extraStatuses].map((s) => [s.asset.id, s]));
     // A tile the index doesn't list (no sha256) has nothing newer to update to.
     const withUpdates = tiles.map((t) => ({ ...t, updateAvailable: !!t.entry.sha256 && !!byId[t.entry.id]?.updateAvailable }));
-    setPlaceAreas(groupPlaceAreas(withUpdates, await placeTileNames()));
+    setDiscovered(found);
+    setPlaceAreas(groupPlaceAreas(withUpdates, tileNames));
     setStatuses(byId);
-    setActiveLlmId((await getActiveModelId("llm")) ?? defaultId("llm"));
-    setActiveEmbeddingId((await getActiveModelId("embedding")) ?? defaultId("embedding"));
-    setCrashedIds(await loadCrashedIds());
-    setConfirmedIds(await largeModelConfirmedIds());
-    try {
-      setFreeBytes(await FileSystem.getFreeDiskStorageAsync());
-    } catch {
-      setFreeBytes(0);
-    }
+    setActiveLlmId(llmId ?? defaultId("llm"));
+    setActiveEmbeddingId(embeddingId ?? defaultId("embedding"));
+    setCrashedIds(crashed);
+    setConfirmedIds(confirmed);
+    setFreeBytes(free);
     setLoaded(true);
   }, []);
 
