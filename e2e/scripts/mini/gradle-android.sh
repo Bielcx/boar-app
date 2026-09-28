@@ -1,14 +1,15 @@
 #!/bin/bash
-# Heavy part (inside the lock): assembleRelease with a disk watchdog (abort < 6 GB), copy, sha256, audit, cleanup.
+# Heavy part (inside the lock): assembleRelease with a disk watchdog (abort < 10 GB, Boar 2026-09-27; 12 GB elsewhere), copy, sha256, audit, cleanup.
+# Low RAM/swap: GRADLE_WORKERS=2 CMAKE_JOBS=3 (swapfiles grow on the same volume and eat the disk margin).
 set -uo pipefail
 R=$HOME/boar/android/boar-app; OUT=$HOME/boar/android/apk; mkdir -p "$OUT"; cd "$R"; V=$(cat android/.boar-variant)
-export JAVA_HOME=$(/usr/libexec/java_home -v 17) ANDROID_HOME=$HOME/Library/Android/sdk CMAKE_BUILD_PARALLEL_LEVEL=6 EXPO_PUBLIC_BOAR_VARIANT=$V ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
+export JAVA_HOME=$(/usr/libexec/java_home -v 17) ANDROID_HOME=$HOME/Library/Android/sdk CMAKE_BUILD_PARALLEL_LEVEL=${CMAKE_JOBS:-6} EXPO_PUBLIC_BOAR_VARIANT=$V ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
 free() { df -g / | tail -1 | awk '{print $4}'; }
 grep -q "org.gradle.workers.max" ~/.gradle/gradle.properties 2>/dev/null || { mkdir -p ~/.gradle; printf '\norg.gradle.workers.max=4\n' >> ~/.gradle/gradle.properties; }
-t0=$(date +%s); echo "[gradle] $(date +%T) start $(git log --oneline -1) variant=$V free $(free) GB (floor 12)"
-(cd android && exec ./gradlew --no-daemon :app:assembleRelease -PreactNativeArchitectures=arm64-v8a -q) & GP=$!
+t0=$(date +%s); echo "[gradle] $(date +%T) start $(git log --oneline -1) variant=$V free $(free) GB (floor 10) workers=${GRADLE_WORKERS:-4} cmake=${CMAKE_JOBS:-6} swap: $(sysctl -n vm.swapusage)"
+(cd android && exec ./gradlew --no-daemon -Dorg.gradle.workers.max=${GRADLE_WORKERS:-4} :app:assembleRelease -PreactNativeArchitectures=arm64-v8a -q) & GP=$!
 minfree=99; aborted=0
-while kill -0 $GP 2>/dev/null; do f=$(free); [ "$f" -lt "$minfree" ] && minfree=$f; if [ "$f" -lt 12 ]; then echo "[gradle] ABORT: free $f GB < 12"; pkill -P $GP; kill $GP; pkill -f GradleDaemon; aborted=1; break; fi; sleep 10; done
+while kill -0 $GP 2>/dev/null; do f=$(free); [ "$f" -lt "$minfree" ] && minfree=$f; if [ "$f" -lt 10 ]; then echo "[gradle] ABORT: free $f GB < 10"; pkill -P $GP; kill $GP; pkill -f GradleDaemon; aborted=1; break; fi; sleep 10; done
 wait $GP; rc=$?; t1=$(date +%s)
 echo "[gradle] rc=$rc aborted=$aborted gradle $((t1-t0))s; min free during build ${minfree} GB"
 if [ $rc -eq 0 ] && [ $aborted -eq 0 ]; then
