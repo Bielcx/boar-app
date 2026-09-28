@@ -21,6 +21,7 @@ import { CityMapOffer } from "../flows/CityMapOffer";
 import type { AnswerState, PlacesResult } from "./answerReducer";
 import {
   coordinatesText,
+  areaCityName,
   cuisineLabels,
   dietLabels,
   formatDistance,
@@ -54,7 +55,7 @@ function cardSubtitle(r: PlacesResult, locale: string, t: T): string {
   if (r.area.kind === "near") {
     parts.push(r.area.radiusM ? t("chat.places.within", { distance: formatDistance(r.area.radiusM, locale) }) : t("chat.places.nearYou"));
   } else {
-    parts.push(t("chat.places.inCity", { city: r.area.place?.name ?? r.area.label ?? "" }));
+    parts.push(t("chat.places.inCity", { city: areaCityName(r.area) }));
   }
   // "Best" is never popularity: say how the list is ordered.
   // A named city lists no distances (the search centres on the city): say what the distance is from (Prism OM-1).
@@ -80,7 +81,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
   const { t: tr } = useTranslation();
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= 1.6;
-  const tags = [...dietLabels(place.diet, tr, place.dietFlag), ...cuisineLabels(place.cuisine)].join(" · ");
+  const tags = [...dietLabels(place.diet, tr, place.dietFlag), ...cuisineLabels(place.cuisine, tr)].join(" · ");
   const state = openStateAt(place, now);
   const distance = place.distanceM != null ? formatDistance(place.distanceM, locale) : null;
   return (
@@ -197,7 +198,7 @@ function PlaceSheet({
           {dietLabels(place.diet, tr, place.dietFlag).map((d) => (
             <Badge key={d} label={d} tone={place.dietFlag === "verify" ? "warning" : "field"} caps={false} />
           ))}
-          {cuisineLabels(place.cuisine, 4).map((c) => (
+          {cuisineLabels(place.cuisine, tr, 4).map((c) => (
             <Badge key={c} label={c} />
           ))}
         </View>

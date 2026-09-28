@@ -269,7 +269,7 @@ describe("answer(): places path", () => {
   it("uses a named city without distances (a cached fix only sets deviceInside)", async () => {
     const { r, places } = await ask("melhores restaurantes veganos em São Paulo");
     expect(geo.calls).toEqual(["resolve:São Paulo", "location", "search"]);
-    expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo", place: { name: "São Paulo", country: "BR" } });
+    expect(places!.area).toMatchObject({ kind: "city", label: "São Paulo", place: { name: "São Paulo", asked: "São Paulo", country: "BR" } });
     expect(places!.places.every((p) => p.distanceM === undefined)).toBe(true);
     expect(r.text).toMatch(/^Lugares com opção vegano em São Paulo/);
   });

@@ -116,7 +116,14 @@ export interface PlacesArea {
    * lat/lon: the city's point, once the gazetteer resolved it, so an empty
    * answer can offer the map covering it (tilesFor(lat, lon, km)).
    */
-  place?: { name: string; country?: string; lat?: number; lon?: number };
+  place?: {
+    name: string;
+    /** The city as the question wrote it ("Roma" for the gazetteer's "Rome"), cleaned; the card shows this one. */
+    asked?: string;
+    country?: string;
+    lat?: number;
+    lon?: number;
+  };
   /**
    * City areas only: true when a recent device fix (no new permission prompt,
    * no GPS wait) lies within DEVICE_INSIDE_RADIUS_M of the city center, so the

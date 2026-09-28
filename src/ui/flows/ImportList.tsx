@@ -1,17 +1,21 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, findNodeHandle, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Button, IconSlot, Progress, Text, useAnnounce, useOpticalLine } from "../components";
 import { icon, useTokens } from "../theme";
 import { MODEL_CATALOG } from "../../models/manifest";
 import { poiCatalogEntries } from "../../rag/poiRegions";
-import { worldPlacesEntry } from "./adapters";
+import { placeTileNames, worldPlacesEntry } from "./adapters";
+import { tileCorner, tileIdOf } from "./placeTiles";
 import { catalogLabel } from "./catalogLabel";
 import { formatBytes, readableErrorDetail } from "./format";
 import type { TFunction } from "i18next";
 
-function labelFor(assetId: string | undefined, t: TFunction): string | undefined {
+function labelFor(assetId: string | undefined, t: TFunction, tileNames: Record<string, string> = {}): string | undefined {
   if (!assetId) return undefined;
+  // A places tile ("poi-t-N41E012") by the name Knowledge gives it, never the raw id (Piston ecb83d3).
+  const tile = tileIdOf({ id: assetId });
+  if (tile) return tileNames[tile] ? t("flows.travel.areaOf", { city: tileNames[tile] }) : t("flows.places.cornerArea", { corner: tileCorner(tile) });
   const item = [...MODEL_CATALOG, ...poiCatalogEntries(), worldPlacesEntry()].find((m) => m.id === assetId);
   return item && catalogLabel(item, t);
 }
@@ -49,6 +53,18 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
   const announce = useAnnounce();
   const pickRef = useRef<View>(null);
   const busy = imports.some((f) => f.status === "importing");
+  // The city a tile was downloaded for, if any; a tile that came in as a file is named by its corner.
+  const [tileNames, setTileNames] = useState<Record<string, string>>({});
+  const verifiedCount = imports.filter((f) => f.status === "verified").length;
+  useEffect(() => {
+    let live = true;
+    placeTileNames()
+      .then((names) => live && setTileNames(names))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [verifiedCount]);
 
   // Same contract as downloads (Prism F4/F5): polite on start, every quarter
   // and when verified; assertive on a refusal, with focus on the pick button.
@@ -63,7 +79,7 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
         const pct = Math.floor(f.progress * 4) * 25;
         announce(pct === 0 ? t("flows.import.checking", { name: f.name }) : t("flows.import.checkingAnnounce", { name: f.name, pct }));
       } else if (f.status === "verified") {
-        announce(t("flows.import.verified", { item: labelFor(f.assetId, t) ?? f.assetId ?? f.name }));
+        announce(t("flows.import.verified", { item: labelFor(f.assetId, t, tileNames) ?? f.assetId ?? f.name }));
       } else {
         announce(`${f.name}: ${t(`flows.row.error.${f.errorKind ?? "unknown"}`)}`, { assertive: true });
         refused = true;
@@ -77,11 +93,11 @@ export function ImportList({ imports, onPick, onCancel, pickLabel, primary, hide
     }
     // Forget files that left the list, so a re-pick announces again.
     for (const name of Object.keys(spoken.current)) if (!imports.some((f) => f.name === name)) delete spoken.current[name];
-  }, [imports, announce, t]);
+  }, [imports, announce, t, tileNames]);
   return (
     <View style={{ gap: tokens.space.md }}>
       {imports.filter((f) => !(hideActive && f.status === "importing") && !(hideVerified && f.status === "verified")).map((f) => {
-        const label = labelFor(f.assetId, t);
+        const label = labelFor(f.assetId, t, tileNames);
         return (
           <View key={f.name} style={{ gap: tokens.space.xs }}>
             <View style={{ flexDirection: "row", gap: icon.gap, alignItems: "flex-start" }}>
