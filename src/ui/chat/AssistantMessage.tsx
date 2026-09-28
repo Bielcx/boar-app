@@ -17,6 +17,7 @@ import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
+import { lineSlop } from "./touch";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -239,7 +240,10 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
 }
 
 function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean }) {
+  const t = useTokens();
   const { t: tr } = useTranslation();
+  // A caption line: the touch area comes up to the platform minimum (Prism CH-6).
+  const line = useOpticalLine("caption");
   return (
     <Pressable
       onPress={r.toggle}
@@ -248,7 +252,7 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
       accessibilityState={{ expanded: r.open }}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       accessibilityElementsHidden={hidden}
-      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+      hitSlop={lineSlop(t.size.touch, line.lineHeight, t.space.sm)}
     >
       <MetaLine items={r.short} variant="caption" numberOfLines={1} />
     </Pressable>
@@ -1012,19 +1016,17 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
       )}
       {!active && phase === "done" && canDeepen(answer) && (
-        // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris).
-        <Pressable
+        // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
+        // TextAction brings the touch minimum (Prism CH-7).
+        <TextAction
+          leadingIcon="layers"
           onPress={props.onDeepen}
-          accessibilityRole="button"
-          hitSlop={{ top: t.space.md, bottom: t.space.md }}
-          style={{ alignSelf: "flex-start" }}
-        >
-          <IconText icon="layers" variant="caption" color="secondary" iconColor={t.color.text.secondary}>
-            {answer.deepAvailable?.estSeconds
+          label={
+            answer.deepAvailable?.estSeconds
               ? tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
-              : tr("chat.actions.deepen")}
-          </IconText>
-        </Pressable>
+              : tr("chat.actions.deepen")
+          }
+        />
       )}
     </View>
   );

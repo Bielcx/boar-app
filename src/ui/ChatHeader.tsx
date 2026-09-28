@@ -1,9 +1,10 @@
 import React, { memo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Icon, IconButton, IconText, Mascot, OfflineSeal, Sheet, Text } from "./components";
+import { Icon, IconButton, IconText, Mascot, OfflineSeal, Sheet, Text, useOpticalLine } from "./components";
 import { useTokens } from "./theme";
 import { headerFit, sealCopy } from "./chat/headerLayout";
+import { lineSlop } from "./chat/touch";
 
 // Which build this is (see docs/BUILD_VARIANTS.md on feat/trust-offline). Read the
 // same inlined variable here until src/config/variant.ts is on main.
@@ -42,6 +43,8 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
   // "OFFLINE" like the mockup only where it is literally true (the build without INTERNET); the downloader
   // build says "ON DEVICE" (Boar: the answer is computed on the phone), same pill. Readers hear the long form.
   const seal = sealCopy(OFFLINE_BUILD);
+  // The downgraded-model line is a caps caption: its touch area comes up to the minimum (Prism CH-5).
+  const metaLine = useOpticalLine("capsMeta", undefined, HEADER_META_MAX_SCALE);
   const sealLabel = tr(seal.pill);
   const sealSpoken = tr(seal.pillSpoken);
   // The mockup's header: padding 4/16/10, 10 between items, 42 pt discs (touch comes from hitSlop).
@@ -89,7 +92,7 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
               accessibilityRole="button"
               accessibilityLabel={tr(`chat.header.downgraded.${downgradedFrom.reason}`, { model: activeModelLabel, from: downgradedFrom.label })}
               accessibilityHint={tr("chat.header.downgraded.hint")}
-              hitSlop={{ top: t.space.sm, bottom: t.space.sm }}
+              hitSlop={lineSlop(t.size.touch, metaLine.lineHeight, t.space.sm)}
             >
               {/* Icon-align (Iris): gap 8, seal-sized info icon on the caps line. */}
               <IconText

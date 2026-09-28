@@ -2,7 +2,7 @@ import React, { memo, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, useToast } from "../components";
+import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, TextAction, useToast } from "../components";
 import { useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
@@ -299,26 +299,13 @@ export function ChatModelError({
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Badge label={tr("chat.modelError.overline")} tone="danger" icon="alert-triangle" />
           {raw.length > 0 && (
-            // As tall as the chip, so the line doesn't grow; the touch area reaches the minimum through hitSlop.
-            <Pressable
+            // The DS expander (Prism CH-8): touch minimum through its hitSlop, the line doesn't grow.
+            <TextAction
+              icon={details ? "chevron-up" : "chevron-down"}
+              expanded={details}
+              label={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
               onPress={() => setDetails((d) => !d)}
-              accessibilityRole="button"
-              accessibilityLabel={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
-              accessibilityState={{ expanded: details }}
-              hitSlop={{ top: t.space.md, bottom: t.space.md, left: t.space.sm, right: t.space.sm }}
-            >
-              {/* Icon-align (Iris): one gap token, the chevron on the label's line. */}
-              <IconText
-                icon={details ? "chevron-up" : "chevron-down"}
-                iconPosition="end"
-                variant="caption"
-                weight="semibold"
-                color="secondary"
-                iconColor={t.color.text.secondary}
-              >
-                {tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
-              </IconText>
-            </Pressable>
+            />
           )}
         </View>
         <View style={{ gap: t.space.xs }}>
