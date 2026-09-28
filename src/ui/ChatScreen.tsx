@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
+import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Share, TextInput, View } from "react-native";
 import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
@@ -197,15 +197,22 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // content appearing at once, and no snap ever cutting a glide (the send's jumps).
   const reduceMotionRef = useRef(reduceMotion);
   reduceMotionRef.current = reduceMotion;
+  // FlatList.scrollToEnd does nothing without items (VirtualizedList returns early): the empty state is the
+  // list's ListEmptyComponent, so there the scroll view's own scrollToEnd (iPhone v9: the becc519 re-pin
+  // never moved the empty state, and the last suggestion stayed cut by a 3-line composer).
+  const scrollListToEnd = useCallback((animated: boolean) => {
+    const list = listRef.current;
+    if (!list) return;
+    if (itemsRef.current.length > 0) list.scrollToEnd({ animated });
+    else (list.getNativeScrollRef() as unknown as ScrollView | null)?.scrollToEnd({ animated });
+  }, []);
   const bottomPin = useMemo(
     () =>
       createBottomPin({
         // Content: deferred a frame (on Android the reported content size can lag one layout behind).
         // The list's own layout: in the same frame, the content didn't change (audit #8/#10).
         scrollToEnd: (animated, sameFrame) =>
-          sameFrame
-            ? listRef.current?.scrollToEnd({ animated })
-            : requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated })),
+          sameFrame ? scrollListToEnd(animated) : requestAnimationFrame(() => scrollListToEnd(animated)),
       }),
     []
   );

@@ -79,4 +79,9 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     const finish = read("../ChatScreen.tsx").match(/const finish = useCallback\(\(\) => \{[\s\S]*?\n  \}, \[\]\);/)![0];
     expect(finish).not.toMatch(/animateNextLayout\(\)/);
   });
+  it("iPhone v9: the empty state is scrolled by the scroll view itself (FlatList.scrollToEnd needs items)", () => {
+    const screen = read("../ChatScreen.tsx");
+    expect(screen).toMatch(/if \(itemsRef\.current\.length > 0\) list\.scrollToEnd\(\{ animated \}\);\s*else \(list\.getNativeScrollRef\(\)/);
+    expect(screen).toMatch(/sameFrame \? scrollListToEnd\(animated\) : requestAnimationFrame\(\(\) => scrollListToEnd\(animated\)\)/);
+  });
 });
