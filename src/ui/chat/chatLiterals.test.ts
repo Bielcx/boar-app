@@ -18,6 +18,12 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(am).not.toMatch(/tone="field" emphasis="solid"/);
     expect(am).not.toMatch(/band === "low" \? "secondary" : "field"/);
   });
+  it("CH-28/CH-29: the composer uses the opacity tokens and the DS Stop", () => {
+    const composer = read("Composer.tsx");
+    expect(composer).not.toMatch(/opacity: [^,}]*\b0\.\d/);
+    expect(composer).toMatch(/variant="stop"/);
+    expect(composer).not.toMatch(/<Pressable\b/);
+  });
   it("CH-27: the finished receipt sits at the row's end, as the running pill", () => {
     expect(read("AssistantMessage.tsx")).toMatch(/<ReceiptToggle r=\{receipt\} hidden=\{active\} end \/>/);
   });

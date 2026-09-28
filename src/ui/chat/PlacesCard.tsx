@@ -69,19 +69,23 @@ function cardSubtitle(r: PlacesResult, locale: string, t: T): string {
 }
 
 /** The device clock, refreshed each minute so open/closed doesn't go stale in a long session. */
-function useMinuteClock(): Date {
+/** Ticks every minute only where the list shows the device's local time (audit #31: city lists ticked for nothing). */
+function useMinuteClock(enabled: boolean): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
+    if (!enabled) return;
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [enabled]);
   return now;
 }
 
 /** A place row stacks its facts from here (later than LARGE_TEXT_SCALE: name and distance still fit one line). */
 const PLACE_ROW_STACK_SCALE = 1.6;
 
-function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | null; locale: string; onPress: () => void }) {
+/** Memoized with the place bound inside, so a clock tick or an opened sheet re-renders no row whose time didn't change. */
+const PlaceRow = memo(function PlaceRow({ place, now, locale, onOpen }: { place: Place; now: Date | null; locale: string; onOpen: (place: Place) => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { fontScale } = useWindowDimensions();
@@ -91,7 +95,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
   const distance = place.distanceM != null ? formatDistance(place.distanceM, locale) : null;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onOpen(place)}
       accessibilityRole="button"
       accessibilityLabel={placeA11yLabel(place, now, locale, tr)}
       style={({ pressed }) => ({
@@ -127,7 +131,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
       </View>
     </Pressable>
   );
-}
+});
 
 function PlaceSheet({
   place,
@@ -473,8 +477,8 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
   const [expanded, setExpanded] = useState(false);
   const [openPlace, setOpenPlace] = useState<Place | null>(null);
   const [showLicense, setShowLicense] = useState(false);
-  const clock = useMinuteClock();
   const r = answer.places!;
+  const clock = useMinuteClock(deviceClockApplies(r.area));
   const credit = attributionCredit(r.attribution, locale, tr);
   // Open/closed needs the place's local time; only a "near" list shares the device's clock.
   const now = deviceClockApplies(r.area) ? clock : null;
@@ -542,7 +546,7 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
           {shown.map((p) => (
             // Rows inside a card are separated by line.row (the sheet's s2 hairline).
             <View key={p.id} style={{ borderTopWidth: t.size.hairline, borderTopColor: t.color.line.row }}>
-              <PlaceRow place={p} now={now} locale={locale} onPress={() => setOpenPlace(p)} />
+              <PlaceRow place={p} now={now} locale={locale} onOpen={setOpenPlace} />
             </View>
           ))}
         </View>

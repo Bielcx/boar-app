@@ -1,6 +1,7 @@
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import type { AnswerReceipt as Receipt } from "./answerEvents";
 import { CALCULATOR_MODEL_ID, EXTRACTIVE_MODEL_ID, GROUNDING_GUARD_MODEL_ID } from "./answerEvents";
+import { numberFormat } from "./numberFormat";
 
 /** Labels come from i18n so the text reads in the app's language. */
 export interface ShareLabels {
@@ -39,7 +40,7 @@ export function formatForCopy(answer: string, sources: RetrievedChunk[], labels:
 
 export function formatSeconds(ms: number, locale: string): string {
   const s = ms / 1000;
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: s < 10 ? 1 : 0 }).format(s)} s`;
+  return `${numberFormat(locale, 0, s < 10 ? 1 : 0).format(s)} s`;
 }
 
 

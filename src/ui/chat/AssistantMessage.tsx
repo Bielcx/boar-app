@@ -232,15 +232,19 @@ const TierBody = memo(function TierBody({
 function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: string | null = null) {
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
-  if (!receipt) return null;
-  return {
-    open,
-    toggle: () => setOpen((o) => !o),
-    // "general knowledge" / "no source cited" after the numbers (weak-sources spec, Iris CT-5).
-    short: tagKey ? [...receiptShort(receipt, locale, tr), tr(tagKey)] : receiptShort(receipt, locale, tr),
-    line: receiptLine(receipt, locale, tr),
-    details: receiptDetails(receipt, locale, tr),
-  };
+  // The strings only change with the receipt: not rebuilt on every streamed frame of a Deepen (audit #23).
+  const text = useMemo(
+    () =>
+      receipt && {
+        // "general knowledge" / "no source cited" after the numbers (weak-sources spec, Iris CT-5).
+        short: tagKey ? [...receiptShort(receipt, locale, tr), tr(tagKey)] : receiptShort(receipt, locale, tr),
+        line: receiptLine(receipt, locale, tr),
+        details: receiptDetails(receipt, locale, tr),
+      },
+    [receipt, locale, tagKey, tr]
+  );
+  if (!text) return null;
+  return { open, toggle: () => setOpen((o) => !o), ...text };
 }
 
 /** `end`: beside the name, it sits at the row's right edge like the running Elapsed pill (Prism CH-27). */
