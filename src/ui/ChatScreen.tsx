@@ -51,7 +51,7 @@ import { takePendingEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { ChatHeader } from "./ChatHeader";
 import { Banner, Button, IconButton, Progress, Screen, Sheet, Text, useAnnounce, useToast } from "./components";
-import { useTokens } from "./theme";
+import { useTheme, useTokens } from "./theme";
 import { answer as runAnswer, deepen as runDeepen, effectiveAnswerModel, type AnswerContext } from "./chat/answerApi";
 import type { AnswerEvent, AnswerHandle, AnswerRequest, AnswerResult } from "./chat/answerEvents";
 import { answerPhase, answerReducer, asInterrupted, attachAnswer, initialAnswer, type AnswerState } from "./chat/answerReducer";
@@ -72,7 +72,7 @@ import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
-import { heightChanged } from "./chat/listPin";
+import { createBottomPin, heightChanged } from "./chat/listPin";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
 const VERBATIM_MESSAGE_COUNT = 6;
@@ -111,6 +111,7 @@ let draftInput = "";
 
 export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void }) {
   const tk = useTokens();
+  const { reduceMotion } = useTheme();
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const announce = useAnnounce();
@@ -172,30 +173,48 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [showJump, setShowJump] = useState(false);
   const [composerHeight, setComposerHeight] = useState(0);
   const onComposerLayout = useCallback((e: LayoutChangeEvent) => setComposerHeight(e.nativeEvent.layout.height), []);
-  const scrollToBottom = useCallback((animated = false) => {
-    // Deferred a frame: on Android the reported content size can lag one layout behind.
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
-  }, []);
-  // Content growing (a token batch, a restored session rendering in batches, an answer's actions) snaps:
-  // animated scrolls restarted on every batch fought each other (audit #13). Animated only where asked for:
-  // sending, the jump button, a model error.
+  // One anchor for every move to the end (SEND-MOTION D4): snaps for small growth, one native glide for
+  // content appearing at once, and no snap ever cutting a glide (the send's jumps).
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
+  const bottomPin = useMemo(
+    () =>
+      createBottomPin({
+        // Content: deferred a frame (on Android the reported content size can lag one layout behind).
+        // The list's own layout: in the same frame, the content didn't change (audit #8/#10).
+        scrollToEnd: (animated, sameFrame) =>
+          sameFrame
+            ? listRef.current?.scrollToEnd({ animated })
+            : requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated })),
+      }),
+    []
+  );
+  const glideToBottom = useCallback(() => bottomPin.glide(!reduceMotionRef.current), [bottomPin]);
+  useEffect(() => () => bottomPin.cancel(), [bottomPin]);
+  // Content growing (a token batch, a restored session rendering in batches, a height animating) snaps:
+  // animated scrolls restarted on every batch fought each other (audit #13). Glides only where asked for:
+  // sending (armed, so it starts once the question is measured), the jump button, a model error.
   const onListContentSize = useCallback(() => {
-    if (followBottom.current) scrollToBottom(false);
-  }, [scrollToBottom]);
-  // The keyboard changes the list's height on every frame: pin the last message then, in the same frame
-  // (no rAF: the content didn't change), and skip layouts that leave the height as it was (audit #8/#10).
+    if (followBottom.current) bottomPin.pin(!reduceMotionRef.current);
+  }, [bottomPin]);
+  // The keyboard changes the list's height on every frame: pin the last message then, and skip layouts that
+  // leave the height as it was (audit #8/#10). During a glide (the keyboard closing on send) it's held.
   const listHeight = useRef<number | null>(null);
   const onListLayout = useCallback((e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;
     if (!heightChanged(listHeight.current, h)) return;
     listHeight.current = h;
-    if (followBottom.current) listRef.current?.scrollToEnd({ animated: false });
-  }, []);
+    if (followBottom.current) bottomPin.pin(!reduceMotionRef.current, "layout");
+  }, [bottomPin]);
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    // Our own glide passes through "far from the end" on its way there: it still follows.
+    if (bottomPin.gliding()) return;
     followBottom.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 120;
     setShowJump(!followBottom.current);
-  }, []);
+  }, [bottomPin]);
+  // A drag is the user's: a glide in flight or armed stops moving the list.
+  const onListDrag = useCallback(() => bottomPin.cancel(), [bottomPin]);
 
   // ---- events: tokens batched (STREAM_FLUSH_MS) into one state update; everything else shows at once ----
   const pendingEvents = useRef<{ messageId: string; event: AnswerEvent }[]>([]);
@@ -461,8 +480,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       KeyboardController.dismiss();
       // And leave the field unfocused, as the mockup (with a hardware keyboard, dismiss() keeps the caret).
       inputRef.current?.blur();
+      // No scroll yet: the question isn't in the list. The content change it makes glides, once (D4).
       followBottom.current = true;
-      scrollToBottom(true);
+      bottomPin.armGlide();
 
       const userItem: ChatItem = { kind: "user", id: `${Date.now()}-u`, text: query };
       const assistantItem: ChatItem = {
@@ -535,7 +555,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       }
     },
     // canAsk, not ready: asking works while the model loads (a stale closure here swallowed the first tap, Harbor).
-    [activeSessionId, canAsk, cancelBackgroundTask, runInto, refreshSessions, scrollToBottom, finish]
+    [activeSessionId, canAsk, cancelBackgroundTask, runInto, refreshSessions, bottomPin, finish]
   );
 
   /**
@@ -605,7 +625,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   useEffect(() => {
     if (!loadError || itemsRef.current.length === 0) return;
     followBottom.current = true;
-    scrollToBottom(true);
+    glideToBottom();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadError]);
 
@@ -1000,6 +1020,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           onContentSizeChange={onListContentSize}
           onLayout={onListLayout}
           onScroll={onListScroll}
+          onScrollBeginDrag={onListDrag}
           scrollEventThrottle={100}
         />
 
@@ -1013,7 +1034,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               onPress={() => {
                 followBottom.current = true;
                 setShowJump(false);
-                scrollToBottom(true);
+                glideToBottom();
               }}
             />
           </View>
