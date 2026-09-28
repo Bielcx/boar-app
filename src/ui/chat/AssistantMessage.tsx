@@ -764,7 +764,7 @@ const InstantSnippet = memo(function InstantSnippet({
   onOpenSource: (i: number) => void;
 }) {
   const t = useTokens();
-  // At large text the overline wraps to 2 lines, so the source's name stays (Prism AN-1).
+  // At large text the overline wraps as far as it needs, so the source's name stays (Prism AN-1).
   const overlineLines = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE).snippetOverlineLines;
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
