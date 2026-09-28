@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { answerReceiptShort, noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -452,5 +452,14 @@ describe("stepsCardShown (SEND-MOTION D3, option A)", () => {
   });
   it("no steps (done, stopping): hidden", () => {
     expect(stepsCardShown({ sources: [], answerIds: [] } as unknown as AnswerState, null)).toBe(false);
+  });
+});
+
+describe("answerReceiptShort / receiptTagKey for a decline (Prism CX-9)", () => {
+  it("a decline shows its receipt, time only, no 'general knowledge' tag", () => {
+    expect(answerReceiptShort(true, receipt, "en", t)).toEqual([answerReceiptShort(false, receipt, "en", t)[0]]);
+    expect(answerReceiptShort(false, receipt, "en", t).length).toBe(2);
+    const declined = { sources: [], answerIds: [], weakSources: true, weakDeclined: true, fast: { text: "", stage: null, outcome: "success", receipt } };
+    expect(receiptTagKey(declined as unknown as AnswerState)).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineAfterSnippet, declineCopy, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
+import { declineAfterSnippet, declineCopy, answerReceiptShort, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { withoutUncitedPreface } from "./uncitedPreface";
@@ -257,7 +257,7 @@ const TierBody = memo(function TierBody({
  * The measured receipt: a short line ("9.1 s · ~8 words/s") that
  * sits by the name and opens the full measurement below the header row.
  */
-function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: string | null = null) {
+function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: string | null = null, declined = false) {
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   // The strings only change with the receipt: not rebuilt on every streamed frame of a Deepen (audit #23).
@@ -265,11 +265,11 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
     () =>
       receipt && {
         // "general knowledge" / "no source cited" after the numbers (weak-sources spec, Iris CT-5).
-        short: tagKey ? [...receiptShort(receipt, locale, tr), tr(tagKey)] : receiptShort(receipt, locale, tr),
+        short: tagKey ? [...answerReceiptShort(declined, receipt, locale, tr), tr(tagKey)] : answerReceiptShort(declined, receipt, locale, tr),
         line: receiptLine(receipt, locale, tr),
         details: receiptDetails(receipt, locale, tr),
       },
-    [receipt, locale, tagKey, tr]
+    [receipt, locale, tagKey, declined, tr]
   );
   if (!text) return null;
   return { open, toggle: () => setOpen((o) => !o), ...text };
@@ -680,7 +680,7 @@ function HeldAfterSnippet({ onAnswerAnyway }: { onAnswerAnyway?: () => void }) {
 /**
  * Weak-sources state A (Iris spec, Boar's decision): the compact model found nothing in this phone's
  * library and didn't guess. The card is the answer; "Answer anyway (may be wrong)" generates for the
- * same question (state B). No receipt, no primary ember, no amber.
+ * same question (state B). No primary ember, no amber; the receipt shows its time only (Prism CX-9).
  */
 function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: AnswerState; onAnswerAnyway?: () => void; incomplete?: boolean }) {
   // Found but unsupported (Tusk 237764a) or nothing found: the card says which.
@@ -912,7 +912,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
-  const receipt = useReceipt(topReceipt, locale, receiptTagKey(answer));
+  const receipt = useReceipt(topReceipt, locale, receiptTagKey(answer), !!answer.weakDeclined);
   const locating = isLocating(answer);
   const waitingForCity = answer.places?.coverage === "needs_place" || locating;
   const fresh = !!props.fresh;
@@ -923,7 +923,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   // The body's block opens with its first words, not before (an empty block would grow a bare gap).
   const fastBody = !!answer.fast?.text && showsAnswerBody(answer);
   // Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet).
-  const pill = waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? "elapsed" : receipt ? "receipt" : null;
+  // A decline has its receipt too, time only (Prism CX-9, NOVO NORTE P2).
+  const pill = waitingForCity ? null : active && !answer.deep ? "elapsed" : receipt ? "receipt" : null;
   return (
     <BlockMotion.Provider value={motion}>
       <View style={{ alignSelf: "stretch" }}>
@@ -951,7 +952,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             )}
           </View>
           {/* The receipt's details open and close in height (SEND-MOTION S10). */}
-          <Reveal shown={!!receipt?.open && !waitingForCity && !answer.weakDeclined} spaceBefore={t.space.sm}>
+          <Reveal shown={!!receipt?.open && !waitingForCity} spaceBefore={t.space.sm}>
             {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
           </Reveal>
         </View>

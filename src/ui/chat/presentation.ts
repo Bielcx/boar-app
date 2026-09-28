@@ -166,6 +166,14 @@ export function receiptShort(r: AnswerReceipt, locale: string, t: T): string[] {
   return parts;
 }
 
+/**
+ * The collapsed receipt of an answer (Prism CX-9: a decline had none, against NOVO NORTE P2 "total time
+ * visible"). A decline shows its time only: the speed would measure text that isn't shown.
+ */
+export function answerReceiptShort(declined: boolean, r: AnswerReceipt, locale: string, t: T): string[] {
+  return declined ? [formatSeconds(r.totalMs, locale)] : receiptShort(r, locale, t);
+}
+
 /** The measured details shown when the receipt is expanded, as label/value rows. */
 export function receiptDetails(r: AnswerReceipt, locale: string, t: T): { label: string; value: string }[] {
   const rows: { label: string; value: string }[] = [];
@@ -292,6 +300,8 @@ export function offersAskModel(a: { instantDone?: { receipt: AnswerReceipt }; fa
 export function receiptTagKey(a: AnswerState): "chat.weak.receipt" | "chat.weak.receiptUncited" | "chat.receipt.calculator" | null {
   // The exact conversion (Prism CALC-1): say by the name that no model wrote it, as the other tags do.
   if (!a.fast && a.instantDone?.receipt.modelId === CALCULATOR_MODEL_ID) return "chat.receipt.calculator";
+  // A decline answered nothing: "general knowledge" would be false (its card says what happened).
+  if (a.weakDeclined) return null;
   const kind = noSourceKind(a);
   return kind === "weak" ? "chat.weak.receipt" : kind === "uncited" ? "chat.weak.receiptUncited" : null;
 }
