@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -401,5 +401,23 @@ describe("showsAnswerBody (Tusk 05d1e6b: the decline's sentence in done.finalTex
   });
   it("shows it otherwise, weak answers included", () => {
     expect(showsAnswerBody({ answerIds: ["a"], sources: [], weakSources: true, fast: { text: "x", stage: null, outcome: "success" } } as AnswerState)).toBe(true);
+  });
+});
+
+describe("stepSpinnerRuns (GFXINFO: a ring turning for the whole generation asked for a frame every vsync)", () => {
+  const base: AnswerState = { answerIds: ["a"], sources: [] };
+  it("turns while nothing is written yet: searching, reading, first token pending", () => {
+    expect(stepSpinnerRuns(base)).toBe(true);
+    expect(stepSpinnerRuns({ ...base, fast: { text: "", stage: "prefill" } })).toBe(true);
+    expect(stepSpinnerRuns({ ...base, fast: { text: "", stage: "generating" } })).toBe(true);
+  });
+  it("stands still once the text streams (the text and caret show progress)", () => {
+    expect(stepSpinnerRuns({ ...base, fast: { text: "Raft elects", stage: "generating" } })).toBe(false);
+    expect(stepSpinnerRuns({ ...base, extract: "Pinch the nose" })).toBe(false);
+  });
+  it("a Deepen: turns until the deep text starts, even though the fast text is on screen", () => {
+    const fastDone = { text: "Short answer.", stage: null, outcome: "success" as const };
+    expect(stepSpinnerRuns({ ...base, fast: fastDone, deep: { text: "", stage: "prefill" } })).toBe(true);
+    expect(stepSpinnerRuns({ ...base, fast: fastDone, deep: { text: "More", stage: "generating" } })).toBe(false);
   });
 });
