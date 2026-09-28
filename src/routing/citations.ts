@@ -19,6 +19,24 @@ const same = (a: string, b: string) => {
   return short.length >= 5 && long.startsWith(short) && long.length - short.length <= 3;
 };
 
+/** tokenizeTerms without a final "e", so "cause" meets "caused"/"causes" ("caus") and "radiate" meets "radiation". */
+const terms = (text: string) => tokenizeTerms(text).map((t) => (t.length > 4 && t.endsWith("e") ? t.slice(0, -1) : t));
+
+/**
+ * Words an English paraphrase adds around a claim without adding one ("gases like carbon dioxide", "due to",
+ * "on the other hand"); as key words they made a faithful paraphrase of a short source fall under the bar
+ * (iPhone 13, 28/09: the 1.5B's monsoon and the 4B's greenhouse answers lost their [1]). Word fragments
+ * ("re-radiate") too.
+ */
+const FILLER = new Set(
+  (
+    "like due often especially typically usually generally mainly primarily commonly both whereas while although though " +
+    "however therefore thus hence hand per etc even still yet instead rather within throughout through across among " +
+    "upon onto toward towards via around re"
+  ).split(" ")
+);
+const keyTerms = (text: string) => [...new Set(terms(text.replace(/\[\d+\]/g, " ")))].filter((t) => !FILLER.has(t));
+
 /** The sentence a citation at `at` belongs to: back past "." and spaces right before it, then to the previous sentence end. */
 function sentenceBefore(text: string, at: number): string {
   let j = at;
@@ -30,9 +48,9 @@ function sentenceBefore(text: string, at: number): string {
 }
 
 export function citationSupport(sentence: string, source: RetrievedChunk): number {
-  const key = [...new Set(tokenizeTerms(sentence.replace(/\[\d+\]/g, " ")))];
+  const key = keyTerms(sentence);
   if (key.length < MIN_KEY_TERMS) return 1;
-  const have = tokenizeTerms(`${source.title} ${source.body}`);
+  const have = terms(`${source.title} ${source.body}`);
   return key.filter((k) => have.some((h) => same(h, k))).length / key.length;
 }
 
@@ -42,12 +60,33 @@ export interface CheckedCitations {
   removed: number[];
 }
 
+/**
+ * What a citation that closes its paragraph ("A. B. [1]", "A. B [1].") vouches for: the whole paragraph
+ * since the previous citation, judged as one claim at the bar for adding a citation (ATTRIBUTION_MIN_SUPPORT):
+ * a bigger claim, a higher bar. The 1.5B writes one [1] after a whole explanation; judging only its last
+ * sentence ("This cycle keeps Earth warm, essential for life.") dropped it. At the lower bar, loose word
+ * overlap passed ("The United States has 50 states. The element with atomic number 50 is tin." with
+ * Avogadro: 0.5). Null for a citation inside a paragraph, or one that closes a single sentence.
+ */
+function paragraphBefore(text: string, at: number, end: number): string | null {
+  if (!/^[\s.!?]*(\n|$)/.test(text.slice(end))) return null;
+  let start = at;
+  while (start > 0 && text[start - 1] !== "\n" && text[start - 1] !== "]") start--;
+  const span = text.slice(start, at);
+  return (span.match(/[.!?](\s|$)/g) ?? []).length > 1 || /[.!?]\s+\S/.test(span.trim()) ? span : null;
+}
+
 export function checkCitations(answer: string, sources: RetrievedChunk[]): CheckedCitations {
   const removed: number[] = [];
   const text = answer.replace(/\s?\[(\d+)\]/g, (whole, num: string, at: number) => {
     const n = Number(num);
     const source = sources[n - 1];
-    const keep = !!source && citationSupport(sentenceBefore(answer, at + whole.indexOf("[")), source) >= CITATION_MIN_SUPPORT;
+    const bracket = at + whole.indexOf("[");
+    const paragraph = source ? paragraphBefore(answer, bracket, at + whole.length) : null;
+    const keep =
+      !!source &&
+      (citationSupport(sentenceBefore(answer, bracket), source) >= CITATION_MIN_SUPPORT ||
+        (paragraph !== null && citationSupport(paragraph, source) >= ATTRIBUTION_MIN_SUPPORT));
     if (keep) return whole;
     removed.push(n);
     return "";
@@ -83,8 +122,7 @@ export function attributeCitations(answer: string, sources: RetrievedChunk[]): A
     if (/\[\d+\]/.test(sentence)) return sentence;
     // A citation right after the sentence's punctuation ("… Zone. [1]") is its own (Prism CIT-2: "[1]. [1]").
     if (/^\s*\[\d+\]/.test(answer.slice(at + sentence.length))) return sentence;
-    const key = [...new Set(tokenizeTerms(sentence))];
-    if (key.length < MIN_KEY_TERMS) return sentence;
+    if (keyTerms(sentence).length < MIN_KEY_TERMS) return sentence;
     let best = -1;
     let bestSupport = 0;
     sources.forEach((source, i) => {

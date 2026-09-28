@@ -1137,6 +1137,7 @@ export function createAnswerer(deps: AnswerDeps) {
         cachedTokens: timings?.cachedTokens,
       });
       // CT-1: a [n] stays only where source n supports its sentence.
+      let allCitationsRemoved = false;
       if (/\[\d+\]/.test(text)) {
         const cited = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
         const checked = checkCitations(text, cited);
@@ -1150,14 +1151,10 @@ export function createAnswerer(deps: AnswerDeps) {
           // Also across languages (a PT answer, English sources): the cross-language exception (5fa5d96) let
           // 7 new confident crypto errors of the 1.5B through in PT (gate 20e8c65: "32 ETH" for EIP-7251), so
           // it was reverted; the decline is right there.
-          if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
-            reasonCodes.push("grounding:all-citations-removed-declined-compact");
-            // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
-            const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
-            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
-            finalText = message;
-            return finish(genTier, "success", message, [], baseReceipt);
-          }
+          // The decline waits for the attribution below: a sentence a source supports at the higher bar gets
+          // its [n] back ("Nuclear fusion involves two or more atomic nuclei combining… [1]" after the [1]
+          // closing its fission sentence went), and then the answer stands.
+          allCitationsRemoved = !/\[\d+\]/.test(text);
         }
       }
       // A word in the wrong script for the language asked about ("obrigado em tailandês" answered in Khmer,
@@ -1200,6 +1197,14 @@ export function createAnswerer(deps: AnswerDeps) {
         }
       }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
+      if (allCitationsRemoved && !/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
+        reasonCodes.push("grounding:all-citations-removed-declined-compact");
+        // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
+        const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        finalText = message;
+        return finish(genTier, "success", message, [], baseReceipt);
+      }
 
       // Safety net (Boar, gates ea5978c and be817b3): a knowledge answer that cites nothing, when no
       // source was on topic, came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up
