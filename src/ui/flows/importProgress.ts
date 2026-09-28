@@ -12,3 +12,12 @@ export function withVerifiedImport(state: RowState, assetId: string, imports: Fi
   return imports.some((f) => f.status === "verified" && f.assetId === assetId) ? { kind: "installed", verified: true } : state;
 }
 
+/**
+ * The hero bar while importing: the whole setup's bytes (files already in + the one being copied), not
+ * the current file's own progress, which fell from 100% to 0% at every file (Prism L3-4).
+ */
+export function importHeroFraction(doneBytes: number, totalBytes: number, active?: Pick<FileImport, "progress" | "sizeBytes">): number {
+  if (totalBytes <= 0) return active?.progress ?? 0;
+  const moving = active?.sizeBytes ? active.sizeBytes * active.progress : 0;
+  return Math.min(1, (doneBytes + moving) / totalBytes);
+}

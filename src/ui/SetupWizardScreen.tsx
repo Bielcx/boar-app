@@ -46,7 +46,7 @@ import * as Clipboard from "expo-clipboard";
 import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
-import { withVerifiedImport } from "./flows/importProgress";
+import { importHeroFraction, withVerifiedImport } from "./flows/importProgress";
 import { catalogLabel } from "./flows/catalogLabel";
 import { userErrorKey } from "./flows/userError";
 
@@ -1102,7 +1102,8 @@ function InstallStep({
     ? offline && activeImport
       ? {
           label: t("flows.onboarding.importingLabel"),
-          fraction: activeImport.progress,
+          // The whole setup, not this file: the bar fell from 100% to 0% at every file (Prism L3-4).
+          fraction: importHeroFraction(doneBytes, totalBytes, activeImport),
           figure: undefined,
           meta: activeImport.sizeBytes
             ? [t("flows.onboarding.totalValue", { done: formatBytes(activeImport.sizeBytes * activeImport.progress, lang), total: formatBytes(activeImport.sizeBytes, lang) })]
