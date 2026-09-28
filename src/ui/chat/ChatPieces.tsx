@@ -95,7 +95,8 @@ export const UserMessage = memo(function UserMessage({
  * then questions to start with as cards (topic overline + the question). Tap
  * sends; long-press or the screen reader action fills the composer.
  */
-export function ChatEmptyState({
+// Memoized: typing a first question re-renders the chat screen on every key; the hero and cards stay still.
+export const ChatEmptyState = memo(function ChatEmptyState({
   suggestions,
   onAsk,
   onFill,
@@ -196,7 +197,7 @@ export function ChatEmptyState({
       )}
     </View>
   );
-}
+});
 
 // Module scope: the empty chat's hero uses the boot entrance only on its first mount after launch (Iris).
 let bootHeroShown = false;
@@ -226,7 +227,7 @@ function useBootEntrance(on: boolean): Animated.Value {
 }
 
 /** The model is still loading: the dimmed mascot with what is happening, centred where the answers will be. */
-export function ChatModelLoading({ label, progress }: { label: string; progress?: number }) {
+export const ChatModelLoading = memo(function ChatModelLoading({ label, progress }: { label: string; progress?: number }) {
   const t = useTokens();
   // The mascot comes in after the native splash's cut: two boars crossed on Android (Prism, 8dc234e).
   const appear = useBootEntrance(true);
@@ -243,7 +244,7 @@ export function ChatModelLoading({ label, progress }: { label: string; progress?
       </View>
     </View>
   );
-}
+});
 
 /**
  * The model didn't load: the dimmed mascot over a danger-bordered card with

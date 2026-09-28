@@ -696,6 +696,20 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     navigation.dispatch(DrawerActions.openDrawer());
   }, [navigation, refreshSessions]);
   const send = useCallback(() => ask(input), [ask, input]);
+  // Stable props for the empty state (memo): typing re-renders this screen on every key (audit #7).
+  const suggestions = useMemo(
+    () => (showSuggestions ? suggestionsFor(activeModel?.id, i18n.language, knowledge) : []),
+    [showSuggestions, activeModel?.id, i18n.language, knowledge]
+  );
+  const openKnowledge = useCallback(() => navigation.navigate("Knowledge"), [navigation]);
+  const fillQuestion = useCallback((q: string) => {
+    setInput(q);
+    inputRef.current?.focus();
+  }, []);
+  const listContentStyle = useMemo(
+    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
+    [tk]
+  );
 
   // Set while another screen (Settings, Models, ...) is pushed on top of the chat;
   // also keeps download toasts meant for that screen out of the chat.
@@ -927,7 +941,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           extraData={renderItem}
-          contentContainerStyle={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }}
+          contentContainerStyle={listContentStyle}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           // With a conversation on screen, a model error comes in as the next message, above the composer: it
@@ -944,13 +958,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
               <ChatEmptyState
-                suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language, knowledge) : []}
-                onAddKnowledge={showSuggestions ? () => navigation.navigate("Knowledge") : undefined}
+                suggestions={suggestions}
+                onAddKnowledge={showSuggestions ? openKnowledge : undefined}
                 onAsk={ask}
-                onFill={(q) => {
-                  setInput(q);
-                  inputRef.current?.focus();
-                }}
+                onFill={fillQuestion}
               />
             )
           }
