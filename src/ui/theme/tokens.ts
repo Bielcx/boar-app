@@ -289,6 +289,8 @@ export const size = {
   icon: 20,
   iconLg: 24,
   controlSm: 36,
+  /** The icon well of an empty or error state. */
+  emptyWell: 56,
   control: 48,
   /** Round controls in the chat header (menu, avatar): visual 42, touch via hitSlop. */
   headerDisc: 42,

@@ -23,6 +23,7 @@ import { formatBytes, formatRam, formatRate, formatSeconds, toWords } from "./fl
 
 /** Rough English/Portuguese average; the screen shows words, not tokens (copy-wrap: no jargon). */
 import type { RootStackParamList } from "./navigation/types";
+import { userErrorKey } from "./flows/userError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -249,7 +250,7 @@ export function PerformanceLogsScreen() {
     try {
       await exportExecutionTelemetry(format);
     } catch (e: any) {
-      toast({ message: t("flows.performance.exportFailed", { error: e?.message ?? String(e) }), tone: "danger" });
+      toast({ message: t("flows.performance.exportFailed", { error: t(userErrorKey(e)) }), tone: "danger" });
     } finally {
       setExporting(false);
     }

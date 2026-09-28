@@ -45,6 +45,7 @@ import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
 import { catalogLabel } from "./flows/catalogLabel";
+import { userErrorKey } from "./flows/userError";
 
 interface Props {
   onReady: () => void;
@@ -1446,7 +1447,7 @@ function InstallStep({
       )}
 
       {indexPhase === "error" && (
-        <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
+        <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ? t(userErrorKey(indexError)) : undefined} detail={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
       )}
 
       {stalled && !offline && (

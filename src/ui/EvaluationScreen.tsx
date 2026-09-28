@@ -15,6 +15,7 @@ import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import type { TextColor } from "./components";
 import { icon, useTokens } from "./theme";
+import { userErrorKey } from "./flows/userError";
 
 interface Props {
   /** Shown as a Done button when the screen is opened outside the navigation stack (device requests). */
@@ -101,7 +102,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
         : await runEvaluation({ configs: chosen, ...callbacks });
       setRun(result);
     } catch (e: any) {
-      toast({ message: `${t("evaluation.runFailedTitle")}: ${e?.message ?? String(e)}`, tone: "danger" });
+      toast({ message: `${t("evaluation.runFailedTitle")}: ${t(userErrorKey(e))}`, tone: "danger" });
     } finally {
       setRunning(false);
       setStopping(false);
@@ -122,7 +123,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     try {
       await exportEvalResults(run, format);
     } catch (e: any) {
-      toast({ message: `${t("evaluation.exportFailedTitle")}: ${e?.message ?? String(e)}`, tone: "danger" });
+      toast({ message: `${t("evaluation.exportFailedTitle")}: ${t(userErrorKey(e))}`, tone: "danger" });
     }
   };
 

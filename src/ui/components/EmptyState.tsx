@@ -8,6 +8,8 @@ import { Text } from "./Text";
 export interface EmptyStateProps {
   title: string;
   body?: string;
+  /** The raw technical text of an error, small and selectable under the body (never the body itself, Prism FL-11). */
+  detail?: string;
   icon?: IconName;
   /** `error` turns this into the ErrorState (danger icon well). */
   tone?: "neutral" | "error";
@@ -23,6 +25,7 @@ export interface EmptyStateProps {
 export function EmptyState({
   title,
   body,
+  detail,
   icon,
   tone = "neutral",
   actionLabel,
@@ -37,8 +40,8 @@ export function EmptyState({
     <View style={{ alignItems: "center", paddingHorizontal: t.space.xl, paddingVertical: t.space.xxl, gap: t.space.md }}>
       <View
         style={{
-          width: 56,
-          height: 56,
+          width: t.size.emptyWell,
+          height: t.size.emptyWell,
           borderRadius: t.radius.full,
           backgroundColor: tc.bg,
           alignItems: "center",
@@ -55,6 +58,11 @@ export function EmptyState({
           {body}
         </Text>
       )}
+      {detail ? (
+        <Text variant="caption" color="secondary" align="center" selectable>
+          {detail}
+        </Text>
+      ) : null}
       {(actionLabel || secondaryLabel) && (
         <View style={{ gap: t.space.sm, marginTop: t.space.sm, alignSelf: "stretch", alignItems: "center" }}>
           {actionLabel && onAction && <Button label={actionLabel} variant={actionVariant} onPress={onAction} />}

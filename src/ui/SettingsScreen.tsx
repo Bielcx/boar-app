@@ -33,6 +33,7 @@ import {
 import { setHapticsEnabledCache } from "../services/haptics";
 import { resetAllAppData } from "../services/appReset";
 import type { RootStackParamList } from "./navigation/types";
+import { userErrorKey } from "./flows/userError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -114,7 +115,7 @@ export function SettingsScreen() {
       navigation.reset({ index: 0, routes: [{ name: "Setup" }] });
     } catch (e: any) {
       setResetting(false);
-      toast({ message: t("flows.settings.resetFailed", { error: e?.message ?? String(e) }), tone: "danger" });
+      toast({ message: t("flows.settings.resetFailed", { error: t(userErrorKey(e)) }), tone: "danger" });
     }
   };
 
