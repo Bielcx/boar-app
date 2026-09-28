@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterByMinScore, fuseRetrievalResults, MIN_SEMANTIC_SIMILARITY } from "./pure";
+import { filterByMinScore, fuseRetrievalResults, gateByRelevance, MIN_SEMANTIC_SIMILARITY } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
 
 /**
@@ -103,5 +103,38 @@ describe("fuseRetrievalResults", () => {
     const c = (id: string, title: string, score: number) => ({ chunkId: id, docId: id, title, body: "", score, matchType: "lexical" as const });
     const lexical = [c("n1", "Napoleon", 9), c("n2", "Napoleon", 8), c("n3", "Napoleon", 7), c("f1", "French Revolution", 3)];
     expect(fuseRetrievalResults(lexical, [], 4).map((r) => r.chunkId)).toEqual(["n1", "n2", "f1"]);
+  });
+});
+
+describe("gateByRelevance", () => {
+  const c = (title: string, similarity?: number) => ({ title, similarity });
+
+  it("keeps every chunk above the floor, including a comparison's weaker second topic", () => {
+    const out = gateByRelevance([c("Industrial Revolution", 0.84), c("French Revolution", 0.74), c("Long Depression", 0.62)]);
+    expect(out.map((x) => x.title)).toEqual(["Industrial Revolution", "French Revolution"]);
+  });
+
+  it("returns nothing when no chunk reaches the floor", () => {
+    expect(gateByRelevance([c("Support group", 0.57), c("Suicide crisis", 0.55)])).toEqual([]);
+  });
+
+  it("drops chunks with no similarity (keyword-only hits)", () => {
+    expect(gateByRelevance([c("Vaccine", 0.76), c("Tim Peto")]).map((x) => x.title)).toEqual(["Vaccine"]);
+    expect(gateByRelevance([c("Tim Peto")])).toEqual([]);
+  });
+
+  it("keeps order and handles an empty list", () => {
+    expect(gateByRelevance([])).toEqual([]);
+    expect(gateByRelevance([c("B", 0.74), c("A", 0.76)]).map((x) => x.title)).toEqual(["B", "A"]);
+  });
+});
+
+describe("fuseRetrievalResults keeps the real similarity", () => {
+  it("carries a semantic chunk's similarity into the fused (hybrid) chunk", () => {
+    const lexical: RetrievedChunk[] = [{ chunkId: "v", docId: "v", title: "Vaccine", body: "b", score: 12, matchType: "lexical" }];
+    const semantic: RetrievedChunk[] = [{ chunkId: "v", docId: "v", title: "Vaccine", body: "b", score: 0.76, similarity: 0.76, matchType: "semantic" }];
+    const [fused] = fuseRetrievalResults(lexical, semantic, 4);
+    expect(fused.matchType).toBe("hybrid");
+    expect(fused.similarity).toBe(0.76);
   });
 });

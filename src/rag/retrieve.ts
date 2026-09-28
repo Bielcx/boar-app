@@ -6,6 +6,7 @@ import {
   filterByMinScore,
   filterByTermCoverage,
   fuseRetrievalResults,
+  gateByRelevance,
   MIN_SEMANTIC_SIMILARITY,
 } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
@@ -24,7 +25,7 @@ const LEXICAL_CANDIDATE_MULTIPLIER = 4;
  * coverage rule is this search's relevance gate. No numeric bm25 floor is
  * applied: bm25's scale depends on the corpus and query.
  */
-async function lexicalSearch(query: string, limit: number): Promise<RetrievedChunk[]> {
+async function lexicalSearch(query: string, queryVec: Float32Array, limit: number): Promise<RetrievedChunk[]> {
   const lexicalQuery = buildLexicalQuery(query);
   if (!lexicalQuery) return [];
   const db = await getDb();
@@ -34,10 +35,12 @@ async function lexicalSearch(query: string, limit: number): Promise<RetrievedChu
     title: string;
     body: string;
     rank: number;
+    embedding: Uint8Array | null;
   }>(
-    `SELECT f.chunk_id, f.doc_id, f.title, f.body, bm25(chunks_fts) AS rank
+    `SELECT f.chunk_id, f.doc_id, f.title, f.body, bm25(chunks_fts) AS rank, e.embedding
      FROM chunks_fts f
      JOIN chunks c ON c.chunk_id = f.chunk_id
+     LEFT JOIN chunk_embeddings e ON e.chunk_id = f.chunk_id
      LEFT JOIN custom_collections cc ON cc.id = c.collection_id
      WHERE chunks_fts MATCH ? AND (c.collection_id IS NULL OR cc.active = 1)
      ORDER BY rank LIMIT ?`,
@@ -49,8 +52,14 @@ async function lexicalSearch(query: string, limit: number): Promise<RetrievedChu
     title: r.title,
     body: r.body,
     score: -r.rank, // bm25() returns lower-is-better; invert for consistent "higher is better"
+    // The relevance gate needs a similarity; without it a keyword-only hit would always be dropped.
+    similarity: r.embedding ? cosineSimilarity(queryVec, toVector(r.embedding)) : undefined,
     matchType: "lexical" as const,
   }));
+}
+
+function toVector(blob: Uint8Array): Float32Array {
+  return new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / 4);
 }
 
 /** Brute-force cosine search over stored embeddings; fine at knowledge-base scale on-device. */
@@ -72,17 +81,14 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
   );
 
   const scored = rows.map((r) => {
-    const vec = new Float32Array(
-      r.embedding.buffer,
-      r.embedding.byteOffset,
-      r.embedding.byteLength / 4
-    );
+    const similarity = cosineSimilarity(queryVec, toVector(r.embedding));
     return {
       chunkId: r.chunk_id,
       docId: r.doc_id,
       title: r.title,
       body: r.body,
-      score: cosineSimilarity(queryVec, vec),
+      score: similarity,
+      similarity,
       matchType: "semantic" as const,
     };
   });
@@ -103,13 +109,20 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
 export async function retrieve(query: string, topK = 6): Promise<RetrievedChunk[]> {
   const queryVec = await embeddingEngine.embed(query);
   const [lexical, semantic, packs] = await Promise.all([
-    lexicalSearch(query, topK * 2),
+    lexicalSearch(query, queryVec, topK * 2),
     semanticSearch(queryVec, topK * 2),
     // Downloaded knowledge packs (src/rag/packs.ts); a failing pack is skipped, never fatal.
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
   ]);
 
-  return fuseRetrievalResults([...lexical, ...packs.lexical], [...semantic, ...packs.semantic], topK);
+  // Keep only the candidates that are actually close to the question, then fuse: a strong first
+  // match must not drag weak ones along, an unrelated question gets none, and weak chunks can't
+  // take the top-K or per-article slots before the gate sees the rest.
+  return fuseRetrievalResults(
+    gateByRelevance([...lexical, ...packs.lexical]),
+    gateByRelevance([...semantic, ...packs.semantic]),
+    topK
+  );
 }
 
 export { assemblePrompt } from "./pure";

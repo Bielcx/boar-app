@@ -48,8 +48,10 @@ export function SourceFootnotes({ citations }: Props) {
                 <Text style={styles.chipTitle} numberOfLines={1}>
                   {c.title}
                 </Text>
-                {c.score != null && (
-                  <Text style={styles.scoreText}>{(c.score * 100).toFixed(0)}%</Text>
+                {/* The real similarity to the question, not the fused score: that one is only
+                    relative (the best chunk always read ~100%, even when it was unrelated). */}
+                {c.similarity != null && (
+                  <Text style={styles.scoreText}>{(c.similarity * 100).toFixed(0)}%</Text>
                 )}
                 <Text style={styles.expandChevron}>{isExpanded ? "▲" : "▼"}</Text>
               </Pressable>

@@ -17,6 +17,13 @@
  */
 export type TaskType =
   | "greeting"
+  /**
+   * Talk to or about the assistant, and small requests no document can answer ("what's your
+   * name?", "tell me a joke", "what time is it?"). No retrieval: searching a question like that
+   * only finds articles that share a word with it ("Name", "Joke", "Noon"). Unlike "greeting",
+   * the answer length isn't capped.
+   */
+  | "conversation"
   | "chat"
   | "lookup"
   | "research"

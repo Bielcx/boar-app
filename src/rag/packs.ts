@@ -111,6 +111,7 @@ export async function searchPacks(
         [lexicalQuery.match, PACK_CANDIDATES]
       );
       const toChunk = (r: PackRow, score: number, matchType: RetrievedChunk["matchType"]): RetrievedChunk => ({
+        similarity: cosineSimilarityInt8(queryVec, r.vec),
         chunkId: `pack:${pack.id}:${r.id}`,
         docId: `pack:${pack.id}:${r.title}`,
         title: r.title,

@@ -121,11 +121,12 @@ describe("classifyTask", () => {
   });
 
   it("falls back to chat for everything else", () => {
-    expect(classifyTask("tell me a joke")).toBe("chat");
+    expect(classifyTask("tell me something interesting about the sea")).toBe("chat");
   });
 
-  it("isRetrievalIrrelevant is true only for greeting/calculate/translate/code", () => {
+  it("isRetrievalIrrelevant is true only for greeting/conversation/calculate/translate/code", () => {
     expect(isRetrievalIrrelevant("greeting")).toBe(true);
+    expect(isRetrievalIrrelevant("conversation")).toBe(true);
     expect(isRetrievalIrrelevant("calculate")).toBe(true);
     expect(isRetrievalIrrelevant("translate")).toBe(true);
     expect(isRetrievalIrrelevant("code")).toBe(true);
@@ -137,5 +138,35 @@ describe("classifyTask", () => {
   it("is deterministic", () => {
     const q = "Compare Rust and Go";
     expect(classifyTask(q)).toBe(classifyTask(q));
+  });
+});
+
+describe("conversation: questions to the assistant and chit-chat", () => {
+  it.each([
+    "whats your name?",
+    "What's your name",
+    "what is your name?",
+    "who are you?",
+    "what can you do?",
+    "can you help me?",
+    "who made you?",
+    "are you an AI?",
+    "tell me a joke",
+    "joke please",
+    "what time is it?",
+    "what day is it today?",
+  ])("%s -> conversation, no retrieval", (q) => {
+    expect(classifyTask(q)).toBe("conversation");
+    expect(isRetrievalIrrelevant(classifyTask(q))).toBe(true);
+  });
+
+  it.each([
+    "what is the name of the capital of Australia?",
+    "can you help me understand photosynthesis?",
+    "who are the Visigoths?",
+    "tell me a joke about Napoleon's height and whether it's true",
+    "what time is it in Tokyo when it's noon in London?",
+  ])("%s -> still retrieves", (q) => {
+    expect(isRetrievalIrrelevant(classifyTask(q))).toBe(false);
   });
 });
