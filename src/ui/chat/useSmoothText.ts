@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fadeTail, incomingRate, nextShown, pruneMarks, REVEAL_FRAME_MS, revealRate, safeCut, type RevealMark } from "./streamReveal";
+import { fadeTail, incomingRate, nextShown, pruneMarks, REVEAL_FRAME_MS, revealRate, wordCut, type RevealMark } from "./streamReveal";
 
 export interface SmoothText {
   /** The part of the text to draw now. */
@@ -22,6 +22,8 @@ export function useSmoothText(target: string, streaming: boolean, animate: boole
   const [, setFrame] = useState(0);
   const shown = useRef(streaming && animate ? 0 : target.length);
   const marks = useRef<RevealMark[]>([{ end: shown.current, at: -Infinity }]);
+  // What is on screen: the text up to here (a word boundary). Renders happen only when it moves.
+  const drawn = useRef(shown.current);
   const cps = useRef(0);
   const lastGrowth = useRef<{ length: number; at: number }>({ length: target.length, at: Date.now() });
   const targetRef = useRef(target);
@@ -37,6 +39,7 @@ export function useSmoothText(target: string, streaming: boolean, animate: boole
   }
   // The text can also be replaced (a retry): never show past its end.
   if (shown.current > target.length) shown.current = target.length;
+  if (drawn.current > target.length) drawn.current = target.length;
 
   const behind = shown.current < target.length;
   // Until settled: revealing, streaming, or the last characters still fading in.
@@ -48,20 +51,28 @@ export function useSmoothText(target: string, streaming: boolean, animate: boole
     const tick = () => {
       const now = Date.now();
       if (now - lastTick >= REVEAL_FRAME_MS) {
-        const length = targetRef.current.length;
+        const text = targetRef.current;
+        const length = text.length;
         const lag = length - shown.current;
         if (lag > 0) {
           const rate = revealRate(cps.current, lag, !streamingRef.current);
           shown.current = nextShown(shown.current, length, now - lastTick, rate);
-          marks.current = pruneMarks([...marks.current, { end: Math.floor(shown.current), at: now }], now);
-        } else {
-          marks.current = pruneMarks(marks.current, now);
         }
         lastTick = now;
-        // Revealing or still fading: draw. Waiting for the model with the fade over: no render.
-        if (lag > 0 || marks.current.length > 1) setFrame((f) => f + 1);
+        // Cost option 2: draw only when the text on screen moves (a new word), plus once when the last
+        // fade ends; the clock ticking, the model pausing or a word half-revealed draw nothing.
+        const cut = wordCut(text, shown.current);
+        const wasFading = marks.current.length > 1;
+        if (cut !== drawn.current) {
+          drawn.current = cut;
+          marks.current = pruneMarks([...marks.current, { end: cut, at: now }], now);
+          setFrame((f) => f + 1);
+        } else {
+          marks.current = pruneMarks(marks.current, now);
+          if (wasFading && marks.current.length <= 1) setFrame((f) => f + 1);
+        }
         // Caught up with a finished stream and the fade is over: stop (the effect ends with `running`).
-        if (!streamingRef.current && shown.current >= length && marks.current.length <= 1) {
+        if (!streamingRef.current && drawn.current >= length && marks.current.length <= 1) {
           setFrame((f) => f + 1); // the render that reports `settled`
           return;
         }
@@ -73,8 +84,8 @@ export function useSmoothText(target: string, streaming: boolean, animate: boole
   }, [running]);
 
   if (!animate) return { text: target, tail: NO_TAIL, settled: !streaming };
-  const cut = safeCut(target, shown.current);
-  const settled = !streaming && shown.current >= target.length && marks.current.length <= 1;
+  const cut = drawn.current;
+  const settled = !streaming && cut >= target.length && marks.current.length <= 1;
   return {
     text: target.slice(0, cut),
     tail: settled ? NO_TAIL : fadeTail(marks.current, cut, Date.now()),

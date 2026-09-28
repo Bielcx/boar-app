@@ -13,6 +13,8 @@ import {
   revealRate,
   safeCut,
   toneTail,
+  wordCut,
+  MAX_WORD,
   type RevealMark,
 } from "./streamReveal";
 import { STREAM_FLUSH_MS } from "./streamBatch";
@@ -154,5 +156,24 @@ describe("toneTail", () => {
       { part: parts[1], tone: "tertiary" },
     ]);
     expect(toneTail(parts, { tertiary: 0, secondary: 0 }).every((p) => p.tone === null)).toBe(true);
+  });
+});
+
+describe("wordCut (cost option 1: the screen moves a word at a time)", () => {
+  const text = "Canberra is the capital of Australia.";
+  it("cuts at the end of the last whole word", () => {
+    expect(text.slice(0, wordCut(text, 11))).toBe("Canberra is");
+    expect(text.slice(0, wordCut(text, 13))).toBe("Canberra is");
+    expect(text.slice(0, wordCut(text, 15))).toBe("Canberra is the");
+    expect(text.slice(0, wordCut(text, 3))).toBe("");
+  });
+  it("shows everything once reached, and a very long word by characters", () => {
+    expect(wordCut(text, 999)).toBe(text.length);
+    const url = "see " + "x".repeat(MAX_WORD + 6) + " end";
+    expect(wordCut(url, 4 + MAX_WORD + 2)).toBe(4 + MAX_WORD + 2);
+  });
+  it("keeps safeCut's rules", () => {
+    const cite = "It is Canberra [12] today";
+    expect(cite.slice(0, wordCut(cite, cite.indexOf("[12]") + 2))).toBe("It is Canberra");
   });
 });

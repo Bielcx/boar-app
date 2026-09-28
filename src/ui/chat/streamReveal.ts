@@ -57,6 +57,25 @@ export function safeCut(text: string, n: number): number {
   return cut;
 }
 
+/** A word longer than this (a URL, a compound) shows by characters rather than waiting whole. */
+export const MAX_WORD = 24;
+
+/**
+ * Where to cut by whole words (cost option 1): at the end of the last complete word before `n`, so the
+ * screen changes at the model's word rate (~15-20 a second) instead of on every clock step (~30), and the
+ * fade runs per word, as in the chat apps. A word longer than MAX_WORD shows by characters; the whole
+ * text shows at once when reached. Markers and surrogates as in safeCut.
+ */
+export function wordCut(text: string, n: number): number {
+  const cut = safeCut(text, n);
+  if (cut >= text.length || cut === 0) return cut;
+  if (/\s/.test(text[cut])) return cut;
+  let space = cut - 1;
+  while (space >= 0 && !/\s/.test(text[space])) space--;
+  if (cut - (space + 1) > MAX_WORD) return cut;
+  return safeCut(text, Math.max(0, space));
+}
+
 /** One step of the reveal: the text length it reached and when. */
 export interface RevealMark {
   end: number;
