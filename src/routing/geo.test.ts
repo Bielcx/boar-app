@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { detectGeoIntent, formatDistance, GeoProviders, noMatchAnswer, PoiRecord } from "./geo";
+import { dedupPlaces, detectGeoIntent, formatDistance, GeoProviders, noMatchAnswer, normalizePlaceName, PoiRecord } from "./geo";
 import { createAnswerer, AnswerDeps, DEVICE_INSIDE_TIMEOUT_MS, LOCATING_SIGNAL_MS } from "./answer";
 import type { AnswerEvent } from "./events";
 
@@ -472,5 +472,49 @@ describe("detectGeoIntent: customs are knowledge, not places (Sextant trv-009)",
   });
   it("a request for places stays one", () => {
     for (const q of ["Best vegan restaurants in Lisbon", "Onde comer em Lisboa?", "Recommend restaurants in Tokyo that accept credit cards"]) expect(detectGeoIntent(q), q).not.toBeNull();
+  });
+});
+
+describe("dedupPlaces: one record per real place (The Conscious Kitchen twice in Cape Town)", () => {
+  // Woodstock, Cape Town: the OSM node and its building way, ~20 m apart.
+  const ck = (id: string, name: string, lat: number, lon: number, extra: Partial<PoiRecord> = {}) =>
+    poi(id, name, 800, "yes", { lat, lon, address: undefined, ...extra });
+
+  it("normalizes case, articles, accents and punctuation", () => {
+    expect(normalizePlaceName("The Conscious Kitchen")).toBe("conscious kitchen");
+    expect(normalizePlaceName("the conscious-kitchen")).toBe("conscious kitchen");
+    expect(normalizePlaceName("Conscious Kitchen, The")).toBe("conscious kitchen");
+    expect(normalizePlaceName("Café  Crème")).toBe("cafe creme");
+    expect(normalizePlaceName("A Casa do Porco")).toBe("casa do porco");
+    expect(normalizePlaceName("The")).toBe("the");
+  });
+
+  it("keeps the first of two same-name records under 50 m, filling what it lacks", () => {
+    const a = ck("osm:node/10", "The Conscious Kitchen", -33.92695, 18.44641);
+    const b = ck("osm:way/11", "The Conscious Kitchen", -33.9271, 18.4465, { address: "Woodstock Exchange, 66 Albert Rd", openingHours: "Mo-Fr 08:00-15:00" });
+    const other = ck("osm:node/12", "Plant Café", -33.9272, 18.4466);
+    const out = dedupPlaces([a, other, b]);
+    expect(out.map((p) => p.id)).toEqual(["osm:node/10", "osm:node/12"]);
+    expect(out[0]).toMatchObject({ address: "Woodstock Exchange, 66 Albert Rd", openingHours: "Mo-Fr 08:00-15:00" });
+  });
+
+  it("keeps same-name places 50 m or more apart (two branches) and different names at the same spot", () => {
+    const a = ck("osm:node/20", "Kauai", -33.92, 18.42);
+    const b = ck("osm:node/21", "Kauai", -33.9205, 18.42); // ~56 m
+    const c = ck("osm:node/22", "Kauai Express", -33.92, 18.42);
+    expect(dedupPlaces([a, b, c]).map((p) => p.id)).toEqual(["osm:node/20", "osm:node/21", "osm:node/22"]);
+  });
+
+  it("answer(): the places list names The Conscious Kitchen once", async () => {
+    const pois = [
+      ck("osm:node/10", "The Conscious Kitchen", -33.92695, 18.44641, { address: "66 Albert Rd" }),
+      ck("osm:way/11", "The Conscious Kitchen", -33.9271, 18.4465, { address: "66 Albert Rd, Woodstock" }),
+      ck("osm:node/12", "Plant Café", -33.9272, 18.4466, { address: "8 Buitenkant St" }),
+    ];
+    geo.searchPois = async () => ({ pois, radiusUsedM: 3000, coverage: "full" as const });
+    const { r, places } = await ask("vegan near me");
+    expect(places!.places.map((p) => p.name)).toEqual(["The Conscious Kitchen", "Plant Café"]);
+    expect(r.text.match(/The Conscious Kitchen/g)).toHaveLength(1);
+    expect(r.receipt.reasonCodes).toContain("places:dedup-1");
   });
 });

@@ -26,6 +26,7 @@ import {
   splitSentences,
   wrongScriptSentences,
   stripModelDisclaimer,
+  stripModelReferences,
   withSeekCare,
   PT_ANSWER_LANGUAGE,
   PT_ANSWER_LANGUAGE_NO_SOURCES,
@@ -87,6 +88,7 @@ import {
   noPackAnswer,
   staleLocationAnswer,
   toPlace,
+  dedupPlaces,
   toSourceChunk,
 } from "./geo";
 import type {
@@ -109,6 +111,7 @@ import type { GenerateOptions, GenerationTimings, LoadResult } from "../inferenc
 import type { MemoryFit } from "../inference/memoryFit";
 import type { AnswerSettings } from "../models/settings";
 import type { ResearchOptions, ResearchProgress, ResearchResult } from "../services/orchestrator";
+import type { ExecutionOutcome, ExecutionTelemetryRecord, ModelResidency } from "../services/executionTelemetry.pure";
 
 export interface InstalledLlm {
   id: string;
@@ -172,6 +175,12 @@ export interface AnswerDeps {
    * sources against them; without them a PT question never names an English title.
    */
   englishNames?(query: string): string[];
+  /**
+   * Persists one execution record (src/services/executionTelemetry.ts recordExecution) at the end of
+   * every answer a model generated: the Performance screen, the Models speeds and rule D6
+   * (getModelSpeeds) read them. Answers with no model (instant excerpt, places, cards) record nothing.
+   */
+  recordExecution?(record: Omit<ExecutionTelemetryRecord, "id" | "createdAt">): Promise<void>;
 }
 
 /** GPS budget: the first useful information must appear in under a second. */
@@ -476,6 +485,8 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const byDistance = intent.near.kind === "device";
       area.radiusM = found.radiusUsedM;
+      const pois = dedupPlaces(found.pois);
+      if (pois.length < found.pois.length) reasonCodes.push(`places:dedup-${found.pois.length - pois.length}`);
       if (deviceNow) {
         const here = deviceNow.value;
         if (here && !("error" in here) && distanceMeters(here, center) <= DEVICE_INSIDE_RADIUS_M) {
@@ -487,13 +498,13 @@ export function createAnswerer(deps: AnswerDeps) {
       // address: exact places with an address come first, ranking kept
       // within each group; approximate guide listings stay last.
       const ranked = byDistance
-        ? found.pois
+        ? pois
         : [
-            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && p.address),
-            ...found.pois.filter((p) => !p.approx && p.dietFlag !== "verify" && !p.address),
+            ...pois.filter((p) => !p.approx && p.dietFlag !== "verify" && p.address),
+            ...pois.filter((p) => !p.approx && p.dietFlag !== "verify" && !p.address),
             // Doubtful diet tags stay after every trustworthy place, as the pack ranked them.
-            ...found.pois.filter((p) => !p.approx && p.dietFlag === "verify"),
-            ...found.pois.filter((p) => p.approx),
+            ...pois.filter((p) => !p.approx && p.dietFlag === "verify"),
+            ...pois.filter((p) => p.approx),
           ];
       const sources = ranked.map(toSourceChunk);
       const places = ranked.map((p, i) => toPlace(p, i, byDistance));
@@ -514,7 +525,7 @@ export function createAnswerer(deps: AnswerDeps) {
         filters,
         criterion,
         coverage: "ok",
-        truncated: ranked.length >= PLACES_LIMIT,
+        truncated: found.pois.length >= PLACES_LIMIT,
         attribution,
       });
       reasonCodes.push(`places:${places.length}`, `places:coverage-${found.coverage}`, ...(found.region ? [`places:region-${found.region}`] : []));
@@ -633,6 +644,32 @@ export function createAnswerer(deps: AnswerDeps) {
       const genTier: AnswerTier = gen?.tier ?? "fast";
       const genLlm = gen ? byId.get(gen.modelId) : undefined;
 
+      /** Set once the model is asked to generate: only then does the answer leave an execution record. */
+      let generation: { modelId: string; residency: ModelResidency; firstTokenAt: number | null; decodeMs?: number; decodeTokens?: number } | null = null;
+      const record = (outcome: AnswerOutcome, r: AnswerReceipt, error?: { message: string }) => {
+        if (!generation || !deps.recordExecution) return;
+        const execOutcome: ExecutionOutcome = outcome === "success" ? "success" : outcome === "stopped" ? "cancelled" : "failure";
+        deps
+          .recordExecution({
+            modelId: generation.modelId,
+            taskType,
+            adaptiveRoutingUsed: true,
+            reasonCodes: [...r.reasonCodes],
+            retrievalUsed: plan.retrieve,
+            modelSwitches: generation.residency === "resident" ? 0 : 1,
+            crossMessageModelSwitch: generation.residency === "switched",
+            modelResidency: generation.residency,
+            modelLoadMs: r.loadMs,
+            ttftMs: generation.firstTokenAt !== null ? generation.firstTokenAt - t0 : undefined,
+            generationLatencyMs: generation.decodeMs,
+            totalLatencyMs: deps.now() - t0,
+            tokensGenerated: generation.decodeTokens ?? r.tokens,
+            tokPerSec: r.tokPerSec,
+            outcome: execOutcome,
+            ...(outcome === "timeout" ? { errorMessage: "timeout" } : error ? { errorMessage: error.message } : {}),
+          })
+          .catch(() => {});
+      };
       const receipt = (over: Partial<AnswerReceipt> = {}): AnswerReceipt => ({
         modelId: genLlm?.id ?? "none",
         modelLabel: genLlm?.label ?? "",
@@ -667,6 +704,7 @@ export function createAnswerer(deps: AnswerDeps) {
           emit({ type: "warning", answerId, code: "weak_sources", message: "No offline source backs this answer." });
         }
         emit({ type: "done", answerId, tier, outcome, receipt: r, error, cited, ...(finalText !== undefined ? { finalText } : {}) });
+        record(outcome, r, error);
         return { answerId, tier, outcome, text, sources, receipt: r, cited };
       };
 
@@ -956,6 +994,8 @@ export function createAnswerer(deps: AnswerDeps) {
         }
       };
 
+      const residentBefore = deps.engine.getModelInfo()?.filename ?? null;
+      const residency: ModelResidency = residentBefore === genLlm.filename ? "resident" : residentBefore === null ? "cold" : "switched";
       const loadError = await ensureLoaded(genLlm, genTier);
       if (loadError) {
         return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
@@ -974,6 +1014,7 @@ export function createAnswerer(deps: AnswerDeps) {
       const onToken = (piece: string) => {
         if (firstTokenAt === null) {
           firstTokenAt = deps.now();
+          if (generation) generation.firstTokenAt = firstTokenAt;
           markVisible();
           if (gen.mode === "single") stage("generating", genTier, genLlm.id);
         }
@@ -981,6 +1022,15 @@ export function createAnswerer(deps: AnswerDeps) {
         emit({ type: "token", answerId, tier: genTier, text: piece });
       };
 
+      generation = { modelId: genLlm.id, residency, firstTokenAt: null };
+      // CT-A: the model's own reference list ("[1] Monsoon, Wikipedia, acessado em…") goes; the app's [n] cite.
+      const withoutModelReferences = (t: string) => {
+        const stripped = stripModelReferences(t);
+        if (stripped === t.trimEnd()) return t;
+        reasonCodes.push("grounding:model-references-stripped");
+        finalText = stripped;
+        return stripped;
+      };
       try {
         if (gen.mode === "multipass") {
           const r = await deps.runMultipass(
@@ -1003,7 +1053,7 @@ export function createAnswerer(deps: AnswerDeps) {
               },
             }
           );
-          text = r.answer;
+          text = withoutModelReferences(r.answer);
           timedOut = !!r.timedOut;
           sources = r.citations;
         } else {
@@ -1019,10 +1069,12 @@ export function createAnswerer(deps: AnswerDeps) {
             onToken: health ? () => {} : onToken,
             onTimings: (t: GenerationTimings) => (timings = t),
           };
-          text = await deps.engine.generate(
-            useTemplate
-              ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
-              : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+          text = withoutModelReferences(
+            await deps.engine.generate(
+              useTemplate
+                ? { ...common, messages: deps.assembleChatMessages(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+                : { ...common, prompt: deps.assemblePrompt(req.query, sources, ctx.systemPrompt, ctx.history, styleReminder) }
+            )
           );
           if (health) {
             // A known-dangerous instruction the model added ("blow your nose", "tilt the head back"): show the source instead.
@@ -1054,6 +1106,7 @@ export function createAnswerer(deps: AnswerDeps) {
       const genEnd = deps.now();
       const decodeMs = timings?.predictedMs ?? (firstTokenAt !== null ? genEnd - firstTokenAt : 0);
       const decodeTokens = timings?.predictedTokens ?? tokens;
+      if (generation) Object.assign(generation, { decodeMs, decodeTokens });
       const baseReceipt = receipt({
         tokens,
         tokPerSec: decodeMs > 0 ? (decodeTokens / decodeMs) * 1000 : 0,

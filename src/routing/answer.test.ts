@@ -58,6 +58,7 @@ interface Fake {
   retrieved: RetrievedChunk[];
   loadError: string | null;
   verdict: string;
+  records: Parameters<NonNullable<AnswerDeps["recordExecution"]>>[0][];
 }
 
 function makeFake(): Fake {
@@ -76,6 +77,7 @@ function makeFake(): Fake {
     retrieved: [CANBERRA, MOLD, HALL],
     loadError: null,
     verdict: "SUPPORTED. Matches [1].",
+    records: [],
     deps: null as unknown as AnswerDeps,
   };
   f.deps = {
@@ -132,6 +134,9 @@ function makeFake(): Fake {
     },
     assemblePrompt,
     assembleChatMessages,
+    recordExecution: async (r) => {
+      f.records.push(r);
+    },
   };
   return f;
 }
@@ -1637,5 +1642,85 @@ describe("answer(): device-dependent default model", () => {
     f.deps.deviceRamBytes = () => 12 * GB;
     const { result } = await collect("Tell me about Canberra");
     expect(result.receipt.modelId).toBe("qwen1.5");
+  });
+});
+
+describe("answer(): execution telemetry (regression since 4e4f49d: nothing recorded)", () => {
+  it("records one execution at the end of a model's answer", async () => {
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.tier).toBe("fast");
+    expect(f.records).toHaveLength(1);
+    const r = f.records[0];
+    expect(r).toMatchObject({
+      modelId: "qwen1.5",
+      taskType: expect.any(String),
+      adaptiveRoutingUsed: true,
+      modelResidency: "cold",
+      tokensGenerated: 5,
+      generationLatencyMs: 50,
+      outcome: "success",
+    });
+    expect(r.tokPerSec).toBeCloseTo(100);
+    expect(r.ttftMs).toBeGreaterThan(0);
+    expect(r.totalLatencyMs).toBeGreaterThanOrEqual(r.ttftMs!);
+    expect(r.reasonCodes).toEqual(result.receipt.reasonCodes);
+  });
+
+  it("records the model as resident on the next answer, and one record per answer", async () => {
+    await collect("What is the capital of Australia and where is it?");
+    await collect("What is the capital of Australia and where is it?");
+    expect(f.records.map((r) => r.modelResidency)).toEqual(["cold", "resident"]);
+  });
+
+  it("records nothing for an instant excerpt answered without a model", async () => {
+    const { result } = await collect("What is the capital of Australia?");
+    expect(result.tier).toBe("instant");
+    expect(f.records).toHaveLength(0);
+  });
+
+  it("records nothing when the model never generated (load failed)", async () => {
+    f.loadError = "boom";
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("error");
+    expect(f.records).toHaveLength(0);
+  });
+
+  it("records a failed generation as a failure with its message", async () => {
+    f.deps.engine.generate = async () => {
+      throw new Error("decode crashed");
+    };
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("error");
+    expect(f.records).toHaveLength(1);
+    expect(f.records[0]).toMatchObject({ modelId: "qwen1.5", outcome: "failure", errorMessage: "decode crashed" });
+  });
+
+  it("a telemetry write failure never breaks the answer", async () => {
+    f.deps.recordExecution = async () => {
+      throw new Error("sqlite locked");
+    };
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("success");
+  });
+});
+
+describe("answer(): the model's own reference list (CT-A)", () => {
+  it("removes '[1] Monsoon, Wikipedia, acessado em 1 de fevereiro de 2023' from the final text", async () => {
+    const line = "[1] Monsoon, Wikipedia, acessado em 1 de fevereiro de 2023";
+    f.deps.engine.generate = async (opts) => {
+      const pieces = ["Canberra is the capital of Australia [1].", "\n\n", line];
+      for (const p of pieces) opts.onToken?.(p);
+      opts.onTimings?.({ promptTokens: 100, promptMs: 10, predictedTokens: 3, predictedMs: 30 });
+      return pieces.join("");
+    };
+    const { events, result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.tier).toBe("fast");
+    expect(result.text).not.toContain("Monsoon");
+    expect(result.text).not.toContain("acessado");
+    expect(result.text).toMatch(/^Canberra is the capital of Australia \[1\]\.$/);
+    const done = events.find((e) => e.type === "done") as any;
+    expect(done.finalText).toBe(result.text);
+    expect(done.cited).toEqual([1]);
+    expect(result.receipt.reasonCodes).toContain("grounding:model-references-stripped");
   });
 });
