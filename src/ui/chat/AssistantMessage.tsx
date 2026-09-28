@@ -171,21 +171,18 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
   const counting = streaming && inProgress;
   const seconds = useElapsedSeconds(counting);
   const label = open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show");
+  // The fold opens in height (DS layout), not in one frame.
+  const toggle = () => {
+    m.animateNextLayout();
+    setOpen((o) => !o);
+  };
   return (
     <View style={{ gap: t.space.xs }}>
       {/* The label stays what it does (Prism CH-26: the spoken name is the visible one, and the pill no longer
           shifts every second); the counter is a caption beside it, silent (readers hear the stages). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
         {/* A secondary move in text.secondary, not ember (Prism CH-14). */}
-        <TextAction
-          label={label}
-          leadingIcon="message-circle"
-          onPress={() => {
-            m.animateNextLayout();
-            setOpen((o) => !o);
-          }}
-          expanded={open}
-        />
+        <TextAction label={label} leadingIcon="message-circle" onPress={toggle} expanded={open} />
         {counting && (
           <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             <MetaLine items={[tr("chat.reasoning.thinking", { seconds })]} variant="caption" />
