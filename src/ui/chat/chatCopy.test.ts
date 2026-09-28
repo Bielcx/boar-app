@@ -19,6 +19,12 @@ describe.each([
     expect(d.chat.empty.addKnowledge.length).toBeLessThanOrEqual(18);
     expect(d.chat.empty.addKnowledgeWhy.length).toBeLessThanOrEqual(18);
   });
+  it("CH-30/CH-31/CH-33: verb + object, one retry verb, short drawer items", () => {
+    expect(d.chat.places.useLocation).toMatch(/^(Use|Usar) /);
+    expect(d.chat.places.useLocation.length).toBeLessThanOrEqual(18);
+    expect(d.chat.modelError.retry).toBe(d.chat.actions.retry);
+    expect(d.nav.catalog.length).toBeLessThanOrEqual(18);
+  });
   it("CH-18: the places empty states are one sentence of at most two lines", () => {
     for (const body of [d.chat.places.noneBody, d.chat.places.noPackBody]) {
       expect(body.length).toBeLessThanOrEqual(TWO_LINES);

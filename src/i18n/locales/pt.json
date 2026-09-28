@@ -92,7 +92,7 @@
     "performance": "Desempenho",
     "about": "Sobre",
     "promptIdeas": "Ideias de perguntas",
-    "catalog": "Catálogo de componentes",
+    "catalog": "Catálogo",
     "deleteChatA11y": "Apagar conversa: {{title}}",
     "deleteChatTitle": "Apagar esta conversa?",
     "deleteChatBody": "\"{{title}}\" será removida deste aparelho. Não dá para desfazer.",
@@ -978,7 +978,7 @@
       "viewPassage": "Ver trecho do guia",
       "whichCity": "Qual cidade?",
       "search": "Buscar",
-      "useLocation": "Perto de mim",
+      "useLocation": "Usar localização",
       "typeCity": "Digitar a cidade",
       "locationDenied": "A localização está desligada. Digite a cidade.",
       "locationUnavailable": "Não consegui o sinal de GPS. Digite a cidade.",
@@ -1062,7 +1062,7 @@
       "status": "Modelo {{model}} não carregado",
       "details": "Detalhes",
       "hideDetails": "Ocultar detalhes",
-      "retry": "Recarregar"
+      "retry": "Tentar de novo"
     },
     "safety": {
       "emergencyNote": "Não substitui serviço de emergência. Numa emergência, ligue para o número de emergência local."

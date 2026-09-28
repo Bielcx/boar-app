@@ -978,7 +978,7 @@
       "viewPassage": "Open guide passage",
       "whichCity": "Which city?",
       "search": "Search",
-      "useLocation": "Near me",
+      "useLocation": "Use location",
       "typeCity": "Type the city",
       "locationDenied": "Location is off. Type the city instead.",
       "locationUnavailable": "Couldn't get a GPS fix. Type the city instead.",
