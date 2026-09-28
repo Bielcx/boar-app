@@ -12,3 +12,12 @@ export function sheetTravel(measured: number, windowHeight: number, reduceMotion
   if (reduceMotion) return 0;
   return measured > 0 ? measured : windowHeight;
 }
+
+/**
+ * Drag on the grabber/header (Iris TR-12: the grabber promised a drag that did nothing). Let go past
+ * a third of the sheet, or flick down, and it closes; otherwise it springs back.
+ */
+export function sheetDragCloses(dy: number, vy: number, height: number): boolean {
+  if (dy <= 0) return false;
+  return dy > height / 3 || (vy > 800 && dy > 16);
+}
