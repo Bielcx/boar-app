@@ -11,6 +11,7 @@
 //   index    <work>/tiles/index.json: id, bbox, size, SHA-256 and counts per tile
 //
 //   node scripts/build-poi-world.mjs extract --work W --leaves leaves.json --continents europe,asia
+//        [--only yunnan,vietnam] [--exclude us,us-south]   (ids; --only keeps its own order)
 //   node scripts/build-poi-world.mjs tiles --work W --voyage enwikivoyage.xml.bz2 --places world-places.sqlite [--diet-check f.json]
 //   node scripts/build-poi-world.mjs index --work W
 //
@@ -32,6 +33,8 @@ const { values: o } = parseArgs({
     work: { type: "string" },
     leaves: { type: "string" },
     continents: { type: "string", default: "" },
+    only: { type: "string", default: "" },
+    exclude: { type: "string", default: "" },
     voyage: { type: "string" },
     places: { type: "string" },
     "diet-check": { type: "string" },
@@ -73,8 +76,14 @@ function pointOf(g) {
 }
 
 async function extract() {
-  const want = new Set(o.continents.split(",").filter(Boolean));
-  const leaves = JSON.parse(readFileSync(o.leaves, "utf8")).filter((l) => !want.size || want.has(l.continent));
+  const ids = (s) => s.split(",").filter(Boolean);
+  const want = new Set(ids(o.continents));
+  const skip = new Set(ids(o.exclude));
+  let leaves = JSON.parse(readFileSync(o.leaves, "utf8")).filter((l) => (!want.size || want.has(l.continent)) && !skip.has(l.id));
+  if (o.only) {
+    const byId = new Map(leaves.map((l) => [l.id, l]));
+    leaves = ids(o.only).map((id) => byId.get(id)).filter(Boolean);
+  }
   log(`${leaves.length} extracts`);
   for (const [i, leaf] of leaves.entries()) {
     const out = join(EXTRACTS, `${leaf.id.replace(/\//g, "_")}.jsonl.gz`);

@@ -7,9 +7,9 @@
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
 import type { CatalogModel } from "../models/manifest";
-import { registerAssetProvider } from "../models/assetRegistry";
+import { onAssetInstalled, registerAssetProvider, unregisterAssetProvider } from "../models/assetRegistry";
 import { PoiPack, resolvePlaceIn, searchPlacesIn, searchPoiPacks, type PlaceSuggestion, type PoiArea } from "./poiPack";
-import { tileBbox, tileEntry, tileIdsFor, type PoiTile } from "./poiRegions";
+import { WORLD_PLACES_ID, tileBbox, tileEntry, tileIdsFor, type PoiTile } from "./poiRegions";
 import type { PlaceMatch, PoiQuery, PoiSearchResult } from "./pois.types";
 import type { PackSql } from "./wikiPack";
 import { guard, type Guarded } from "./guardedDb";
@@ -169,7 +169,9 @@ export async function searchPlaces(query: string, limit = 10): Promise<PlaceSugg
 /**
  * The tile index shipped in the gazetteer (sizes and hashes of every tile that
  * has places), loaded once; its entries are then installable by download or
- * file import like any other asset.
+ * file import like any other asset. Called at boot and again whenever the
+ * gazetteer is installed. An empty result (no gazetteer yet, or one without the
+ * tiles table) is not cached, so a later call reads the gazetteer installed since.
  */
 export async function loadTileCatalog(): Promise<Map<string, PoiTile>> {
   if (tileIndex) return tileIndex;
@@ -183,16 +185,35 @@ export async function loadTileCatalog(): Promise<Map<string, PoiTile>> {
         .catch(() => db.getAllAsync<Row>(`SELECT ${cols} FROM tiles`, []))
         .catch(() => [] as Row[])
     : [];
-  tileIndex = new Map(
+  const index = new Map(
     rows.map((r) => [
       r.id,
       { id: r.id, sizeBytes: r.size_bytes, sha256: r.sha256, pois: r.pois, vegan: r.vegan, osmDate: r.osm_date, ...(r.url ? { url: r.url } : {}) },
     ])
   );
-  const entries = [...tileIndex.values()].map(tileEntry);
+  if (!index.size) {
+    unregisterAssetProvider("poi-tiles");
+    return index;
+  }
+  const entries = [...index.values()].map(tileEntry);
   registerAssetProvider("poi-tiles", () => entries);
-  return tileIndex;
+  tileIndex = index;
+  return index;
 }
+
+/**
+ * A newly installed gazetteer (first install, or a new version over the old
+ * file) replaces the open connection and the tile index read from it.
+ */
+export async function reloadTileCatalog(): Promise<Map<string, PoiTile>> {
+  await closePoiPack(PLACES_FILE);
+  tileIndex = null;
+  return loadTileCatalog();
+}
+
+onAssetInstalled((asset) => {
+  if (asset.id === WORLD_PLACES_ID) void reloadTileCatalog().catch((e) => console.warn("[pois] tile index reload failed:", e?.message ?? e));
+});
 
 /**
  * What to download for a trip: the tiles (that have places) covering a circle

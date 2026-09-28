@@ -40,13 +40,16 @@ export const POI_LICENSE = "ODbL 1.0 (© OpenStreetMap contributors) + CC BY-SA 
 /** Catalog id of the world gazetteer; every places pack requires it. */
 export const WORLD_PLACES_ID = "poi-world-places";
 
-/** The world gazetteer used to resolve place names ("restaurants in Lisbon"), shipped with any places pack. */
+/**
+ * The world gazetteer used to resolve place names ("restaurants in Lisbon"), shipped with any places pack.
+ * Carries the tile index (table tiles: 2,999 1° tiles, URLs pinned to HF commit c56c09b), phase 1 of the world tiles.
+ */
 export const WORLD_PLACES = {
   filename: "poi/world-places.sqlite",
-  sizeBytes: 20811776,
-  sha256: "fdb302aa2a2813ad36487b4f0ffa629ba21faec700ee5fcb5c4bf9c3448e9746",
+  sizeBytes: 21585920,
+  sha256: "b6771c536efe9b61bff283d4ceadca89c0c4c76e0ec9412f9a0cc981c48b0d15",
   license: "CC BY 4.0 (GeoNames)",
-  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/6a65cc29fa6ecfdf5ee66ac05716e0eacdc5fa95/places/world-places.sqlite",
+  sourceUrl: "https://huggingface.co/datasets/r4topunk/boar-packs/resolve/584bd17a8c76260e0a96fe425e0b847597a4b02b/places/world-places.sqlite",
   places: 34149,
 };
 
