@@ -8,6 +8,8 @@ import { Button } from "./Button";
 import { Icon, IconName } from "./Icon";
 import { useOpticalLine } from "./IconText";
 import { Text } from "./Text";
+import { useMotion } from "../theme/motion";
+import { queueToast, ToastQueue, toastLeft } from "./toastQueue";
 
 export interface ToastOptions {
   message: string;
@@ -30,16 +32,19 @@ export function toastDuration(message: string, hasAction: boolean): number {
 
 /** Mounted once in the shell. `const toast = useToast(); toast({ message, actionLabel: t("ui.undo"), onAction })`. */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [current, setCurrent] = useState<(ToastOptions & { id: number }) | null>(null);
+  const [queue, setQueue] = useState<ToastQueue<ToastOptions & { id: number }>>({ current: null, pending: null });
   const idRef = useRef(0);
   const show = useCallback<Show>((options) => {
     idRef.current += 1;
-    setCurrent({ ...options, id: idRef.current });
+    const next = { ...options, id: idRef.current };
+    setQueue((q) => queueToast(q, next));
   }, []);
+  const onDone = useCallback(() => setQueue(toastLeft), []);
+  const current = queue.current;
   return (
     <ToastContext.Provider value={show}>
       {children}
-      {current && <ToastView key={current.id} toast={current} onDone={() => setCurrent(null)} />}
+      {current && <ToastView key={current.id} toast={current} replaced={queue.pending !== null} onDone={onDone} />}
     </ToastContext.Provider>
   );
 }
@@ -48,31 +53,38 @@ export function useToast(): Show {
   return useContext(ToastContext);
 }
 
-function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void }) {
-  const { tokens: t, reduceMotion } = useTheme();
+function ToastView({ toast, replaced, onDone }: { toast: ToastOptions; replaced: boolean; onDone: () => void }) {
+  const { tokens: t } = useTheme();
+  const m = useMotion();
   const insets = useSafeAreaInsets();
   const announce = useAnnounce();
   const anim = useRef(new Animated.Value(0)).current;
   // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
-  const riseY = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }), [anim]);
+  const travel = m.spec("enter").travel;
+  const riseY = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [travel, 0] }), [anim, travel]);
   const tone = toast.tone ?? "neutral";
   const tc = toneColors(t.color, tone === "neutral" ? "neutral" : tone);
   const line = useOpticalLine("callout");
 
-  const hide = useCallback(() => {
-    Animated.timing(anim, { toValue: 0, duration: reduceMotion ? 0 : t.motion.duration.fast, useNativeDriver: true }).start(onDone);
-  }, [anim, onDone, reduceMotion, t.motion.duration.fast]);
+  // Leaves with `exit` (150 ms, accelerate, back down); replaced by a newer toast, the short swap exit (90 ms).
+  const leaving = useRef(false);
+  const hide = useCallback(
+    (swap = false) => {
+      if (leaving.current) return;
+      leaving.current = true;
+      Animated.timing(anim, { toValue: 0, ...m.timing("exit", { swap }), useNativeDriver: true }).start(() => onDone());
+    },
+    [anim, onDone, m]
+  );
+  useEffect(() => {
+    if (replaced) hide(true);
+  }, [replaced, hide]);
 
   useEffect(() => {
     announce(toast.actionLabel ? `${toast.message}. ${toast.actionLabel}` : toast.message, { assertive: tone === "danger" });
     if (tone === "danger") notification(NotificationFeedbackType.Error);
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: reduceMotion ? 0 : t.motion.duration.base,
-      easing: t.motion.easing.enter,
-      useNativeDriver: true,
-    }).start();
-    const timer = setTimeout(hide, toast.duration ?? toastDuration(toast.message, !!toast.actionLabel));
+    Animated.timing(anim, { toValue: 1, ...m.timing("enter"), useNativeDriver: true }).start();
+    const timer = setTimeout(() => hide(), toast.duration ?? toastDuration(toast.message, !!toast.actionLabel));
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
