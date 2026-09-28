@@ -130,7 +130,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // Answers asked in this run (not restored from history): only these may take focus (the city prompt).
   const askedIds = useRef<Set<string>>(new Set());
   // Rows sent in this run that haven't entered yet (SEND-MOTION S1): each enters once.
-  const enterIds = useRef<Set<string>>(new Set());
+  const enterIds = useRef<Map<string, "now" | "afterSwap">>(new Map());
   // Which conversation the list shows (TR-10): changes on switching or starting one, not when the first
   // question creates the session (that would crossfade the list away mid-send).
   const [conversationKey, setConversationKey] = useState("initial");
@@ -471,8 +471,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       followBottom.current = true;
 
       const userItem: ChatItem = { kind: "user", id: `${Date.now()}-u`, text: query };
-      enterIds.current.add(userItem.id);
-      enterIds.current.add(assistantId);
+      // The first question replaces the empty state: it enters after that state has left (F2-4b).
+      const enterMode = itemsRef.current.length === 0 ? "afterSwap" : "now";
+      enterIds.current.set(userItem.id, enterMode);
+      enterIds.current.set(assistantId, enterMode);
       const assistantItem: ChatItem = {
         kind: "assistant",
         id: assistantId,
@@ -903,7 +905,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const activeId = active?.messageId ?? null;
   const renderItem = useCallback(
     ({ item }: { item: ChatItem }) => (
-      <EnterOnce enter={enterIds.current.has(item.id)} onEntered={() => enterIds.current.delete(item.id)}>
+      <EnterOnce enter={enterIds.current.get(item.id) ?? false} onEntered={() => enterIds.current.delete(item.id)}>
         {item.kind === "user" ? (
           <UserRow text={item.text} actions={actions} />
         ) : (
@@ -1016,7 +1018,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
                   <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
                 ) : (
                   // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
-                  <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
+                  // The swap half of the DS crossfade: the conversation enters right after it (F2-4b).
+                  <Animated.View exiting={motion.exiting({ swap: true })} style={{ flexGrow: 1 }}>
                     <ChatEmptyState
                       suggestions={suggestions}
                       onAddKnowledge={showSuggestions ? openKnowledge : undefined}
