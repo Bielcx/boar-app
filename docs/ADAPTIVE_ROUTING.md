@@ -82,13 +82,16 @@ detectGeoIntent(query)       # place words (restaurant, café, padaria, "onde co
   │    used only if resolvePlace gives a city (≥100k) or the same name; else the device path
   └─ else device: getLocation({ timeoutMs: 700 })   # never prompts; denied/unavailable → coverage "needs_place"
 searchPois({ center, diet, text, limit: 10 })       # pack ranks: diet tag only > yes > limited, then distance
-  ├─ coverage none / 0 hits → "I don't have offline place data for X" (never a generic list)
+  ├─ no map covers the center (or unknown city) → empty "no_data": "I don't have offline place data for X / near you"
+  ├─ a map covers it, 0 hits up to 25 km → empty "no_match": "The offline map for X has no place tagged vegan within 25 km"
+  │    (both: coverage "none", no list, never a generic one; near the device never a pack or tile id)
   └─ places event + text list: name — distance — address — diet tag — hours [n]; Wikivoyage entries (approx) in a separate guide block
 ```
 
 - `criterion` is `diet_match` when a diet was asked, else `distance`; "best" says so and states that ratings/popularity are not available offline.
 - Events: `stage retrieving` → `location` (device only) → `sources` → `places` → `done` (tier `instant`, `receipt.modelId` `"places"`). `places.attribution` carries ODbL (OSM, with extract date) and CC BY-SA (Wikivoyage).
 - `places.area.deviceInside` (city areas only): true when a recent device fix lies within 25 km of the named city's center, so the UI may compute open/closed with the device clock. It is never set by a new permission prompt, and the list never waits for the fix: one that is not in when the POI search ends is ignored.
+- `places.empty` (coverage `none` only, additive): `no_data` = no installed map covers the area; `no_match` = a map covers it but nothing matches the filters within `area.radiusM` (the data exists: the UI must not say "no map"). `area.place.lat/lon` (city areas, once resolved) lets an empty answer offer the map covering the city (`tilesFor(lat, lon, km)`).
 - Providers are injected with `registerGeoProviders({ hasPlaces, getLocation, resolvePlace, searchPois })` (`answerService.ts`): POI pack from the knowledge layer (`src/rag/pois.ts`), location from the UI layer (`src/services/location.ts`). Without them the answer is "places pack not installed".
 
 ## Context compression (`src/routing/context.ts`)
