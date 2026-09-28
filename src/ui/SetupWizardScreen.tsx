@@ -80,7 +80,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const tokens = useTokens();
   const announce = useAnnounce();
   const { languageId, setLanguage } = useLanguage();
-  const catalog = useCatalog();
+  // The install step shows the total and ETA outside the rows: it follows every progress event (5 Hz).
+  const catalog = useCatalog({ liveProgress: true });
   const lang = i18n.language;
   const [step, setStep] = useState<Step>(1);
   const [packageId, setPackageId] = useState<PackageId>("essential");

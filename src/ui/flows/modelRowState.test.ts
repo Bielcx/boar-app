@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canAutoRetry, DownloadErrorKind, modelRowView, RowInput, mayCloseApp } from "./modelRowState";
+import { canAutoRetry, DownloadErrorKind, modelRowView, RowInput, mayCloseApp, withLiveProgress } from "./modelRowState";
 import { COMPACT_ONLY_MAX_RAM_BYTES } from "../../routing/defaultModel";
 
 const idle = { downloading: false, progress: 0, error: null };
@@ -163,5 +163,28 @@ describe("won't fit on this phone (CR-1)", () => {
 
   it("an installed model is not hidden behind it (it can still be removed)", () => {
     expect(modelRowView({ present: true, roles: [], wontFit: true }).wontFit).toBe(false);
+  });
+});
+
+describe("withLiveProgress (a row follows its own download, perf audit #2/#9)", () => {
+  const dl = (over: object) => ({ downloading: true, progress: 0.5, error: null, phase: "downloading" as const, ...over });
+
+  it("moves the bar of a downloading or verifying row, nothing else", () => {
+    expect(withLiveProgress({ kind: "downloading", phase: "downloading", progress: 0.1 }, dl({}))).toEqual({ kind: "downloading", phase: "downloading", progress: 0.5 });
+    expect(withLiveProgress({ kind: "verifying", progress: 0.1 }, dl({ phase: "verifying", verifyBytes: 3, verifyTotal: 4 }))).toEqual({ kind: "verifying", progress: 0.75 });
+  });
+
+  it("leaves phase changes and errors to the screen's view", () => {
+    const downloading = { kind: "downloading" as const, phase: "downloading" as const, progress: 0.1 };
+    expect(withLiveProgress(downloading, dl({ phase: "verifying" }))).toBe(downloading);
+    expect(withLiveProgress(downloading, dl({ error: "network" }))).toBe(downloading);
+    expect(withLiveProgress(downloading, undefined)).toBe(downloading);
+    const installed = { kind: "installed" as const, verified: true };
+    expect(withLiveProgress(installed, dl({}))).toBe(installed);
+  });
+
+  it("keeps the same object when nothing moved", () => {
+    const s = { kind: "downloading" as const, phase: "downloading" as const, progress: 0.5 };
+    expect(withLiveProgress(s, dl({}))).toBe(s);
   });
 });

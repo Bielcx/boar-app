@@ -3,14 +3,14 @@
  * what is downloading, which model fills which role, and the device limits.
  * Each screen renders rows from this instead of keeping its own copy.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import * as FileSystem from "expo-file-system/legacy";
 import { getDeviceTotalRamBytes } from "ram-monitor";
 import { AssetStatus, ModelManager } from "../../models/ModelManager";
 import { CatalogModel, MODEL_CATALOG } from "../../models/manifest";
 import { getActiveModelId, setActiveModelId } from "../../models/settings";
 import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discoveredModels";
-import { getDownloadState, importAssetFile, startDownload, subscribeDownloads } from "../../services/downloadManager";
+import { DownloadState, getDownloadState, importAssetFile, startDownload, subscribeDownloads } from "../../services/downloadManager";
 import { importBatch } from "../../services/importBatch";
 import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, isAbortError } from "../../models/integrity";
@@ -71,7 +71,28 @@ function defaultId(kind: "llm" | "embedding"): string | undefined {
   return MODEL_CATALOG.find((m) => m.kind === kind && m.required)?.id;
 }
 
-export function useCatalog(): CatalogState {
+/**
+ * One asset's live download state. Re-renders only the component that asks (a CatalogRow's bar),
+ * on that asset's events, which downloadManager caps at 5 Hz.
+ */
+export function useLiveDownload(assetId: string): DownloadState | undefined {
+  const subscribe = useCallback(
+    (onChange: () => void) => subscribeDownloads((e) => (!e.assetId || e.assetId === assetId) && onChange()),
+    [assetId]
+  );
+  return useSyncExternalStore(subscribe, () => getDownloadState(assetId));
+}
+
+export interface CatalogOptions {
+  /**
+   * Re-render the host on every progress event (5 Hz), not only on phase changes. Only a screen
+   * that shows progress outside the rows needs it (the setup wizard's total and ETA); rows follow
+   * their own bar through useLiveDownload (perf audit #2/#9).
+   */
+  liveProgress?: boolean;
+}
+
+export function useCatalog({ liveProgress = false }: CatalogOptions = {}): CatalogState {
   const [loaded, setLoaded] = useState(false);
   const [discovered, setDiscovered] = useState<CatalogModel[]>([]);
   const [placeAreas, setPlaceAreas] = useState<PlaceArea[]>([]);
@@ -118,7 +139,7 @@ export function useCatalog(): CatalogState {
   useEffect(() => {
     refresh();
   }, [refresh]);
-  useEffect(() => subscribeDownloads(() => setTick((n) => n + 1)), []);
+  useEffect(() => subscribeDownloads((e) => (liveProgress || !e.progressOnly) && setTick((n) => n + 1)), [liveProgress]);
 
   const view = useCallback(
     (model: CatalogModel) => {

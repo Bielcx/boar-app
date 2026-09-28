@@ -8,9 +8,9 @@ import { useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
 import { failureLines, formatBytes, formatRam } from "./format";
 import { catalogLabel } from "./catalogLabel";
-import type { RowState, RowView } from "./modelRowState";
+import { withLiveProgress, type RowState, type RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
-import { canDownload } from "./useCatalog";
+import { canDownload, useLiveDownload } from "./useCatalog";
 import { confirmLargeModel } from "./adapters";
 import type { FileImport } from "./useCatalog";
 
@@ -83,7 +83,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   // A ghost Remove that opens the actions row lines its text up with the column above (Iris).
   const leadsActions = !(view.primary === "download" || view.primary === "explain" || view.primary === "retry" || (view.primary === "use" && onUse));
   const [removing, setRemoving] = useState(false);
-  const { state } = view;
+  // The bar follows this asset's download; the screen re-renders only on phase changes.
+  const state = withLiveProgress(view.state, useLiveDownload(model.id));
   const b = seal(state, t);
   const size = formatBytes(model.sizeBytes, i18n.language);
   // No network in this build, or no published URL yet: the item comes in as a file.

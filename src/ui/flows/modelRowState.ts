@@ -110,6 +110,28 @@ export function mayCloseApp(
   );
 }
 
+/** downloadManager reports hashed bytes as `progress` in the verifying phase. */
+function verifyProgress(dl: RowDownload): number {
+  return dl.verifyTotal ? (dl.verifyBytes ?? 0) / dl.verifyTotal : dl.progress;
+}
+
+/**
+ * The row's state with its bar moved to the live download progress. Only the bar: a phase change
+ * (verifying, done, error) re-renders the whole screen and comes in through `modelRowView`. This
+ * lets a row follow its own download without the screen re-rendering per event (perf audit #2/#9).
+ */
+export function withLiveProgress(state: RowState, dl: RowDownload | undefined): RowState {
+  if (!dl?.downloading || dl.error) return state;
+  if (state.kind === "downloading" && dl.phase !== "verifying") {
+    return state.progress === dl.progress ? state : { ...state, progress: dl.progress };
+  }
+  if (state.kind === "verifying" && dl.phase === "verifying") {
+    const progress = verifyProgress(dl);
+    return state.progress === progress ? state : { ...state, progress };
+  }
+  return state;
+}
+
 function stateOf(input: RowInput): RowState {
   const dl = input.download;
   if (input.loading) return { kind: "loading" };
@@ -123,11 +145,7 @@ function stateOf(input: RowInput): RowState {
     };
   }
   if (dl?.downloading) {
-    if (dl.phase === "verifying") {
-      // downloadManager reports hashed bytes as `progress` in this phase.
-      const progress = dl.verifyTotal ? (dl.verifyBytes ?? 0) / dl.verifyTotal : dl.progress;
-      return { kind: "verifying", progress };
-    }
+    if (dl.phase === "verifying") return { kind: "verifying", progress: verifyProgress(dl) };
     return { kind: "downloading", phase: dl.phase === "copying" ? "copying" : "downloading", progress: dl.progress };
   }
   if (!input.present) return { kind: "not-installed" };
