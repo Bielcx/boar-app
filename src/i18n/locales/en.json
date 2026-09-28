@@ -314,11 +314,11 @@
         "insufficient": "Won't fit"
       },
       "mayClose": "May close the app",
-      "mayCloseWhy": "too big for this phone's memory",
+      "mayCloseWhy": "Too big for this phone's memory",
       "didNotOpen": "Didn't open here",
       "wontFitHere": "Too big",
-      "wontFitWhy": "needs more memory than this phone has",
-      "wontFitNumbers": "needs ~{{need}} of memory · this phone has {{total}}",
+      "wontFitWhy": "Needs more memory than this phone has",
+      "wontFitNumbers": "Needs ~{{need}} of memory · this phone has {{total}}",
       "didNotOpenBefore": "BOAR closed the last time it loaded ",
       "mayCloseTitle": "Use this model?",
       "mayCloseBefore": "BOAR may close when it loads ",
@@ -328,9 +328,9 @@
       "keepCompact": "Keep Fast",
       "useAnyway": "Use anyway",
       "fitWhy": {
-        "streaming": "larger than this phone's memory",
-        "thrashing": "needs most of this phone's memory",
-        "insufficient": "not enough free memory on this phone"
+        "streaming": "Larger than this phone's memory",
+        "thrashing": "Needs most of this phone's memory",
+        "insufficient": "Not enough free memory on this phone"
       }
     },
     "models": {

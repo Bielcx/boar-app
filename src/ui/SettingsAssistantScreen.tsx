@@ -65,6 +65,7 @@ export function SettingsAssistantScreen() {
               fit={catalog.fit(m)}
               busy={catalog.loadingId !== null}
               showKind={false}
+              showRoles={false}
               meta={t(`flows.assistant.sub.${m.answerTier}`)}
               onDownload={() => catalog.install([m])}
               onUse={() => use(m)}

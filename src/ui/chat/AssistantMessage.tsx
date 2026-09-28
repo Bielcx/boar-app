@@ -606,17 +606,22 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
 
 /**
  * The decline under the library's own passage (declineAfterSnippet): one quiet line, no card, no
- * error icon. The passage above is the answer; "Answer anyway" stays as a text action.
+ * error icon. The passage above is the answer; "Answer anyway" is a link in the passage's own link
+ * style ("Show more": ghost, ember text), so it reads as tappable next to the grey line (Boar, prints v1.1).
  */
 function HeldAfterSnippet({ onAnswerAnyway }: { onAnswerAnyway?: () => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   return (
-    <View style={{ gap: t.space.xs, alignItems: "flex-start" }}>
+    <View style={{ alignItems: "flex-start" }}>
       <Text variant="footnote" color="secondary">
         {tr("chat.weak.heldAfterSnippet")}
       </Text>
-      {onAnswerAnyway && <TextAction label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} onPress={onAnswerAnyway} />}
+      {onAnswerAnyway && (
+        <View style={{ marginLeft: -t.space.md }}>
+          <Button label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} variant="ghost" size="sm" onPress={onAnswerAnyway} />
+        </View>
+      )}
     </View>
   );
 }

@@ -32,6 +32,8 @@ interface Props {
   fit?: MemoryFit;
   /** The kind overline; off where the whole screen is one kind (Knowledge, Prism KN-3). */
   showKind?: boolean;
+  /** "Used for: Answers" on the model in use; off where every row is the same role (Settings › Assistant). */
+  showRoles?: boolean;
   /** The file this row asked for (useCatalog.importFor): its check, refusal or mismatch shows here. */
   fileImport?: FileImport;
 }
@@ -67,7 +69,7 @@ const DETAIL_FOLD_CHARS = 90;
 
 const FIT_TONE: Record<string, Tone> = { resident: "success", streaming: "warning", thrashing: "warning", insufficient: "danger" };
 
-export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true, fileImport }: Props) {
+export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, title, meta, details, fit, showKind = true, showRoles = true, fileImport }: Props) {
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
@@ -89,7 +91,10 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const getLabel = offline ? t("flows.row.importFile", { size }) : t("flows.row.download", { size });
   const getIcon = offline ? ("file-plus" as const) : ("download" as const);
   const installed = state.kind === "installed" || state.kind === "in-use" || (state.kind === "failed" && state.errorKind === "load");
-  const removable = !model.required && (installed || model.id.startsWith("hf-"));
+  // Not on the model in use (Boar, prints v1.1): a red Remove there could only say "choose another first".
+  // Pick another model and Remove shows on this one.
+  const removable = !model.required && (installed || model.id.startsWith("hf-")) && !view.removeBlocked;
+  const hasActions = !leadsActions || removable;
 
   // Tell screen reader users when a row fails, once per failure.
   const lastKind = useRef(state.kind);
@@ -134,7 +139,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
           <View style={{ flex: 1 }}>
             <MetaLine
               items={[
-                state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
+                showRoles && state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
                 // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
                 view.wontFit
               ? fit
@@ -234,6 +239,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         </View>
       )}
 
+      {hasActions && (
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         {/* One primary per screen: a catalog row's action is secondary, the seal carries the state (Iris, Prism MD-2). */}
         {view.primary === "download" && (
@@ -268,12 +274,12 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             variant="ghost"
             tone="danger"
             label={t("flows.row.remove")}
-            accessibilityHint={view.removeBlocked ? t("flows.row.inUseHint") : undefined}
-            onPress={() => (view.removeBlocked ? toast({ message: t("flows.row.inUseHint") }) : setConfirmOpen(true))}
+            onPress={() => setConfirmOpen(true)}
           />
           </View>
         )}
       </View>
+      )}
 
       <Sheet
         visible={explainOpen}
