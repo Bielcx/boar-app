@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createBottomPin, GLIDE_GUARD_MS, heightChanged, jumpToLatestShown } from "./listPin";
+import { createBottomPin, GLIDE_GUARD_MS, heightChanged, jumpToLatestShown, keepEndOnResize } from "./listPin";
 
 describe("heightChanged (audit #8/#10)", () => {
   it("pins on the first layout and while the keyboard moves the list", () => {
@@ -143,5 +143,20 @@ describe("jumpToLatestShown (Prism CX-6)", () => {
   it("while an answer writes: as soon as the list stops following it", () => {
     expect(jumpToLatestShown({ distance: 200, viewport: 700, generating: true })).toBe(true);
     expect(jumpToLatestShown({ distance: 60, viewport: 700, generating: true })).toBe(false);
+  });
+});
+
+describe("keepEndOnResize (iPhone v8: suggestion cut by a 3-line composer)", () => {
+  it("keeps the end in view when following it", () => {
+    expect(keepEndOnResize({ following: true, empty: false, shrank: false })).toBe(true);
+  });
+  it("on the empty state whenever the list gets shorter, even scrolled (it is taller than a keyboard-high list)", () => {
+    expect(keepEndOnResize({ following: false, empty: true, shrank: true })).toBe(true);
+  });
+  it("the empty state opens at its top: no pin on its first layout or when the list grows", () => {
+    expect(keepEndOnResize({ following: false, empty: true, shrank: false })).toBe(false);
+  });
+  it("not in a conversation read further up", () => {
+    expect(keepEndOnResize({ following: false, empty: false, shrank: true })).toBe(false);
   });
 });

@@ -73,7 +73,7 @@ import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
-import { createBottomPin, FOLLOW_SLACK, heightChanged, jumpToLatestShown } from "./chat/listPin";
+import { createBottomPin, FOLLOW_SLACK, heightChanged, jumpToLatestShown, keepEndOnResize } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
 import { Reveal } from "./chat/Reveal";
@@ -223,8 +223,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const onListLayout = useCallback((e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;
     if (!heightChanged(listHeight.current, h)) return;
+    const shrank = listHeight.current != null && h < listHeight.current;
     listHeight.current = h;
-    if (followBottom.current) bottomPin.pin(!reduceMotionRef.current, "layout");
+    // The empty state too: its last suggestion stays whole as the keyboard or the composer takes room.
+    if (keepEndOnResize({ following: followBottom.current, empty: itemsRef.current.length === 0, shrank })) {
+      bottomPin.pin(!reduceMotionRef.current, "layout");
+    }
   }, [bottomPin]);
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;

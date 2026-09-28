@@ -105,3 +105,14 @@ export const FOLLOW_SLACK = 120;
 export function jumpToLatestShown(p: { distance: number; viewport: number; generating: boolean }): boolean {
   return p.generating ? p.distance >= FOLLOW_SLACK : p.distance > p.viewport;
 }
+
+/**
+ * Whether a change of the list's own height (the keyboard, the composer growing a line) keeps its end in
+ * view: when following the end, and always on the empty state (iPhone v8: with a 3-line composer the
+ * last suggestion was cut at the list's bottom edge; the empty state is taller than a keyboard-high list,
+ * so it counted as "not following"). There the hero goes up under the header's veil and the suggestions
+ * stay whole. Only when the list gets shorter: opening the chat, the empty state starts at its top.
+ */
+export function keepEndOnResize(p: { following: boolean; empty: boolean; shrank: boolean }): boolean {
+  return p.following || (p.empty && p.shrank);
+}
