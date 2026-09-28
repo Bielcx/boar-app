@@ -87,7 +87,7 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
           paddingLeft: t.space.md,
           paddingRight: toast.actionLabel ? t.space.xs : t.space.base,
           paddingVertical: t.space.xs,
-          minHeight: t.size.touch + 4,
+          minHeight: t.size.row,
           borderRadius: t.radius.md,
           backgroundColor: t.color.bg.raised,
           borderWidth: t.scheme === "light" ? t.size.hairline : 0,

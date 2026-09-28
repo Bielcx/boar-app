@@ -108,7 +108,7 @@ export function ListRow({
     </>
   );
   const rowStyle = {
-    minHeight: t.size.touch + 4,
+    minHeight: t.size.row,
     // Mockup lists (setup 3 rows inside a 14-pt card): 14 horizontal.
     paddingHorizontal: t.space.md + t.space.xxs,
     paddingVertical: t.space.md,
