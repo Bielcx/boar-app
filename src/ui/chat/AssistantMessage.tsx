@@ -12,7 +12,7 @@ import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, typ
 import { declineAfterSnippet, declineCopy, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, receiptShort, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
-import { weakNoteShowsBody } from "./uncitedPreface";
+import { withoutUncitedPreface } from "./uncitedPreface";
 import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
@@ -222,11 +222,13 @@ const TierBody = memo(function TierBody({
   const { t: tr } = useTranslation();
   const { reduceMotion } = useTheme();
   const split = splitThinking(tier.text);
+  // One warning (Prism CX-5): the engine's "not from an offline source" line is the weak-source note's job.
+  const answerText = withoutUncitedPreface(split.answer);
   // v2 P1: the text flows at a steady pace, newest characters fading in; reduce motion shows it as it comes.
-  const smooth = useSmoothText(split.answer, streaming, !reduceMotion);
+  const smooth = useSmoothText(answerText, streaming, !reduceMotion);
   const live = streaming || !smooth.settled;
   // Invented citations are cleaned only once the answer is done (sources are final then) and on screen.
-  const shown = live ? smooth.text : splitInlineBullets(cleanCitations(split.answer, sourceTitles.length));
+  const shown = live ? smooth.text : splitInlineBullets(cleanCitations(answerText, sourceTitles.length));
   const onCitationPress = useCallback((n: number) => onOpenSource(n - 1), [onOpenSource]);
   return (
     <View style={{ gap: t.space.sm }}>
@@ -600,24 +602,20 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
   const [open, setOpen] = useState(false);
   const m = useMotion();
   const groups = groupSources(answer.sources);
-  // The engine's text already opens with "not from an offline source" (Tusk 4375d76): keep only the
-  // marker where the sources would be, not the same sentence twice (Iris).
-  const saidInText = !weakNoteShowsBody((answer.deep ?? answer.fast)?.text);
   // CT-5: passages on the topic were found but the model cited none: say that, not "nothing matched".
   const title = tr(uncited ? "chat.weak.titleUncited" : "chat.weak.title");
   const body = tr(uncited ? "chat.weak.bodyUncited" : incomplete ? "chat.weak.bodyIncomplete" : "chat.weak.body");
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
       {/* The marker is read, never decorative (Iris/Prism): "No strong source on this phone". */}
-      <View accessible accessibilityRole="text" accessibilityLabel={saidInText ? title : `${title}. ${body}`} style={{ gap: t.space.sm }}>
+      <View accessible accessibilityRole="text" accessibilityLabel={`${title}. ${body}`} style={{ gap: t.space.sm }}>
         <IconText icon="book" variant="label" color="secondary" iconColor={t.color.text.secondary}>
           {title}
         </IconText>
-        {!saidInText && (
-          <Text variant="footnote" color="secondary">
-            {body}
-          </Text>
-        )}
+        {/* The one warning of the answer, in the app's language (the text no longer repeats it, CX-5). */}
+        <Text variant="footnote" color="secondary">
+          {body}
+        </Text>
       </View>
       {groups.length > 0 && (
         <TextAction
