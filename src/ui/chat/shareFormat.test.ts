@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
-import { formatForCopy, formatForShare, formatSeconds, formatTokPerSec, type ShareLabels } from "./shareFormat";
+import { formatForCopy, formatForShare, formatSeconds, type ShareLabels } from "./shareFormat";
 
 const labels: ShareLabels = {
   sources: "Sources",
@@ -58,8 +58,6 @@ describe("formatForShare", () => {
 describe("number formatting", () => {
   it("uses the locale's decimal separator", () => {
     expect(formatSeconds(6200, "pt-BR")).toBe("6,2 s");
-    expect(formatTokPerSec(14.8, "pt-BR")).toBe("14,8");
-    expect(formatTokPerSec(9, "en-US")).toBe("9.0");
   });
 
   it("drops the decimal from 10 seconds up", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -70,9 +70,9 @@ describe("phaseAnnouncement", () => {
 });
 
 describe("receiptLine", () => {
-  it("lists model, speed, time to first token and total", () => {
+  it("lists model, speed in words, time to start and total", () => {
     expect(receiptLine(receipt, "pt-BR", t)).toBe(
-      'chat.receipt.answeredIn{"time":"6,2 s"} · Qwen3 4B · 14,8 tok/s · chat.receipt.started{"time":"2,1 s"} · chat.receipt.offline'
+      'chat.receipt.answeredIn{"time":"6,2 s"} · Qwen3 4B · chat.receipt.speed{"words":"11"} · chat.receipt.started{"time":"2,1 s"} · chat.receipt.offline'
     );
   });
 
@@ -105,15 +105,16 @@ describe("receiptLine", () => {
 });
 
 describe("receiptShort", () => {
-  it("is the total time and speed, numbers only", () => {
-    expect(receiptShort(receipt, "pt-BR")).toEqual(["6,2 s", "14,8 tok/s"]);
-    expect(receiptShort(receipt, "en-US")).toEqual(["6.2 s", "14.8 tok/s"]);
+  it("is the total time and the speed in words (Prism UX-1: no tokens on screen)", () => {
+    expect(receiptShort(receipt, "pt-BR", t)).toEqual(["6,2 s", 'chat.receipt.speed{"words":"11"}']);
+    // Boar's example: 9.1 s at 10.7 tok/s reads "9,1 s · ~8 palavras/s".
+    expect(receiptShort({ ...receipt, tokPerSec: 10.7, totalMs: 9100 }, "pt-BR", t)).toEqual(["9,1 s", 'chat.receipt.speed{"words":"8"}']);
   });
 
   it("keeps only the time when no model generated the answer", () => {
-    expect(receiptShort({ ...receipt, modelId: "extractive", totalMs: 400 }, "en-US")).toEqual(["0.4 s"]);
-    expect(receiptShort({ ...receipt, modelId: "places", totalMs: 300 }, "en-US")).toEqual(["0.3 s"]);
-    expect(receiptShort({ ...receipt, tokPerSec: 0 }, "en-US")).toEqual(["6.2 s"]);
+    expect(receiptShort({ ...receipt, modelId: "extractive", totalMs: 400 }, "en-US", t)).toEqual(["0.4 s"]);
+    expect(receiptShort({ ...receipt, modelId: "places", totalMs: 300 }, "en-US", t)).toEqual(["0.3 s"]);
+    expect(receiptShort({ ...receipt, tokPerSec: 0 }, "en-US", t)).toEqual(["6.2 s"]);
   });
 });
 
@@ -124,6 +125,23 @@ describe("receiptDetails", () => {
     expect(labels({ ...receipt, prefillMs: 900, ctxTokens: 1100 })).toEqual(
       expect.arrayContaining(["chat.receipt.prefill", "chat.receipt.context"])
     );
+  });
+
+  it("says start and approximate words, never tokens (Prism UX-1)", () => {
+    const rows = receiptDetails({ ...receipt, ctxTokens: 1100 }, "pt-BR", t);
+    expect(rows.map((d) => d.label)).not.toContain("chat.receipt.firstToken");
+    expect(rows.find((d) => d.label === "chat.receipt.start")?.value).toBe("2,1 s");
+    expect(rows.find((d) => d.label === "chat.receipt.words")?.value).toBe('chat.receipt.wordCount{"words":"68"}');
+    expect(rows.find((d) => d.label === "chat.receipt.context")?.value).toBe('chat.receipt.wordCount{"words":"825"}');
+    expect(rows.some((d) => /tok/.test(d.value))).toBe(false);
+  });
+});
+
+describe("approxWords", () => {
+  it("rounds to whole words, with one decimal under a word", () => {
+    expect(approxWords(10.7, "pt-BR")).toBe("8");
+    expect(approxWords(2000, "en-US")).toBe("1,500");
+    expect(approxWords(1, "pt-BR")).toBe("0,8");
   });
 });
 

@@ -42,6 +42,7 @@ const END_BEARING: Partial<Record<IconName, number>> = {
   check: 3,
   x: 5,
   "external-link": 2,
+  "maximize-2": 2,
 };
 
 export function endBearing(name: IconName, px: number): number {

@@ -221,7 +221,7 @@ const TierBody = memo(function TierBody({
 });
 
 /**
- * The measured receipt: a short numbers-only line ("1.4 s · 16 tok/s") that
+ * The measured receipt: a short line ("9.1 s · ~8 words/s") that
  * sits by the name and opens the full measurement below the header row.
  */
 function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: string | null = null) {
@@ -232,7 +232,7 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
     open,
     toggle: () => setOpen((o) => !o),
     // "general knowledge" / "no source cited" after the numbers (weak-sources spec, Iris CT-5).
-    short: tagKey ? [...receiptShort(receipt, locale), tr(tagKey)] : receiptShort(receipt, locale),
+    short: tagKey ? [...receiptShort(receipt, locale, tr), tr(tagKey)] : receiptShort(receipt, locale, tr),
     line: receiptLine(receipt, locale, tr),
     details: receiptDetails(receipt, locale, tr),
   };
@@ -471,7 +471,8 @@ const SourceList = memo(function SourceList({
             {open && (
               <View style={{ gap: t.space.sm, paddingHorizontal: t.space.md, paddingBottom: t.space.md }}>
                 {/* The mockup's overline line: where it comes from on the left, its path on the right. */}
-                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+                {/* The row ends on the chevron's edge above (sm, not the well's md), expand icon by its stroke (Prism UX-5). */}
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap, marginRight: t.space.sm - t.space.md }}>
                   {/* Iris: the caps origin shrinks before it touches the icon; one gap token. */}
                   <Text variant="label" color="field" numberOfLines={1} style={{ flexShrink: 1 }}>
                     {origin}
