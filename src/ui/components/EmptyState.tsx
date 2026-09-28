@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toneColors, useTokens } from "../theme";
 import { Button } from "./Button";
 import { Icon, IconName } from "./Icon";
 import { Text } from "./Text";
+import { TextAction } from "./TextAction";
 
 export interface EmptyStateProps {
   title: string;
   body?: string;
-  /** The raw technical text of an error, small and selectable under the body (never the body itself, Prism FL-11). */
+  /** The raw technical text of an error, folded behind "Details" and selectable when open (never the body, Prism FL-11/NA-3). */
   detail?: string;
   icon?: IconName;
   /** `error` turns this into the ErrorState (danger icon well). */
@@ -35,6 +37,8 @@ export function EmptyState({
   onSecondary,
 }: EmptyStateProps) {
   const t = useTokens();
+  const { t: tr } = useTranslation();
+  const [detailOpen, setDetailOpen] = useState(false);
   const tc = toneColors(t.color, tone === "error" ? "danger" : "neutral");
   return (
     <View style={{ alignItems: "center", paddingHorizontal: t.space.xl, paddingVertical: t.space.xxl, gap: t.space.md }}>
@@ -59,9 +63,19 @@ export function EmptyState({
         </Text>
       )}
       {detail ? (
-        <Text variant="caption" color="secondary" align="center" selectable>
-          {detail}
-        </Text>
+        <View style={{ alignItems: "center", gap: t.space.xs }}>
+          <TextAction
+            label={tr(detailOpen ? "ui.hideDetails" : "ui.details")}
+            icon={detailOpen ? "chevron-up" : "chevron-down"}
+            expanded={detailOpen}
+            onPress={() => setDetailOpen((v) => !v)}
+          />
+          {detailOpen && (
+            <Text variant="caption" color="secondary" align="center" selectable>
+              {detail}
+            </Text>
+          )}
+        </View>
       ) : null}
       {(actionLabel || secondaryLabel) && (
         <View style={{ gap: t.space.sm, marginTop: t.space.sm, alignSelf: "stretch", alignItems: "center" }}>

@@ -1521,6 +1521,7 @@ function CategoryRow({
   const { t } = useTranslation();
   const tokens = useTokens();
   const line = useOpticalLine("subhead");
+  const stacked = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
   const name = t(`flows.onboarding.category.${row.category}`);
   const failedItem = row.items.find((i) => i.state.kind === "failed");
   const reason = failedItem && failedItem.state.kind === "failed" ? failureLines(failedItem.state, t, lang).cause : undefined;
@@ -1552,17 +1553,25 @@ function CategoryRow({
         <IconSlot name={icon} line={line} color={iconColor} />
         <View style={{ flex: 1 }}>
           <Text variant="subhead">{name}</Text>
+          {/* Large text: the status goes under the name, which keeps the width ('Conhecime/nto' at 2.0 PT, Prism NA-1). */}
+          {stacked && (
+            <Text variant="label" color={tone}>
+              {status}
+            </Text>
+          )}
           {reason && (
             <Text variant="caption" color="danger">
               {reason}
             </Text>
           )}
         </View>
-        <View style={{ height: line.lineHeight, justifyContent: "center" }}>
-          <Text variant="label" color={tone}>
-            {status}
-          </Text>
-        </View>
+        {!stacked && (
+          <View style={{ height: line.lineHeight, justifyContent: "center" }}>
+            <Text variant="label" color={tone}>
+              {status}
+            </Text>
+          </View>
+        )}
         {/* A disclosure shows it opens: the chevron of ListRow's expanded rows, on line 1 at the edge (Prism FL-15). */}
         <IconSlot name={expanded ? "chevron-up" : "chevron-down"} line={line} color={tokens.color.text.secondary} edge="end" />
       </Pressable>

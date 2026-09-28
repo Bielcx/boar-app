@@ -9,6 +9,9 @@ describe("userErrorKey (Prism FL-11: no raw exception text on screen)", () => {
     expect(userErrorKey(new Error("Network request failed"))).toBe("flows.row.error.network");
     expect(userErrorKey("The request timed out.")).toBe("flows.row.error.network");
     expect(userErrorKey(new Error("EACCES: permission denied"))).toBe("flows.row.error.unreadable-file");
+    // Prism NA-3: the Knowledge import print showed this in English under a PT screen.
+    expect(userErrorKey(new Error("Couldn't read the PDF: Unexpected End-of-File"))).toBe("flows.row.error.corrupt");
+    expect(userErrorKey("Invalid PDF structure")).toBe("flows.row.error.corrupt");
   });
 
   it("keeps an integrity error's own kind, and falls back to 'Something went wrong'", () => {

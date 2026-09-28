@@ -1,8 +1,9 @@
 import React from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { useTokens } from "../theme";
 import { stepperValue } from "./stepperA11y";
 import { Text } from "./Text";
+import { LARGE_TEXT_SCALE } from "./ListRow";
 
 export interface StepperProps {
   /** Short step names, already translated ("Hardware", "Model", "Install", "Index"). */
@@ -19,13 +20,15 @@ export interface StepperProps {
  */
 export function Stepper({ steps, current, accessibilityLabel }: StepperProps) {
   const t = useTokens();
+  // Large text: the caps labels grow to 1.5x and nearly touched at 6 pt (Prism NA-2).
+  const gap = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE ? t.space.md : t.space.xs + t.space.xxs;
   return (
     <View
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
       accessibilityValue={stepperValue(steps.length, current)}
-      style={{ flexDirection: "row", gap: t.space.xs + t.space.xxs }}
+      style={{ flexDirection: "row", gap }}
     >
       {steps.map((step, i) => (
         <View key={step} style={{ flex: 1, gap: t.space.xs + t.space.xxs }} importantForAccessibility="no-hide-descendants">

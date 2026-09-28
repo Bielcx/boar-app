@@ -6,10 +6,12 @@
 import { AssetIntegrityError } from "../../models/integrity";
 
 /** Causes with a sentence under flows.row.error.* (EN + PT). */
-const KNOWN = new Set(["network", "stalled", "storage", "hash-mismatch", "empty-file", "unreadable-file", "size-mismatch", "offline-variant", "load", "unknown-file", "too-large", "no-source"]);
+const KNOWN = new Set(["network", "stalled", "storage", "hash-mismatch", "empty-file", "unreadable-file", "size-mismatch", "offline-variant", "load", "unknown-file", "too-large", "no-source", "corrupt"]);
 
 const STORAGE = /ENOSPC|no space|not enough (free )?space|disk (is )?full|storage full/i;
 const NETWORK = /network|timed? ?out|offline|ENOTFOUND|ECONN|EAI_AGAIN|internet|unreachable|connection/i;
+/** A file that opened but isn't what it should be (Knowledge import: "Couldn't read … End-of-File", Prism NA-3). */
+const CORRUPT = /end.of.file|\bEOF\b|corrupt|malformed|unexpected end|couldn.?t (read|parse)|failed to parse|parse error|invalid (pdf|file|format|header|xref|zip)|bad (xref|zip|header)/i;
 const UNREADABLE = /EACCES|EPERM|permission|denied|couldn.?t be opened|not readable|no such file|ENOENT/i;
 
 export function rawErrorText(e: unknown): string {
@@ -24,6 +26,7 @@ export function userErrorKey(e: unknown): string {
   const text = rawErrorText(e);
   if (STORAGE.test(text)) return "flows.row.error.storage";
   if (NETWORK.test(text)) return "flows.row.error.network";
+  if (CORRUPT.test(text)) return "flows.row.error.corrupt";
   if (UNREADABLE.test(text)) return "flows.row.error.unreadable-file";
   return "flows.row.error.unknown";
 }

@@ -79,7 +79,9 @@
     "delete": "Delete",
     "back": "Back",
     "offline": "Offline",
-    "localModel": "Local model"
+    "localModel": "Local model",
+    "details": "Details",
+    "hideDetails": "Hide details"
   },
   "nav": {
     "subtitle": "Offline research",
@@ -224,6 +226,7 @@
         "hash-mismatch": "The file doesn't match the expected one. Get a fresh copy of the file and try again.",
         "empty-file": "The file is empty (0 bytes). Copy it to the phone again.",
         "unreadable-file": "BOAR couldn't read this file.",
+        "corrupt": "The file looks damaged. Copy it again or choose another.",
         "size-mismatch": "The file is incomplete. Get a fresh copy of the file and try again.",
         "offline-variant": "This version has no internet access. Import the file instead.",
         "load": "Couldn't load this model.",
