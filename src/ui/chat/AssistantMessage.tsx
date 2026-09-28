@@ -17,6 +17,7 @@ import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
+import { lineSlop } from "./touch";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -62,8 +63,11 @@ function useElapsedSeconds(running: boolean): number {
   return seconds;
 }
 
-/** The mockup's step indicator: an ember ring turning (static under reduce motion). */
-function StepSpinner() {
+/**
+ * The mockup's step indicator: an ember ring turning (static under reduce motion). Memoized, with the
+ * interpolation built once (audit #11): a new one per render rebuilt the native animated graph per flush.
+ */
+const StepSpinner = memo(function StepSpinner() {
   const t = useTokens();
   const { reduceMotion } = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
@@ -73,7 +77,7 @@ function StepSpinner() {
     loop.start();
     return () => loop.stop();
   }, [reduceMotion, spin]);
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const rotate = useMemo(() => spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }), [spin]);
   const side = t.size.iconSm - t.space.xxs;
   return (
     <Animated.View
@@ -88,7 +92,7 @@ function StepSpinner() {
       }}
     />
   );
-}
+});
 
 /**
  * What the answer is doing, as the mockup's step card: every step from the start (generatingSteps), each
@@ -239,7 +243,10 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
 }
 
 function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean }) {
+  const t = useTokens();
   const { t: tr } = useTranslation();
+  // A caption line: the touch area comes up to the platform minimum (Prism CH-6).
+  const line = useOpticalLine("caption");
   return (
     <Pressable
       onPress={r.toggle}
@@ -248,7 +255,7 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
       accessibilityState={{ expanded: r.open }}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       accessibilityElementsHidden={hidden}
-      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+      hitSlop={lineSlop(t.size.touch, line.lineHeight, t.space.sm)}
     >
       <MetaLine items={r.short} variant="caption" numberOfLines={1} />
     </Pressable>
@@ -816,6 +823,12 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   // No strong source: no [n] citations (weak-sources spec rule 4).
   // Memoized on the sources: a new list every token would re-render every Markdown block (TierBody memo).
   const sourceTitles = useMemo(() => (sourceless === "weak" ? [] : answer.sources.map((s) => s.title)), [sourceless, answer.sources]);
+  // The excerpt as a tier, kept while it doesn't change, so its TierBody memo holds too (audit #1 leftover).
+  const extractOutcome = answer.instantDone?.outcome;
+  const extractTier = useMemo<TierState | null>(
+    () => (answer.extract ? { text: answer.extract, stage: null, outcome: extractOutcome } : null),
+    [answer.extract, extractOutcome]
+  );
 
   const placesOnly = !!answer.places && !answer.fast;
   const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
@@ -876,9 +889,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
       {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
       {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
-      {answer.extract ? (
+      {extractTier ? (
         <TierBody
-          tier={{ text: answer.extract, stage: null, outcome: answer.instantDone?.outcome }}
+          tier={extractTier}
           streaming={!answer.instantDone}
           sourceTitles={sourceTitles}
           onOpenSource={onOpenSource}
@@ -1012,19 +1025,17 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
       )}
       {!active && phase === "done" && canDeepen(answer) && (
-        // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris).
-        <Pressable
+        // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
+        // TextAction brings the touch minimum (Prism CH-7).
+        <TextAction
+          leadingIcon="layers"
           onPress={props.onDeepen}
-          accessibilityRole="button"
-          hitSlop={{ top: t.space.md, bottom: t.space.md }}
-          style={{ alignSelf: "flex-start" }}
-        >
-          <IconText icon="layers" variant="caption" color="secondary" iconColor={t.color.text.secondary}>
-            {answer.deepAvailable?.estSeconds
+          label={
+            answer.deepAvailable?.estSeconds
               ? tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
-              : tr("chat.actions.deepen")}
-          </IconText>
-        </Pressable>
+              : tr("chat.actions.deepen")
+          }
+        />
       )}
     </View>
   );
