@@ -66,6 +66,9 @@ fi
 # EXPO_PUBLIC_BOAR_VARIANT=offline, plugins/withBuildVariant.js).
 WS=$(ls -d ios/*.xcworkspace 2>/dev/null | head -1)
 [[ -n "$WS" ]] || { echo "no ios/*.xcworkspace: run without IOS_SKIP_DEPS" >&2; exit 2; }
+# iOS 27 + the iOS 27 SDK kill an app without the scene life cycle at launch: never build one
+# (a prebuild reused with IOS_SKIP_DEPS=1 may predate plugins/withIosSceneLifecycle.js).
+bash scripts/ios-check-scene.sh ios || { echo "re-run without IOS_SKIP_DEPS=1 so the prebuild applies the plugin" >&2; exit 2; }
 SCHEME=$(basename "$WS" .xcworkspace)
 
 case "$MODE" in
