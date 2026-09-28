@@ -16,6 +16,7 @@ import { ScreenTitle } from "./flows/ScreenTitle";
 import { screenRhythm } from "./flows/rhythm";
 import type { TextColor } from "./components";
 import { icon, useTokens } from "./theme";
+import { useMotion } from "./theme/motion";
 import { userErrorKey } from "./flows/userError";
 
 interface Props {
@@ -57,6 +58,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const [rows, setRows] = useState<EvalResultRow[]>([]);
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const motion = useMotion();
   const stopRef = useRef(false);
 
   useEffect(() => {
@@ -264,7 +266,10 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
                 accessibilityLabel={`${r.queryId}, ${r.configLabel}, ${r.outcome ?? ""}`}
-                onPress={() => setExpanded(open ? null : key)}
+                onPress={() => {
+                  motion.animateNextLayout();
+                  setExpanded(open ? null : key);
+                }}
                 style={{ padding: tokens.space.base, gap: tokens.space.xxs }}
               >
                 <View style={{ flexDirection: "row", justifyContent: "space-between", gap: tokens.space.sm }}>

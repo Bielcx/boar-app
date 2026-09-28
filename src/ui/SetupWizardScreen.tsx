@@ -1308,7 +1308,10 @@ function InstallStep({
             first={i === 0}
             assets={assets}
             expanded={!!expanded[c.category]}
-            onToggle={() => setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }))}
+            onToggle={() => {
+              motion.animateNextLayout();
+              setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }));
+            }}
             onRetry={(asset) => catalog.download(asset)}
             lang={lang}
             importing={offline}

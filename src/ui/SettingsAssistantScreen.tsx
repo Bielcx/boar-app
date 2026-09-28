@@ -9,6 +9,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { ListRow, Screen, Section, Skeleton, Text, useToast } from "./components";
 import { useTokens } from "./theme";
+import { useMotion } from "./theme/motion";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { CatalogList } from "./flows/CatalogList";
@@ -24,6 +25,7 @@ export function SettingsAssistantScreen() {
   const catalog = useCatalog();
   const { refresh } = catalog;
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const motion = useMotion();
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -84,7 +86,11 @@ export function SettingsAssistantScreen() {
           title={t("flows.assistant.details")}
           expanded={detailsOpen}
           accessibilityLabel={t("flows.assistant.detailsA11y")}
-          onPress={() => setDetailsOpen((v) => !v)}
+          onPress={() => {
+            // The rows below unfold instead of appearing at once (TR-6).
+            motion.animateNextLayout();
+            setDetailsOpen((v) => !v);
+          }}
         />
         {detailsOpen &&
           detailed.map((m) => <ListRow key={m.id} title={catalogLabel(m, t)} subtitle={technicalModelName(m)} />)}

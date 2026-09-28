@@ -5,6 +5,7 @@ import type { TFunction } from "i18next";
 import { Badge, Button, IconName, LARGE_TEXT_SCALE, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useOpticalLine, useToast } from "../components";
 import type { Tone } from "../theme";
 import { icon as iconTokens, space, useTokens } from "../theme";
+import { useMotion } from "../theme/motion";
 import type { CatalogModel } from "../../models/manifest";
 import { failureLines, formatBytes, formatRam } from "./format";
 import { catalogLabel } from "./catalogLabel";
@@ -106,6 +107,7 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const [explainOpen, setExplainOpen] = useState(false);
   const [closeRiskOpen, setCloseRiskOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const motion = useMotion();
   // On a low-RAM phone, a model bigger than the compact one asks before loading (CR-1).
   const requestUse = onUse && (view.confirmUse ? () => setCloseRiskOpen(true) : onUse);
   // A ghost Remove that opens the actions row lines its text up with the column above (Iris).
@@ -199,7 +201,11 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
               label={t(showAll ? "flows.row.showLess" : "flows.row.showAll")}
               icon={showAll ? "chevron-up" : "chevron-down"}
               expanded={showAll}
-              onPress={() => setShowAll((v) => !v)}
+              onPress={() => {
+                // "Show all" unfolds; the rows below slide instead of jumping (TR-6).
+                motion.animateNextLayout();
+                setShowAll((v) => !v);
+              }}
             />
           </View>
         )}
