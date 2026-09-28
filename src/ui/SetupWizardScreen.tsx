@@ -47,6 +47,7 @@ import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
 import { importHeroFraction, withVerifiedImport } from "./flows/importProgress";
+import { IndexPhase, installStage, stageSwapAnimates } from "./flows/installStage";
 import { catalogLabel } from "./flows/catalogLabel";
 import { userErrorKey } from "./flows/userError";
 
@@ -57,7 +58,6 @@ interface Props {
 }
 
 type Step = 1 | 2 | 3;
-type IndexPhase = "waiting" | "building" | "ready" | "error";
 
 /** The mockup's setup rhythm (FIDELITY): 14 pt between blocks, content right under the stepper. */
 function setupRhythm(t: ReturnType<typeof useTokens>) {
@@ -1155,6 +1155,11 @@ function InstallStep({
   // opens already done (restored), the step's own crossfade is enough.
   const motion = useMotion();
   const openedReady = useRef(ready).current;
+  // Import/download -> index is a stage change inside this step (Stepper 3 -> 4): the same crossfade as a
+  // step change, not a cut (Prism L3-2). A step that opens with everything in starts at the index: no swap.
+  const openedAllPresent = useRef(allPresent).current;
+  const stage = installStage(indexPhase);
+  const stageSwap = useMemo(() => (stageSwapAnimates(openedAllPresent) ? motion.crossfade("forward") : undefined), [openedAllPresent, motion]);
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
@@ -1213,300 +1218,302 @@ function InstallStep({
   }
 
   return (
-    <Screen
-      contentStyle={setupRhythm(tokens)}
-      edges={["top", "bottom", "left", "right"]}
-      footer={
-        <>
-          {offline && !allPresent && !activeImport ? (
-            // Offline, the step's action is choosing the files: it takes the mockup's CTA place (primary, the one accent).
-            <Button
-              size="lg"
-              icon="file-plus"
-              label={t("flows.import.pick")}
-              fullWidth
-              onPress={catalog.importFiles}
-            />
-          ) : (
-            // The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism).
-            <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
-          )}
-          {/* No Back while bytes move (download or import), as in the mockup; it returns when nothing is
-              transferring (nothing imported yet, or a failure), and the CTA moves up with it (Iris). */}
-          {!transferring && indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
-        </>
-      }
-    >
-      <StepHeader
-        titleRef={titleRef}
-        stage={indexPhase === "waiting" ? 2 : 3}
-        // Once the files are in, the header describes the offline indexing, not the download (Harbor, iOS shot 04).
-        title={t(`flows.onboarding.${ready ? "doneTitle" : indexing ? "indexTitle" : offline ? "importTitle" : "step3Title"}`)}
-        subtitle={t(`flows.onboarding.${ready ? "doneBody" : indexing ? "indexSub" : offline ? "importSub" : "step3Sub"}`)}
-      />
-
-
-      {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
-      {((!allPresent && (!offline || presentCount > 0 || !!activeImport)) || (indexing && seed)) && (
-        // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
-        // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
-        // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
-        <Card style={{ gap: tokens.space.md - tokens.space.xxs, borderRadius: tokens.radius.hero }}>
-          {fontScale > LARGE_TEXT ? (
-            // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
-            <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
-              <Mascot size="brand" />
-            </View>
-          ) : (
-            // The mockup's boar overflows the card (top -4, right -6), unclipped (Iris §3).
-            <View style={{ position: "absolute", top: -tokens.space.xs, right: -(tokens.space.xs + tokens.space.xxs) }}>
-              <Mascot size="md" />
-            </View>
-          )}
-          <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascotMd - tokens.space.xl }}>
-            {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
-            {hero.figure ? (
-              <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
+    <Animated.View key={stage} style={{ flex: 1 }} entering={stageSwap?.entering} exiting={stageSwap?.exiting}>
+      <Screen
+        contentStyle={setupRhythm(tokens)}
+        edges={["top", "bottom", "left", "right"]}
+        footer={
+          <>
+            {offline && !allPresent && !activeImport ? (
+              // Offline, the step's action is choosing the files: it takes the mockup's CTA place (primary, the one accent).
+              <Button
+                size="lg"
+                icon="file-plus"
+                label={t("flows.import.pick")}
+                fullWidth
+                onPress={catalog.importFiles}
+              />
             ) : (
-              // "62%" is one run in the mockup; Stat draws unit="%" in the number's body (Iris 23a271b, Prism S3C-1).
-              <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
+              // The mockup's CTA: large, disabled until everything is on the phone, and it says why (Iris §3, Prism).
+              <Button size="lg" label={t("flows.onboarding.open")} fullWidth disabled accessibilityHint={t("flows.onboarding.openWhenReady")} onPress={onReady} />
             )}
-          </View>
-          <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
-          {!allPresent && offline && activeImport && (
-            // Large text gets a second line before the middle ellipsis; the reader always hears the whole name (Prism FL-33).
-            <Text
-              variant="footnote"
-              numberOfLines={fontScale >= LARGE_TEXT_SCALE ? 2 : 1}
-              ellipsizeMode="middle"
-              accessibilityLabel={t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
-            >
-              {t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
-            </Text>
-          )}
-          {!allPresent && !offline && current && (
-            <Text variant="footnote" numberOfLines={2}>
-              {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
-            </Text>
-          )}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: tokens.space.md }}>
-            <MetaLine items={hero.meta} />
-            {!allPresent && etaS != null && <MetaLine items={[t("flows.onboarding.minutesLeft", { count: minutesLeft(etaS) })]} />}
-            {offline && activeImport && (
-              // The copy's Cancel sits in the mockup's ETA slot, next to the progress it stops; neutral, not ember,
-              // so it doesn't compete with the bar; 44 pt touch from hitSlop (Iris, Prism).
-              <TextAction
-                label={t("common.cancel")}
-                accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
-                onPress={catalog.cancelImports}
-              />
-            )}
-          </View>
-        </Card>
-      )}
+            {/* No Back while bytes move (download or import), as in the mockup; it returns when nothing is
+                transferring (nothing imported yet, or a failure), and the CTA moves up with it (Iris). */}
+            {!transferring && indexPhase !== "building" && <BackLink label={t("flows.onboarding.back")} onPress={onBack} />}
+          </>
+        }
+      >
+        <StepHeader
+          titleRef={titleRef}
+          stage={indexPhase === "waiting" ? 2 : 3}
+          // Once the files are in, the header describes the offline indexing, not the download (Harbor, iOS shot 04).
+          title={t(`flows.onboarding.${ready ? "doneTitle" : indexing ? "indexTitle" : offline ? "importTitle" : "step3Title"}`)}
+          subtitle={t(`flows.onboarding.${ready ? "doneBody" : indexing ? "indexSub" : offline ? "importSub" : "step3Sub"}`)}
+        />
 
-      {/* The mockup's list card: 4/14 padding, rows 9 pt tall padding, status in small caps (FIDELITY). */}
-      <Card padding="none" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs, paddingVertical: tokens.space.xs }}>
-        {categories.map((c, i) => (
-          <CategoryRow
-            key={c.category}
-            row={c}
-            first={i === 0}
-            assets={assets}
-            expanded={!!expanded[c.category]}
-            onToggle={() => {
-              motion.animateNextLayout();
-              setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }));
-            }}
-            onRetry={(asset) => catalog.download(asset)}
-            lang={lang}
-            importing={offline}
-          />
-        ))}
-        {extras.length > 0 && (
-          <View
-            accessible
-            accessibilityLabel={`${t("flows.onboarding.category.extras")}: ${extras.join(", ")}`}
-            style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
-          >
-            <IconSlot name="plus-circle" line={subheadLine} color={tokens.color.status.success.solid} />
-            <View style={{ flex: 1 }}>
-              <Text variant="subhead">{t("flows.onboarding.category.extras")}</Text>
-              <Text variant="caption" color="secondary" numberOfLines={fontScale >= LARGE_TEXT_SCALE ? undefined : 2}>
-                {extras.join(", ")}
-              </Text>
+
+        {/* One hero: the download while files arrive, then the search index (the mockup's big figure). */}
+        {((!allPresent && (!offline || presentCount > 0 || !!activeImport)) || (indexing && seed)) && (
+          // The hero boar's glow is wider than the boar: the card clips it, as in the mockup (Prism N-11).
+          // The mockup's hero (FIDELITY): radius 22, gap 10, the boar at right -6 / top -4 with its ember glow;
+          // the bar runs full width under its feet. The glow is clipped by the card (Prism N-11).
+          <Card style={{ gap: tokens.space.md - tokens.space.xxs, borderRadius: tokens.radius.hero }}>
+            {fontScale > LARGE_TEXT ? (
+              // The brand disc at large text is a framed avatar: it keeps the card's padding (Prism H-1).
+              <View style={{ position: "absolute", top: tokens.space.base, right: tokens.space.base }}>
+                <Mascot size="brand" />
+              </View>
+            ) : (
+              // The mockup's boar overflows the card (top -4, right -6), unclipped (Iris §3).
+              <View style={{ position: "absolute", top: -tokens.space.xs, right: -(tokens.space.xs + tokens.space.xxs) }}>
+                <Mascot size="md" />
+              </View>
+            )}
+            <View style={{ paddingRight: fontScale > LARGE_TEXT ? tokens.size.mascotSm + tokens.space.sm : tokens.size.mascotMd - tokens.space.xl }}>
+              {/* xl only for the download, the one figure of the setup; the index and the file count stay lg (Iris). */}
+              {hero.figure ? (
+                <Stat size="lg" label={hero.label} value={hero.figure.value} unit={hero.figure.unit} />
+              ) : (
+                // "62%" is one run in the mockup; Stat draws unit="%" in the number's body (Iris 23a271b, Prism S3C-1).
+                <Stat size={allPresent ? "lg" : "xl"} label={hero.label} value={String(Math.floor(hero.fraction * 100))} unit="%" />
+              )}
             </View>
-            <View style={{ height: subheadLine.lineHeight, justifyContent: "center" }}>
-              <Text variant="label" color="secondary">
-                {t("flows.onboarding.categoryStatus.ready")}
+            <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
+            {!allPresent && offline && activeImport && (
+              // Large text gets a second line before the middle ellipsis; the reader always hears the whole name (Prism FL-33).
+              <Text
+                variant="footnote"
+                numberOfLines={fontScale >= LARGE_TEXT_SCALE ? 2 : 1}
+                ellipsizeMode="middle"
+                accessibilityLabel={t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
+              >
+                {t("flows.onboarding.fileOf", { n: Math.min(presentCount + 1, assets.length), total: assets.length, name: activeImport.name })}
               </Text>
+            )}
+            {!allPresent && !offline && current && (
+              <Text variant="footnote" numberOfLines={2}>
+                {t("flows.onboarding.currentItem", { n: current.n, total: states.length, name: current.label })}
+              </Text>
+            )}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: tokens.space.md }}>
+              <MetaLine items={hero.meta} />
+              {!allPresent && etaS != null && <MetaLine items={[t("flows.onboarding.minutesLeft", { count: minutesLeft(etaS) })]} />}
+              {offline && activeImport && (
+                // The copy's Cancel sits in the mockup's ETA slot, next to the progress it stops; neutral, not ember,
+                // so it doesn't compete with the bar; 44 pt touch from hitSlop (Iris, Prism).
+                <TextAction
+                  label={t("common.cancel")}
+                  accessibilityLabel={t("flows.import.cancelA11y", { name: activeImport.name })}
+                  onPress={catalog.cancelImports}
+                />
+              )}
             </View>
-          </View>
+          </Card>
         )}
-        {[
-          {
-            key: "index",
-            icon: (
-              <IconSlot
-                name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "clock"}
-                line={subheadLine}
-                color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.secondary}
-              />
-            ),
-            title: t("flows.onboarding.indexRow"),
-            status:
-              indexPhase === "building" && seed
-                ? indexCounter
-                : indexPhase === "waiting"
-                  ? t("flows.onboarding.waitingDownloads")
-                  : indexPhase === "building"
-                    ? t("flows.onboarding.indexStarting")
-                    : t("flows.onboarding.indexFailed"),
-            spoken: undefined,
-            // The hero carries the index progress in accent; the row stays secondary (R-IDX-2).
-            tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
-          },
-        ]
-          // While the hero shows the index, its row would repeat it (Prism N-10).
-          .filter((row) => !(row.key === "index" && indexing && seed))
-          .map((row, i, rows) => (
-          <React.Fragment key={row.key}>
-          <View
-            accessible
-            accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
-            style={{
-              gap: tokens.space.xs,
-              paddingVertical: tokens.space.sm,
-              borderTopWidth: categories.length > 0 || i > 0 ? tokens.size.hairline : 0,
-              borderTopColor: tokens.color.line.row,
-            }}
-          >
-            <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
-              {row.icon}
-              <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
-                {row.title}
-              </Text>
-              {row.key !== "index" && (
-                // Small caps like the mockup's STREAMING / QUEUED / PENDING.
-                <Text variant="label" color={row.tone} numeric>
+
+        {/* The mockup's list card: 4/14 padding, rows 9 pt tall padding, status in small caps (FIDELITY). */}
+        <Card padding="none" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs, paddingVertical: tokens.space.xs }}>
+          {categories.map((c, i) => (
+            <CategoryRow
+              key={c.category}
+              row={c}
+              first={i === 0}
+              assets={assets}
+              expanded={!!expanded[c.category]}
+              onToggle={() => {
+                motion.animateNextLayout();
+                setExpanded((e) => ({ ...e, [c.category]: !e[c.category] }));
+              }}
+              onRetry={(asset) => catalog.download(asset)}
+              lang={lang}
+              importing={offline}
+            />
+          ))}
+          {extras.length > 0 && (
+            <View
+              accessible
+              accessibilityLabel={`${t("flows.onboarding.category.extras")}: ${extras.join(", ")}`}
+              style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.hairline, borderTopColor: tokens.color.line.row }}
+            >
+              <IconSlot name="plus-circle" line={subheadLine} color={tokens.color.status.success.solid} />
+              <View style={{ flex: 1 }}>
+                <Text variant="subhead">{t("flows.onboarding.category.extras")}</Text>
+                <Text variant="caption" color="secondary" numberOfLines={fontScale >= LARGE_TEXT_SCALE ? undefined : 2}>
+                  {extras.join(", ")}
+                </Text>
+              </View>
+              <View style={{ height: subheadLine.lineHeight, justifyContent: "center" }}>
+                <Text variant="label" color="secondary">
+                  {t("flows.onboarding.categoryStatus.ready")}
+                </Text>
+              </View>
+            </View>
+          )}
+          {[
+            {
+              key: "index",
+              icon: (
+                <IconSlot
+                  name={ready ? "check-circle" : indexPhase === "error" ? "alert-octagon" : "clock"}
+                  line={subheadLine}
+                  color={ready ? tokens.color.status.success.solid : indexPhase === "error" ? tokens.color.status.danger.solid : tokens.color.text.secondary}
+                />
+              ),
+              title: t("flows.onboarding.indexRow"),
+              status:
+                indexPhase === "building" && seed
+                  ? indexCounter
+                  : indexPhase === "waiting"
+                    ? t("flows.onboarding.waitingDownloads")
+                    : indexPhase === "building"
+                      ? t("flows.onboarding.indexStarting")
+                      : t("flows.onboarding.indexFailed"),
+              spoken: undefined,
+              // The hero carries the index progress in accent; the row stays secondary (R-IDX-2).
+              tone: (indexPhase === "error" ? "danger" : "secondary") as TextColor,
+            },
+          ]
+            // While the hero shows the index, its row would repeat it (Prism N-10).
+            .filter((row) => !(row.key === "index" && indexing && seed))
+            .map((row, i, rows) => (
+            <React.Fragment key={row.key}>
+            <View
+              accessible
+              accessibilityLabel={`${row.title}, ${row.spoken ?? row.status}`}
+              style={{
+                gap: tokens.space.xs,
+                paddingVertical: tokens.space.sm,
+                borderTopWidth: categories.length > 0 || i > 0 ? tokens.size.hairline : 0,
+                borderTopColor: tokens.color.line.row,
+              }}
+            >
+              <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
+                {row.icon}
+                <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
+                  {row.title}
+                </Text>
+                {row.key !== "index" && (
+                  // Small caps like the mockup's STREAMING / QUEUED / PENDING.
+                  <Text variant="label" color={row.tone} numeric>
+                    {row.status}
+                  </Text>
+                )}
+              </View>
+              {row.key === "index" && (
+                <Text variant="footnote" color={row.tone} numeric>
                   {row.status}
                 </Text>
               )}
             </View>
-            {row.key === "index" && (
-              <Text variant="footnote" color={row.tone} numeric>
-                {row.status}
+            </React.Fragment>
+          ))}
+        </Card>
+
+
+        {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
+        {(transferring || indexPhase === "building") && (
+          // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
+          <Card level={0} radius="card" padding="compact" style={{ gap: tokens.space.xs, backgroundColor: tokens.color.status.warning.soft }}>
+            <IconText icon="alert-triangle" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
+              {t("flows.onboarding.keepOpenTitle")}
+            </IconText>
+            <Text variant="footnote">
+              {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
+              {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
+            </Text>
+          </Card>
+        )}
+
+        {/* The files being imported come after "Keep BOAR open", so that card stays on the first screen (Harbor, 02e72b5). */}
+        {needsImport && !allPresent && (
+          <View style={{ gap: tokens.space.sm }}>
+            {!offline && (
+              <Text variant="footnote" color="secondary">
+                {t("flows.onboarding.importPlacesNote")}
               </Text>
             )}
-          </View>
-          </React.Fragment>
-        ))}
-      </Card>
-
-
-      {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
-      {(transferring || indexPhase === "building") && (
-        // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
-        <Card level={0} radius="card" padding="compact" style={{ gap: tokens.space.xs, backgroundColor: tokens.color.status.warning.soft }}>
-          <IconText icon="alert-triangle" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
-            {t("flows.onboarding.keepOpenTitle")}
-          </IconText>
-          <Text variant="footnote">
-            {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
-            {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
-          </Text>
-        </Card>
-      )}
-
-      {/* The files being imported come after "Keep BOAR open", so that card stays on the first screen (Harbor, 02e72b5). */}
-      {needsImport && !allPresent && (
-        <View style={{ gap: tokens.space.sm }}>
-          {!offline && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.onboarding.importPlacesNote")}
-            </Text>
-          )}
-          {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
-          <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} hideVerified />
-          {!activeImport && (
-            // Where the files come from, with an address someone can type on a computer (Prism IM-5).
-            <View style={{ gap: tokens.space.xs }}>
-              <Text variant="footnote" color="secondary">
-                {t("flows.onboarding.importHow")}
-              </Text>
-              <Text variant="footnote" selectable>
-                {OFFLINE_INSTALL_URL}
-              </Text>
-              <View style={{ alignSelf: "flex-start" }}>
-                <TextAction
-                  label={t("flows.onboarding.copyLink")}
-                  leadingIcon="copy"
-                  onPress={async () => {
-                    await Clipboard.setStringAsync(`https://${OFFLINE_INSTALL_URL}`);
-                    announce(t("flows.onboarding.linkCopied"));
-                  }}
-                />
+            {/* Offline, choosing files is the footer's CTA (the mockup's place for the step's action); this lists them. */}
+            <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} hidePick={offline} hideActive={offline} hideVerified />
+            {!activeImport && (
+              // Where the files come from, with an address someone can type on a computer (Prism IM-5).
+              <View style={{ gap: tokens.space.xs }}>
+                <Text variant="footnote" color="secondary">
+                  {t("flows.onboarding.importHow")}
+                </Text>
+                <Text variant="footnote" selectable>
+                  {OFFLINE_INSTALL_URL}
+                </Text>
+                <View style={{ alignSelf: "flex-start" }}>
+                  <TextAction
+                    label={t("flows.onboarding.copyLink")}
+                    leadingIcon="copy"
+                    onPress={async () => {
+                      await Clipboard.setStringAsync(`https://${OFFLINE_INSTALL_URL}`);
+                      announce(t("flows.onboarding.linkCopied"));
+                    }}
+                  />
+                </View>
               </View>
+            )}
+          </View>
+        )}
+
+        {failed.length > 0 && (
+          <View
+            style={{
+              gap: tokens.space.sm,
+              padding: tokens.space.base,
+              borderRadius: tokens.radius.md,
+              backgroundColor: tokens.color.status.danger.soft,
+            }}
+          >
+            <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
+              <IconSlot name="alert-octagon" line={headlineLine} color={tokens.color.status.danger.solid} />
+              <Text variant="headline" color="danger" header style={{ flexShrink: 1 }}>
+                {t("flows.onboarding.downloadFailed")}
+              </Text>
             </View>
-          )}
-        </View>
-      )}
-
-      {failed.length > 0 && (
-        <View
-          style={{
-            gap: tokens.space.sm,
-            padding: tokens.space.base,
-            borderRadius: tokens.radius.md,
-            backgroundColor: tokens.color.status.danger.soft,
-          }}
-        >
-          <View style={{ flexDirection: "row", gap: iconTokens.gap, alignItems: "flex-start" }}>
-            <IconSlot name="alert-octagon" line={headlineLine} color={tokens.color.status.danger.solid} />
-            <Text variant="headline" color="danger" header style={{ flexShrink: 1 }}>
-              {t("flows.onboarding.downloadFailed")}
-            </Text>
+            {failed.map((f) => {
+              if (f.state.kind !== "failed") return null;
+              const lines = failureLines(f.state, t, lang);
+              return (
+                <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
+                  <Text variant="callout">
+                    {catalogLabel(f.asset, t)}: {lines.cause}
+                  </Text>
+                  <Text variant="caption" color="secondary" selectable>
+                    {lines.detail}
+                  </Text>
+                </View>
+              );
+            })}
+            <Button ref={retryRef} label={t("flows.row.retry")} icon="refresh-cw" onPress={() => failed.forEach((f) => catalog.download(f.asset))} />
+            {noSpaceFailure && <Button label={t("flows.onboarding.smallerPackage")} variant="secondary" onPress={onChoosePackage} />}
           </View>
-          {failed.map((f) => {
-            if (f.state.kind !== "failed") return null;
-            const lines = failureLines(f.state, t, lang);
-            return (
-              <View key={f.asset.id} style={{ gap: tokens.space.xxs }}>
-                <Text variant="callout">
-                  {catalogLabel(f.asset, t)}: {lines.cause}
-                </Text>
-                <Text variant="caption" color="secondary" selectable>
-                  {lines.detail}
-                </Text>
-              </View>
-            );
-          })}
-          <Button ref={retryRef} label={t("flows.row.retry")} icon="refresh-cw" onPress={() => failed.forEach((f) => catalog.download(f.asset))} />
-          {noSpaceFailure && <Button label={t("flows.onboarding.smallerPackage")} variant="secondary" onPress={onChoosePackage} />}
-        </View>
-      )}
+        )}
 
-      {indexPhase === "error" && (
-        <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ? t(userErrorKey(indexError)) : undefined} detail={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
-      )}
+        {indexPhase === "error" && (
+          <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ? t(userErrorKey(indexError)) : undefined} detail={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
+        )}
 
-      {stalled && !offline && (
-        <View style={{ gap: tokens.space.xs }}>
-        <Text variant="footnote" color="secondary">
-          {t("flows.onboarding.restartHint")}
-        </Text>
-        <Button
-          variant="secondary"
-          icon="refresh-cw"
-          label={t("flows.onboarding.restart")}
-          onPress={() => {
-            for (const { asset, state } of states) if (state.kind !== "installed" && state.kind !== "in-use") restartDownload(asset).finally(() => catalog.refresh());
-          }}
-        />
-        </View>
-      )}
+        {stalled && !offline && (
+          <View style={{ gap: tokens.space.xs }}>
+          <Text variant="footnote" color="secondary">
+            {t("flows.onboarding.restartHint")}
+          </Text>
+          <Button
+            variant="secondary"
+            icon="refresh-cw"
+            label={t("flows.onboarding.restart")}
+            onPress={() => {
+              for (const { asset, state } of states) if (state.kind !== "installed" && state.kind !== "in-use") restartDownload(asset).finally(() => catalog.refresh());
+            }}
+          />
+          </View>
+        )}
 
-    </Screen>
+      </Screen>
+    </Animated.View>
   );
 }
 
