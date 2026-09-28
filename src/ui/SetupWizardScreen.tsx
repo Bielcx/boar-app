@@ -46,6 +46,7 @@ import * as Clipboard from "expo-clipboard";
 import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
+import { withVerifiedImport } from "./flows/importProgress";
 import { catalogLabel } from "./flows/catalogLabel";
 import { userErrorKey } from "./flows/userError";
 
@@ -969,7 +970,8 @@ function InstallStep({
   // Offline build, or items with no published URL yet (places packs): those are imported.
   const needsImport = offline || assets.some((a) => !canDownload(a) && !catalog.statuses[a.id]?.present);
 
-  const states = assets.map((a) => ({ asset: a, state: catalog.view(a).state }));
+  // A file verified in the running pick is in, before the catalog refreshes at the end of the pick (Prism L3-3).
+  const states = assets.map((a) => ({ asset: a, state: withVerifiedImport(catalog.view(a).state, a.id, catalog.imports) }));
   const downloading = states.some((s) => s.state.kind === "downloading" || s.state.kind === "verifying");
   const failed = states.filter((s) => s.state.kind === "failed");
   const noSpaceFailure = failed.some((f) => f.state.kind === "failed" && f.state.errorKind === "storage");
@@ -1128,7 +1130,10 @@ function InstallStep({
   // One row per category, like the mockup (Iris, Prism): aggregated honestly, files one tap away.
   // The file being copied belongs to an item only once verified; its likely item (same size, or the same
   // name without case/punctuation) lets that category read "Importing" in ember meanwhile (the mockup's STREAMING row).
-  const copyTarget = activeImport ? likelyTarget(activeImport, assets.filter((a) => !catalog.statuses[a.id]?.present)) : undefined;
+  // Only items not in yet: a file verified earlier in the pick is no longer a candidate (L3-3).
+  const copyTarget = activeImport
+    ? likelyTarget(activeImport, states.filter((s) => s.state.kind === "not-installed" || s.state.kind === "failed").map((s) => s.asset))
+    : undefined;
   const importingItem = (asset: CatalogModel) => !!copyTarget && copyTarget.id === asset.id;
   const categories = installCategories(
     states.map(({ asset, state }) => ({
