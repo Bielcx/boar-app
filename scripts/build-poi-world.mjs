@@ -95,6 +95,11 @@ async function extract() {
     const pbf = join(o.work, "current.osm.pbf");
     const food = join(o.work, "current-food.osm.pbf");
     const geo = join(o.work, "current-food.geojsonseq");
+    // A partial download resumes only if it is this extract's: resuming another one's (a run stopped mid-download,
+    // then restarted with other --only/--continents) asks for a range past the end and curl retries for an hour.
+    const owner = `${pbf}.url`;
+    if (existsSync(pbf) && (!existsSync(owner) || readFileSync(owner, "utf8") !== leaf.pbf)) rmSync(pbf);
+    writeFileSync(owner, leaf.pbf);
     execFileSync("curl", ["-fsSL", "-C", "-", "--retry", "20", "--retry-all-errors", "-o", pbf, leaf.pbf]);
     // A download resumed after a long pause (the job is paused while the machine builds) can end up corrupt
     // ("invalid BlobHeader size"): start that extract over once instead of stopping the whole run.
