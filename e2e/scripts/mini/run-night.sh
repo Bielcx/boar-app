@@ -1,7 +1,7 @@
 #!/bin/bash
 # Heavy job (inside the lock), night 28/09: Boar #3 (Android prints: 07 PT + 12, then 02/03/07/11/12 at font 1.3 and 2.0)
 # and #7 (dumpsys gfxinfo: streaming, sources list, Models, Knowledge, places + "Show N more", cold start; 3 reps each).
-# One headless AVD boot for both. usage: [PHASES="prints perf"] [FLOOR_GB=12] [REPS=3] run-night.sh <apk> <sha>
+# One headless AVD boot for all phases (prints | iris | perf). usage: [PHASES="prints perf"] [FLOOR_GB=12] [REPS=3] run-night.sh <apk> <sha>
 # Flows in ~/boar/android/e2e/flows-piston/{prints,perf}. Output: ~/boar/android/e2e-out/night-<sha>-<ts>/
 set -uo pipefail
 APK=${1:?apk}; SHA=${2:?sha}; SDK=$HOME/Library/Android/sdk; A=$SDK/platform-tools/adb; P=team.sopa.aoair.offline
@@ -32,11 +32,15 @@ EN=(T_START="Get started" T_ESSENTIAL="Essential" T_CONTINUE="Continue" T_PICK="
   T_ASK="Ask something" T_MENU="Open menu" T_NEWCHAT="New chat" T_SEND="Send" T_STOP="Stop answer" T_SETTINGS="Settings" T_KNOWLEDGE="Knowledge"
   T_ASSISTANT="Assistant" T_MODELS="Models" T_VERIFIED="Verified:" T_IMPORT_PLACES="Import places" T_ASK_MODEL="Answer with AI" T_ANYWAY="Answer anyway"
   T_SOURCES="Sources? \\(?[0-9]" T_SHOW_MORE="Show [0-9]+ more"
+  T_PERFORMANCE="Performance" T_LOGS="Detailed logs" T_ADD_DOCS="Add documents" T_IMPORT_BTN="Import" T_IMPORT_FAILED="Couldn't import the documents"
+  T_APPEARANCE="Appearance" T_HISTORY="Conversation history" T_LIGHT="Light" T_DARK="Dark"
   Q_MONSOON="What causes the monsoon?" Q_DECLINE="What happened today in history?" Q_PLACES="best vegan restaurants in Rome")
 PT=(T_START="Começar" T_ESSENTIAL="Essencial" T_CONTINUE="Continuar" T_PICK="Escolher arquivos" T_DONE="Tudo roda offline a partir de agora." T_OPEN="Abrir o BOAR"
   T_ASK="Pergunte algo" T_MENU="Abrir menu" T_NEWCHAT="Nova conversa" T_SEND="Enviar" T_STOP="Parar resposta" T_SETTINGS="Ajustes" T_KNOWLEDGE="Conhecimento"
   T_ASSISTANT="Assistente" T_MODELS="Modelos" T_VERIFIED="Verificado:" T_IMPORT_PLACES="Importar lugares" T_ASK_MODEL="Responder com IA" T_ANYWAY="Arriscar resposta"
   T_SOURCES="Fontes? \\(?[0-9]" T_SHOW_MORE="Mostrar mais [0-9]+"
+  T_PERFORMANCE="Desempenho" T_LOGS="Registros detalhados" T_ADD_DOCS="Adicionar arquivos" T_IMPORT_BTN="Importar" T_IMPORT_FAILED="Não foi possível importar.*"
+  T_APPEARANCE="Aparência" T_HISTORY="Histórico de conversas" T_LIGHT="Claro" T_DARK="Escuro"
   Q_MONSOON="O que causa a monção?" Q_DECLINE="O que aconteceu hoje na história?" Q_PLACES="melhores restaurantes veganos em Roma")
 # mf <label> <flow> <en|pt> [KEY=VALUE...]: one Maestro run, screenshots land in $OUT/<label>/
 mf() {
@@ -58,6 +62,20 @@ if [[ " $PHASES " == *" prints "* ]]; then
   for fs in 1.0 1.3 2.0; do
     suf=_font$(echo $fs | tr -d .)0
     fontscale $fs; $A shell am force-stop $P; mf ax-chat-pt$suf prints/ax-chat.yaml pt SUF=$suf
+  done
+  fontscale 1.0
+fi
+
+if [[ " $PHASES " == *" iris "* ]]; then
+  # Iris after-fix round: splash burst at 2.0, setup 1-3 (EN/PT x 1.0/2.0), then misc screens at 1.0 per language
+  $A shell mkdir -p /sdcard/Download/docs; printf 'this is not a pdf\n' > "$OUT/broken.pdf"; $A push "$OUT/broken.pdf" /sdcard/Download/docs/ | tail -1
+  $A shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/docs/broken.pdf" >/dev/null
+  fontscale 2.0; fresh; mkdir -p "$OUT/splash-font200"; ACT=$($A shell cmd package resolve-activity --brief $P | tail -1 | tr -d '\r'); $A shell am start -n "$ACT" >/dev/null
+  for i in $(seq -w 1 12); do $A exec-out screencap -p > "$OUT/splash-font200/01-splash_android_font200_$i.png"; done
+  for combo in "pt 2.0" "pt 1.0" "en 2.0" "en 1.0"; do
+    set -- $combo; L=$1; fs=$2; suf=_font$(echo $fs | tr -d .)0
+    fontscale $fs; fresh; mf setup-$L$suf prints/setup-shots.yaml $L SUF=$suf
+    [ $fs = 1.0 ] && mf misc-$L prints/iris-misc.yaml $L
   done
   fontscale 1.0
 fi

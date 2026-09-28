@@ -1,0 +1,103 @@
+# Iris (after-fix round), app already set up: Performance > Detailed logs (after one answer), Knowledge with
+# an import error (Download/docs/broken.pdf is not a PDF), Settings > Appearance / Conversation history, then
+# Campfire LIGHT (chat, Knowledge, Settings) and back to Dark.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000
+- runFlow: new-chat.yaml
+- runFlow:
+    file: ask-paste.yaml
+    env:
+      QUESTION: ${Q_MONSOON}
+- extendedWaitUntil:
+    visible: ${T_STOP}
+    timeout: 10000
+    optional: true
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+# Performance > Detailed logs
+- tapOn: ${T_MENU}
+- tapOn: ${T_PERFORMANCE}
+- takeScreenshot: 16-performance_android_${L}
+- scrollUntilVisible:
+    element: ${T_LOGS}
+    optional: true
+- takeScreenshot: 16-performance-logs_android_${L}
+- scroll
+- takeScreenshot: 16-performance-logs_android_${L}_b
+- runFlow: ../perf/to-chat.yaml
+# Knowledge > Add documents > broken.pdf > Import -> error
+- tapOn: ${T_MENU}
+- tapOn: ${T_KNOWLEDGE}
+- scrollUntilVisible:
+    element: ${T_ADD_DOCS}
+- tapOn: ${T_ADD_DOCS}
+- extendedWaitUntil:
+    visible: "Show roots"
+    timeout: 20000
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- tapOn: "docs"
+- tapOn: "broken.pdf"
+- extendedWaitUntil:
+    visible: ${T_IMPORT_BTN}
+    timeout: 20000
+    optional: true
+- takeScreenshot: 13-knowledge-import-name_android_${L}
+- tapOn: ${T_IMPORT_BTN}
+- extendedWaitUntil:
+    visible:
+      text: "${T_IMPORT_FAILED}.*"
+    timeout: 60000
+    optional: true
+- takeScreenshot: 13-knowledge-import-error_android_${L}
+- scrollUntilVisible:
+    element:
+      text: "${T_IMPORT_FAILED}.*"
+    optional: true
+- takeScreenshot: 13-knowledge-import-error_android_${L}_b
+- runFlow: ../perf/to-chat.yaml
+# Settings > Appearance, Settings > Conversation history
+- tapOn: ${T_MENU}
+- tapOn: ${T_SETTINGS}
+- scrollUntilVisible:
+    element: ${T_APPEARANCE}
+- tapOn: ${T_APPEARANCE}
+- takeScreenshot: 14-settings-appearance_android_${L}
+- scroll
+- takeScreenshot: 14-settings-appearance_android_${L}_b
+- runFlow: ../perf/to-chat.yaml
+- tapOn: ${T_MENU}
+- tapOn: ${T_SETTINGS}
+- scrollUntilVisible:
+    element: ${T_HISTORY}
+- tapOn: ${T_HISTORY}
+- takeScreenshot: 15-settings-history_android_${L}
+- runFlow: ../perf/to-chat.yaml
+# Campfire light
+- tapOn: ${T_MENU}
+- tapOn: ${T_SETTINGS}
+- scrollUntilVisible:
+    element: ${T_APPEARANCE}
+- tapOn: ${T_APPEARANCE}
+- tapOn: ${T_LIGHT}
+- takeScreenshot: 17-light-appearance_android_${L}
+- runFlow: ../perf/to-chat.yaml
+- takeScreenshot: 17-light-chat_android_${L}
+- tapOn: ${T_MENU}
+- takeScreenshot: 17-light-menu_android_${L}
+- tapOn: ${T_KNOWLEDGE}
+- takeScreenshot: 17-light-knowledge_android_${L}
+- runFlow: ../perf/to-chat.yaml
+- tapOn: ${T_MENU}
+- tapOn: ${T_SETTINGS}
+- takeScreenshot: 17-light-settings_android_${L}
+- scrollUntilVisible:
+    element: ${T_APPEARANCE}
+- tapOn: ${T_APPEARANCE}
+- tapOn: ${T_DARK}
+- runFlow: ../perf/to-chat.yaml

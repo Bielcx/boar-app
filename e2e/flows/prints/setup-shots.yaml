@@ -1,0 +1,66 @@
+# Iris (after-fix round): setup steps 1-3 at the current font_scale on a fresh app, then into the chat.
+# 04 is shot at 35-50 % of the import (best effort) and again when it is done.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- runFlow:
+    when:
+      true: ${L == 'pt'}
+    commands:
+      - scrollUntilVisible:
+          element: "Português"
+          optional: true
+      - tapOn: "Português"
+- scrollUntilVisible:
+    element: ${T_START}
+    direction: UP
+    optional: true
+- takeScreenshot: 02-setup1-language_android_${L}${SUF}
+- scrollUntilVisible:
+    element: ${T_START}
+    optional: true
+- takeScreenshot: 02-setup1-language_android_${L}${SUF}_b
+- tapOn: ${T_START}
+- extendedWaitUntil:
+    visible:
+      text: "${T_ESSENTIAL}, .*"
+    timeout: 20000
+- takeScreenshot: 03-setup2-model_android_${L}${SUF}
+- tapOn:
+    text: "${T_ESSENTIAL}, .*"
+- scrollUntilVisible:
+    element: ${T_CONTINUE}
+- takeScreenshot: 03-setup2-model_android_${L}${SUF}_b
+- tapOn: ${T_CONTINUE}
+- extendedWaitUntil:
+    visible: ${T_PICK}
+    timeout: 20000
+- takeScreenshot: 04-setup3-import_android_${L}${SUF}
+- tapOn: ${T_PICK}
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- tapOn:
+    text: "List view"
+    optional: true
+- longPressOn:
+    text: ".*\\.gguf"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"
+- extendedWaitUntil:
+    visible:
+      text: ".*\\b(3[5-9]|4[0-9]|50) ?%.*"
+    timeout: 600000
+    optional: true
+- takeScreenshot: 04-setup3-download_android_${L}${SUF}
+- extendedWaitUntil:
+    visible: ${T_DONE}
+    timeout: 900000
+- takeScreenshot: 04-setup3-done_android_${L}${SUF}
+- scrollUntilVisible:
+    element: ${T_OPEN}
+    optional: true
+- tapOn: ${T_OPEN}
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000
