@@ -163,6 +163,8 @@ export function ComponentCatalogScreen() {
           <IconButton icon="menu" label="Open menu" onPress={() => {}} />
           <IconButton icon="mic" label="Voice input" variant="tonal" onPress={() => {}} />
           <IconButton icon="arrow-up" label="Send" variant="filled" onPress={() => {}} />
+          <IconButton icon="square" label="Stop" variant="stop" size="lg" onPress={() => {}} />
+          <IconButton icon="square" label="Stopping" variant="stop" size="lg" busy onPress={() => {}} />
           <IconButton icon="square" label="Stop" size="sm" onPress={() => {}} />
           <IconButton icon="bookmark" label="Selected" selected onPress={() => {}} />
         </View>

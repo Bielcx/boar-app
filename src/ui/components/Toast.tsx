@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { notification, NotificationFeedbackType } from "../../services/haptics";
@@ -53,6 +53,8 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
   const insets = useSafeAreaInsets();
   const announce = useAnnounce();
   const anim = useRef(new Animated.Value(0)).current;
+  // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
+  const riseY = useMemo(() => anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }), [anim]);
   const tone = toast.tone ?? "neutral";
   const tc = toneColors(t.color, tone === "neutral" ? "neutral" : tone);
   const line = useOpticalLine("callout");
@@ -93,7 +95,7 @@ function ToastView({ toast, onDone }: { toast: ToastOptions; onDone: () => void 
           borderWidth: t.scheme === "light" ? t.size.hairline : 0,
           borderColor: t.color.line.hairline,
           opacity: anim,
-          transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+          transform: [{ translateY: riseY }],
           ...(t.elevation[3] as object),
         }}
       >

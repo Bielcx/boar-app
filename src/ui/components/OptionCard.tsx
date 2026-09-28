@@ -64,7 +64,7 @@ export function OptionCard({
     borderColor: selected ? t.color.accent.solid : restBorder,
     // Selected rises to `raised` (mockup): an accent.soft wash would swallow soft accent badges.
     backgroundColor: selected || pressed ? t.color.bg.raised : t.color.bg.surface,
-    opacity: disabled ? 0.5 : 1,
+    opacity: disabled ? t.opacity.disabled : 1,
   });
 
   return (

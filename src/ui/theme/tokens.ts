@@ -357,6 +357,14 @@ export const motion = {
 // Assembly
 // ---------------------------------------------------------------------------
 
+/** Opacity of a control's states: disabled, pressed (text actions, segments), busy (a stop in progress), dimmed art. */
+export const opacity = {
+  disabled: 0.45,
+  pressed: 0.6,
+  busy: 0.6,
+  dim: 0.7,
+} as const;
+
 export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standard", palette: PaletteId = "fogueira") {
   const color = buildColors(getPalette(palette, scheme), scheme);
   return {
@@ -370,6 +378,7 @@ export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standar
     icon,
     elevation: buildElevation(scheme, color.glow),
     motion,
+    opacity,
   };
 }
 

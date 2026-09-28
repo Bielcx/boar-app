@@ -94,6 +94,8 @@ export interface IconTextProps {
   /** `tight` (6) inside chips and seals; default 8. */
   gap?: "default" | "tight";
   iconPosition?: "start" | "end";
+  /** With iconPosition "end" at a row's right edge: line up the glyph's stroke, not its box (CH-20). */
+  edge?: "end";
   /** Overrides the size that goes with the variant (tokens.icon). */
   iconRole?: IconRole;
   /**
@@ -124,6 +126,7 @@ export function IconText({
   iconColor,
   gap = "default",
   iconPosition = "start",
+  edge,
   iconRole,
   centerOnBox,
   numberOfLines,
@@ -148,7 +151,7 @@ export function IconText({
         style,
       ]}
     >
-      {icon && <IconSlot name={icon} line={line} color={iconColor ?? tint} />}
+      {icon && <IconSlot name={icon} line={line} color={iconColor ?? tint} edge={iconPosition === "end" ? edge : undefined} />}
       <Text
         variant={variant}
         color={color}

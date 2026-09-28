@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, View } from "react-native";
 import { Tokens, useTheme } from "../theme";
 
@@ -23,6 +23,8 @@ export function Progress({ value, valueText, label, tone = "accent", height = 10
   // px left a 140 pt bar empty ~65% of the time; Loom).
   const [width, setWidth] = useState(0);
   const sweep = useRef(new Animated.Value(0)).current;
+  // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
+  const sweepX = useMemo(() => sweep.interpolate({ inputRange: [0, 1], outputRange: [-0.4 * width, width] }), [sweep, width]);
   const indeterminate = value === undefined;
   const fill = tone === "danger" ? t.color.status.danger.solid : tone === "field" ? t.color.field.solid : t.color.accent.solid;
 
@@ -55,7 +57,7 @@ export function Progress({ value, valueText, label, tone = "accent", height = 10
             backgroundColor: fill,
             opacity: reduceMotion ? 0.5 : 1,
             ...(tone === "accent" ? { boxShadow: `0px 0px 14px rgba(${t.color.glow}, 0.6)` } : null),
-            transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-0.4 * width, width] }) }],
+            transform: [{ translateX: sweepX }],
           }}
         />
       ) : (
