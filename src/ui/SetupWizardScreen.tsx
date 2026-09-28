@@ -1556,6 +1556,8 @@ function CategoryRow({
             {status}
           </Text>
         </View>
+        {/* A disclosure shows it opens: the chevron of ListRow's expanded rows, on line 1 at the edge (Prism FL-15). */}
+        <IconSlot name={expanded ? "chevron-up" : "chevron-down"} line={line} color={tokens.color.text.secondary} edge="end" />
       </Pressable>
       {expanded &&
         row.items.map((it) => {

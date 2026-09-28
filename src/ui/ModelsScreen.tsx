@@ -318,6 +318,8 @@ export function ModelSearchScreen() {
                     downloads: formatCount(item.downloads ?? 0, i18n.language),
                     likes: formatCount(item.likes ?? 0, i18n.language),
                   })}
+                  // It folds its files in place: a disclosure, not navigation (Prism FL-14).
+                  expanded={open === item.id}
                   onPress={() => toggle(item.id)}
                   accessibilityHint={t("flows.models.repoHint")}
                 />
