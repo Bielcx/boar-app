@@ -1,7 +1,8 @@
 import React, { forwardRef } from "react";
-import { Text as RNText, TextProps as RNTextProps, TextStyle } from "react-native";
+import { PixelRatio, Platform, StyleSheet, Text as RNText, TextProps as RNTextProps, TextStyle } from "react-native";
 import { fontFamilyFor, useTokens, variantFace } from "../theme";
 import type { TextVariant, Tokens } from "../theme";
+import { cappedScale, iosTextInset } from "./textInset";
 
 export type TextColor = "primary" | "secondary" | "tertiary" | "accent" | "field" | "onAccent" | "danger" | "success" | "warning" | "info";
 
@@ -65,6 +66,23 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
   const { maxFontSizeMultiplier, ...typeStyle } = t.type[variant];
   const colorValue = colorFor(t, color);
   const isHeader = header ?? HEADER_VARIANTS.includes(variant);
+  const cap = rest.maxFontSizeMultiplier ?? maxFontSizeMultiplier;
+  const composed = [
+    typeStyle,
+    { color: colorValue },
+    numeric && TABULAR,
+    // Custom fonts: switch family per weight instead of setting fontWeight.
+    weight && { fontFamily: fontFamilyFor(variantFace(variant), WEIGHTS[weight]) },
+    align && { textAlign: align },
+    style,
+  ];
+  // iOS clips Baloo's ascenders and PT accents when the line is shorter than the font ('Doar', 'Área'):
+  // pad the glyphs down and give the space back below (theme/opticalCenter.ts). The OS scale is read
+  // once per render: a font-scale change remounts the navigation tree (FS-1).
+  const inset =
+    Platform.OS === "ios" && variantFace(variant) === "display"
+      ? iosTextInset("display", StyleSheet.flatten(composed), cappedScale(PixelRatio.getFontScale(), cap, rest.allowFontScaling))
+      : null;
   return (
     <RNText
       // Spread first: an explicit `maxFontSizeMultiplier={undefined}` (IconText passes one) must not
@@ -72,16 +90,8 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
       {...rest}
       ref={ref}
       accessibilityRole={isHeader ? "header" : rest.accessibilityRole}
-      maxFontSizeMultiplier={rest.maxFontSizeMultiplier ?? maxFontSizeMultiplier}
-      style={[
-        typeStyle,
-        { color: colorValue },
-        numeric && TABULAR,
-        // Custom fonts: switch family per weight instead of setting fontWeight.
-        weight && { fontFamily: fontFamilyFor(variantFace(variant), WEIGHTS[weight]) },
-        align && { textAlign: align },
-        style,
-      ]}
+      maxFontSizeMultiplier={cap}
+      style={inset ? [composed, inset] : composed}
     />
   );
 });

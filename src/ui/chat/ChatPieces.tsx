@@ -124,9 +124,6 @@ export const ChatEmptyState = memo(function ChatEmptyState({
   const heroAppear = useBootEntrance(firstAfterBoot);
   // The add-knowledge card's support line starts under its label's text.
   const addLine = useOpticalLine("footnote");
-  // iOS draws the 40/40 wordmark high and clipped the stem of its 'b' ('Doar', r4to 28/09): pad it down to
-  // Android's baseline and give the space back below, so nothing after it moves (0 on Android).
-  const wordmarkInset = useOpticalLine("wordmark").ascenderInset;
   const layout = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE);
   return (
     // The mockup's layout (spec-chat-vazio): mascot, wordmark, tagline, then the suggestions.
@@ -153,7 +150,7 @@ export const ChatEmptyState = memo(function ChatEmptyState({
           align="center"
           header
           accessibilityLabel={`${tr("chat.assistantName")}, ${tr("chat.empty.title")}`}
-          style={{ marginTop: t.space.xs + t.space.xxs, paddingTop: wordmarkInset, marginBottom: -wordmarkInset }}
+          style={{ marginTop: t.space.xs + t.space.xxs }}
         >
           {tr("chat.assistantName")}
         </Text>

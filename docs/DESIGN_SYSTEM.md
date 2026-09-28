@@ -134,6 +134,8 @@ Suggested mapping: menu `menu` · new chat `edit-3` · send `arrow-up` · stop `
 ### Icon beside text (icon-align round, 27/09)
 Never place an icon next to text with a bare `alignItems: "center"`. On iOS, every Baloo line (titles, buttons, the OFFLINE seal, card titles) is shorter than the font's box, so RN leaves the glyphs up to ~4 pt above the middle of their box; Android centres them. `theme/opticalCenter.ts` has the maths (font metrics + RN 0.86 line layout; measured on the setup CTA).
 
+On iOS those short Baloo lines also clip whatever pokes above the box (the wordmark read 'Doar'; 'Área', 'É'). `Text` therefore pads every Baloo line down on iOS to Android's baseline, or lower where an accented capital needs it (wordmark 3 pt, display 1 pt), and gives the space back with a negative bottom margin: footprints do not change, Android gets nothing. Your own `paddingTop`/`marginBottom` on a Baloo `Text` are added to, not replaced. `useOpticalLine` already includes the inset; never add a per-platform nudge for Baloo glyphs (`iosAscenderInset`, `components/textInset.ts`).
+
 | Need | Use |
 |---|---|
 | Icon + text | `<IconText icon="download" variant="footnote">Download</IconText>`: gap 8, icon on line 1, size from the variant, grows with the text |
