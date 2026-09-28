@@ -4,6 +4,7 @@ import { formatSeconds } from "./shareFormat";
 import { placesEmptyTitle } from "./placesFormat";
 import { chatModelName, chatModelNameById, type NameableModel } from "./modelName";
 import { answerSourceSplit } from "./sourceLabel";
+import { toWords } from "../flows/format";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -126,12 +127,9 @@ export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: s
   return fallback ? t("chat.loadCrash.message", { model, fallback }) : t("chat.loadCrash.messageNoFallback", { model });
 }
 
-/** Rough English/Portuguese average, as the Performance screen: the chat says words, never tokens (Prism UX-1). */
-export const WORDS_PER_TOKEN = 0.75;
-
-/** Tokens as an approximate word count ("8"): whole words, one decimal under 1. The caller adds "~". */
+/** Tokens as an approximate word count ("8"): whole words, one decimal under 1. The caller adds "~". The chat says words, never tokens (Prism UX-1). */
 export function approxWords(tokens: number, locale: string): string {
-  const words = tokens * WORDS_PER_TOKEN;
+  const words = toWords(tokens);
   return new Intl.NumberFormat(locale, { maximumFractionDigits: words < 1 ? 1 : 0 }).format(words);
 }
 
