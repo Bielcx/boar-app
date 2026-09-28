@@ -80,7 +80,7 @@ vi.mock("ram-monitor", () => ({
   getAvailableRamBytes: () => ram.avail,
 }));
 
-import { LlamaEngine, defaultContextSize } from "./LlamaEngine";
+import { LlamaEngine, PREFIX_WARM_IDLE_MS, defaultContextSize } from "./LlamaEngine";
 
 const live = () => created.filter((c) => !c.released);
 
@@ -372,5 +372,104 @@ describe("thinkingTagsFor", () => {
     };
     await engine.generate({ messages: [{ role: "user", content: "q" }], nPredict: 100, thinkingBudget: 64 });
     expect(seen[0]).toMatchObject({ thinking_start_tag: "<|channel>thought", thinking_end_tag: "<channel|>" });
+  });
+});
+
+describe("answer prefix kept in the KV cache (iPhone 13: 4-5 s to the first token)", () => {
+  const PREFIX = { system: "You are Boar. Use the context below. You are BOAR, an offline app.", prompt: "You are Boar. Use the context below. You are BOAR, an offline app.\n\n" };
+  const answerMsgs = [{ role: "system", content: `${PREFIX.system}\n\nContext:\n[1] Monsoon\nA monsoon is a seasonal wind.` }, { role: "user", content: "what's a monsoon?" }];
+
+  async function loadedEngine() {
+    const engine = new LlamaEngine();
+    await engine.load("models/a.gguf");
+    const seen: any[] = [];
+    Object.assign(created[0] as any, {
+      isJinjaSupported: () => true,
+      completion: (p: any) => {
+        seen.push(p);
+        return Promise.resolve({ text: p.n_predict === 0 ? "" : "ok", timings: { prompt_n: 60, prompt_ms: 600 } });
+      },
+    });
+    vi.useFakeTimers();
+    return { engine, seen };
+  }
+  const warms = (seen: any[]) => seen.filter((p) => p.n_predict === 0);
+
+  it("prefills the tone's prefix after the load, with no token generated, in the answer's chat format", async () => {
+    try {
+      const { engine, seen } = await loadedEngine();
+      engine.setAnswerPrefix(PREFIX);
+      await vi.advanceTimersByTimeAsync(20);
+      expect(warms(seen)).toHaveLength(1);
+      expect(warms(seen)[0]).toMatchObject({ jinja: true, messages: [{ role: "system", content: PREFIX.system }, { role: "user", content: "" }] });
+      // The answer that follows starts with the same system text: nothing to refill after it.
+      await engine.generate({ messages: answerMsgs });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(warms(seen)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refills it once the session title (another prompt) is done, after an idle moment", async () => {
+    try {
+      const { engine, seen } = await loadedEngine();
+      engine.setAnswerPrefix(PREFIX);
+      await vi.advanceTimersByTimeAsync(20);
+      await engine.generate({ messages: answerMsgs });
+      await engine.generate({ messages: [{ role: "system", content: "Generate a short 3-5 word title" }, { role: "user", content: "q" }], nPredict: 16 });
+      await vi.advanceTimersByTimeAsync(PREFIX_WARM_IDLE_MS - 50);
+      expect(warms(seen)).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(warms(seen)).toHaveLength(2);
+      // Plain-prompt models get the plain prefix.
+      (created[0] as any).isJinjaSupported = () => false;
+      await engine.generate({ prompt: "Title: q" });
+      await vi.advanceTimersByTimeAsync(PREFIX_WARM_IDLE_MS + 20);
+      expect(warms(seen)[2]).toEqual({ prompt: PREFIX.prompt, n_predict: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never puts a refill in front of a question already waiting, and skips between back-to-back prompts", async () => {
+    try {
+      const { engine, seen } = await loadedEngine();
+      engine.setAnswerPrefix(PREFIX);
+      // A question arrives before the post-load refill starts: it goes first, and it prefills the prefix itself.
+      const q = engine.generate({ messages: answerMsgs });
+      await vi.advanceTimersByTimeAsync(20);
+      await q;
+      expect(warms(seen)).toHaveLength(0);
+      // Deep Research stages one after another: no refill between them.
+      await engine.generate({ prompt: "stage 1" });
+      await vi.advanceTimersByTimeAsync(100);
+      await engine.generate({ prompt: "stage 2" });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(warms(seen)).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(PREFIX_WARM_IDLE_MS);
+      expect(warms(seen)).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does nothing without a prefix, and a new tone prefills again", async () => {
+    try {
+      const { engine, seen } = await loadedEngine();
+      await engine.generate({ prompt: "Title: q" });
+      await vi.advanceTimersByTimeAsync(PREFIX_WARM_IDLE_MS + 20);
+      expect(warms(seen)).toHaveLength(0);
+      engine.setAnswerPrefix(PREFIX);
+      engine.setAnswerPrefix({ ...PREFIX });
+      await vi.advanceTimersByTimeAsync(20);
+      expect(warms(seen)).toHaveLength(1);
+      engine.setAnswerPrefix({ system: "Thorough.", prompt: "Thorough.\n\n" });
+      await vi.advanceTimersByTimeAsync(20);
+      expect(warms(seen)).toHaveLength(2);
+      expect(warms(seen)[1].messages[0].content).toBe("Thorough.");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

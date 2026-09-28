@@ -104,7 +104,7 @@ import type {
 import type { ModelRole } from "./types";
 import type { RetrievedChunk } from "../rag/retrieve.types";
 import type { ConversationHistory, ChatMessage } from "../rag/pure";
-import type { GenerateOptions, GenerationTimings, LoadResult } from "../inference/LlamaEngine";
+import type { GenerateOptions, GenerationTimings, LoadResult, PromptPrefix } from "../inference/LlamaEngine";
 import type { MemoryFit } from "../inference/memoryFit";
 import type { AnswerSettings } from "../models/settings";
 import type { ResearchOptions, ResearchProgress, ResearchResult } from "../services/orchestrator";
@@ -129,6 +129,8 @@ export interface AnswerEngine {
   getModelInfo(): { filename: string } | null;
   hasEmbeddedChatTemplate(): boolean;
   estimateFit(filename: string): Promise<MemoryFit | null>;
+  /** Keeps this prompt start prefilled in the KV cache between answers (LlamaEngine.setAnswerPrefix). */
+  setAnswerPrefix?(prefix: PromptPrefix | null): void;
 }
 
 export interface AnswerDeps {
@@ -150,6 +152,8 @@ export interface AnswerDeps {
   /** Prompt builders (src/rag/pure.ts), injected so tests can inspect what the model sees. */
   assemblePrompt(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): string;
   assembleChatMessages(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): ChatMessage[];
+  /** The fixed start those builders give every answer with sources, for a tone (src/rag/pure.ts answerPromptPrefix). */
+  answerPrefix?(system?: string): PromptPrefix;
   now(): number;
   /** The device's calendar date (tests pass a fixed one). */
   today?(): Date;
@@ -294,6 +298,8 @@ export function createAnswerer(deps: AnswerDeps) {
 
   function answer(req: AnswerRequest, onEvent: AnswerEventHandler, ctx: AnswerContext): AnswerHandle {
     const answerId = newAnswerId();
+    // The tone of this chat is the one the next question will most likely use too: keep its prefix prefilled.
+    if (deps.answerPrefix) deps.engine.setAnswerPrefix?.(deps.answerPrefix(ctx.systemPrompt));
     const previous = current;
     let stopRequested = false;
     // Resolves on stop(), so a wait (the GPS) ends at once instead of running out its timeout.

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { RetrievedChunk } from "../rag/retrieve.types";
-import { assemblePrompt, assembleChatMessages } from "../rag/pure";
+import { answerPromptPrefix, assemblePrompt, assembleChatMessages } from "../rag/pure";
 import { AnswerDeps, createAnswerer, InstalledLlm } from "./answer";
 import type { AnswerEvent } from "./events";
 import type { AnswerSettings } from "../models/settings";
@@ -1693,6 +1693,17 @@ describe("answer(): execution telemetry (regression since 4e4f49d: nothing recor
     expect(result.outcome).toBe("error");
     expect(f.records).toHaveLength(1);
     expect(f.records[0]).toMatchObject({ modelId: "qwen1.5", outcome: "failure", errorMessage: "decode crashed" });
+  });
+
+  it("keeps the chat's tone prefix prefilled for the next question (engine.setAnswerPrefix)", async () => {
+    const prefixes: unknown[] = [];
+    f.deps.engine.setAnswerPrefix = (p) => prefixes.push(p);
+    f.deps.answerPrefix = answerPromptPrefix;
+    const { answer } = createAnswerer(f.deps);
+    await answer({ query: "What is the capital of Australia and where is it?" }, () => {}, { maxTokens: 256, systemPrompt: "Be brief." }).done;
+    expect(prefixes).toEqual([answerPromptPrefix("Be brief.")]);
+    // What the model got starts with it, so the prefilled part is reused.
+    expect(f.generations[0].messages![0].content.startsWith(answerPromptPrefix("Be brief.").system)).toBe(true);
   });
 
   it("records the peak of the app's memory from the load to the end (iOS showed an empty peak)", async () => {

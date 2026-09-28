@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { RetrievedChunk } from "../rag/retrieve.types";
-import { assembleChatMessages, type ChatMessage } from "../rag/pure";
+import { answerPromptPrefix, assembleChatMessages, assemblePrompt, type ChatMessage } from "../rag/pure";
+import { getPersonality } from "../constants/personalities";
 import { approxTokens } from "./context";
 
 /**
@@ -41,5 +42,35 @@ describe("system-prompt KV reuse across turns", () => {
     // Everything up to the context block is identical, grounding instruction included.
     expect(shared).toContain("You have no ability to control real-world devices");
     expect(approxTokens(shared)).toBeGreaterThan(100);
+  });
+});
+
+describe("answerPromptPrefix: the part of a question's prompt kept prefilled", () => {
+  const succinct = getPersonality("succinct");
+  // iPhone 13 telemetry (28/09): ~400-token prompts, 90-146 of them sources; "what's a monsoon?" with the Monsoon source.
+  const monsoon = [
+    src("m", "Monsoon", "A monsoon is traditionally a seasonal reversing wind accompanied by corresponding changes in precipitation, but now used to describe seasonal changes in atmospheric circulation and precipitation associated with annual latitudinal oscillation of the Intertropical Convergence Zone, specifically between its limits to the north and south of the equator."),
+  ];
+
+  it("opens both prompt builders' output for every tone, with sources", () => {
+    for (const system of [succinct.systemPrompt, getPersonality("detailed").systemPrompt, "", undefined]) {
+      const prefix = answerPromptPrefix(system);
+      const msgs = assembleChatMessages("what's a monsoon?", monsoon, system, { summary: "Earlier: seasons.", turns: [{ role: "user", text: "hi" }] }, succinct.styleReminder);
+      expect(msgs[0].content.startsWith(prefix.system)).toBe(true);
+      expect(assemblePrompt("what's a monsoon?", monsoon, system, undefined, succinct.styleReminder).startsWith(prefix.prompt)).toBe(true);
+    }
+    // No sources: another system message (no source rules), so the engine refills the prefix after it.
+    expect(assembleChatMessages("hi", [], succinct.systemPrompt)[0].content.startsWith(answerPromptPrefix(succinct.systemPrompt).system)).toBe(false);
+  });
+
+  it("leaves a first question only its sources and itself to prefill", () => {
+    const prompt = serialize(assembleChatMessages("what's a monsoon?", monsoon, succinct.systemPrompt, undefined, succinct.styleReminder));
+    const cached = `<|im_start|>system\n${answerPromptPrefix(succinct.systemPrompt).system}`;
+    expect(prompt.startsWith(cached)).toBe(true);
+    const total = approxTokens(prompt);
+    const toPrefill = total - approxTokens(cached);
+    console.log(`[prompt] first question of a new chat, tokens to prefill: before ${total}, after ${toPrefill} (prefix ${total - toPrefill} prefilled after load/title)`);
+    // The prefix is more than half of a monsoon-sized prompt.
+    expect(toPrefill).toBeLessThan(total / 2);
   });
 });
