@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "../theme";
 import { IconButton } from "./IconButton";
 import { Text } from "./Text";
+import { sheetAnimates } from "./sheetMotion";
 
 export interface SheetProps {
   visible: boolean;
@@ -46,6 +47,10 @@ export function Sheet({
   const titleRef = useRef<View>(null);
 
   useEffect(() => {
+    // Mounted closed (a row's confirm sheet, the setup pickers): nothing on screen to animate out,
+    // and no focus to hand back. Without this, every closed Sheet ran a native animation on mount
+    // and then moved screen-reader focus to its trigger (perf audit #12).
+    if (!sheetAnimates(visible, mounted)) return;
     if (visible) setMounted(true);
     const duration = reduceMotion ? 0 : visible ? t.motion.duration.base : t.motion.duration.fast;
     Animated.timing(progress, {
