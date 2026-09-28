@@ -21,6 +21,7 @@ import { lineSlop } from "./touch";
 import { chatLargeText } from "./largeText";
 import { Reveal } from "./Reveal";
 import { Swap } from "./Swap";
+import { useMotion } from "../theme/motion";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -166,6 +167,7 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
+  const m = useMotion();
   const counting = streaming && inProgress;
   const seconds = useElapsedSeconds(counting);
   const label = open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show");
@@ -175,7 +177,15 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
           shifts every second); the counter is a caption beside it, silent (readers hear the stages). */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
         {/* A secondary move in text.secondary, not ember (Prism CH-14). */}
-        <TextAction label={label} leadingIcon="message-circle" onPress={() => setOpen((o) => !o)} expanded={open} />
+        <TextAction
+          label={label}
+          leadingIcon="message-circle"
+          onPress={() => {
+            m.animateNextLayout();
+            setOpen((o) => !o);
+          }}
+          expanded={open}
+        />
         {counting && (
           <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             <MetaLine items={[tr("chat.reasoning.thinking", { seconds })]} variant="caption" />
@@ -384,6 +394,7 @@ const SourceList = memo(function SourceList({
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const m = useMotion();
   const groups = groupSources(answer.sources, only);
   const labelLine = useOpticalLine("label");
   // Prism AX-2/AX-3: at large text the row stacks (number + title on the full width, up to 2 lines;
@@ -425,7 +436,10 @@ const SourceList = memo(function SourceList({
             }}
           >
             <Pressable
-              onPress={() => setExpanded(open ? null : g.key)}
+              onPress={() => {
+                m.animateNextLayout();
+                setExpanded(open ? null : g.key);
+              }}
               accessibilityRole="button"
               accessibilityLabel={
                 tr("chat.sources.groupLabel", { numbers, title: g.title, origin, count: passages }) +
@@ -539,6 +553,7 @@ function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: num
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
+  const m = useMotion();
   const groups = groupSources(answer.sources, indexes);
   return (
     <View style={{ gap: t.space.sm }}>
@@ -548,7 +563,10 @@ function RelatedSources({ answer, indexes }: { answer: AnswerState; indexes: num
           label={tr(open ? "chat.sources.hideRelated" : "chat.sources.related", { count: groups.length })}
           icon={open ? "chevron-up" : "chevron-down"}
           expanded={open}
-          onPress={() => setOpen((o) => !o)}
+          onPress={() => {
+            m.animateNextLayout();
+            setOpen((o) => !o);
+          }}
         />
       </View>
       {open &&
@@ -573,6 +591,7 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
+  const m = useMotion();
   const groups = groupSources(answer.sources);
   // The engine's text already opens with "not from an offline source" (Tusk 4375d76): keep only the
   // marker where the sources would be, not the same sentence twice (Iris).
@@ -603,7 +622,10 @@ function WeakSourceNote({ answer, incomplete, uncited }: { answer: AnswerState; 
           }
           icon={open ? "chevron-up" : "chevron-down"}
           expanded={open}
-          onPress={() => setOpen((o) => !o)}
+          onPress={() => {
+            m.animateNextLayout();
+            setOpen((o) => !o);
+          }}
         />
       )}
       {open && (
@@ -661,6 +683,7 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
+  const m = useMotion();
   const groups = groupSources(answer.sources);
   return (
     <Card radius="card" padding="compact" style={{ gap: t.space.sm }}>
@@ -687,7 +710,10 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
             label={found ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length }) : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
             icon={open ? "chevron-up" : "chevron-down"}
             expanded={open}
-            onPress={() => setOpen((o) => !o)}
+            onPress={() => {
+              m.animateNextLayout();
+              setOpen((o) => !o);
+            }}
           />
         )}
       </View>
@@ -776,6 +802,7 @@ const InstantSnippet = memo(function InstantSnippet({
   const overlineLines = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE).snippetOverlineLines;
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
+  const m = useMotion();
   const snippet = answer.instant!;
   // The engine's "(em inglês)" lead moves to the header; the body is the passage itself.
   const { lang, body } = sourceLanguageLead(snippet.text);
@@ -800,7 +827,10 @@ const InstantSnippet = memo(function InstantSnippet({
             label={expanded ? tr("chat.snippet.showLess") : tr("chat.snippet.showMore")}
             icon={expanded ? "chevron-up" : "chevron-down"}
             expanded={expanded}
-            onPress={() => setUserExpanded(!expanded)}
+            onPress={() => {
+              m.animateNextLayout();
+              setUserExpanded(!expanded);
+            }}
           />
         )}
         {source && (

@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, IconText, LineSlot, Sheet, Text, TextAction, TextField, useOpticalLine, useToast } from "../components";
 import { installedPoiCities } from "../flows/adapters";
 import { icon, useTokens } from "../theme";
+import { useMotion } from "../theme/motion";
 import type { Place } from "./answerEvents";
 import { CityMapOffer } from "../flows/CityMapOffer";
 import type { AnswerState, PlacesResult } from "./answerReducer";
@@ -475,6 +476,7 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const m = useMotion();
   const [openPlace, setOpenPlace] = useState<Place | null>(null);
   const [showLicense, setShowLicense] = useState(false);
   const r = answer.places!;
@@ -560,7 +562,16 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
           }}
         >
           {hidden > 0 && (
-            <TextAction label={tr("chat.places.showMore", { count: hidden })} icon="chevron-down" expanded={false} onPress={() => setExpanded(true)} />
+            <TextAction
+              label={tr("chat.places.showMore", { count: hidden })}
+              icon="chevron-down"
+              expanded={false}
+              // The fold opens in height (DS layout), not in one frame.
+              onPress={() => {
+                m.animateNextLayout();
+                setExpanded(true);
+              }}
+            />
           )}
           {r.truncated && expanded && (
             <Text variant="caption" color="secondary">
