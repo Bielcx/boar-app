@@ -8,6 +8,7 @@ import { footerBottom } from "../components/Screen";
 import { useTokens } from "../theme";
 import { VoiceInputButton } from "../VoiceInputButton";
 import { composerNotice, composerPlaceholderKey, sendMode, type ModelStatus } from "./composerState";
+import { Swap } from "./Swap";
 
 interface Props {
   value: string;
@@ -113,30 +114,33 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
             }}
           />
         </View>
-        {generating ? (
-          // Stop, as the mockup (s2 disc, ember ring, 16 pt ember square): the DS's IconButton "stop" (Prism CH-29),
-          // busy while the stop lands.
-          <IconButton
-            icon="square"
-            variant="stop"
-            size="lg"
-            label={stopping ? tr("chat.composer.stopping") : tr("chat.composer.stop")}
-            busy={stopping}
-            onPress={onStop}
-          />
-        ) : (
-          // With the model ready, send is always the ember disc (the mockup): with an empty field it puts the
-          // focus there instead of sending nothing. Neutral and disabled only when the model can't answer.
-          <IconButton
-            icon="arrow-up"
-            variant="filled"
-            size="lg"
-            label={tr("chat.composer.send")}
-            accessibilityHint={mode === "focus" ? tr("chat.composer.focusHint") : mode === "disabled" ? hint : undefined}
-            disabled={mode === "disabled"}
-            onPress={() => (mode === "send" ? onSend() : field.current?.focus())}
-          />
-        )}
+        {/* Stop and send swap in place with the DS crossfade (Prism F2-8). */}
+        <Swap swapKey={generating ? "stop" : "send"}>
+          {generating ? (
+            // Stop, as the mockup (s2 disc, ember ring, 16 pt ember square): the DS's IconButton "stop" (Prism CH-29),
+            // busy while the stop lands.
+            <IconButton
+              icon="square"
+              variant="stop"
+              size="lg"
+              label={stopping ? tr("chat.composer.stopping") : tr("chat.composer.stop")}
+              busy={stopping}
+              onPress={onStop}
+            />
+          ) : (
+            // With the model ready, send is always the ember disc (the mockup): with an empty field it puts the
+            // focus there instead of sending nothing. Neutral and disabled only when the model can't answer.
+            <IconButton
+              icon="arrow-up"
+              variant="filled"
+              size="lg"
+              label={tr("chat.composer.send")}
+              accessibilityHint={mode === "focus" ? tr("chat.composer.focusHint") : mode === "disabled" ? hint : undefined}
+              disabled={mode === "disabled"}
+              onPress={() => (mode === "send" ? onSend() : field.current?.focus())}
+            />
+          )}
+        </Swap>
       </View>
     </View>
   );

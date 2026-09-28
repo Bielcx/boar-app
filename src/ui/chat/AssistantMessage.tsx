@@ -158,9 +158,12 @@ function Elapsed({ locale, step }: { locale: string; step?: string }) {
       }}
     >
       {/* A pill (Iris icon-align): seal-sized icon, tight gap, the pair on the pill's optical middle. */}
-      <IconText icon="loader" variant="caption" color="secondary" iconColor={t.color.text.secondary} iconRole="seal" gap="tight" centerOnBox numeric>
-        {metaItems([step, formatSeconds(seconds * 1000, locale)]).join(META_SEPARATOR)}
-      </IconText>
+      {/* Searching → Reading → Writing crossfade in the pill (Prism F2-8); the seconds tick inside. */}
+      <Swap swapKey={step ?? ""}>
+        <IconText icon="loader" variant="caption" color="secondary" iconColor={t.color.text.secondary} iconRole="seal" gap="tight" centerOnBox numeric>
+          {metaItems([step, formatSeconds(seconds * 1000, locale)]).join(META_SEPARATOR)}
+        </IconText>
+      </Swap>
     </View>
   );
 }

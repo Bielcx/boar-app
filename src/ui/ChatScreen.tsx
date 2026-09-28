@@ -116,6 +116,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const tk = useTokens();
   const { reduceMotion } = useTheme();
   const motion = useMotion();
+  // For callbacks that must stay stable (the event flush, finish).
+  const motionRef = useRef(motion);
+  motionRef.current = motion;
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const announce = useAnnounce();
@@ -203,6 +206,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     const batch = pendingEvents.current;
     if (batch.length === 0) return;
     pendingEvents.current = [];
+    // The end of an answer (done, a decline's warning) changes heights at rest: the snippet folding to its
+    // preview, the count becoming the source list (Prism F2-1/F2-2). One DS layout animation for that commit.
+    if (batch.some(({ event }) => event.type === "done" || event.type === "warning")) motionRef.current.animateNextLayout();
     setItems((prev) => {
       let next = prev;
       for (const { messageId, event } of batch) next = updateAnswer(next, messageId, (a) => answerReducer(a, event));
@@ -435,6 +441,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   );
 
   const finish = useCallback(() => {
+    // The answer stops running: "N passages" becomes the list, the actions come in (Prism F2-1).
+    motionRef.current.animateNextLayout();
     activeRef.current = null;
     setActive(null);
     setStopping(false);
