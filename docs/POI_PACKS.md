@@ -117,10 +117,34 @@ world 3,833,916 (`diet:vegan` 67,375, `diet:vegetarian` 117,368). By continent
 | **World** | **~3.87 M** | **~67 k** | **~0.68 GB** + 21 MB gazetteer |
 
 So every region on Earth fits in about 1.4% of the 50 GB budget; per-country
-packs (states for the biggest countries) are a few MB to ~60 MB. Building them
-all means the Geofabrik extracts (planet ~80 GB) filtered with `osmium
-tags-filter` on the Mac mini, not Overpass; not started (needs approval above
-5 GB).
+packs (states for the biggest countries) are a few MB to ~60 MB.
+
+## World tiles (built 2026-09-28, measured)
+
+`scripts/build-poi-world.mjs` over every Geofabrik leaf extract (osmium
+tags-filter, one extract at a time, deleted after), in slices: the target
+cities first, then Europe + the Americas + Asia, then Africa + Oceania.
+504 of 512 leaves extracted; the other 8 are 7 groupings whose members are all
+leaves (us, us-midwest/northeast/south/west, sea, south-africa-and-lesotho:
+~28 GB of downloads skipped, the tiles step dedupes anyway) and enfield
+(inside London, served as HTML, not a PBF). ~58 GB downloaded in total.
+
+| | Measured |
+|---|---|
+| Tiles (1°×1°, with named places) | 8,374 |
+| Places (OSM + Wikivoyage listings) | 3,490,656 |
+| Places tagged vegan | 51,840 |
+| All tiles | 0.98 GB (980,279,296 B) |
+| Tile size p50 / p95 / max | 36 KB / 404 KB / 9.4 MB (t-N35E139, Tokyo) |
+| Gazetteer with the tile index | 22,962,176 B, `215ce466…` |
+
+Hosted on HF `r4topunk/boar-packs`: tiles at commit `44c3375`
+(`places/tiles/t-*.sqlite`), gazetteer at `0d75f30`
+(`places/world-places.sqlite`, `places/tiles-index.json`). The app downloads
+or imports only the tiles around a chosen city (`tilesFor`); the gazetteer's
+`tiles` table is the catalog. Diet claims audited with Jev only on the tiles of
+the test cities (6,438 places, US$0.026 in total); the rest carry the OSM tag
+unaudited.
 
 ## Licenses
 
