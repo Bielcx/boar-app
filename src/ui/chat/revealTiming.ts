@@ -24,9 +24,20 @@ export function revealTiming(shown: boolean, reduceMotion: boolean): RevealTimin
  * - "record": first layout of a block shown in place (restored history): nothing moves;
  * - "grow": first layout of a block that appears (asked in this run): 0 → its height;
  * - "resize": the content changed height (a preview collapsing, a count becoming a list);
- * - "none": same height.
+ * - "none": same height;
+ * - "wait": a first layout with no content past `floor` (the block's gap): not a measure yet.
  */
-export function revealOnLayout(previous: number | null, next: number, appear: boolean, epsilon = 0.5): "record" | "grow" | "resize" | "none" {
+export function revealOnLayout(
+  previous: number | null,
+  next: number,
+  appear: boolean,
+  floor = 0,
+  epsilon = 0.5
+): "record" | "grow" | "resize" | "none" | "wait" {
+  // A first layout with nothing but the block's own gap (content not laid out yet, e.g. behind a Swap):
+  // wait for the real one. Growing to the empty height would settle at rest, and the content would then
+  // come in at once (Prism F2-7: "Found 1 passage" pushing everything 42-46 dp in one frame).
+  if (previous == null && next <= floor + epsilon) return "wait";
   if (previous == null) return appear ? "grow" : "record";
   return Math.abs(next - previous) < epsilon ? "none" : "resize";
 }

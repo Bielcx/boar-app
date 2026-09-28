@@ -34,6 +34,15 @@ describe("revealOnLayout", () => {
     expect(revealOnLayout(60, 180, true)).toBe("resize");
     expect(revealOnLayout(110, 110.2, true)).toBe("none");
   });
+  it("waits for content past the gap before its first measure (Prism F2-7)", () => {
+    // A 12 pt gap, content not laid out yet: not a measure; the real layout then grows.
+    expect(revealOnLayout(null, 12, true, 12)).toBe("wait");
+    expect(revealOnLayout(null, 0, true, 0)).toBe("wait");
+    expect(revealOnLayout(null, 58, true, 12)).toBe("grow");
+    expect(revealOnLayout(null, 58, false, 12)).toBe("record");
+    // Once measured, a later empty layout is a real resize.
+    expect(revealOnLayout(58, 12, true, 12)).toBe("resize");
+  });
 });
 
 // BUG-reveal-empty (iPhone 13, f7e8eb2): a streamed answer grew in to its first measure (almost only its

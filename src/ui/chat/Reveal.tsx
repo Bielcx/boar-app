@@ -127,7 +127,8 @@ export function Reveal({
   const onLayout = useCallback(
     (e: LayoutChangeEvent) => {
       const next = e.nativeEvent.layout.height;
-      const step = revealOnLayout(natural.current, next, grows);
+      const step = revealOnLayout(natural.current, next, grows, spaceBefore);
+      if (step === "wait") return;
       const previous = natural.current;
       natural.current = next;
       if (!shownRef.current) return;
@@ -135,7 +136,7 @@ export function Reveal({
       // A grow still running follows its content (streamed text); at rest nothing clamps it.
       if (step === "resize" && moving.current && next > (previous ?? 0)) run(revealMove("grow", null, next)!, true);
     },
-    [grows, run]
+    [grows, run, spaceBefore]
   );
 
   const style = useAnimatedStyle(() => ({ minHeight: minHeight.value, maxHeight: maxHeight.value, opacity: opacity.value }));
