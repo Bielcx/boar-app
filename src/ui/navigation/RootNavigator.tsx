@@ -163,7 +163,9 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
           animation: "default",
         }}
       >
-        <Stack.Screen name="Main" component={MainDrawer} />
+        {/* Main only ever arrives as the root (reset at the end of setup): it fades in, instead of the
+            push slide that read as "forward" with nowhere to go back to (Iris TR-7). */}
+        <Stack.Screen name="Main" component={MainDrawer} options={{ animation: "fade" }} />
         <Stack.Screen name="Setup" component={SetupRoute} options={{ gestureEnabled: false, animation: "fade" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={flowHeader(t, tr("nav.settings"))} />
         <Stack.Screen name="SettingsTone" component={SettingsToneScreen} options={flowHeader(t, tr("flows.settings.tone"), false)} />
