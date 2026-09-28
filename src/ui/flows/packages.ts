@@ -101,3 +101,12 @@ export function recommendPackage(plans: { id: PackageId; shortfall: number }[]):
   const fitting = plans.filter((p) => p.shortfall === 0);
   return (fitting[fitting.length - 1] ?? plans[0]).id;
 }
+
+/**
+ * The package that carries the RECOMMENDED seal, or none yet. Before the catalog loads the free
+ * space reads 0 ("unknown, never blocks"), so the richest package would get the seal while the
+ * pre-selection still waits: the seal waits too, and then lands where the selection does (FL-22).
+ */
+export function shownRecommendation(plans: { id: PackageId; shortfall: number }[], loaded: boolean): PackageId | undefined {
+  return loaded ? recommendPackage(plans) : undefined;
+}

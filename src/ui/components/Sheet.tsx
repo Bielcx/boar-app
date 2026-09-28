@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, findNodeHandle, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useTheme } from "../theme";
 import { IconButton } from "./IconButton";
 import { Text } from "./Text";
+import { sheetAnimates } from "./sheetMotion";
 
 export interface SheetProps {
   visible: boolean;
@@ -44,8 +45,14 @@ export function Sheet({
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(0)).current;
   const titleRef = useRef<View>(null);
+  // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
+  const slideY = useMemo(() => progress.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }), [progress]);
 
   useEffect(() => {
+    // Mounted closed (a row's confirm sheet, the setup pickers): nothing on screen to animate out,
+    // and no focus to hand back. Without this, every closed Sheet ran a native animation on mount
+    // and then moved screen-reader focus to its trigger (perf audit #12).
+    if (!sheetAnimates(visible, mounted)) return;
     if (visible) setMounted(true);
     const duration = reduceMotion ? 0 : visible ? t.motion.duration.base : t.motion.duration.fast;
     Animated.timing(progress, {
@@ -93,7 +100,7 @@ export function Sheet({
             borderWidth: t.size.hairline,
             borderColor: t.color.line.hairline,
             paddingBottom: Math.max(insets.bottom, t.space.base),
-            transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }) }],
+            transform: [{ translateY: slideY }],
             ...(t.elevation[3] as object),
           }}
         >

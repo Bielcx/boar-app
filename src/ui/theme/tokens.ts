@@ -232,6 +232,8 @@ export const space = {
   gutterChat: 16,
   /** Gap between suggestion cards in the chat (mockup 14). */
   cardGap: 14,
+  /** Left/right inset of rows and blocks inside a Section (ListRow, Section title, catalog rows): 14. */
+  inset: 14,
 } as const;
 
 /** From the mockup: pills for actions and inputs, soft cards. */
@@ -287,6 +289,8 @@ export const size = {
   icon: 20,
   iconLg: 24,
   controlSm: 36,
+  /** The icon well of an empty or error state. */
+  emptyWell: 56,
   control: 48,
   /** Round controls in the chat header (menu, avatar): visual 42, touch via hitSlop. */
   headerDisc: 42,
@@ -353,6 +357,14 @@ export const motion = {
 // Assembly
 // ---------------------------------------------------------------------------
 
+/** Opacity of a control's states: disabled, pressed (text actions, segments), busy (a stop in progress), dimmed art. */
+export const opacity = {
+  disabled: 0.45,
+  pressed: 0.6,
+  busy: 0.6,
+  dim: 0.7,
+} as const;
+
 export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standard", palette: PaletteId = "fogueira") {
   const color = buildColors(getPalette(palette, scheme), scheme);
   return {
@@ -366,6 +378,7 @@ export function buildTokens(scheme: ColorScheme, fontScale: FontScale = "standar
     icon,
     elevation: buildElevation(scheme, color.glow),
     motion,
+    opacity,
   };
 }
 

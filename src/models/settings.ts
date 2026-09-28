@@ -100,25 +100,55 @@ function migrateCrashIds(): Promise<void> {
   return crashIdsMigrated;
 }
 
+/**
+ * The file's text as last read or written (null = no file), so a getter costs a JSON.parse instead of
+ * two native FS calls (perf audit #34: ~20 reads at boot, 3 per question). Only this module touches
+ * SETTINGS_PATH and every write goes through writeSettings/clearSettings, so it can't go stale
+ * in-process. Callers get a fresh parse, so mutating the result (read-modify-write) is safe.
+ */
+let cached: { raw: string | null } | null = null;
+/** Bumped by every write: a read that started before it must not store the older text. */
+let cacheGeneration = 0;
+
+/** Tests that change the mocked file behind the module's back. */
+export function resetSettingsCache(): void {
+  cached = null;
+  cacheGeneration++;
+}
+
+function parseSettings(raw: string | null): Settings {
+  return raw == null ? { ...DEFAULT_SETTINGS } : { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+}
+
 async function readSettings(): Promise<Settings> {
   try {
+    if (cached) return parseSettings(cached.raw);
+    const generation = cacheGeneration;
     const info = await FileSystem.getInfoAsync(SETTINGS_PATH);
-    if (!info.exists) return { ...DEFAULT_SETTINGS };
-    const raw = await FileSystem.readAsStringAsync(SETTINGS_PATH);
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const raw = info.exists ? await FileSystem.readAsStringAsync(SETTINGS_PATH) : null;
+    const settings = parseSettings(raw);
+    if (generation === cacheGeneration) cached = { raw };
+    return settings;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
 
 async function writeSettings(s: Settings): Promise<void> {
-  await FileSystem.writeAsStringAsync(SETTINGS_PATH, JSON.stringify(s));
+  const raw = JSON.stringify(s);
+  cacheGeneration++;
+  cached = null;
+  await FileSystem.writeAsStringAsync(SETTINGS_PATH, raw);
+  cached = { raw };
 }
 
 /** Deletes the settings file outright (used by appReset.ts) — next read falls back to defaults. */
 export async function clearSettings(): Promise<void> {
   return serialized(async () => {
+    cacheGeneration++;
+    cached = null;
     await FileSystem.deleteAsync(SETTINGS_PATH, { idempotent: true });
+    cached = { raw: null };
   });
 }
 

@@ -4,13 +4,13 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Badge, Button, IconName, LARGE_TEXT_SCALE, MetaLine, Progress, Sheet, Text, TextAction, useAnnounce, useOpticalLine, useToast } from "../components";
 import type { Tone } from "../theme";
-import { useTokens } from "../theme";
+import { icon as iconTokens, space, useTokens } from "../theme";
 import type { CatalogModel } from "../../models/manifest";
 import { failureLines, formatBytes, formatRam } from "./format";
 import { catalogLabel } from "./catalogLabel";
-import type { RowState, RowView } from "./modelRowState";
+import { withLiveProgress, type RowState, type RowView } from "./modelRowState";
 import type { MemoryFit } from "../../inference/memoryFit";
-import { canDownload } from "./useCatalog";
+import { canDownload, useLiveDownload } from "./useCatalog";
 import { confirmLargeModel } from "./adapters";
 import type { FileImport } from "./useCatalog";
 
@@ -64,6 +64,17 @@ function seal(state: RowState, t: TFunction): Seal {
   }
 }
 
+/** The fit seal and its reason: one row that wraps, the reason as a caption (as on the setup model card). */
+const SEAL_ROW = { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: iconTokens.gapTight, rowGap: space.xs } as const;
+
+function FitReason({ text }: { text?: string }) {
+  return text ? (
+    <Text variant="caption" color="secondary">
+      {text}
+    </Text>
+  ) : null;
+}
+
 /** A detail line longer than this may wrap past two lines: it folds, with Show all. */
 const DETAIL_FOLD_CHARS = 90;
 
@@ -73,6 +84,21 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const toast = useToast();
+  // The seal says "May be slow"; the line beside it says why, once (Iris, Prism MD-3). Not in the
+  // metadata: one fact per line, or the tier line and the reason made 3 lines in PT (Prism FL-6).
+  const fitReason = view.wontFit
+    ? fit
+      ? t("flows.row.wontFitNumbers", {
+          // What it needs: weights and working memory for a dense model, the working memory alone for MoE.
+          need: formatRam(fit.expertFraction === 0 ? fit.fileBytes + fit.anonBytes : fit.anonBytes, i18n.language),
+          total: formatRam(fit.totalBytes, i18n.language),
+        })
+      : t("flows.row.wontFitWhy")
+    : view.mayCloseApp
+      ? t("flows.row.mayCloseWhy")
+      : view.fitWarning
+        ? t(`flows.row.fitWhy.${view.fitWarning}`)
+        : undefined;
   const announce = useAnnounce();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
@@ -83,7 +109,8 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
   // A ghost Remove that opens the actions row lines its text up with the column above (Iris).
   const leadsActions = !(view.primary === "download" || view.primary === "explain" || view.primary === "retry" || (view.primary === "use" && onUse));
   const [removing, setRemoving] = useState(false);
-  const { state } = view;
+  // The bar follows this asset's download; the screen re-renders only on phase changes.
+  const state = withLiveProgress(view.state, useLiveDownload(model.id));
   const b = seal(state, t);
   const size = formatBytes(model.sizeBytes, i18n.language);
   // No network in this build, or no published URL yet: the item comes in as a file.
@@ -140,18 +167,6 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
             <MetaLine
               items={[
                 showRoles && state.kind === "in-use" && t("flows.row.usedFor", { roles: state.roles.map((r) => t(`flows.row.role.${r}`)).join(", ") }),
-                // The seal says "May be slow"; the metadata says why, once (Iris, Prism MD-3).
-                view.wontFit
-              ? fit
-                ? t("flows.row.wontFitNumbers", {
-                    // What it needs: weights and working memory for a dense model, the working memory alone for MoE.
-                    need: formatRam(fit.expertFraction === 0 ? fit.fileBytes + fit.anonBytes : fit.anonBytes, i18n.language),
-                    total: formatRam(fit.totalBytes, i18n.language),
-                  })
-                : t("flows.row.wontFitWhy")
-              : view.mayCloseApp
-                ? t("flows.row.mayCloseWhy")
-                : view.fitWarning && t(`flows.row.fitWhy.${view.fitWarning}`),
                 meta ?? model.license,
               ]}
             />
@@ -181,17 +196,20 @@ export function CatalogRow({ model, view, onDownload, onUse, onRemove, busy, tit
         )}
       </View>
       {view.wontFit ? (
-        <View style={{ flexDirection: "row" }}>
+        <View style={SEAL_ROW}>
           {/* A fixed fact about a model that can't be chosen, not a risk: neutral outline, like NOT ON DISK (Iris). */}
           <Badge label={t("flows.row.wontFitHere")} tone="neutral" emphasis="outline" />
+          <FitReason text={fitReason} />
         </View>
       ) : view.mayCloseApp ? (
-        <View style={{ flexDirection: "row" }}>
+        <View style={SEAL_ROW}>
           <Badge label={t(view.didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} />
+          <FitReason text={fitReason} />
         </View>
       ) : view.fitWarning ? (
-        <View style={{ flexDirection: "row" }}>
+        <View style={SEAL_ROW}>
           <Badge label={t(`flows.row.fitShort.${view.fitWarning}`)} tone={FIT_TONE[view.fitWarning]} dot caps={false} />
+          <FitReason text={fitReason} />
         </View>
       ) : null}
 

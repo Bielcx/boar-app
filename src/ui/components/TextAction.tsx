@@ -47,14 +47,15 @@ export function TextAction({
       disabled={disabled}
       onPress={onPress}
       hitSlop={{ top: slop, bottom: slop, left: t.space.sm, right: t.space.sm }}
-      style={({ pressed }) => ({ alignSelf: "flex-start", opacity: disabled ? 0.45 : pressed ? 0.6 : 1 })}
+      style={({ pressed }) => ({ alignSelf: "flex-start", opacity: disabled ? t.opacity.disabled : pressed ? t.opacity.pressed : 1 })}
     >
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap }}>
         {leadingIcon && <IconSlot name={leadingIcon} line={line} color={t.color.text.secondary} />}
         <Text variant="footnote" color="secondary" style={{ flexShrink: 1 }}>
           {label}
         </Text>
-        {icon && <IconSlot name={icon} line={line} color={t.color.text.secondary} />}
+        {/* Trailing: its stroke, not its box, meets a row's right edge (Prism CH-20). */}
+        {icon && <IconSlot name={icon} line={line} color={t.color.text.secondary} edge="end" />}
       </View>
     </Pressable>
   );

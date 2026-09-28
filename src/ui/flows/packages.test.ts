@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMPACT_ANSWER_MODEL, DEFAULT_ANSWER_MODEL, MODEL_CATALOG, TIERS } from "../../models/manifest";
-import { answerModelChoices, PACKAGES, packageAssets, planPackage, recommendPackage, storageShortfall, transferSeconds } from "./packages";
+import { answerModelChoices, PACKAGES, packageAssets, planPackage, recommendPackage, shownRecommendation, storageShortfall, transferSeconds } from "./packages";
 
 const tier = (id: string) => TIERS.find((t) => t.id === id)!;
 
@@ -104,5 +104,19 @@ describe("recommendPackage", () => {
 
   it("recommends the smallest package when nothing fits", () => {
     expect(recommendPackage([{ id: "essential", shortfall: 5 }, { id: "encyclopedia", shortfall: 10 }])).toBe("essential");
+  });
+});
+
+describe("shownRecommendation (Prism FL-22: seal and pre-selection apart before the catalog loads)", () => {
+  // Unloaded frame: free space 0 -> no shortfall anywhere, so recommendPackage would say the richest.
+  const unknownSpace = [{ id: "essential" as const, shortfall: 0 }, { id: "encyclopedia" as const, shortfall: 0 }];
+
+  it("shows no seal until the catalog (and free space) is loaded", () => {
+    expect(shownRecommendation(unknownSpace, false)).toBeUndefined();
+  });
+
+  it("then shows the package the pre-selection will pick", () => {
+    expect(shownRecommendation(unknownSpace, true)).toBe(recommendPackage(unknownSpace));
+    expect(shownRecommendation([{ id: "essential", shortfall: 0 }, { id: "encyclopedia", shortfall: 5 }], true)).toBe("essential");
   });
 });

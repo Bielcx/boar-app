@@ -32,6 +32,7 @@ import { CitySearch } from "./flows/CitySearch";
 import { PlaceAreaRows } from "./flows/PlaceAreaRows";
 import { canDownload } from "./flows/useCatalog";
 import { citySummary } from "./flows/poi";
+import { userErrorKey } from "./flows/userError";
 
 function importPercent(p: ImportProgress): number | undefined {
   if (p.stage !== "embedding" || !p.chunkCount) return undefined;
@@ -78,7 +79,7 @@ export function KnowledgeScreen() {
     const st = indexStatus[id];
     if (!st) return undefined;
     if (st.state === "indexing") return t("flows.knowledge.indexing", { done: formatCount(st.done, lang), total: formatCount(st.total, lang) });
-    if (st.state === "error") return t("flows.knowledge.indexError", { error: st.error ?? "" });
+    if (st.state === "error") return t("flows.knowledge.indexError", { error: t(userErrorKey(st.error ?? "")) });
     return t("flows.knowledge.indexed");
   };
 
@@ -138,7 +139,7 @@ export function KnowledgeScreen() {
     try {
       await exportCollection(c);
     } catch (e: any) {
-      toast({ message: t("flows.knowledge.exportFailed", { error: e?.message ?? String(e) }), tone: "danger" });
+      toast({ message: t("flows.knowledge.exportFailed", { error: t(userErrorKey(e)) }), tone: "danger" });
     } finally {
       setExportingId(null);
     }
@@ -272,7 +273,8 @@ export function KnowledgeScreen() {
             icon="file-plus"
             title={t("flows.knowledge.emptyTitle")}
             body={t("flows.knowledge.emptyBody")}
-            actionLabel={t("flows.knowledge.add")}
+            // With an import error on screen, its "Choose again" is the one primary (Prism FL-12).
+            actionLabel={importError ? undefined : t("flows.knowledge.add")}
             onAction={pick}
           />
         ) : (
@@ -288,7 +290,7 @@ export function KnowledgeScreen() {
                 accessibilityLabel={t("flows.knowledge.useInAnswers", { name: c.name })}
                 switch={{ value: c.active, onValueChange: (v) => toggle(c, v) }}
               />
-              <View style={{ flexDirection: "row", gap: tokens.space.sm, paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.md }}>
+              <View style={{ flexDirection: "row", gap: tokens.space.sm, paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.md }}>
                 <Button
                   size="sm"
                   variant="secondary"
@@ -341,13 +343,14 @@ export function KnowledgeScreen() {
         <EmptyState
           tone="error"
           title={t("flows.knowledge.importFailed")}
-          body={importError}
+          body={t(userErrorKey(importError))}
+          detail={importError}
           actionLabel={t("flows.knowledge.pickAgain")}
           onAction={pick}
         />
       )}
 
-      {(collections.length > 0 || importing) && (
+      {(collections.length > 0 || importing) && !importError && (
         <Button label={t("flows.knowledge.add")} icon="file-plus" onPress={pick} disabled={!!importing} />
       )}
 

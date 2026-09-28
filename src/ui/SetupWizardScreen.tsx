@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, AppState, BackHandler, findNodeHandle, Linking, Pressable, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, IconName, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
+import { Badge, Button, Card, EmptyState, IconName, LARGE_TEXT_SCALE, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
 import type { TextColor } from "./components/Text";
 import { icon as iconTokens, useTokens } from "./theme";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
@@ -18,7 +18,7 @@ import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
 import { embeddingEngine } from "../rag/embed";
 import { useCatalog } from "./flows/useCatalog";
-import { fitFor } from "./flows/adapters";
+import type { MemoryFit } from "../inference/memoryFit";
 import { canAutoRetry, RowState } from "./flows/modelRowState";
 import {
   PackageId,
@@ -30,7 +30,7 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { failureLines, formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
-import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
+import { answerModelChoices, AnswerTier, shownRecommendation } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
 import { canDownload } from "./flows/useCatalog";
@@ -45,6 +45,7 @@ import { OFFLINE_INSTALL_URL } from "./flows/links";
 import { InstallCategory, installCategories } from "./flows/installGroups";
 import { likelyTarget } from "./flows/fileImport";
 import { catalogLabel } from "./flows/catalogLabel";
+import { userErrorKey } from "./flows/userError";
 
 interface Props {
   onReady: () => void;
@@ -80,7 +81,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const tokens = useTokens();
   const announce = useAnnounce();
   const { languageId, setLanguage } = useLanguage();
-  const catalog = useCatalog();
+  // The install step shows the total and ETA outside the rows: it follows every progress event (5 Hz).
+  const catalog = useCatalog({ liveProgress: true });
   const lang = i18n.language;
   const [step, setStep] = useState<Step>(1);
   const [packageId, setPackageId] = useState<PackageId>("essential");
@@ -215,6 +217,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           present={present}
           freeBytes={catalog.freeBytes}
           deviceRamBytes={catalog.deviceRamBytes}
+          fit={catalog.fit}
           loaded={catalog.loaded}
           lang={lang}
           travel={travel}
@@ -360,7 +363,8 @@ function Welcome({
       footer={
         <>
           <Button size="lg" label={t("flows.onboarding.start")} icon="arrow-right" iconPosition="end" fullWidth onPress={onNext} />
-          {onSkip && <Button label={t("flows.onboarding.backToApp")} variant="ghost" fullWidth onPress={onSkip} />}
+          {/* The neutral back link of steps 2 and 3, not a second ember under the CTA (Prism FL-24). */}
+          {onSkip && <BackLink label={t("flows.onboarding.backToApp")} onPress={onSkip} />}
         </>
       }
     >
@@ -438,11 +442,11 @@ function Welcome({
           <View
             key={r.key}
             accessible
+            // Large text: the value goes under its label, like ListRow (Prism FL-3: 378 pt in a 307 pt card at 2.0).
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: tokens.space.sm,
+              ...(fontScale >= LARGE_TEXT_SCALE
+                ? { flexDirection: "column", alignItems: "flex-start", gap: tokens.space.xxs }
+                : { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: tokens.space.sm }),
               paddingVertical: tokens.space.xs + tokens.space.xxs,
               borderTopWidth: i > 0 ? tokens.size.hairline : 0,
               borderTopColor: tokens.color.line.row,
@@ -468,6 +472,7 @@ function PackageStep({
   present,
   freeBytes,
   deviceRamBytes,
+  fit,
   loaded,
   lang,
   travel,
@@ -492,6 +497,8 @@ function PackageStep({
   present: Record<string, boolean>;
   freeBytes: number;
   deviceRamBytes: number;
+  /** catalog.fit: one RAM snapshot for every model on the step (perf audit #3). */
+  fit: (model: CatalogModel) => MemoryFit | undefined;
   loaded: boolean;
   lang: string;
   travel: PoiRegion | null;
@@ -515,7 +522,7 @@ function PackageStep({
     (["default", "compact"] as const)
       .map((tierId) => choices[tierId])
       .filter((m): m is CatalogModel => !!m)
-      .map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fitFor(m)?.verdict })),
+      .map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fit(m)?.verdict })),
     deviceRamBytes
   );
   const compactSuggested = !!choices.compact && pick?.id === choices.compact.id;
@@ -526,7 +533,7 @@ function PackageStep({
   }, [restored, loaded, answerChosen, recommendedTier, onAnswerTier]);
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   // Computed from Tusk's estimate for this phone: the honest stand-in for the mockup's "Runs Great / RAM".
-  const answerFit = answerModel ? fitFor(answerModel) : undefined;
+  const answerFit = answerModel ? fit(answerModel) : undefined;
   const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
@@ -536,16 +543,16 @@ function PackageStep({
     const tier = TIERS.find((x) => x.id === p.tier)!;
     const all = [...packageAssets(tier, MODEL_CATALOG, answerModel), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
     const plan = planPackage(all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i), present);
-    const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
+    const largestFit = plan.largestLlm ? fit(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
-    return { ...p, plan, fit, shortfall, seconds };
+    return { ...p, plan, fit: largestFit, shortfall, seconds };
   });
   const chosen = plans.find((p) => p.id === selected)!;
-  const recommended = recommendPackage(plans);
+  const recommended = shownRecommendation(plans, loaded);
   // Recommended = pre-selected, once free space is known, until the user picks.
   useEffect(() => {
-    if (restored && loaded && !packageChosen && selected !== recommended) onSelect(recommended);
+    if (restored && recommended && !packageChosen && selected !== recommended) onSelect(recommended);
   }, [restored, loaded, packageChosen, recommended, selected, onSelect]);
 
   return (
@@ -586,14 +593,24 @@ function PackageStep({
           style={{ gap: tokens.space.sm }}
           // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
           onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
-          accessibilityLabel={[catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          // The label replaces the children for screen readers, so it says all they show (Prism FL-4).
+          accessibilityLabel={[
+            catalogLabel(answerModel, t),
+            answerTier === recommendedTier && t("flows.onboarding.recommended"),
+            formatBytes(answerModel.sizeBytes, lang),
+            answerFit && t(`flows.row.fitShort.${answerFit.verdict}`),
+            answerFit && t("flows.onboarding.workingMemory", { size: formatRam(answerFit.anonBytes + (answerFit.expertFraction === 0 ? answerFit.fileBytes : 0), lang) }),
+          ]
+            .filter(Boolean)
+            .join(", ")}
           accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: iconTokens.gapTight }}>
+          {/* Wraps at large text: MODEL + RECOMMENDED + size fill 302 of 307 pt at 2.0 (Prism FL-5). */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: iconTokens.gapTight, rowGap: tokens.space.xs }}>
             <Text variant="label" color="field">
               {t("flows.onboarding.llmLabel")}
             </Text>
-            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" />}
+            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" />}
             <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
               {formatBytes(answerModel.sizeBytes, lang)}
             </Text>
@@ -643,7 +660,7 @@ function PackageStep({
                     onUserAnswer(tierId);
                     setModelSheetOpen(false);
                   }}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.suggested")} tone="accent" emphasis="solid" /> : undefined}
+                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" /> : undefined}
                   trailing={formatBytes(m.sizeBytes, lang)}
                 />
               );
@@ -772,7 +789,7 @@ function TravelCard({
       {region && cities ? (
         <>
           {/* In the rhythm of the mockup's cards (Iris): title 16, one metadata line, the reason in a caption. */}
-          <View style={{ paddingVertical: tokens.space.md - tokens.space.xxs, paddingHorizontal: tokens.space.md, gap: tokens.space.xs }}>
+          <View style={{ paddingVertical: tokens.space.md - tokens.space.xxs, paddingHorizontal: tokens.space.inset, gap: tokens.space.xs }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.space.md }}>
               {/* centerOnBox: iOS draws Baloo up to 4 pt high in its box, so the switch would sit low (icon-align). */}
               <IconText variant="cardTitle" centerOnBox style={{ flex: 1 }}>
@@ -800,7 +817,8 @@ function TravelCard({
         <ListRow title={t("flows.places.noRegionHere")} />
       )}
       {suggestion?.reason !== "location" && (
-        <View style={{ padding: tokens.space.base, gap: tokens.space.sm }}>
+        // One left edge in the card: 14, like the trip ListRow and the Section title (Prism FL-2).
+        <View style={{ paddingHorizontal: tokens.space.inset, paddingVertical: tokens.space.base, gap: tokens.space.sm }}>
           <Button ref={locateRef} size="sm" variant="secondary" icon="map-pin" label={t("flows.places.useLocation")} loading={locating} onPress={useLocation} />
           {locationNote && (
             <Text variant="footnote" color="secondary">
@@ -811,7 +829,7 @@ function TravelCard({
         </View>
       )}
       {regions.length > 1 && (
-        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base }}>
+        <View style={{ paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.base }}>
           <Button ref={otherRef} size="sm" variant="secondary" icon="map" label={t("flows.places.otherRegion")} onPress={() => setPickerOpen(true)} />
         </View>
       )}
@@ -824,7 +842,7 @@ function TravelCard({
           switch={{ value: true, onValueChange: (v) => !v && onTrip(null) }}
         />
       ) : (
-        <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.base, gap: tokens.space.xs }}>
+        <View style={{ paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.base, gap: tokens.space.xs }}>
           <Button ref={tripRef} size="sm" variant="secondary" icon="navigation" label={t("flows.travel.goingTo")} onPress={() => setTripOpen(true)} />
           <Text variant="footnote" color="secondary">
             {t("flows.travel.goingToHint")}
@@ -1349,15 +1367,7 @@ function InstallStep({
       {/* Mockup order: hero, list, then this; with one row per category it stays on the first screen (Iris). */}
       {(transferring || indexPhase === "building") && (
         // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
-        <View
-          style={{
-            gap: tokens.space.xs,
-            backgroundColor: tokens.color.status.warning.soft,
-            borderRadius: tokens.radius.lg - tokens.space.xxs,
-            paddingVertical: tokens.space.md,
-            paddingHorizontal: tokens.space.md + tokens.space.xxs,
-          }}
-        >
+        <Card level={0} radius="card" padding="compact" style={{ gap: tokens.space.xs, backgroundColor: tokens.color.status.warning.soft }}>
           <IconText icon="alert-triangle" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
             {t("flows.onboarding.keepOpenTitle")}
           </IconText>
@@ -1365,7 +1375,7 @@ function InstallStep({
             {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
             {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
           </Text>
-        </View>
+        </Card>
       )}
 
       {/* The files being imported come after "Keep BOAR open", so that card stays on the first screen (Harbor, 02e72b5). */}
@@ -1437,7 +1447,7 @@ function InstallStep({
       )}
 
       {indexPhase === "error" && (
-        <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
+        <EmptyState tone="error" title={t("flows.onboarding.indexFailed")} body={indexError ? t(userErrorKey(indexError)) : undefined} detail={indexError ?? undefined} actionLabel={t("flows.row.retry")} onAction={buildIndex} />
       )}
 
       {stalled && !offline && (
@@ -1547,6 +1557,8 @@ function CategoryRow({
             {status}
           </Text>
         </View>
+        {/* A disclosure shows it opens: the chevron of ListRow's expanded rows, on line 1 at the edge (Prism FL-15). */}
+        <IconSlot name={expanded ? "chevron-up" : "chevron-down"} line={line} color={tokens.color.text.secondary} edge="end" />
       </Pressable>
       {expanded &&
         row.items.map((it) => {

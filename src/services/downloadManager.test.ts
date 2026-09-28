@@ -35,7 +35,7 @@ vi.mock("../models/ModelManager", () => ({
 }));
 const presentIds = new Set<string>();
 
-import { cancelAllDownloads, getDownloadState, missingRequirements, resetDownloadState, restartDownload, startDownload, subscribeDownloads } from "./downloadManager";
+import { cancelAllDownloads, getDownloadState, missingRequirements, PROGRESS_NOTIFY_MS, progressDue, resetDownloadState, restartDownload, startDownload, subscribeDownloads, type DownloadEvent } from "./downloadManager";
 import { onAssetInstalled, registerAssetProvider, unregisterAssetProvider } from "../models/assetRegistry";
 import { AssetIntegrityError, DownloadError } from "../models/integrity";
 
@@ -163,6 +163,8 @@ describe("download phases and error kinds", () => {
 describe("remounting the UI (font scale change, FS-1)", () => {
   it("a running download outlives the screen that started it: a new subscriber sees it, and Download again doesn't start a second one", async () => {
     // The screen that starts the download, then unmounts (key change at the navigator).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(0);
     const seenByOld: number[] = [];
     const unsubscribeOld = subscribeDownloads(() => seenByOld.push(getDownloadState("a")?.bytesWritten ?? -1));
     const first = startDownload(asset("a"));
@@ -177,7 +179,10 @@ describe("remounting the UI (font scale change, FS-1)", () => {
     expect(again).toBe(first);
     expect(downloadMock).toHaveBeenCalledTimes(1);
 
+    // Past the 5 Hz progress gate (PROGRESS_NOTIFY_MS).
+    vi.setSystemTime(PROGRESS_NOTIFY_MS);
     downloadMock.mock.calls[0][1]!({ phase: "downloading", totalBytesWritten: 90, totalBytesExpectedToWrite: 100 });
+    vi.useRealTimers();
     pending.get("a")!.resolve();
     await first;
     expect(seenByNew).toContain(90);
@@ -263,5 +268,44 @@ describe("installed notification (the gazetteer's tile index reloads on it)", ()
     await bad;
     off();
     expect(seen).toEqual(["gaz"]);
+  });
+});
+
+describe("progress notifications (perf audit #2/#4: iOS sends one event per network chunk)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("progressDue: on a phase change, or once PROGRESS_NOTIFY_MS passed", () => {
+    expect(progressDue(undefined, "downloading", 0)).toBe(true);
+    expect(progressDue({ at: 1000, phase: "downloading" }, "downloading", 1000 + PROGRESS_NOTIFY_MS - 1)).toBe(false);
+    expect(progressDue({ at: 1000, phase: "downloading" }, "downloading", 1000 + PROGRESS_NOTIFY_MS)).toBe(true);
+    expect(progressDue({ at: 1000, phase: "downloading" }, "verifying", 1001)).toBe(true);
+  });
+
+  it("caps a burst of native events at 5 Hz, keeps the state fresh, and marks phase changes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(0);
+    const events: DownloadEvent[] = [];
+    const off = subscribeDownloads((e) => events.push(e));
+    const p = startDownload(asset("big"));
+    const onProgress = downloadMock.mock.calls[0][1]!;
+    // 100 chunks in 100 ms, then one more at 250 ms.
+    for (let i = 1; i <= 100; i++) {
+      vi.setSystemTime(i);
+      onProgress({ totalBytesWritten: i, totalBytesExpectedToWrite: 1000 });
+    }
+    vi.setSystemTime(250);
+    onProgress({ totalBytesWritten: 250, totalBytesExpectedToWrite: 1000 });
+    vi.setSystemTime(251);
+    onProgress({ phase: "verifying", totalBytesWritten: 1, totalBytesExpectedToWrite: 1000 });
+    expect(getDownloadState("big")?.phase).toBe("verifying");
+    expect(events).toEqual([
+      { assetId: "big", progressOnly: false }, // start
+      { assetId: "big", progressOnly: true }, // 250 ms
+      { assetId: "big", progressOnly: false }, // verifying
+    ]);
+    pending.get("big")!.resolve();
+    await p;
+    off();
+    expect(events.at(-1)).toEqual({ assetId: "big", progressOnly: false });
   });
 });

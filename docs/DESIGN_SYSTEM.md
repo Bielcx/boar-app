@@ -43,7 +43,7 @@ Source of truth: `src/ui/theme/palette.ts`. `SOURCE_PALETTES` holds the designer
 |---|---|
 | Fogueira dark (default) | err #F0674F → #F26951 (on s2); strong border derived #866F5E |
 | Luar dark | err #F0674F → #F96F57; strong border derived #6C78B1 |
-| Fogueira light | action fill #C4541C → #B84909, action text → #A23400, mu → #6A5644, a2 text → #7C4D00, ok/warn/err darkened; strong border #847157 |
+| Fogueira light | action fill #C4541C → #B84909, action text → #A23400, mu → #685443 (≥4.5 on the soft fills too), a2 text → #7C4D00, ok/warn/err darkened; strong border #847157 |
 | Luar light | action fill #B7700A → #A25D00, action text → #8F4B00, a2 text → #735702, ok/warn/err darkened; strong border #747687 |
 
 Semantic tokens (use these, not palette keys):

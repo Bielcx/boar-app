@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MemoryFit } from "../../inference/memoryFit";
-import { catalogFit, expertFractionHint, wontFitHere } from "./fit";
+import { catalogFit, expertFractionHint, fitForSnapshot, wontFitHere } from "./fit";
+import { contextSizeForRam } from "../../inference/memoryFit";
 
 const GB = 1024 ** 3;
 
@@ -73,5 +74,18 @@ describe("wontFitHere (CR-1: 7B/8B offered for download on a 3.8 GB phone)", () 
     const small = { id: "some-3b", kind: "llm" as const, sizeBytes: 2.4e9 };
     expect(wontFitHere({}, catalogFit(seven, phone, 4096))).toBe(true);
     expect(wontFitHere({}, catalogFit(small, phone, 4096))).toBe(false);
+  });
+});
+
+describe("fitForSnapshot (one RAM read per render, perf audit #3)", () => {
+  const llm = { id: "qwen3-4b", kind: "llm" as const, sizeBytes: 2.5e9 };
+  const ram = { totalBytes: 6e9, availableBytes: 3e9 };
+
+  it("is catalogFit with the engine's context size for that RAM", () => {
+    expect(fitForSnapshot(llm, ram)).toEqual(catalogFit(llm, ram, contextSizeForRam(ram.totalBytes)));
+  });
+
+  it("no snapshot (the native read failed): no estimate", () => {
+    expect(fitForSnapshot(llm, undefined)).toBeUndefined();
   });
 });

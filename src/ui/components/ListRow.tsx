@@ -126,7 +126,7 @@ export function ListRow({
           selection();
           toggle.onValueChange(!toggle.value);
         }}
-        style={({ pressed }) => [styles.row, rowStyle, pressed && { backgroundColor: t.color.bg.sunken }, disabled && { opacity: 0.45 }]}
+        style={({ pressed }) => [styles.row, rowStyle, pressed && { backgroundColor: t.color.bg.sunken }, disabled && { opacity: t.opacity.disabled }]}
       >
         {content}
       </Pressable>
@@ -154,7 +154,7 @@ export function ListRow({
         styles.row,
         rowStyle,
         pressed && { backgroundColor: t.color.bg.sunken },
-        disabled && { opacity: 0.45 },
+        disabled && { opacity: t.opacity.disabled },
       ]}
     >
       {content}

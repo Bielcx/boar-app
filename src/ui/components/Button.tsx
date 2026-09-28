@@ -78,7 +78,7 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
           backgroundColor: pressed ? palette.bgPressed : palette.bg,
           borderColor: palette.border,
           borderWidth: palette.border === "transparent" ? 0 : t.size.border,
-          opacity: inactive && !loading ? 0.45 : pressed && variant === "destructive" ? 0.85 : 1,
+          opacity: inactive && !loading ? t.opacity.disabled : pressed && variant === "destructive" ? 0.85 : 1,
           // The ember glow marks the one primary action on a screen.
           ...(variant === "primary" && !inactive ? (t.elevation.glow as object) : null),
         },

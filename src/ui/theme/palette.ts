@@ -119,7 +119,8 @@ export function resolvePalette(src: SourcePalette, mode: Mode): ResolvedPalette 
     hairline: src.bd,
     lineStrong: ensureContrast(src.bd, surfaces, 3),
     textPrimary: text(src.tx),
-    textSecondary: text(src.mu),
+    // Also on every soft fill: details in status cards and banners (Prism FL-13, Fogueira light was 4.37-4.47).
+    textSecondary: text(src.mu, [accentSoft, fieldSoft, successSoft, warningSoft, dangerSoft, infoSoft]),
     textDisabled: mixHex(src.mu, src.bg, 0.5),
     accent,
     accentPressed,
