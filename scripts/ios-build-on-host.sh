@@ -69,6 +69,8 @@ WS=$(ls -d ios/*.xcworkspace 2>/dev/null | head -1)
 # iOS 27 + the iOS 27 SDK kill an app without the scene life cycle at launch: never build one
 # (a prebuild reused with IOS_SKIP_DEPS=1 may predate plugins/withIosSceneLifecycle.js).
 bash scripts/ios-check-scene.sh ios || { echo "re-run without IOS_SKIP_DEPS=1 so the prebuild applies the plugin" >&2; exit 2; }
+# v1.1 runs llama.rn on the CPU only (plugins/withIosMetalOff.js): same guard for the generated AppDelegate.
+bash scripts/ios-check-metal-off.sh ios || { echo "re-run without IOS_SKIP_DEPS=1 so the prebuild applies the plugin" >&2; exit 2; }
 SCHEME=$(basename "$WS" .xcworkspace)
 
 case "$MODE" in
