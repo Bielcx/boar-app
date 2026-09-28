@@ -30,7 +30,7 @@ import {
   transferSeconds,
 } from "./flows/packages";
 import { failureLines, formatBytes, formatCount, formatRam, minutesAbout, minutesLeft } from "./flows/format";
-import { answerModelChoices, AnswerTier, recommendPackage } from "./flows/packages";
+import { answerModelChoices, AnswerTier, shownRecommendation } from "./flows/packages";
 import { COMPACT_ONLY_MAX_RAM_BYTES, pickDefaultAnswerModel } from "../routing/defaultModel";
 import { placesInstall, poiRegions } from "./flows/adapters";
 import { canDownload } from "./flows/useCatalog";
@@ -548,10 +548,10 @@ function PackageStep({
     return { ...p, plan, fit: largestFit, shortfall, seconds };
   });
   const chosen = plans.find((p) => p.id === selected)!;
-  const recommended = recommendPackage(plans);
+  const recommended = shownRecommendation(plans, loaded);
   // Recommended = pre-selected, once free space is known, until the user picks.
   useEffect(() => {
-    if (restored && loaded && !packageChosen && selected !== recommended) onSelect(recommended);
+    if (restored && recommended && !packageChosen && selected !== recommended) onSelect(recommended);
   }, [restored, loaded, packageChosen, recommended, selected, onSelect]);
 
   return (
