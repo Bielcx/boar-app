@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { headerFit, TITLE_MIN } from "./headerLayout";
+import { headerFit, sealCopy, TITLE_MIN } from "./headerLayout";
+import en from "../../i18n/locales/en.json";
+import pt from "../../i18n/locales/pt.json";
 
 // Same numbers ChatHeader passes: 2 buttons (menu, new chat), padding 8×2 + gaps 4×2 + 8×2, avatar 32 + 8.
 const base = { buttons: 2, chrome: 40, avatar: 40 };
@@ -45,5 +47,29 @@ describe("the downloader seal 'ON DEVICE' / 'NO APARELHO' (Boar)", () => {
     expect(headerFit({ ...chat, sealChars: "ON DEVICE".length })).toEqual({ seal: "text", avatar: true });
     expect(headerFit({ ...chat, sealChars: "NO APARELHO".length })).toEqual({ seal: "text", avatar: true });
     expect(headerFit({ ...chat, sealChars: "OFFLINE".length })).toEqual({ seal: "text", avatar: true });
+  });
+});
+
+describe("sealCopy (Prism CH-4: no offline claim in the downloader build)", () => {
+  it("the offline build says offline, with the wifi-off glyph", () => {
+    const c = sealCopy(true);
+    expect([c.pill, c.button, c.title, c.icon]).toEqual(["chat.header.offlineSeal", "chat.header.offlineShort", "chat.header.offlineTitle", "wifi-off"]);
+  });
+  it("the downloader build never uses an offline key or glyph", () => {
+    const c = sealCopy(false);
+    const keys = [c.pill, c.pillSpoken, c.button, c.title];
+    expect(keys.some((k) => /offline(Seal|Short|Title)|offlineSealSpoken/.test(k))).toBe(false);
+    expect(c.icon).not.toBe("wifi-off");
+  });
+  it("the spoken names contain the visible pill (WCAG 2.5.3)", () => {
+    for (const lang of ["en", "pt"] as const) {
+      const s = (lang === "en" ? en : pt).chat.header as unknown as Record<string, string>;
+      for (const build of [true, false]) {
+        const c = sealCopy(build);
+        const pill = s[c.pill.split(".").pop()!].toLowerCase();
+        expect(s[c.button.split(".").pop()!].toLowerCase()).toContain(pill);
+        expect(s[c.pillSpoken.split(".").pop()!].toLowerCase()).toContain(pill);
+      }
+    }
   });
 });

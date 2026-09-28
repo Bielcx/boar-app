@@ -3,7 +3,7 @@ import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Icon, IconButton, IconText, Mascot, OfflineSeal, Sheet, Text } from "./components";
 import { useTokens } from "./theme";
-import { headerFit } from "./chat/headerLayout";
+import { headerFit, sealCopy } from "./chat/headerLayout";
 
 // Which build this is (see docs/BUILD_VARIANTS.md on feat/trust-offline). Read the
 // same inlined variable here until src/config/variant.ts is on main.
@@ -41,8 +41,9 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
   const [offlineOpen, setOfflineOpen] = useState(false);
   // "OFFLINE" like the mockup only where it is literally true (the build without INTERNET); the downloader
   // build says "ON DEVICE" (Boar: the answer is computed on the phone), same pill. Readers hear the long form.
-  const sealLabel = tr(OFFLINE_BUILD ? "chat.header.offlineSeal" : "chat.header.offlineAnswersSeal");
-  const sealSpoken = tr(OFFLINE_BUILD ? "chat.header.offlineSealSpoken" : "chat.header.onDeviceSealSpoken");
+  const seal = sealCopy(OFFLINE_BUILD);
+  const sealLabel = tr(seal.pill);
+  const sealSpoken = tr(seal.pillSpoken);
   // The mockup's header: padding 4/16/10, 10 between items, 42 pt discs (touch comes from hitSlop).
   const itemGap = t.space.sm + t.space.xxs;
   const fit = headerFit({
@@ -109,22 +110,22 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
         <Pressable
           onPress={() => setOfflineOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={tr("chat.header.offlineShort")}
+          accessibilityLabel={tr(seal.button)}
           style={{ minHeight: t.size.touch, minWidth: t.size.touch, alignItems: "center", justifyContent: "center" }}
         >
           {fit.seal === "text" ? (
             <OfflineSeal label={sealLabel} accessibilityLabel={sealSpoken} />
           ) : (
             <View style={{ padding: t.space.sm, borderRadius: t.radius.full, backgroundColor: t.color.field.soft }}>
-              <Icon name="wifi-off" size="sm" color={t.color.field.text} />
+              <Icon name={seal.icon} size="sm" color={t.color.field.text} />
             </View>
           )}
         </Pressable>
       </View>
 
-      <Sheet visible={offlineOpen} onClose={() => setOfflineOpen(false)} title={tr("chat.header.offlineTitle")}>
+      <Sheet visible={offlineOpen} onClose={() => setOfflineOpen(false)} title={tr(seal.title)}>
         <View style={{ gap: t.space.md }}>
-          <Text color="secondary">{tr(OFFLINE_BUILD ? "chat.header.offlineBody" : "chat.header.offlineBodyDownloader")}</Text>
+          <Text color="secondary">{tr(seal.body)}</Text>
           {activeModelLabel && (
             <Text variant="footnote" color="secondary">
               {tr("chat.header.modelLoaded", { label: activeModelLabel })}

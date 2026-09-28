@@ -41,3 +41,14 @@ export function headerFit(o: HeaderFitInput): HeaderFit {
   if (free - o.avatar - o.touch >= need) return { seal: "icon", avatar: true };
   return { seal: "icon", avatar: false };
 }
+
+/**
+ * What the header seal says, per build (Prism CH-4): "Offline" only where it is literally true (the build
+ * without INTERNET); the downloader build says "On device" everywhere, in the pill, the spoken name (which
+ * contains the visible one, WCAG 2.5.3), the icon-only form and the sheet's title.
+ */
+export function sealCopy(offlineBuild: boolean) {
+  return offlineBuild
+    ? { pill: "chat.header.offlineSeal", pillSpoken: "chat.header.offlineSealSpoken", button: "chat.header.offlineShort", title: "chat.header.offlineTitle", body: "chat.header.offlineBody", icon: "wifi-off" as const }
+    : { pill: "chat.header.offlineAnswersSeal", pillSpoken: "chat.header.onDeviceSealSpoken", button: "chat.header.onDeviceShort", title: "chat.header.onDeviceTitle", body: "chat.header.offlineBodyDownloader", icon: "smartphone" as const };
+}
