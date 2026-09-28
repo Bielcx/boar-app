@@ -40,11 +40,33 @@ function harness() {
 }
 
 describe("createBottomPin (SEND-MOTION D4)", () => {
-  it("snaps on content changes when nothing glides", () => {
+  it("content growing while following the end glides, never snaps (v5, Prism F2-5)", () => {
     const h = harness();
+    h.pin.pin(); // a new line of the answer
+    expect(h.calls).toEqual([true]);
+    h.pin.pin(); // more words while it glides: held, not a restart
     h.pin.pin();
-    h.pin.pin();
-    expect(h.calls).toEqual([false, false]);
+    expect(h.calls).toEqual([true]);
+    h.advance(GLIDE_GUARD_MS); // one more glide for what came in
+    expect(h.calls).toEqual([true, true]);
+    expect(h.calls.every((animated) => animated)).toBe(true);
+  });
+
+  it("streamed words keep coming: a chain of glides, each started once its guard is over", () => {
+    const h = harness();
+    for (let i = 0; i < 12; i++) {
+      h.pin.pin();
+      h.advance(GLIDE_GUARD_MS / 3);
+    }
+    // 12 changes over 4 guards: about one glide per guard, none cut short.
+    expect(h.calls.length).toBeLessThanOrEqual(5);
+    expect(h.calls.every((animated) => animated)).toBe(true);
+  });
+
+  it("the list's own layout (the keyboard) still snaps in the same frame", () => {
+    const h = harness();
+    h.pin.pin(true, "layout");
+    expect(h.calls).toEqual([false]);
   });
 
   it("glides once on the content change after a send, not before it", () => {
@@ -66,7 +88,7 @@ describe("createBottomPin (SEND-MOTION D4)", () => {
     expect(h.calls).toEqual([true, true]);
     h.advance(GLIDE_GUARD_MS);
     expect(h.pin.gliding()).toBe(false);
-    h.pin.pin();
+    h.pin.pin(true, "layout");
     expect(h.calls).toEqual([true, true, false]);
   });
 
@@ -104,9 +126,10 @@ describe("createBottomPin (SEND-MOTION D4)", () => {
     h.pin.cancel();
     h.advance(GLIDE_GUARD_MS);
     expect(h.calls).toEqual([true]);
+    // An armed glide is dropped too: the keyboard's layout then snaps as usual.
     h.pin.armGlide();
     h.pin.cancel();
-    h.pin.pin();
+    h.pin.pin(true, "layout");
     expect(h.calls).toEqual([true, false]);
   });
 });

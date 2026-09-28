@@ -204,9 +204,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   );
   const glideToBottom = useCallback(() => bottomPin.glide(!reduceMotionRef.current), [bottomPin]);
   useEffect(() => () => bottomPin.cancel(), [bottomPin]);
-  // Content growing (a token batch, a restored session rendering in batches, a height animating) snaps:
-  // animated scrolls restarted on every batch fought each other (audit #13). Glides only where asked for:
-  // sending (armed, so it starts once the question is measured), the jump button, a model error.
+  // Content growing while following the end (a new line, a block entering, a restored session rendering)
+  // glides, chained by the pin's guard so no glide is restarted or cut (audit #13, Prism F2-5); sending
+  // arms one that starts once the question is measured. Reduce motion snaps.
   const onListContentSize = useCallback(() => {
     if (followBottom.current) bottomPin.pin(!reduceMotionRef.current);
   }, [bottomPin]);
