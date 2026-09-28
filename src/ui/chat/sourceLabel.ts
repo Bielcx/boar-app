@@ -123,3 +123,17 @@ export function sourcesCardMode(active: boolean, split: { cited: number[] } | nu
   if (!split) return active ? "found" : "all";
   return split.cited.length === 0 ? "related" : "cited";
 }
+
+/**
+ * The source sheet's seal and link (Prism CH-17): the source's name in the caps badge ("Wikipedia"), never
+ * the raw "Name — https://… (license)" string (an upper-cased URL in a pill), and the URL apart, without
+ * its scheme, as a caption. The user's own documents say so; an unnamed source is the offline library.
+ */
+export function sourceSeal(
+  chunk: { source?: string; collectionId?: string | null },
+  labels: { myDocuments: string; corpus: string }
+): { label: string; url: string | null } {
+  if (chunk.collectionId) return { label: labels.myDocuments, url: null };
+  const parts = sourceParts(chunk.source);
+  return { label: parts.name ?? labels.corpus, url: parts.url ? parts.url.replace(/^https?:\/\/(www\.)?/, "") : null };
+}
