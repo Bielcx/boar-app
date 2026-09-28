@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { noticeShown, stepsCardShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -419,5 +419,38 @@ describe("stepSpinnerRuns (GFXINFO: a ring turning for the whole generation aske
     const fastDone = { text: "Short answer.", stage: null, outcome: "success" as const };
     expect(stepSpinnerRuns({ ...base, fast: fastDone, deep: { text: "", stage: "prefill" } })).toBe(true);
     expect(stepSpinnerRuns({ ...base, fast: fastDone, deep: { text: "More", stage: "generating" } })).toBe(false);
+  });
+});
+
+describe("noticeShown (SEND-MOTION: no animated block without content)", () => {
+  it("only for a tier that ended without success", () => {
+    expect(noticeShown(undefined)).toBe(false);
+    expect(noticeShown({})).toBe(false);
+    expect(noticeShown({ outcome: "success" })).toBe(false);
+    for (const outcome of ["stopped", "interrupted", "timeout", "error"]) expect(noticeShown({ outcome })).toBe(true);
+  });
+  it("an interrupted run shows it even over a finished tier", () => {
+    expect(noticeShown({ outcome: "success" }, true)).toBe(true);
+    expect(noticeShown(undefined, true)).toBe(false);
+  });
+});
+
+describe("stepsCardShown (SEND-MOTION D3, option A)", () => {
+  const steps = [{}];
+  it("shows the steps until the answer's own text starts", () => {
+    expect(stepsCardShown({ sources: [], answerIds: [] } as unknown as AnswerState, steps)).toBe(true);
+    expect(stepsCardShown({ sources: [], answerIds: [], fast: { text: "", stage: "generating" } } as unknown as AnswerState, steps)).toBe(true);
+  });
+  it("shrinks at the first words, of the model or of the extract", () => {
+    expect(stepsCardShown({ sources: [], answerIds: [], fast: { text: "Boil", stage: null } } as unknown as AnswerState, steps)).toBe(false);
+    expect(stepsCardShown({ sources: [], answerIds: [], extract: "Apply pressure" } as unknown as AnswerState, steps)).toBe(false);
+  });
+  it("a Deepen shows its own steps until the deep text starts", () => {
+    const deep = { sources: [], answerIds: [], fast: { text: "Short.", stage: null, outcome: "success" }, deep: { text: "", stage: "generating" } };
+    expect(stepsCardShown(deep as unknown as AnswerState, steps)).toBe(true);
+    expect(stepsCardShown({ ...deep, deep: { text: "Longer", stage: null } } as unknown as AnswerState, steps)).toBe(false);
+  });
+  it("no steps (done, stopping): hidden", () => {
+    expect(stepsCardShown({ sources: [], answerIds: [] } as unknown as AnswerState, null)).toBe(false);
   });
 });

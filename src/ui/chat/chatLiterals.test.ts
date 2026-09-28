@@ -29,6 +29,9 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(stop).not.toMatch(/impact\(/);
   });
   it("CH-27: the finished receipt sits at the row's end, as the running pill", () => {
-    expect(read("AssistantMessage.tsx")).toMatch(/<ReceiptToggle r=\{receipt\} hidden=\{active\} end \/>/);
+    // The pill and the receipt share one Swap at the row's end (SEND-MOTION crossfade).
+    const src = read("AssistantMessage.tsx");
+    expect(src).toMatch(/<Swap swapKey=\{pill\} style=\{\{ marginLeft: "auto", flexShrink: 1 \}\}>/);
+    expect(src).toMatch(/pill === "elapsed" \? \([\s\S]*?<Elapsed[\s\S]*?<ReceiptToggle r=\{receipt\} hidden=\{active\} \/>/);
   });
 });

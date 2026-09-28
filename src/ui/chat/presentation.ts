@@ -366,6 +366,25 @@ export function showsAnswerBody(a: AnswerState): boolean {
  * vsync for the whole generation, one traversal per animation callback). Once the answer's text is on
  * screen, the text and its caret show the progress: the ring stands still (as under reduce motion).
  */
+/**
+ * Whether a tier ends with a notice under its text (stopped, interrupted, timed out, failed): the block
+ * exists only then, so an answer's animated blocks never keep a gap for nothing (SEND-MOTION).
+ */
+export function noticeShown(tier: { outcome?: string } | undefined, interrupted?: boolean): boolean {
+  if (!tier?.outcome) return false;
+  return !!interrupted || ["interrupted", "stopped", "timeout", "error"].includes(tier.outcome);
+}
+
+/**
+ * SEND-MOTION D3 (Boar: option A): the steps card stays until the answer's own text starts, then shrinks
+ * while the text takes its place; the progress goes on in the header pill (time + step) and the caret.
+ * So at the end nothing leaves ABOVE the text (the card "vanishing out of nowhere" r4to saw). Option B
+ * (the mockup's order, card above the text until done) would be `!!steps` alone.
+ */
+export function stepsCardShown(state: AnswerState, steps: readonly unknown[] | null): boolean {
+  return !!steps && stepSpinnerRuns(state);
+}
+
 export function stepSpinnerRuns(state: AnswerState): boolean {
   // A Deepen shows its own steps: only the deep text counts there.
   const written = state.deep ? state.deep.text : state.fast?.text || state.extract || "";
