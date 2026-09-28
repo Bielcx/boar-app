@@ -20,6 +20,7 @@ import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
 import { lineSlop } from "./touch";
 import { chatLargeText } from "./largeText";
 import { Reveal } from "./Reveal";
+import { Swap } from "./Swap";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -255,8 +256,8 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
   return { open, toggle: () => setOpen((o) => !o), ...text };
 }
 
-/** `end`: beside the name, it sits at the row's right edge like the running Elapsed pill (Prism CH-27). */
-function ReceiptToggle({ r, hidden, end }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean; end?: boolean }) {
+/** Beside the name it sits at the row's right edge like the running Elapsed pill (Prism CH-27): its Swap puts it there. */
+function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   // A caption line: the touch area comes up to the platform minimum (Prism CH-6).
@@ -270,8 +271,6 @@ function ReceiptToggle({ r, hidden, end }: { r: NonNullable<ReturnType<typeof us
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       accessibilityElementsHidden={hidden}
       hitSlop={lineSlop(t.size.touch, line.lineHeight, t.space.sm)}
-      // Shrinks (its one line truncates) rather than pushing past the row at large text.
-      style={end ? { marginLeft: "auto", flexShrink: 1 } : undefined}
     >
       <MetaLine items={r.short} variant="caption" numberOfLines={1} />
     </Pressable>
@@ -889,6 +888,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const emergency = answerShowsEmergencyNote(answer, props.question ?? "", placesOnly);
   // The body's block opens with its first words, not before (an empty block would grow a bare gap).
   const fastBody = !!answer.fast?.text && showsAnswerBody(answer);
+  // Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet).
+  const pill = waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? "elapsed" : receipt ? "receipt" : null;
   return (
     <BlockMotion.Provider value={motion}>
       <View style={{ alignSelf: "stretch" }}>
@@ -899,14 +900,21 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             <Text variant="headline" color="accent" style={{ flexShrink: 1 }}>
               {tr("chat.assistantName")}
             </Text>
-            {/* Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet). */}
-            {waitingForCity || answer.weakDeclined ? null : active && !answer.deep ? (
-              <Elapsed
-                locale={locale}
-                // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
-                step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
-              />
-            ) : receipt ? <ReceiptToggle r={receipt} hidden={active} end /> : null}
+            {/* The running pill crossfades into the receipt in the same place (SEND-MOTION). */}
+            {pill && (
+              // Shrinks (the receipt's one line truncates) rather than pushing past the row at large text.
+              <Swap swapKey={pill} style={{ marginLeft: "auto", flexShrink: 1 }}>
+                {pill === "elapsed" ? (
+                  <Elapsed
+                    locale={locale}
+                    // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
+                    step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
+                  />
+                ) : (
+                  receipt && <ReceiptToggle r={receipt} hidden={active} />
+                )}
+              </Swap>
+            )}
           </View>
           {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
         </View>
@@ -1025,19 +1033,22 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           {sourcesShown && (
             // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
             // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
-            cardMode === "found" ? (
-              <Card radius="card" padding="compact">
-                <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
-                  {tr("chat.sources.found", { count: answer.sources.length })}
-                </IconText>
-              </Card>
-            ) : cardMode === "related" && split ? (
-              <Card radius="card" padding="compact">
-                <RelatedSources answer={answer} indexes={split.related} />
-              </Card>
-            ) : (
-              <SourceList answer={answer} onOpenSource={onOpenSource} only={split?.cited} related={split?.related} />
-            )
+            // The count crossfades into the list while the block's height follows (SEND-MOTION S7).
+            <Swap swapKey={cardMode === "found" || cardMode === "related" ? cardMode : "list"}>
+              {cardMode === "found" ? (
+                <Card radius="card" padding="compact">
+                  <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
+                    {tr("chat.sources.found", { count: answer.sources.length })}
+                  </IconText>
+                </Card>
+              ) : cardMode === "related" && split ? (
+                <Card radius="card" padding="compact">
+                  <RelatedSources answer={answer} indexes={split.related} />
+                </Card>
+              ) : (
+                <SourceList answer={answer} onOpenSource={onOpenSource} only={split?.cited} related={split?.related} />
+              )}
+            </Swap>
           )}
         </Block>
         <Block shown={!!answer.weakDeclined && !active}>
