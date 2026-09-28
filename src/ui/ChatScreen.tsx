@@ -71,6 +71,7 @@ import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
+import { flushDelay } from "./chat/streamBatch";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
 const VERBATIM_MESSAGE_COUNT = 6;
@@ -178,11 +179,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     setShowJump(!followBottom.current);
   }, []);
 
-  // ---- events: batched to one state update per frame while tokens stream ----
+  // ---- events: tokens batched (STREAM_FLUSH_MS) into one state update; everything else shows at once ----
   const pendingEvents = useRef<{ messageId: string; event: AnswerEvent }[]>([]);
-  const flushScheduled = useRef(false);
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushEvents = useCallback(() => {
-    flushScheduled.current = false;
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = null;
     const batch = pendingEvents.current;
     if (batch.length === 0) return;
     pendingEvents.current = [];
@@ -195,11 +197,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const queueEvent = useCallback(
     (messageId: string, event: AnswerEvent) => {
       pendingEvents.current.push({ messageId, event });
-      if (!flushScheduled.current) {
-        flushScheduled.current = true;
-        // ~50 ms batches: a handful of renders per second of streaming instead of one per token.
-        setTimeout(flushEvents, 50);
-      }
+      const delay = flushDelay(event);
+      // A stage, the sources or done: flush now, with the tokens queued before it (order kept).
+      if (delay === 0) flushEvents();
+      else if (!flushTimer.current) flushTimer.current = setTimeout(flushEvents, delay);
     },
     [flushEvents]
   );
