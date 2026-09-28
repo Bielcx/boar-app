@@ -1,14 +1,24 @@
-import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
-import { TextInput, View } from "react-native";
+import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { LayoutChangeEvent, TextInput, useWindowDimensions, View } from "react-native";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
 import { IconButton, Text } from "../components";
 import { footerBottom } from "../components/Screen";
 import { useTokens } from "../theme";
+import { useMotion } from "../theme/motion";
+import { CURVE, type Curve } from "../theme/motionSpec";
 import { VoiceInputButton } from "../VoiceInputButton";
 import { composerNotice, composerPlaceholderKey, sendMode, type ModelStatus } from "./composerState";
 import { Swap } from "./Swap";
+import { composerLayout, composerPillHeight } from "./composerLayout";
+
+const curves: Record<Curve, ReturnType<typeof Easing.bezier>> = {
+  standard: Easing.bezier(...CURVE.standard),
+  enter: Easing.bezier(...CURVE.enter),
+  exit: Easing.bezier(...CURVE.exit),
+};
 
 interface Props {
   value: string;
@@ -52,11 +62,28 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
   const line = keys.line ? tr(keys.line) : undefined;
   const hint = keys.hint ? tr(keys.hint) : undefined;
   const [focused, setFocused] = useState(false);
-  const [height, setHeight] = useState<number>(t.size.composer);
   // 14 regular, as the mockup's placeholder and text.
   const text = { ...t.type.subhead, fontFamily: t.type.body.fontFamily, fontWeight: t.type.body.fontWeight };
   const lineHeight = text.lineHeight ?? t.size.composer / 2;
-  const maxHeight = lineHeight * 5 + (t.size.composer - lineHeight);
+  // The input sizes itself (up to 5 lines, then scrolls) and the pill follows it animated (composerLayout.ts
+  // has the iOS cause: a fixed height fed by onContentSizeChange never grew past one line).
+  const { fontScale } = useWindowDimensions();
+  const layout = useMemo(
+    () => composerLayout({ lineHeight, fontScale, composer: t.size.composer, button: t.size.composer }),
+    [lineHeight, fontScale, t.size.composer]
+  );
+  const m = useMotion();
+  const pill = useSharedValue(layout.pillMin);
+  const onInputLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const target = composerPillHeight(e.nativeEvent.layout.height, layout);
+      // A line more or less: the DS `layout` role (reduce motion: at once, no slide).
+      const s = m.spec("layout");
+      pill.value = s.duration > 0 ? withTiming(target, { duration: s.duration, easing: curves[s.curve] }) : target;
+    },
+    [layout, m, pill]
+  );
+  const pillStyle = useAnimatedStyle(() => ({ height: pill.value }));
   return (
     <View
       style={{
@@ -76,18 +103,24 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
         {voiceEnabled && (
           <VoiceInputButton disabled={!ready} onTranscript={(text) => onChange(value ? `${value} ${text}` : text)} />
         )}
-        {/* The mockup's question pill: 52 tall, s1, hairline border (focus colour when focused), 18 side padding. */}
-        <View
-          style={{
-            flex: 1,
-            minHeight: t.size.composer,
-            justifyContent: "center",
-            borderRadius: t.size.composer / 2,
-            backgroundColor: t.color.bg.surface,
-            borderWidth: t.size.border,
-            borderColor: focused ? t.color.line.focus : t.color.line.hairline,
-            paddingHorizontal: t.space.md + t.space.xs + t.space.xxs,
-          }}
+        {/* The mockup's question pill: 52 tall for a line, s1, hairline border (focus colour when focused), 18 side
+            padding; same radius and padding at any height. The text sits on its bottom (the caret's line stays in
+            view while the pill catches up with a new line) and the pill's height animates to it. */}
+        <Animated.View
+          style={[
+            {
+              flex: 1,
+              justifyContent: "flex-end",
+              overflow: "hidden",
+              paddingBottom: layout.padV,
+              borderRadius: t.size.composer / 2,
+              backgroundColor: t.color.bg.surface,
+              borderWidth: t.size.border,
+              borderColor: focused ? t.color.line.focus : t.color.line.hairline,
+              paddingHorizontal: t.space.md + t.space.xs + t.space.xxs,
+            },
+            pillStyle,
+          ]}
         >
           <TextInput
             ref={field}
@@ -103,19 +136,18 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
             submitBehavior="newline"
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            onContentSizeChange={(e) => setHeight(e.nativeEvent.contentSize.height)}
+            onLayout={onInputLayout}
             style={{
               ...text,
               color: t.color.text.primary,
-              maxHeight,
-              height: Math.min(maxHeight, Math.max(lineHeight, height)),
+              maxHeight: layout.inputMax,
               paddingVertical: 0,
-              textAlignVertical: "center",
+              textAlignVertical: "top",
             }}
           />
-        </View>
-        {/* Stop and send swap in place with the DS crossfade (Prism F2-8). */}
-        <Swap swapKey={generating ? "stop" : "send"}>
+        </Animated.View>
+        {/* Stop and send swap in place with the DS crossfade (Prism F2-8); the disc stays on the last line's centre. */}
+        <Swap swapKey={generating ? "stop" : "send"} style={{ marginBottom: layout.buttonLift }}>
           {generating ? (
             // Stop, as the mockup (s2 disc, ember ring, 16 pt ember square): the DS's IconButton "stop" (Prism CH-29),
             // busy while the stop lands.
