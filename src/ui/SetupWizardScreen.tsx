@@ -18,7 +18,7 @@ import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
 import { embeddingEngine } from "../rag/embed";
 import { useCatalog } from "./flows/useCatalog";
-import { fitFor } from "./flows/adapters";
+import type { MemoryFit } from "../inference/memoryFit";
 import { canAutoRetry, RowState } from "./flows/modelRowState";
 import {
   PackageId,
@@ -216,6 +216,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
           present={present}
           freeBytes={catalog.freeBytes}
           deviceRamBytes={catalog.deviceRamBytes}
+          fit={catalog.fit}
           loaded={catalog.loaded}
           lang={lang}
           travel={travel}
@@ -469,6 +470,7 @@ function PackageStep({
   present,
   freeBytes,
   deviceRamBytes,
+  fit,
   loaded,
   lang,
   travel,
@@ -493,6 +495,8 @@ function PackageStep({
   present: Record<string, boolean>;
   freeBytes: number;
   deviceRamBytes: number;
+  /** catalog.fit: one RAM snapshot for every model on the step (perf audit #3). */
+  fit: (model: CatalogModel) => MemoryFit | undefined;
   loaded: boolean;
   lang: string;
   travel: PoiRegion | null;
@@ -516,7 +520,7 @@ function PackageStep({
     (["default", "compact"] as const)
       .map((tierId) => choices[tierId])
       .filter((m): m is CatalogModel => !!m)
-      .map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fitFor(m)?.verdict })),
+      .map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fit(m)?.verdict })),
     deviceRamBytes
   );
   const compactSuggested = !!choices.compact && pick?.id === choices.compact.id;
@@ -527,7 +531,7 @@ function PackageStep({
   }, [restored, loaded, answerChosen, recommendedTier, onAnswerTier]);
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
   // Computed from Tusk's estimate for this phone: the honest stand-in for the mockup's "Runs Great / RAM".
-  const answerFit = answerModel ? fitFor(answerModel) : undefined;
+  const answerFit = answerModel ? fit(answerModel) : undefined;
   const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
@@ -537,10 +541,10 @@ function PackageStep({
     const tier = TIERS.find((x) => x.id === p.tier)!;
     const all = [...packageAssets(tier, MODEL_CATALOG, answerModel), ...(travel ? placesInstall(travel) : []), ...(trip?.assets ?? [])];
     const plan = planPackage(all.filter((a, i) => all.findIndex((b) => b.id === a.id) === i), present);
-    const fit = plan.largestLlm ? fitFor(plan.largestLlm)?.verdict : undefined;
+    const largestFit = plan.largestLlm ? fit(plan.largestLlm)?.verdict : undefined;
     const shortfall = storageShortfall(plan.downloadBytes, freeBytes);
     const seconds = transferSeconds(plan.downloadBytes, REFERENCE_BYTES_PER_SEC);
-    return { ...p, plan, fit, shortfall, seconds };
+    return { ...p, plan, fit: largestFit, shortfall, seconds };
   });
   const chosen = plans.find((p) => p.id === selected)!;
   const recommended = recommendPackage(plans);

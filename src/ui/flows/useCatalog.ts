@@ -16,12 +16,12 @@ import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
 import { networkAllowed } from "../../config/variant";
-import { fitFor, forgetTileNames, installedPlaceTiles, largeModelConfirmedIds, loadCrashedIds, missingRequirementsOf, placeTileNames, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
+import { forgetTileNames, readRam, installedPlaceTiles, largeModelConfirmedIds, loadCrashedIds, missingRequirementsOf, placeTileNames, poiCatalogEntry, poiRegions, removePackIndex, topicPacks, worldPlacesEntry } from "./adapters";
 import { groupPlaceAreas, tileIdOf, type PlaceArea } from "./placeTiles";
 import type { MemoryFit } from "../../inference/memoryFit";
 import { mayCloseApp, ModelRole, modelRowView, RowView } from "./modelRowState";
 import { answerModelChoices } from "./packages";
-import { wontFitHere } from "./fit";
+import { fitForSnapshot, wontFitHere } from "./fit";
 import { FileImport, importFor } from "./fileImport";
 export type { FileImport };
 
@@ -65,6 +65,9 @@ export interface CatalogState {
   cancelImports: () => void;
 }
 
+/** The compact answer model's size, for the "may close the app" check: the manifest is fixed. */
+const COMPACT_SIZE_BYTES = answerModelChoices(MODEL_CATALOG).compact?.sizeBytes;
+
 /** With no saved choice: the manifest's standard answer model, and the required search model. */
 function defaultId(kind: "llm" | "embedding"): string | undefined {
   if (kind === "llm") return answerModelChoices(MODEL_CATALOG).default?.id;
@@ -104,7 +107,7 @@ export function useCatalog({ liveProgress = false }: CatalogOptions = {}): Catal
   const [loadErrors, setLoadErrors] = useState<Record<string, string>>({});
   const [crashedIds, setCrashedIds] = useState<string[]>([]);
   const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const deviceRamBytes = useMemo(() => {
     try {
       return getDeviceTotalRamBytes();
@@ -141,29 +144,46 @@ export function useCatalog({ liveProgress = false }: CatalogOptions = {}): Catal
   }, [refresh]);
   useEffect(() => subscribeDownloads((e) => (liveProgress || !e.progressOnly) && setTick((n) => n + 1)), [liveProgress]);
 
-  const view = useCallback(
-    (model: CatalogModel) => {
+  // One RAM snapshot when something that matters changed (a refresh, a download phase), not three
+  // native calls per fit and several fits per row on every render (perf audit #3).
+  const ram = useMemo(() => readRam(), [statuses, tick]);
+  const fit = useMemo(() => {
+    const cache = new Map<string, MemoryFit | undefined>();
+    return (model: CatalogModel) => {
+      if (!cache.has(model.id)) cache.set(model.id, fitForSnapshot(model, ram));
+      return cache.get(model.id);
+    };
+  }, [ram]);
+
+  const view = useMemo(() => {
+    // One view per model until its inputs change: ModelsScreen asks 2-3 times per row while grouping.
+    const cache = new Map<string, RowView>();
+    return (model: CatalogModel) => {
+      const hit = cache.get(model.id);
+      if (hit) return hit;
       const status = statuses[model.id];
       const roles: ModelRole[] = [];
       if (model.id === activeLlmId) roles.push("answer");
       if (model.id === activeEmbeddingId) roles.push("search");
-      return modelRowView({
+      const v = modelRowView({
         present: status?.present ?? false,
         checksumOk: status?.checksumOk,
         download: getDownloadState(model.id),
         roles: model.kind === "corpus" ? [] : roles,
         loading: loadingId === model.id,
         loadError: loadErrors[model.id] ?? null,
-        fit: fitFor(model)?.verdict,
-        mayCloseApp: mayCloseApp(model, answerModelChoices(MODEL_CATALOG).compact?.sizeBytes, deviceRamBytes),
+        fit: fit(model)?.verdict,
+        mayCloseApp: mayCloseApp(model, COMPACT_SIZE_BYTES, deviceRamBytes),
         loadCrashed: crashedIds.includes(model.id),
         largeConfirmed: confirmedIds.includes(model.id),
-        wontFit: wontFitHere(model, fitFor(model)),
+        wontFit: wontFitHere(model, fit(model)),
       });
-    },
-    // getDownloadState reads module state; the tick re-renders on each change.
-    [statuses, activeLlmId, activeEmbeddingId, loadingId, loadErrors, deviceRamBytes, crashedIds, confirmedIds]
-  );
+      cache.set(model.id, v);
+      return v;
+    };
+    // getDownloadState reads module state: tick changes on each download phase change (and on each
+    // progress event with liveProgress), so the cache never outlives the state it read.
+  }, [statuses, activeLlmId, activeEmbeddingId, loadingId, loadErrors, deviceRamBytes, crashedIds, confirmedIds, fit, tick]);
 
   const download = useCallback(
     async (model: CatalogModel) => {
@@ -292,7 +312,7 @@ export function useCatalog({ liveProgress = false }: CatalogOptions = {}): Catal
     loadingId,
     loadErrors,
     view,
-    fit: fitFor,
+    fit,
     refresh,
     download,
     remove,

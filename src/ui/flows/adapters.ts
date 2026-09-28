@@ -15,9 +15,9 @@ import { loadGuard } from "../../inference/loadGuard";
 import * as Downloads from "../../services/downloadManager";
 import * as FileSystem from "expo-file-system/legacy";
 import { getAvailableRamBytes, getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
-import { availableRamFrom, contextSizeForRam, MemoryFit } from "../../inference/memoryFit";
+import { availableRamFrom, MemoryFit } from "../../inference/memoryFit";
 import { removeCorpusPackIndex } from "../../rag/seedCorpus";
-import { catalogFit } from "./fit";
+import { fitForSnapshot, type RamSnapshot } from "./fit";
 import { topInstalledCities } from "./poi";
 import type { PoiCity, PoiRegion } from "./poi";
 import type { City } from "./travel";
@@ -30,17 +30,22 @@ import * as OfflineLocation from "offline-location";
 import { PREPAREDNESS_PACK, PREPAREDNESS_SOURCES, preparednessEntry as bramblePreparednessEntry } from "../../rag/preparedness";
 import { CRYPTO_PACK, CRYPTO_SOURCES, cryptoEntry } from "../../rag/cryptoPack";
 
-/** Tusk's estimate against the RAM the OS says is available right now. */
-export function fitFor(model: CatalogModel): MemoryFit | undefined {
-  let totalBytes = 0;
-  let availableBytes = 0;
+/**
+ * Total and available RAM now: three synchronous native calls (two are Binder IPCs on Android),
+ * so take one snapshot per render and pass it to fitForSnapshot (perf audit #3).
+ */
+export function readRam(): RamSnapshot | undefined {
   try {
-    totalBytes = getDeviceTotalRamBytes();
-    availableBytes = availableRamFrom({ totalBytes, rssBytes: getMemoryInfo().rssBytes, availBytes: getAvailableRamBytes() });
+    const totalBytes = getDeviceTotalRamBytes();
+    return { totalBytes, availableBytes: availableRamFrom({ totalBytes, rssBytes: getMemoryInfo().rssBytes, availBytes: getAvailableRamBytes() }) };
   } catch {
     return undefined;
   }
-  return catalogFit(model, { totalBytes, availableBytes }, contextSizeForRam(totalBytes));
+}
+
+/** Tusk's estimate against the RAM the OS says is available right now. For several models, readRam once. */
+export function fitFor(model: CatalogModel): MemoryFit | undefined {
+  return fitForSnapshot(model, readRam());
 }
 
 /** Deletes a JSON pack's indexed chunks or closes a sqlite pack, before the file goes. */
