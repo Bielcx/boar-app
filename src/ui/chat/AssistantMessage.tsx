@@ -641,7 +641,8 @@ function HeldAfterSnippet({ onAnswerAnyway }: { onAnswerAnyway?: () => void }) {
         {tr("chat.weak.heldAfterSnippet")}
       </Text>
       {onAnswerAnyway && (
-        <TextAction label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} onPress={onAnswerAnyway} />
+        // Ember, like the v1.1 decision: a neutral TextAction read as more grey text under the grey line (Piston 4b25507).
+        <TextAction tone="accent" label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} onPress={onAnswerAnyway} />
       )}
     </View>
   );

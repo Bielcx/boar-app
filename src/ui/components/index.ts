@@ -35,7 +35,7 @@ export type { OptionCardProps } from "./OptionCard";
 export { Progress } from "./Progress";
 export type { ProgressProps } from "./Progress";
 export { Screen } from "./Screen";
-export type { ScreenProps } from "./Screen";
+export type { ScreenProps, ScreenScroll } from "./Screen";
 export { Section } from "./Section";
 export type { SectionProps } from "./Section";
 export { SegmentedControl } from "./SegmentedControl";

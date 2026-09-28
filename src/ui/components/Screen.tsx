@@ -23,6 +23,13 @@ export interface ScreenProps {
   ambient?: boolean;
   /** Center the content vertically when it is shorter than the screen (welcome, errors). Scrolls when taller. */
   center?: boolean;
+  /** The scroll view, to bring something that just appeared at the end into view (scrollToEnd). */
+  scrollRef?: React.RefObject<ScreenScroll | null>;
+}
+
+/** What a screen can ask of its scroll view. */
+export interface ScreenScroll {
+  scrollToEnd: (options?: { animated?: boolean }) => void;
 }
 
 /** Screen scaffold: canvas background, safe area, keyboard handling, content rhythm. */
@@ -35,7 +42,7 @@ export function footerBottom(inset: number, xs: number, sm: number): number {
   return Platform.OS === "ios" ? Math.max(inset - xs, sm) : inset + sm;
 }
 
-export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient, center }: ScreenProps) {
+export function Screen({ children, scroll = true, edges = ["bottom", "left", "right"], padded = true, contentStyle, footer, ambient, center, scrollRef }: ScreenProps) {
   const t = useTokens();
   const insets = useSafeAreaInsets();
   // With a footer, the footer owns the bottom inset: the mockup ends the action 30 pt above the
@@ -57,6 +64,7 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
     const edge = (e: Edge, v: number) => (Platform.OS === "android" && edges.includes(e) ? v : 0);
     return (
       <KeyboardAwareScrollView
+        ref={scrollRef as React.Ref<never>}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         contentInsetAdjustmentBehavior="automatic"
@@ -82,6 +90,7 @@ export function Screen({ children, scroll = true, edges = ["bottom", "left", "ri
       {ambient && <Ambient />}
       {scroll ? (
         <KeyboardAwareScrollView
+          ref={scrollRef as React.Ref<never>}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           contentInsetAdjustmentBehavior="automatic"

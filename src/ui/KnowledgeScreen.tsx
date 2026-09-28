@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { DocumentPickerAsset } from "expo-document-picker";
 import { useTranslation } from "react-i18next";
-import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Screen, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useToast } from "./components";
+import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Screen, ScreenScroll, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useToast } from "./components";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
@@ -55,6 +55,15 @@ export function KnowledgeScreen() {
   const [name, setName] = useState("");
   const [importing, setImporting] = useState<ImportProgress | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const scrollRef = useRef<ScreenScroll>(null);
+  // The error replaces the empty state in the last section, at the foot of a long screen: bring it and its
+  // "Choose again" fully into view, above the Android navigation bar (Piston, prints 4b25507).
+  const noCollections = (collections?.length ?? 0) === 0;
+  useEffect(() => {
+    if (!importError || !noCollections) return;
+    const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 0);
+    return () => clearTimeout(id);
+  }, [importError, noCollections]);
   const [toRemove, setToRemove] = useState<CustomCollection | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [indexStatus, setIndexStatus] = useState<Record<string, CollectionIndexStatus>>(getCollectionIndexStatus);
@@ -161,7 +170,7 @@ export function KnowledgeScreen() {
   const importValue = importing ? importPercent(importing) : undefined;
 
   return (
-    <Screen contentStyle={screenRhythm(tokens)}>
+    <Screen contentStyle={screenRhythm(tokens)} scrollRef={scrollRef}>
       <ScreenTitle>{t("nav.knowledge")}</ScreenTitle>
       <Text variant="footnote" color="secondary">
         {t("flows.knowledge.intro")}
