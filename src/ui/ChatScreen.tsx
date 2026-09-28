@@ -75,6 +75,7 @@ import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
 import { createBottomPin, heightChanged } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
+import { Swap } from "./chat/Swap";
 import { useMotion } from "./theme/motion";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
@@ -128,6 +129,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const askedIds = useRef<Set<string>>(new Set());
   // Rows sent in this run that haven't entered yet (SEND-MOTION S1): each enters once.
   const enterIds = useRef<Set<string>>(new Set());
+  // Which conversation the list shows (TR-10): changes on switching or starting one, not when the first
+  // question creates the session (that would crossfade the list away mid-send).
+  const [conversationKey, setConversationKey] = useState("initial");
   itemsRef.current = items;
   // The unsent question survives a remount too (FS-1).
   const [input, setInput] = useState<string>(draftInput);
@@ -716,6 +720,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   const resetToNewChat = useCallback(async () => {
     await stopAndWait();
+    setConversationKey(`new-${Date.now()}`);
     setItems([]);
     setActiveSessionId(null);
     sessionSummaryRef.current = null;
@@ -729,6 +734,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       await stopAndWait();
       const records = await getSessionMessages(id);
       followBottom.current = true;
+      setConversationKey(id);
       setItems(itemsFromRecords(records));
       setActiveSessionId(id);
       setLoadCrash(null);
@@ -997,46 +1003,49 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           </View>
         ) : null}
 
-        <FlatList
-          ref={listRef}
-          style={{ flex: 1 }}
-          data={items}
-          keyExtractor={(m) => m.id}
-          renderItem={renderItem}
-          extraData={renderItem}
-          contentContainerStyle={listContentStyle}
-          keyboardDismissMode="interactive"
-          keyboardShouldPersistTaps="handled"
-          // With a conversation on screen, a model error comes in as the next message, above the composer: it
-          // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
-          ListFooterComponent={
-            items.length > 0 && loadError ? (
-              <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-            ) : null
-          }
-          ListEmptyComponent={
-            loadError ? (
-              <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-            ) : !modelsRequested ? (
-              <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
-            ) : (
-              // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
-              <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
-                <ChatEmptyState
-                  suggestions={suggestions}
-                  onAddKnowledge={showSuggestions ? openKnowledge : undefined}
-                  onAsk={ask}
-                  onFill={fillQuestion}
-                />
-              </Animated.View>
-            )
-          }
-          onContentSizeChange={onListContentSize}
-          onLayout={onListLayout}
-          onScroll={onListScroll}
-          onScrollBeginDrag={onListDrag}
-          scrollEventThrottle={100}
-        />
+        {/* TR-10: switching conversations crossfades the list (DS crossfade, keyed by the conversation). */}
+        <Swap swapKey={conversationKey} style={{ flex: 1 }}>
+          <FlatList
+            ref={listRef}
+            style={{ flex: 1 }}
+            data={items}
+            keyExtractor={(m) => m.id}
+            renderItem={renderItem}
+            extraData={renderItem}
+            contentContainerStyle={listContentStyle}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            // With a conversation on screen, a model error comes in as the next message, above the composer: it
+            // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
+            ListFooterComponent={
+              items.length > 0 && loadError ? (
+                <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              ) : null
+            }
+            ListEmptyComponent={
+              loadError ? (
+                <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+              ) : !modelsRequested ? (
+                <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
+              ) : (
+                // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
+                <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
+                  <ChatEmptyState
+                    suggestions={suggestions}
+                    onAddKnowledge={showSuggestions ? openKnowledge : undefined}
+                    onAsk={ask}
+                    onFill={fillQuestion}
+                  />
+                </Animated.View>
+              )
+            }
+            onContentSizeChange={onListContentSize}
+            onLayout={onListLayout}
+            onScroll={onListScroll}
+            onScrollBeginDrag={onListDrag}
+            scrollEventThrottle={100}
+          />
+        </Swap>
 
         {showJump && generating && (
           // Above the composer as tall as it is now (it grows with lines and large text; Prism CH-28).
