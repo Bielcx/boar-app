@@ -1,0 +1,110 @@
+# Final prints (Boar, integration 377d9bf): 06 (new try), 07/09 typed as Iris wrote them, then 10
+# after a batch import (gazetteer + tile) from Knowledge > Places. Same env as prints-v11.yaml
+# (run-prints.sh PRINTS_FLOW=prints-final.yaml SKIP_SPLASH=1).
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- runFlow:
+    when:
+      true: ${L == 'pt'}
+    commands:
+      - tapOn: "Português"
+- tapOn: ${T_START}
+- tapOn:
+    text: "${T_ESSENTIAL}, .*"
+- scrollUntilVisible:
+    element: ${T_CONTINUE}
+- tapOn: ${T_CONTINUE}
+- tapOn: ${T_PICK}
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- tapOn:
+    text: "List view"
+    optional: true
+- longPressOn:
+    text: ".*\\.gguf"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"
+- extendedWaitUntil:
+    visible: ${T_DONE}
+    timeout: 900000
+- tapOn: ${T_OPEN}
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000
+# typed question; Send without waiting for the UI to settle, so 06 catches stages/streaming
+- tapOn: ${T_ASK}
+- setClipboard: ${Q_MONSOON}
+- pasteText
+- tapOn:
+    text: ${T_SEND}
+    waitToSettleTimeoutMs: 200
+- takeScreenshot: 06-chat-generating_android_${L}_a
+- takeScreenshot: 06-chat-generating_android_${L}_b
+- takeScreenshot: 06-chat-generating_android_${L}_c
+- takeScreenshot: 06-chat-generating_android_${L}_d
+- takeScreenshot: 06-chat-generating_android_${L}_e
+- takeScreenshot: 06-chat-generating_android_${L}_f
+- takeScreenshot: 06-chat-generating_android_${L}_g
+- takeScreenshot: 06-chat-generating_android_${L}_h
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 07-chat-answer_android_${L}
+- runFlow:
+    when:
+      visible: ${T_ASK_MODEL}
+    commands:
+      - tapOn:
+          text: ${T_ASK_MODEL}
+          waitToSettleTimeoutMs: 200
+      - takeScreenshot: 06-chat-generating_android_${L}_ai_a
+      - takeScreenshot: 06-chat-generating_android_${L}_ai_b
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
+      - takeScreenshot: 07-chat-answer_android_${L}_ai
+- tapOn:
+    text: "${T_SOURCE1}.*"
+    optional: true
+# a Compact refusal under a passage has no source list: open the passage's [1] instead
+- runFlow:
+    when:
+      notVisible: "${T_SOURCE1}.*"
+    commands:
+      - tapOn:
+          text: "\\[1\\]"
+          optional: true
+- takeScreenshot: 09-chat-source-open_android_${L}
+# back only if something covers the chat (a sheet); a bare back would leave the app
+- runFlow:
+    when:
+      notVisible: ${T_ASK}
+    commands:
+      - back
+- tapOn: ${T_MENU}
+- tapOn: ${T_KNOWLEDGE}
+- scrollUntilVisible:
+    element: ${T_IMPORT_PLACES}
+- tapOn: ${T_IMPORT_PLACES}
+- runFlow: ../common/pick-places.yaml
+- extendedWaitUntil:
+    visible:
+      text: "${T_VERIFIED} World places.*"
+    timeout: 180000
+- extendedWaitUntil:
+    visible:
+      text: "${T_VERIFIED} (?!World places).*"
+    timeout: 180000
+- takeScreenshot: 10-places-imported_android_${L}
+- back
+- runFlow: new-chat.yaml
+- runFlow:
+    file: ask-paste.yaml
+    env:
+      QUESTION: ${Q_PLACES}
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 10-places_android_${L}

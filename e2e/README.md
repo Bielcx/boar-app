@@ -33,6 +33,9 @@ Toolchain and emulator setup: `docs/DEVICE_LAB.md`.
 | `04-places-berlin` | vegan places: explicit city, near me (mock GPS), city with no data (Qujing) |
 | `05-switch-model` | switch the answer model in Models |
 | `06-knowledge` | topic packs listed |
+| `10-offline-setup-and-source` | mini smoke: offline setup (import everything in Downloads), suggestion with a source |
+| `11-offline-places-city` | batch import of a 1°×1° tile + world gazetteer (Knowledge › Import places), vegan places in Rome with the OSM credit, a city with no tile (Lima), no_match (kosher in Aprilia) |
+| `prints/` | UI approval prints (PRINTS-v11): `prints-v11` (02–12, EN then PT), `prints-final` (06/07/09 typed + 10) |
 | `99-reset` | erase all data → onboarding |
 
 Status, `maestro test` against the offline build (APP_ID=team.sopa.aoair.offline), AVD 393×852 dp:
@@ -53,6 +56,14 @@ button since the fidelity sprint), and the passage itself opens the source (no "
 
 The first run also hit a native crash in expo-sqlite (`closeDatabase` → `sqlite3_finalize`,
 Scudo "corrupted chunk header") when the app was stopped and relaunched between flows.
+
+Mini runs, v1.1 (27/09, AVD 1080×2400 @420, airplane mode):
+
+| Flow | ecb83d3 | dcdab04 | 377d9bf |
+|---|---|---|---|
+| `10-offline-setup-and-source` | **PASS** (flow 179 s) | not run | not run |
+| `11-offline-places-city` | **PASS** only when the gazetteer is imported before the tile (together, the tile was rejected as unknown: app bug, fixed by Bramble 94fda8c) | **PASS** batch import (flow 272 s) | **PASS** batch import (flow 271 s; tile shown as "Area at 41°N 12°E") |
+| `prints/*` | 02–12 EN/PT | 07/09 | 06/07/09/10 EN/PT |
 
 ## Scripts (`e2e/scripts/`), used for the evidence
 
@@ -81,8 +92,9 @@ clones, `npm ci` and prebuild run outside the lock with `nice -n 19`. Scripts in
 | `install-sdk.sh` | outside the lock | cmdline-tools, platform-tools, android-36, build-tools 36, cmake 3.22.1, NDK 27.1 (stops below 12 GB free) |
 | `install-emu.sh` | outside the lock | emulator, `system-images;android-35;default;arm64-v8a` (AOSP, no GMS), AVD `boar_api35` (4 GB RAM), Maestro |
 | `prep-android.sh <sha> <variant>` | outside the lock | clone, checkout, `npm ci` (only if the lock file changed), `expo prebuild --clean` |
-| `gradle-android.sh` | **inside the lock**, normal class (no `HEAVY_CLASS`) | `assembleRelease` arm64 with a disk watchdog, sha256, offline audit, then deletes intermediates (keeps `~/.gradle` and the llama.rn `.cxx`) |
-| `run-e2e.sh <apk> <flow>` | **inside the lock**, as a short job: `HEAVY_CLASS=short ~/boar/bin/heavy Piston bash run-e2e.sh …` (jumps ahead of the next gate; one flow ≈ 4 min) | headless emulator (`-no-window`, wiped data), fresh install, push model/corpus files, Maestro flow, emulator off and AVD data removed |
+| `gradle-android.sh` | **inside the lock**, normal class (no `HEAVY_CLASS`) | `assembleRelease` arm64 with a disk watchdog (10 GB floor during gradle, Boar 27/09; `GRADLE_WORKERS=2 CMAKE_JOBS=3` when the mini's swap is high), sha256, offline audit, then deletes intermediates (keeps `~/.gradle` and the llama.rn `.cxx`) |
+| `run-e2e.sh <apk> <flow> [-e K=V…]` | **inside the lock**, as a short job: `HEAVY_CLASS=short ~/boar/bin/heavy Piston bash run-e2e.sh …` (jumps ahead of the next gate; one flow ≈ 4 min) | headless emulator (`-no-window`, wiped data), fresh install, push model/corpus files, Maestro flow, emulator off and AVD data removed. `PLACES_FILES="a b"` pushes place files to `Download/places/` (a subfolder, so the setup's Select all skips them) |
+| `run-prints.sh <apk> <sha>` | inside the lock, normal class | UI approval prints: splash screencap burst, `wm size`/`density`, EN then PT (`pm clear` between); `PRINTS_FLOW=`, `SKIP_SPLASH=1`, `PLACES_FILES=` |
 
 First measurements (27/09): `assembleRelease` 6eb9ca7 offline 271 s with warm caches (the first run
 needs ~15 GB of disk at peak); `10-offline-setup-and-source` **PASS** in 250 s total (boot 27 s,
@@ -112,3 +124,10 @@ install + files 33 s, flow 182 s).
   is paged out and generation drops from ~30 tok/s to near zero. Check `sysctl vm.swapusage` and
   the qemu RSS before any latency measurement; never kill processes with `pkill -f` patterns that
   also match your own command line.
+- The AOSP keyboard asks for contacts the first time it opens, and the dialog eats the flow's taps:
+  `run-e2e.sh` / `run-prints.sh` grant READ_CONTACTS to the IME up front.
+- Accents: Maestro `setClipboard` + `pasteText` types them (`inputText` doesn't).
+- `hideKeyboard` with no keyboard on screen acts as *back* and can leave the app: don't use it blindly.
+- Maestro `tapOn` waits for the UI to settle, which swallows a streaming answer: use
+  `waitToSettleTimeoutMs: 200` on the Send tap to capture the generating state.
+- The second system picker of a session can stay on *Recent* after tapping Downloads: `common/pick-places.yaml` waits and retries.
