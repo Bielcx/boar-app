@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseInline, parseMarkdown } from "./markdown";
+import { parseInline, parseMarkdown, sameBlock } from "./markdown";
 
 describe("parseInline", () => {
   it("parses bold, italic and code", () => {
@@ -71,5 +71,29 @@ describe("parseMarkdown", () => {
       { type: "text", text: "yes " },
       { type: "cite", n: 1 },
     ]);
+  });
+});
+
+describe("sameBlock", () => {
+  it("keeps the finished blocks equal while the last one streams", () => {
+    const before = parseMarkdown("# Title\n\nFirst paragraph [1].\n\n- one\n- tw", 2);
+    const after = parseMarkdown("# Title\n\nFirst paragraph [1].\n\n- one\n- two", 2);
+    expect(before.length).toBe(after.length);
+    const same = before.map((b, i) => sameBlock(b, after[i]));
+    expect(same).toEqual([true, true, true, false]);
+  });
+
+  it("tells apart blocks that differ only in type or number", () => {
+    const [a] = parseMarkdown("1. step", 0);
+    const [b] = parseMarkdown("2. step", 0);
+    const [c] = parseMarkdown("- step", 0);
+    expect(sameBlock(a, b)).toBe(false);
+    expect(sameBlock(a, c)).toBe(false);
+  });
+
+  it("sees a citation become valid once the source arrives", () => {
+    const [a] = parseMarkdown("Text [2].", 1);
+    const [b] = parseMarkdown("Text [2].", 2);
+    expect(sameBlock(a, b)).toBe(false);
   });
 });

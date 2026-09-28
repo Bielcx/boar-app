@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { memo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Icon, IconButton, IconText, Mascot, OfflineSeal, Sheet, Text } from "./components";
@@ -32,8 +32,9 @@ const HEADER_META_MAX_SCALE = 1.5;
  * has no tone button, and it cost the seal its text on 393-412pt phones). Name and model always stay readable:
  * when the width gets tight (see headerFit) the seal keeps only its icon,
  * then the avatar goes, so large text never wraps or swallows the title.
+ * Memoized: the chat screen re-renders on every streamed frame, the header only when its props change.
  */
-export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voiceEnabled, onOpenDrawer }: Props) {
+export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voiceEnabled, onOpenDrawer }: Props) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
@@ -138,4 +139,4 @@ export function ChatHeader({ activeModelLabel, downgradedFrom, onOpenModels, voi
       </Sheet>
     </View>
   );
-}
+});

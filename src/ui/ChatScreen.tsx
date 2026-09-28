@@ -684,6 +684,13 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   );
 
   const openSettings = useCallback(() => navigation.navigate("Settings"), [navigation]);
+  // Stable props for the memoized header and composer (the screen re-renders on every streamed frame).
+  const openModels = useCallback(() => navigation.navigate("Models"), [navigation]);
+  const openDrawer = useCallback(() => {
+    refreshSessions();
+    navigation.dispatch(DrawerActions.openDrawer());
+  }, [navigation, refreshSessions]);
+  const send = useCallback(() => ask(input), [ask, input]);
 
   // Set while another screen (Settings, Models, ...) is pushed on top of the chat;
   // also keeps download toasts meant for that screen out of the chat.
@@ -850,6 +857,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     [actions, activeId, stopping, locale, waitingLibrary, loadStatus.label, libraryIncomplete]
   );
 
+  const downgradedFrom = useMemo(
+    () => effective?.downgradedFrom && { ...effective.downgradedFrom, label: chatModelNameById(effective.downgradedFrom.id, effective.downgradedFrom.label, t) },
+    [effective, t]
+  );
+
   if (deviceEvalRequest) {
     return <EvaluationScreen deviceRequest={deviceEvalRequest} onClose={() => setDeviceEvalRequest(null)} />;
   }
@@ -862,15 +874,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       <ChatHeader
         // Tier names (r4to via Boar): "Fast" / "More accurate"; the technical name only in Settings › Assistant › Details.
         activeModelLabel={effective ? chatModelNameById(effective.id, effective.label, t) : activeModel ? chatModelName(activeModel, t) : undefined}
-        downgradedFrom={
-          effective?.downgradedFrom && { ...effective.downgradedFrom, label: chatModelNameById(effective.downgradedFrom.id, effective.downgradedFrom.label, t) }
-        }
-        onOpenModels={() => navigation.navigate("Models")}
+        downgradedFrom={downgradedFrom}
+        onOpenModels={openModels}
         voiceEnabled={voiceInputEnabled}
-        onOpenDrawer={() => {
-          refreshSessions();
-          navigation.dispatch(DrawerActions.openDrawer());
-        }}
+        onOpenDrawer={openDrawer}
       />
       {/* automaticOffset: the view's onLayout y is relative to its parent (below the safe area and the
           header), so without it the padding came out short and the composer sat behind the keyboard
@@ -972,7 +979,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           ref={inputRef}
           value={input}
           onChange={setInput}
-          onSend={() => ask(input)}
+          onSend={send}
           onStop={stopActive}
           status={modelStatus(ready, loadError, indexing)}
           canSend={canAsk}

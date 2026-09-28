@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -19,6 +19,7 @@ import { useTokens } from "../theme";
 import type { Place } from "./answerEvents";
 import { CityMapOffer } from "../flows/CityMapOffer";
 import type { AnswerState, PlacesResult } from "./answerReducer";
+import { sameAnswerFields } from "./renderEquality";
 import {
   coordinatesText,
   areaCityName,
@@ -457,7 +458,7 @@ export interface PlacesCardProps {
  * with the ordering stated, attribution once at the bottom. No model writes
  * any of it, so no place can be invented.
  */
-export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation, onGetMap, focusCity }: PlacesCardProps) {
+function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, onGetMap, focusCity }: PlacesCardProps) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -588,6 +589,22 @@ export function PlacesCard({ answer, locale, onOpenSource, onCity, onUseLocation
     </View>
   );
 }
+
+/**
+ * Reads only answer.places and answer.location: memoized on those, the list stays still while a model
+ * pass streams under it. Reading another answer field here means adding it to the comparison.
+ */
+export const PlacesCard = memo(
+  PlacesCardView,
+  (a, b) =>
+    sameAnswerFields(a.answer, b.answer, ["places", "location"]) &&
+    a.locale === b.locale &&
+    a.onOpenSource === b.onOpenSource &&
+    a.onCity === b.onCity &&
+    a.onUseLocation === b.onUseLocation &&
+    a.onGetMap === b.onGetMap &&
+    a.focusCity === b.focusCity
+);
 
 /**
  * "Finding your location…" while the engine waits for the GPS (up to ~10 s, Boar GPS-1):
