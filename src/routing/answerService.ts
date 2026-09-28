@@ -10,16 +10,18 @@
  * docs/ADAPTIVE_ROUTING.md for the routing rules.
  */
 import { defaultContextSize, llamaEngine } from "../inference/LlamaEngine";
-import { getDeviceTotalRamBytes } from "ram-monitor";
+import { Platform } from "react-native";
+import { getDeviceTotalRamBytes, getMemoryInfo } from "ram-monitor";
 import { retrieve } from "../rag/retrieve";
 import { englishNamesIn } from "../rag/ptLexicon";
 import { ptLexicon } from "../rag/ptLexiconAsset";
 import { seedKnowledgeBaseIfEmpty } from "../rag/seedCorpus";
-import { assemblePrompt, assembleChatMessages } from "../rag/pure";
+import { answerPromptPrefix, assemblePrompt, assembleChatMessages } from "../rag/pure";
 import { ModelManager } from "../models/ModelManager";
 import { MODEL_CATALOG } from "../models/manifest";
 import { listDiscoveredModels } from "../models/discoveredModels";
-import { getActiveModelId, getAnswerSettings } from "../models/settings";
+import { getActiveModelId, getAnswerSettings, getCustomSystemPrompt, getPersonalityId } from "../models/settings";
+import { getPersonality } from "../constants/personalities";
 import { runDeepResearch } from "../services/orchestrator";
 import { createAnswerer, InstalledLlm } from "./answer";
 import { measuredSpeeds } from "./depth";
@@ -81,6 +83,7 @@ export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAn
   runMultipass: runDeepResearch,
   assemblePrompt,
   assembleChatMessages,
+  answerPrefix: answerPromptPrefix,
   now: () => performance.now(),
   contextSize: defaultContextSize,
   deviceRamBytes: () => {
@@ -93,4 +96,15 @@ export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAn
   getGeoProviders: () => geoProviders,
   getModelSpeeds: async () => measuredSpeeds(await listRecentExecutions(500)),
   recordExecution,
+  // iOS: the footprint (jetsam's figure; RSS counts clean mmap'd weights); the native module names it totalPssBytes.
+  memoryBytes: () => {
+    const m = getMemoryInfo();
+    return Platform.OS === "ios" ? m.totalPssBytes : m.rssBytes;
+  },
 });
+
+// The first question after launch: the saved tone's prompt prefix is prefilled as soon as the model loads
+// (ChatScreen builds its system prompt the same way). Later answers keep it current.
+Promise.all([getPersonalityId(), getCustomSystemPrompt()])
+  .then(([id, custom]) => llamaEngine.setAnswerPrefix(answerPromptPrefix(id === "custom" ? custom : getPersonality(id).systemPrompt)))
+  .catch((e) => console.warn("[answer] tone for the prompt prefix:", e?.message ?? e));

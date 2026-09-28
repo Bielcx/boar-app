@@ -107,7 +107,7 @@ import type {
 import type { ModelRole } from "./types";
 import type { RetrievedChunk } from "../rag/retrieve.types";
 import type { ConversationHistory, ChatMessage } from "../rag/pure";
-import type { GenerateOptions, GenerationTimings, LoadResult } from "../inference/LlamaEngine";
+import type { GenerateOptions, GenerationTimings, LoadResult, PromptPrefix } from "../inference/LlamaEngine";
 import type { MemoryFit } from "../inference/memoryFit";
 import type { AnswerSettings } from "../models/settings";
 import type { ResearchOptions, ResearchProgress, ResearchResult } from "../services/orchestrator";
@@ -132,6 +132,8 @@ export interface AnswerEngine {
   getModelInfo(): { filename: string } | null;
   hasEmbeddedChatTemplate(): boolean;
   estimateFit(filename: string): Promise<MemoryFit | null>;
+  /** Keeps this prompt start prefilled in the KV cache between answers (LlamaEngine.setAnswerPrefix). */
+  setAnswerPrefix?(prefix: PromptPrefix | null): void;
 }
 
 export interface AnswerDeps {
@@ -153,6 +155,8 @@ export interface AnswerDeps {
   /** Prompt builders (src/rag/pure.ts), injected so tests can inspect what the model sees. */
   assemblePrompt(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): string;
   assembleChatMessages(q: string, chunks: RetrievedChunk[], system?: string, history?: ConversationHistory, style?: string): ChatMessage[];
+  /** The fixed start those builders give every answer with sources, for a tone (src/rag/pure.ts answerPromptPrefix). */
+  answerPrefix?(system?: string): PromptPrefix;
   now(): number;
   /** The device's calendar date (tests pass a fixed one). */
   today?(): Date;
@@ -181,7 +185,15 @@ export interface AnswerDeps {
    * (getModelSpeeds) read them. Answers with no model (instant excerpt, places, cards) record nothing.
    */
   recordExecution?(record: Omit<ExecutionTelemetryRecord, "id" | "createdAt">): Promise<void>;
+  /**
+   * The app's memory right now, for the execution record's peak (peakRssBytes). iOS: phys_footprint, what
+   * jetsam counts and what the "[BOAR mem] footprint_mb" log line shows; Android: VmRSS. 0 or a throw = unknown.
+   */
+  memoryBytes?(): number;
 }
+
+/** A generation samples the app's memory every this many tokens (plus load, first token and end). */
+export const MEMORY_SAMPLE_EVERY_TOKENS = 16;
 
 /** GPS budget: the first useful information must appear in under a second. */
 export const LOCATION_TIMEOUT_MS = 700;
@@ -292,6 +304,8 @@ export function createAnswerer(deps: AnswerDeps) {
 
   function answer(req: AnswerRequest, onEvent: AnswerEventHandler, ctx: AnswerContext): AnswerHandle {
     const answerId = newAnswerId();
+    // The tone of this chat is the one the next question will most likely use too: keep its prefix prefilled.
+    if (deps.answerPrefix) deps.engine.setAnswerPrefix?.(deps.answerPrefix(ctx.systemPrompt));
     const previous = current;
     let stopRequested = false;
     // Resolves on stop(), so a wait (the GPS) ends at once instead of running out its timeout.
@@ -646,8 +660,18 @@ export function createAnswerer(deps: AnswerDeps) {
 
       /** Set once the model is asked to generate: only then does the answer leave an execution record. */
       let generation: { modelId: string; residency: ModelResidency; firstTokenAt: number | null; decodeMs?: number; decodeTokens?: number } | null = null;
+      /** Highest memoryBytes() seen from the model load to the end of the answer (0 = no readout). */
+      let peakMemoryBytes = 0;
+      const sampleMemory = () => {
+        try {
+          peakMemoryBytes = Math.max(peakMemoryBytes, deps.memoryBytes?.() || 0);
+        } catch {
+          // No readout on this build: the record keeps a null peak.
+        }
+      };
       const record = (outcome: AnswerOutcome, r: AnswerReceipt, error?: { message: string }) => {
         if (!generation || !deps.recordExecution) return;
+        sampleMemory();
         const execOutcome: ExecutionOutcome = outcome === "success" ? "success" : outcome === "stopped" ? "cancelled" : "failure";
         deps
           .recordExecution({
@@ -666,6 +690,7 @@ export function createAnswerer(deps: AnswerDeps) {
             tokensGenerated: generation.decodeTokens ?? r.tokens,
             tokPerSec: r.tokPerSec,
             outcome: execOutcome,
+            ...(peakMemoryBytes > 0 ? { peakRssBytes: peakMemoryBytes } : {}),
             ...(outcome === "timeout" ? { errorMessage: "timeout" } : error ? { errorMessage: error.message } : {}),
           })
           .catch(() => {});
@@ -996,7 +1021,9 @@ export function createAnswerer(deps: AnswerDeps) {
 
       const residentBefore = deps.engine.getModelInfo()?.filename ?? null;
       const residency: ModelResidency = residentBefore === genLlm.filename ? "resident" : residentBefore === null ? "cold" : "switched";
+      sampleMemory();
       const loadError = await ensureLoaded(genLlm, genTier);
+      sampleMemory();
       if (loadError) {
         return finish(genTier, "error", "", sources, receipt({ retrievalMs }), {
           code: errorCodeOf(loadError, "load"),
@@ -1018,7 +1045,7 @@ export function createAnswerer(deps: AnswerDeps) {
           markVisible();
           if (gen.mode === "single") stage("generating", genTier, genLlm.id);
         }
-        tokens++;
+        if (tokens++ % MEMORY_SAMPLE_EVERY_TOKENS === 0) sampleMemory();
         emit({ type: "token", answerId, tier: genTier, text: piece });
       };
 
@@ -1117,6 +1144,7 @@ export function createAnswerer(deps: AnswerDeps) {
         cachedTokens: timings?.cachedTokens,
       });
       // CT-1: a [n] stays only where source n supports its sentence.
+      let allCitationsRemoved = false;
       if (/\[\d+\]/.test(text)) {
         const cited = sources.map((c) => raw.find((r) => r.chunkId === c.chunkId) ?? c);
         const checked = checkCitations(text, cited);
@@ -1130,14 +1158,10 @@ export function createAnswerer(deps: AnswerDeps) {
           // Also across languages (a PT answer, English sources): the cross-language exception (5fa5d96) let
           // 7 new confident crypto errors of the 1.5B through in PT (gate 20e8c65: "32 ETH" for EIP-7251), so
           // it was reverted; the decline is right there.
-          if (!/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
-            reasonCodes.push("grounding:all-citations-removed-declined-compact");
-            // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
-            const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
-            emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
-            finalText = message;
-            return finish(genTier, "success", message, [], baseReceipt);
-          }
+          // The decline waits for the attribution below: a sentence a source supports at the higher bar gets
+          // its [n] back ("Nuclear fusion involves two or more atomic nuclei combining… [1]" after the [1]
+          // closing its fission sentence went), and then the answer stands.
+          allCitationsRemoved = !/\[\d+\]/.test(text);
         }
       }
       // A word in the wrong script for the language asked about ("obrigado em tailandês" answered in Khmer,
@@ -1180,6 +1204,14 @@ export function createAnswerer(deps: AnswerDeps) {
         }
       }
       if (stopRequested) return finish(genTier, "stopped", text, sources, baseReceipt);
+      if (allCitationsRemoved && !/\[\d+\]/.test(text) && !health && isCompactModel(genLlm) && !req.answerAnyway && gen.mode !== "multipass") {
+        reasonCodes.push("grounding:all-citations-removed-declined-compact");
+        // Passages were found (and shown): "didn't find this" would be false (Quill 892c049).
+        const message = pt ? "Os trechos encontrados não sustentam esta resposta." : "The passages found don't support this answer.";
+        emit({ type: "warning", answerId, code: "weak_sources", declined: true, message });
+        finalText = message;
+        return finish(genTier, "success", message, [], baseReceipt);
+      }
 
       // Safety net (Boar, gates ea5978c and be817b3): a knowledge answer that cites nothing, when no
       // source was on topic, came from memory ("Estrela, Lisbon" for the seasons). The 4B says so up

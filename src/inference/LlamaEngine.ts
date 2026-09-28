@@ -68,6 +68,18 @@ export interface GenerateOptions {
   onTimings?: (t: GenerationTimings) => void;
 }
 
+/** The fixed start of the answer prompt (src/rag/pure.ts answerPromptPrefix): chat-template and plain variants. */
+export interface PromptPrefix {
+  system: string;
+  prompt: string;
+}
+
+/**
+ * Idle time after a completion with another prompt (session title, summary, Deep Research stage) before the
+ * answer prefix is prefilled again. Back-to-back stages don't pay a refill between them.
+ */
+export const PREFIX_WARM_IDLE_MS = 750;
+
 export interface GenerationTimings {
   promptTokens: number;
   promptMs: number;
@@ -169,6 +181,17 @@ export class LlamaEngine {
   // Bumped by stop(): a generation queued before a stop resolves empty
   // instead of starting after the user already pressed Stop.
   private stopEpoch = 0;
+
+  // Answer prompt prefix kept in the KV cache (setAnswerPrefix). llama.rn re-evaluates a prompt only from its
+  // first token that differs from the cache, but the session title right after a new chat's first answer (and
+  // any other prompt) replaces the cache, so on the iPhone 13 every new chat's question prefilled all its
+  // ~400 tokens at ~100 tok/s (4-5 s to the first token).
+  private prefix: PromptPrefix | null = null;
+  /** Whether the KV cache holds `prefix` (a load or another prompt drops it). */
+  private prefixCached = false;
+  private warmTimer: ReturnType<typeof setTimeout> | null = null;
+  /** generate() calls not settled yet: a prefix refill never waits in front of one of them. */
+  private pending = 0;
 
   private enqueue(task: () => Promise<void>): Promise<void> {
     const run = this.queue.then(task);
@@ -276,6 +299,8 @@ export class LlamaEngine {
       await this.guard?.end(meta, loadedOk).catch((e: any) => console.warn("[engine] load marker:", e?.message ?? e));
     }
     this.lastLoad = { fit, warning: fit ? describeFit(modelFilename, fit) : null, backend };
+    this.prefixCached = false;
+    this.scheduleWarm(0);
     return this.lastLoad;
   }
 
@@ -343,6 +368,7 @@ export class LlamaEngine {
     }
     const context = this.context;
     this.context = null;
+    this.prefixCached = false;
     this.modelInfo = null;
     this.loadedMeta = null;
     this.lastLoad = { fit: null, warning: null };
@@ -369,9 +395,77 @@ export class LlamaEngine {
 
   generate(opts: GenerateOptions): Promise<string> {
     const epoch = this.stopEpoch;
-    const run = this.genQueue.then(() => (epoch === this.stopEpoch ? this.generateNow(opts) : ""));
+    this.pending++;
+    let ran = false;
+    const run = this.genQueue.then(() => {
+      if (epoch !== this.stopEpoch) return "";
+      ran = true;
+      return this.generateNow(opts);
+    });
     this.genQueue = run.catch(() => {});
+    const settled = () => {
+      this.pending--;
+      if (!this.prefix) return;
+      // An answer keeps the prefix in the cache; any other prompt replaced it.
+      if (ran) this.prefixCached = this.sharesPrefix(opts);
+      if (!this.prefixCached) this.scheduleWarm(PREFIX_WARM_IDLE_MS);
+    };
+    run.then(settled, settled);
     return run;
+  }
+
+  /**
+   * Keeps the start of the answer prompt (answerPromptPrefix for the chat's tone) prefilled in the KV cache
+   * while nothing else runs: after a load and after a completion with another prompt. A question then
+   * prefills only its sources and itself. Null stops it.
+   */
+  setAnswerPrefix(prefix: PromptPrefix | null): void {
+    if (prefix?.system === this.prefix?.system && prefix?.prompt === this.prefix?.prompt) return;
+    this.prefix = prefix;
+    this.prefixCached = false;
+    this.scheduleWarm(0);
+  }
+
+  private sharesPrefix({ prompt, messages }: GenerateOptions): boolean {
+    if (!this.prefix) return false;
+    if (messages) return messages[0]?.role === "system" && messages[0].content.startsWith(this.prefix.system);
+    return !!prompt?.startsWith(this.prefix.prompt);
+  }
+
+  private scheduleWarm(delayMs: number): void {
+    if (this.warmTimer) clearTimeout(this.warmTimer);
+    this.warmTimer = null;
+    if (!this.prefix || !this.context) return;
+    this.warmTimer = setTimeout(() => {
+      this.warmTimer = null;
+      // A generation waiting or running decides for itself when it settles.
+      if (this.pending > 0 || this.prefixCached) return;
+      const run = this.genQueue.then(() => this.warmNow());
+      this.genQueue = run.catch(() => {});
+    }, delayMs);
+  }
+
+  /** Prefills the prefix with no token generated (n_predict 0), in the same format an answer uses. */
+  private async warmNow(): Promise<void> {
+    const prefix = this.prefix;
+    const context = this.context;
+    if (!prefix || !context || this.prefixCached || this.pending > 0) return;
+    const params = context.isJinjaSupported()
+      ? // The empty user turn keeps templates that require one (Qwen3) rendering; the prefix ends before it.
+        { messages: [{ role: "system", content: prefix.system }, { role: "user", content: "" }], jinja: true, n_predict: 0 }
+      : { prompt: prefix.prompt, n_predict: 0 };
+    const completion = context.completion(params);
+    this.inFlight = completion;
+    try {
+      const result = (await completion) as { timings?: { prompt_n?: number; prompt_ms?: number } };
+      if (this.prefix === prefix && this.context === context) this.prefixCached = true;
+      const t = result?.timings;
+      if (t) console.log(`[engine] answer prefix prefilled: ${t.prompt_n} tokens in ${Math.round(t.prompt_ms ?? 0)} ms`);
+    } catch (e: any) {
+      console.warn("[engine] answer prefix prefill failed:", e?.message ?? e);
+    } finally {
+      if (this.inFlight === completion) this.inFlight = null;
+    }
   }
 
   private async generateNow({
