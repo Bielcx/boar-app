@@ -76,3 +76,16 @@ describe("onAssetInstalled", () => {
     expect(seen).toEqual(["poi-world-places"]);
   });
 });
+
+describe("notifyAssetInstalled", () => {
+  it("waits for async listeners (the tile index is registered before the next import is checked)", async () => {
+    let registered = false;
+    const off = onAssetInstalled(async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      registered = true;
+    });
+    await notifyAssetInstalled({ id: "poi-world-places" } as CatalogModel);
+    off();
+    expect(registered).toBe(true);
+  });
+});

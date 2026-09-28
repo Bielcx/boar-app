@@ -11,6 +11,7 @@ import { CatalogModel, MODEL_CATALOG } from "../../models/manifest";
 import { getActiveModelId, setActiveModelId } from "../../models/settings";
 import { listDiscoveredModels, removeDiscoveredModel } from "../../models/discoveredModels";
 import { getDownloadState, importAssetFile, startDownload, subscribeDownloads } from "../../services/downloadManager";
+import { importBatch } from "../../services/importBatch";
 import * as DocumentPicker from "expo-document-picker";
 import { AssetIntegrityError, isAbortError } from "../../models/integrity";
 import { llamaEngine } from "../../inference/LlamaEngine";
@@ -205,34 +206,40 @@ export function useCatalog(): CatalogState {
     ]);
     const controller = new AbortController();
     importAbort.current = controller;
-    // One at a time: each file is hashed in full.
-    for (const file of files) {
-      if (controller.signal.aborted) {
-        setImports((prev) => prev.filter((f) => f.name !== file.name));
-        continue;
-      }
-      try {
-        const asset = await importAssetFile(
+    // One at a time (each file is hashed in full), the gazetteer first; a file refused as unknown is checked
+    // again once another file of the pick installed (a tile before the gazetteer that lists it).
+    await importBatch(
+      files,
+      (file) =>
+        importAssetFile(
           file.uri,
           (done, total) => patch(file.name, { progress: total > 0 ? done / total : 0 }),
           controller.signal
-        );
-        // A places pack imported without the city index still loads, but names can't resolve (Ledger PL-1).
-        const missing = await missingRequirementsOf(asset);
-        patch(file.name, { status: "verified", progress: 1, assetId: asset.id, missing: missing.map((m) => ({ label: m.label, sizeBytes: m.sizeBytes })) });
-      } catch (e: any) {
-        // Cancelled by the user: the file just leaves the list.
-        if (isAbortError(e)) {
-          setImports((prev) => prev.filter((f) => f.name !== file.name));
-          continue;
-        }
-        patch(file.name, {
-          status: "failed",
-          errorKind: e instanceof AssetIntegrityError ? e.kind : "unknown",
-          message: e?.message ?? String(e),
-        });
+        ),
+      {
+        isUnknown: (e) => e instanceof AssetIntegrityError && e.kind === "unknown-file",
+        aborted: () => controller.signal.aborted,
+        onResult: async (file, r) => {
+          if (r.ok) {
+            // A places pack imported without the city index still loads, but names can't resolve (Ledger PL-1).
+            const missing = await missingRequirementsOf(r.asset);
+            patch(file.name, { status: "verified", progress: 1, assetId: r.asset.id, missing: missing.map((m) => ({ label: m.label, sizeBytes: m.sizeBytes })) });
+          } else if (isAbortError(r.error)) {
+            // Cancelled by the user: the file just leaves the list.
+            setImports((prev) => prev.filter((f) => f.name !== file.name));
+          } else {
+            const e: any = r.error;
+            patch(file.name, {
+              status: "failed",
+              errorKind: e instanceof AssetIntegrityError ? e.kind : "unknown",
+              message: e?.message ?? String(e),
+            });
+          }
+        },
       }
-    }
+    );
+    // Cancelled: the files not reached leave the list.
+    if (controller.signal.aborted) setImports((prev) => prev.filter((f) => !(files.some((p) => p.name === f.name) && f.status === "importing")));
     importAbort.current = null;
     await refresh();
   }, [refresh]);

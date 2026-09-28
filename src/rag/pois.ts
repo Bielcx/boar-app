@@ -221,8 +221,9 @@ export async function reloadTileCatalog(): Promise<Map<string, PoiTile>> {
   return loadTileCatalog();
 }
 
-onAssetInstalled((asset) => {
-  if (asset.id === WORLD_PLACES_ID) void reloadTileCatalog().catch((e) => console.warn("[pois] tile index reload failed:", e?.message ?? e));
+// Awaited by the install (a batch import retries the tiles it didn't know once this has registered them).
+onAssetInstalled(async (asset) => {
+  if (asset.id === WORLD_PLACES_ID) await reloadTileCatalog().catch((e) => console.warn("[pois] tile index reload failed:", e?.message ?? e));
 });
 
 /**

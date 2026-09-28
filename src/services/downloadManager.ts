@@ -246,7 +246,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
       });
       notify();
     })
-    .then(() => {
+    .then(async () => {
       state.set(asset.id, {
         downloading: false,
         phase: "verified",
@@ -258,7 +258,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
         etaSeconds: 0,
       });
       downloadTimestamps.delete(asset.id);
-      notifyAssetInstalled(asset);
+      await notifyAssetInstalled(asset);
     })
     .catch((e: any) => {
       const { kind, permanent } = errorKindOf(e);
@@ -319,7 +319,7 @@ export async function importAssetFile(
       bytesExpected: asset.sizeBytes,
     });
     notify();
-    notifyAssetInstalled(asset);
+    await notifyAssetInstalled(asset);
     return asset;
   } finally {
     release();
