@@ -219,11 +219,9 @@ function PlaceSheet({
           {sourceName(place.source, tr)}
         </Text>
         {place.sourceIndex != null && (
-          <Button
+          <TextAction
             label={tr("chat.places.viewPassage")}
-            variant="ghost"
-            icon="book"
-            style={{ alignSelf: "flex-start" }}
+            leadingIcon="book"
             onPress={() => {
               onClose();
               onOpenSource(place.sourceIndex!);
@@ -319,7 +317,8 @@ function StaleLocationPrompt({
         </Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-        <Button label={tr("chat.places.useCity", { city: last.city })} icon="map-pin" onPress={() => onCity(last.city)} />
+        {/* One accent per screen: send keeps the ember; the prompt's own actions are secondary (Prism CH-13). */}
+        <Button label={tr("chat.places.useCity", { city: last.city })} variant="secondary" icon="map-pin" onPress={() => onCity(last.city)} />
         <Button label={tr("chat.places.chooseCity")} variant="secondary" icon="search" onPress={onChoose} />
       </View>
     </Card>
@@ -427,6 +426,7 @@ function CityPrompt({
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
         <Button
           label={tr("chat.places.search")}
+          variant="secondary"
           icon="search"
           disabled={!city.trim()}
           accessibilityHint={city.trim() ? undefined : tr("chat.places.searchHint")}
@@ -489,6 +489,8 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
         body={tr("chat.places.noPackBody")}
         actionLabel={onGetMap ? tr("chat.places.getMap") : undefined}
         onAction={onGetMap}
+        // Inside the conversation: send keeps the screen's accent (Prism CH-13).
+        actionVariant="secondary"
       />
     );
   }
@@ -544,13 +546,7 @@ function PlacesCardView({ answer, locale, onOpenSource, onCity, onUseLocation, o
           }}
         >
           {hidden > 0 && (
-            <Button
-              label={tr("chat.places.showMore", { count: hidden })}
-              variant="ghost"
-              size="sm"
-              style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
-              onPress={() => setExpanded(true)}
-            />
+            <TextAction label={tr("chat.places.showMore", { count: hidden })} icon="chevron-down" expanded={false} onPress={() => setExpanded(true)} />
           )}
           {r.truncated && expanded && (
             <Text variant="caption" color="secondary">

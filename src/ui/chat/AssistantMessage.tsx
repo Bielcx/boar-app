@@ -162,15 +162,13 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
   const visible = streaming && inProgress ? tr("chat.reasoning.thinking", { seconds }) : open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show");
   return (
     <View style={{ gap: t.space.xs }}>
-      <Button
+      {/* A secondary move in text.secondary, not ember (Prism CH-14). */}
+      <TextAction
         label={visible}
-        variant="ghost"
-        size="sm"
-        icon="message-circle"
+        leadingIcon="message-circle"
         onPress={() => setOpen((o) => !o)}
         accessibilityLabel={open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show")}
-        accessibilityState={{ expanded: open }}
-        style={{ alignSelf: "flex-start" }}
+        expanded={open}
       />
       {open && (
         <Text
@@ -274,14 +272,7 @@ function ReceiptDetails({ r, onCopy }: { r: NonNullable<ReturnType<typeof useRec
           {row}
         </Text>
       ))}
-      <Button
-        label={tr("chat.receipt.copy")}
-        variant="ghost"
-        size="sm"
-        icon="copy"
-        style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
-        onPress={() => onCopy(rows.join("\n"))}
-      />
+      <TextAction label={tr("chat.receipt.copy")} leadingIcon="copy" onPress={() => onCopy(rows.join("\n"))} />
     </View>
   );
 }
@@ -631,9 +622,7 @@ function HeldAfterSnippet({ onAnswerAnyway }: { onAnswerAnyway?: () => void }) {
         {tr("chat.weak.heldAfterSnippet")}
       </Text>
       {onAnswerAnyway && (
-        <View style={{ marginLeft: -t.space.md }}>
-          <Button label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} variant="ghost" size="sm" onPress={onAnswerAnyway} />
-        </View>
+        <TextAction label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} onPress={onAnswerAnyway} />
       )}
     </View>
   );
@@ -662,7 +651,7 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           {tr(body)}
         </Text>
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.md }}>
         {onAnswerAnyway && (
           <Button
             label={tr("chat.weak.answerAnyway")}
@@ -673,11 +662,10 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           />
         )}
         {groups.length > 0 && (
-          <Button
+          <TextAction
             label={found ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length }) : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
-            variant="ghost"
-            size="sm"
-            accessibilityState={{ expanded: open }}
+            icon={open ? "chevron-up" : "chevron-down"}
+            expanded={open}
             onPress={() => setOpen((o) => !o)}
           />
         )}
@@ -782,22 +770,20 @@ const InstantSnippet = memo(function InstantSnippet({
         {/* FMT-1: a pack's list flattened to " - " reads as a list again. */}
         {expanded ? splitInlineBullets(body) : previewText(body)}
       </Text>
-      <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
+      {/* Secondary moves in text.secondary (Prism CH-14), apart enough for their touch areas. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.base }}>
         {!isFinal && (
-          <Button
+          <TextAction
             label={expanded ? tr("chat.snippet.showLess") : tr("chat.snippet.showMore")}
-            variant="ghost"
-            size="sm"
-            accessibilityState={{ expanded }}
+            icon={expanded ? "chevron-up" : "chevron-down"}
+            expanded={expanded}
             onPress={() => setUserExpanded(!expanded)}
           />
         )}
         {source && (
-          <Button
+          <TextAction
             label={`[${snippet.sourceIndex + 1}]`}
-            variant="ghost"
-            size="sm"
-            icon="book"
+            leadingIcon="book"
             accessibilityLabel={tr("chat.snippet.openSource", { n: snippet.sourceIndex + 1, title: source.title })}
             onPress={() => onOpenSource(snippet.sourceIndex)}
           />
