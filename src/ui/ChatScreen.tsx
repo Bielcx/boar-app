@@ -71,6 +71,7 @@ import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
+import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
 const VERBATIM_MESSAGE_COUNT = 6;
 
@@ -276,6 +277,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       setModelsRequested(true);
       await loads;
       startAppMemoryTracking();
+      // Portuguese app: build the PT lexicon now, off the send path (audit #5: the first Portuguese question froze
+      // the JS thread for its 6.5 MB and 173k titles). After the loads, not during: no extra heap next to the GGUF.
+      if (shouldWarmPtLexicon(locale)) setTimeout(() => warmPtLexicon(), 0);
       const stopProgress = onSeedProgress((p) =>
         setLoadStatus({
           label: t("chat.model.indexing", { done: p.done.toLocaleString(locale), total: p.total.toLocaleString(locale) }),
