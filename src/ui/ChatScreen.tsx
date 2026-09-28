@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
+import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
 import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
@@ -72,6 +72,7 @@ import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
+import { heightChanged } from "./chat/listPin";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
 const VERBATIM_MESSAGE_COUNT = 6;
@@ -172,6 +173,21 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const scrollToBottom = useCallback((animated = false) => {
     // Deferred a frame: on Android the reported content size can lag one layout behind.
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
+  }, []);
+  // Content growing (a token batch, a restored session rendering in batches, an answer's actions) snaps:
+  // animated scrolls restarted on every batch fought each other (audit #13). Animated only where asked for:
+  // sending, the jump button, a model error.
+  const onListContentSize = useCallback(() => {
+    if (followBottom.current) scrollToBottom(false);
+  }, [scrollToBottom]);
+  // The keyboard changes the list's height on every frame: pin the last message then, in the same frame
+  // (no rAF: the content didn't change), and skip layouts that leave the height as it was (audit #8/#10).
+  const listHeight = useRef<number | null>(null);
+  const onListLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    if (!heightChanged(listHeight.current, h)) return;
+    listHeight.current = h;
+    if (followBottom.current) listRef.current?.scrollToEnd({ animated: false });
   }, []);
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
@@ -965,13 +981,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               />
             )
           }
-          // Snap while streaming (animations started on every token fight each other); animate otherwise.
-          onContentSizeChange={() => {
-            if (followBottom.current) scrollToBottom(!generating);
-          }}
-          onLayout={() => {
-            if (followBottom.current) scrollToBottom();
-          }}
+          onContentSizeChange={onListContentSize}
+          onLayout={onListLayout}
           onScroll={onListScroll}
           scrollEventThrottle={100}
         />
