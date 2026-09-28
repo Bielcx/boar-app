@@ -253,6 +253,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   // ---- events: tokens batched (STREAM_FLUSH_MS) into one state update; everything else shows at once ----
   const pendingEvents = useRef<{ messageId: string; event: AnswerEvent }[]>([]);
+  // Answers declined in this run (their warning flushed), until a follow-up runs them again.
+  const declinedIds = useRef<Set<string>>(new Set());
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushEvents = useCallback(() => {
     if (flushTimer.current) clearTimeout(flushTimer.current);
@@ -263,10 +265,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // The end of a normal answer folds the snippet to its preview: one DS layout animation for that commit
     // (Prism F2-2). Not for a decline or with its warning: the text leaves through its Reveal there, and the
     // native animation on the same view made it vanish in one frame (iPhone v9).
-    const declined = batch.some(({ messageId }) => {
-      const item = itemsRef.current.find((m) => m.id === messageId);
-      return item?.kind === "assistant" && !!item.answer.weakDeclined;
-    });
+    // The decline's warning and the done come in separate flushes of the same tick, before the items (and
+    // itemsRef) show the decline: remember it here (probe cddf2a8: the done flush still got the animation).
+    for (const { messageId, event } of batch) {
+      if (event.type === "warning" && event.code === "weak_sources" && event.declined) declinedIds.current.add(messageId);
+    }
+    const declined = batch.some(({ messageId }) => declinedIds.current.has(messageId));
     if (batchAnimatesLayout(batch.map((b) => b.event), declined)) motionRef.current.animateNextLayout();
     setItems((prev) => {
       let next = prev;
@@ -621,6 +625,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       // A follow-up makes the answer live again, restored or not: its blocks move (iPhone v9, F2-2: on a
       // reopened conversation "Answer with AI" ran with plain views, and the declined text vanished in a frame).
       askedIds.current.add(messageId);
+      declinedIds.current.delete(messageId);
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
       let written!: () => void;

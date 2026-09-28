@@ -91,4 +91,24 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(msg).toMatch(/<Reveal shown=\{shown\} appear=\{false\} spaceBefore=\{gap \?\? m\.gap\}>/);
     expect(msg).toMatch(/<LayoutAnimationConfig skipEntering>\s*<View style=\{\{ alignSelf: "stretch" \}\}>/);
   });
+  it("F2-2 (probe cddf2a8): every Reanimated timing in the chat opts out of the OS skip; the DS reduces motion itself", () => {
+    // Reanimated's default ReduceMotion.System ends an animation at once when the OS setting is on: every
+    // Reveal move ended within a frame on the iPhone, the DS's 90 ms fade included.
+    for (const file of ["Reveal.tsx", "Composer.tsx"]) {
+      const src = read(file);
+      const timings = src.match(/with(Timing|Spring|Delay|Sequence|Repeat|Decay)\(/g) ?? [];
+      expect(timings.length).toBeGreaterThan(0);
+      expect(src.match(/reduceMotion: ReduceMotion\.Never/g)?.length).toBe(timings.length);
+    }
+  });
+  it("F2-2 plan B: a leaving block only fades (no bound moves), then its space closes", () => {
+    const hide = read("Reveal.tsx").match(/\/\/ Leaving \(hideSteps\)[\s\S]*?arm\(steps\.deadlineMs, id\);/)![0];
+    expect(hide).toMatch(/opacity\.value = withTiming\(0,/);
+    expect(hide).not.toMatch(/maxHeight\.value|minHeight\.value/);
+  });
+  it("probe cddf2a8: a decline is remembered across the warning and done flushes (no layout animation there)", () => {
+    const screen = read("../ChatScreen.tsx");
+    expect(screen).toMatch(/event\.type === "warning" && event\.code === "weak_sources" && event\.declined\) declinedIds\.current\.add\(messageId\)/);
+    expect(screen).toMatch(/const declined = batch\.some\(\(\{ messageId \}\) => declinedIds\.current\.has\(messageId\)\);/);
+  });
 });

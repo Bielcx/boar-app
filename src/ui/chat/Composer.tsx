@@ -1,6 +1,6 @@
 import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, TextInput, useWindowDimensions, View } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
@@ -79,7 +79,7 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
       const target = composerPillHeight(e.nativeEvent.layout.height, layout);
       // A line more or less: the DS `layout` role (reduce motion: at once, no slide).
       const s = m.spec("layout");
-      pill.value = s.duration > 0 ? withTiming(target, { duration: s.duration, easing: curves[s.curve] }) : target;
+      pill.value = s.duration > 0 ? withTiming(target, { duration: s.duration, easing: curves[s.curve], reduceMotion: ReduceMotion.Never }) : target;
     },
     [layout, m, pill]
   );

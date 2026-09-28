@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { motionSpec } from "../theme/motionSpec";
-import { REST, UNBOUNDED, boundsAfter, hideFrom, boundsAtStart, frameHeight, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealBounds, type RevealMove } from "./revealTiming";
+import { REST, UNBOUNDED, boundsAfter, hideSteps, boundsAtStart, frameHeight, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealBounds, type RevealMove } from "./revealTiming";
 
 describe("revealTiming (SEND-MOTION D2, DS §6 roles)", () => {
   it("shows as a layout change plus an enter fade", () => {
@@ -102,15 +102,26 @@ describe("Reveal never hides shown content (BUG-reveal-empty)", () => {
   });
 });
 
-describe("hideFrom (iPhone v9, F2-2: the declined text vanished in one frame)", () => {
-  it("starts from the content's height when the frame is at rest (unbounded cap)", () => {
-    expect(hideFrom(320, UNBOUNDED)).toBe(320);
-    // Folding from there: the content shows less at once, not only in the last frame.
-    const move = revealMove("hide", null, hideFrom(320, UNBOUNDED))!;
-    expect(frameHeight(320, { minHeight: 0, maxHeight: move.from * 0.5 })).toBe(160);
+describe("hideSteps (plan B, iPhone F2-2: nothing folds, it fades then its space closes)", () => {
+  it("fades over the DS exit role and never folds the height", () => {
+    const h = hideSteps(false);
+    expect(h.foldsHeight).toBe(false);
+    expect(h.fadeMs).toBe(motionSpec("exit", false).duration);
+    expect(h.curve).toBe("exit");
+    // Content keeps its full height while it fades: bounds stay at REST.
+    expect(frameHeight(320, REST)).toBe(320);
   });
-  it("continues from a grow still opening (smaller than the content)", () => {
-    expect(hideFrom(320, 200)).toBe(200);
-    expect(hideFrom(320, -5)).toBe(0);
+  it("the deadline comes after the fade", () => {
+    for (const reduce of [false, true]) {
+      const h = hideSteps(reduce);
+      expect(h.deadlineMs).toBeGreaterThanOrEqual(h.fadeMs);
+    }
+  });
+  it("under reduce motion, the short fade still runs before the space closes (never 0: the text must not vanish)", () => {
+    expect(hideSteps(true).fadeMs).toBe(motionSpec("exit", true).duration);
+    expect(hideSteps(true).fadeMs).toBeGreaterThan(0);
+    // Folding instead would be instant there (the DS layout role is 0 under reduce motion): the probe's case.
+    expect(revealTiming(false, true).height.duration).toBe(0);
+    expect(hideSteps(true).foldsHeight).toBe(false);
   });
 });

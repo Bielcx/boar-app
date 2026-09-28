@@ -1,11 +1,16 @@
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, View } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useTheme } from "../theme";
+import { useMotion } from "../theme/motion";
 import { CURVE, type Curve } from "../theme/motionSpec";
-import { REST, boundsAfter, boundsAtStart, hideFrom, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealMove } from "./revealTiming";
+import { REST, boundsAfter, boundsAtStart, hideSteps, revealDeadline, revealMove, revealOnLayout, revealTiming, type RevealMove } from "./revealTiming";
 
+// Every timing here passes ReduceMotion.Never: the DS applies reduce motion itself (motionSpec: instant
+// layout, a 90 ms fade), as theme/motion.ts does. Reanimated's default (System) skips an animation to its end
+// when the OS setting is on: on the iPhone with Reduce Motion every Reveal move ended within a frame, the 90 ms
+// fade included, and the declined text vanished (probe cddf2a8, F2-2).
 const curves: Record<Curve, ReturnType<typeof Easing.bezier>> = {
   standard: Easing.bezier(...CURVE.standard),
   enter: Easing.bezier(...CURVE.enter),
@@ -25,7 +30,9 @@ const curves: Record<Curve, ReturnType<typeof Easing.bezier>> = {
  * At rest the block is its content's height: later changes (a fold opening) follow at once, animated by
  * the DS's animateNextLayout where the caller asks for it.
  *
- * - `shown`: false collapses it and then unmounts the content (the last content stays while it closes).
+ * - `shown`: false makes it leave (plan B, iPhone F2-2): its opacity fades while its height stays as it is
+ *   (nothing is cut, no bound moves), then, invisible, it unmounts under the DS animateNextLayout, so only
+ *   the blocks around it slide into the space. The last content stays while it fades.
  * - `appear`: grows from 0 on its first layout (asked in this run); false shows it in place (history).
  *   A block that mounts hidden and shows later always grows.
  * - `spaceBefore`: the gap above it, inside the moving frame (a parent's `gap` would outlive it).
@@ -42,7 +49,10 @@ export function Reveal({
   children?: ReactNode;
 }) {
   const { reduceMotion } = useTheme();
+  const motion = useMotion();
   const [mounted, setMounted] = useState(shown);
+  // Left (faded and unmounted) at least once: showing again grows from nothing.
+  const hidden = useRef(false);
   const grows = useRef(appear || !shown).current;
   const natural = useRef<number | null>(null);
   const minHeight = useSharedValue(REST.minHeight);
@@ -70,9 +80,12 @@ export function Reveal({
       maxHeight.value = REST.maxHeight;
       opacity.value = 1;
     } else {
+      // Invisible by now (or past the deadline): the space closes with the DS layout animation, the
+      // neighbours slide, and no frame shows a cut line.
+      motion.animateNextLayout();
       setMounted(false);
     }
-  }, [minHeight, maxHeight, opacity]);
+  }, [minHeight, maxHeight, opacity, motion]);
   const arm = useCallback(
     (ms: number, id?: number) => {
       if (deadline.current) clearTimeout(deadline.current);
@@ -94,23 +107,19 @@ export function Reveal({
       const end = boundsAfter(move);
       const bound = move.bound === "maxHeight" ? maxHeight : minHeight;
       const id = ++runId.current;
-      if (!show) {
-        // A hide starts from what shows now, never from a grow's unbounded cap (hideFrom).
-        minHeight.value = REST.minHeight;
-        maxHeight.value = hideFrom(move.from, maxHeight.value);
-      } else if (!moving.current) {
+      if (!moving.current) {
         // A grow retargeted while it runs keeps going from where it is.
         minHeight.value = start.minHeight;
         maxHeight.value = start.maxHeight;
       }
       moving.current = true;
-      bound.value = withTiming(move.to, { duration: timing.height.duration, easing: curves[timing.height.curve] }, (finished) => {
+      bound.value = withTiming(move.to, { duration: timing.height.duration, easing: curves[timing.height.curve], reduceMotion: ReduceMotion.Never }, (finished) => {
         if (!finished) return;
         minHeight.value = end.minHeight;
         maxHeight.value = end.maxHeight;
         scheduleOnRN(settle, id);
       });
-      opacity.value = withTiming(show ? 1 : 0, { duration: timing.opacity.duration, easing: curves[timing.opacity.curve] });
+      opacity.value = withTiming(show ? 1 : 0, { duration: timing.opacity.duration, easing: curves[timing.opacity.curve], reduceMotion: ReduceMotion.Never });
       arm(revealDeadline(timing), id);
     },
     [reduceMotion, minHeight, maxHeight, opacity, arm, settle]
@@ -119,23 +128,25 @@ export function Reveal({
   useEffect(() => {
     if (shown) {
       setMounted(true);
-      // Shown again after a hide: grow back to the last measure (the next layout retargets it).
-      if (natural.current != null && maxHeight.value !== REST.maxHeight) run(revealMove("show", 0, natural.current)!, true);
+      // Shown again after it left: grow back from nothing to the last measure (the next layout retargets it).
+      if (hidden.current && natural.current != null) {
+        hidden.current = false;
+        maxHeight.value = 0;
+        run(revealMove("show", 0, natural.current)!, true);
+      } else if (natural.current != null && maxHeight.value !== REST.maxHeight) run(revealMove("show", 0, natural.current)!, true);
       // Growing and not measured yet: the deadline shows it even if no layout ever comes.
       else if (grows && natural.current == null) arm(revealDeadline(revealTiming(true, reduceMotion)));
       return;
     }
-    if (natural.current == null) {
-      // Never measured: no height to fold, but still no cut. Fade out, then go.
-      const id = ++runId.current;
-      const timing = revealTiming(false, reduceMotion);
-      opacity.value = withTiming(0, { duration: timing.opacity.duration, easing: curves[timing.opacity.curve] }, (finished) => {
-        if (finished) scheduleOnRN(settle, id);
-      });
-      arm(revealDeadline(timing), id);
-      return;
-    }
-    run(revealMove("hide", null, natural.current)!, false);
+    // Leaving (hideSteps): fade only, the height as it is; then settle() closes the space and unmounts.
+    const id = ++runId.current;
+    hidden.current = true;
+    moving.current = true;
+    const steps = hideSteps(reduceMotion);
+    opacity.value = withTiming(0, { duration: steps.fadeMs, easing: curves[steps.curve], reduceMotion: ReduceMotion.Never }, (finished) => {
+      if (finished) scheduleOnRN(settle, id);
+    });
+    arm(steps.deadlineMs, id);
     // Only on a change of `shown`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown]);

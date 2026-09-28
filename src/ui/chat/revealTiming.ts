@@ -113,10 +113,12 @@ export function frameHeight(content: number, b: RevealBounds): number {
 }
 
 /**
- * Where a hide starts (iPhone v9, F2-2): from the height the block shows now, never from above it. A hide
- * that began while a grow was still finishing kept the grow's bound, which can be REST's unbounded cap, so
- * the frame only went under the content in the very last frame: the text "vanished in one frame".
+ * How a block leaves (plan B, iPhone F2-2: folding its height, the declined text and its sources vanished in
+ * one frame, twice, on the device). No height moves: its opacity fades over the DS `exit` role, the frame
+ * keeps its height (nothing cut), then, invisible, it unmounts under the DS layout animation and only its
+ * neighbours slide. The deadline ends it even if the fade's end never reports.
  */
-export function hideFrom(natural: number, currentMax: number): number {
-  return Math.max(0, Math.min(natural, currentMax));
+export function hideSteps(reduceMotion: boolean): { fadeMs: number; curve: Curve; foldsHeight: false; deadlineMs: number } {
+  const t = revealTiming(false, reduceMotion);
+  return { fadeMs: t.opacity.duration, curve: t.opacity.curve, foldsHeight: false, deadlineMs: revealDeadline(t) };
 }
