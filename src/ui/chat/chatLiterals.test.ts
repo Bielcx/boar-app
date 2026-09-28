@@ -50,4 +50,10 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(note).not.toMatch(/variant="(label|badge)"[^>]*>\s*\{title\}/);
     expect(note).toMatch(/accessibilityRole="text"/);
   });
+  it("CX-10: Deepen is the actions row's pill when offered; copying joins the icons then", () => {
+    const src = read("AssistantMessage.tsx");
+    expect(src).toMatch(/\{deepenNow \? \(\s*<ActionPill\s+icon="layers"/);
+    expect(src).toMatch(/\{deepenNow && \(\s*<IconButton icon="copy"/);
+    expect(src).toMatch(/:\s*\(\s*<ActionPill icon="copy"/);
+  });
 });

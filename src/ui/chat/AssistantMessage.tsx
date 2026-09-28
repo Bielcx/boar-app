@@ -852,6 +852,57 @@ const InstantSnippet = memo(function InstantSnippet({
   a.answer.fast?.outcome === b.answer.fast?.outcome
 );
 
+/**
+ * The mockup's "Copy response" pill (s1, caption in secondary, 36 tall, full radius), shared by the action
+ * on the right of the actions row: Copy, or Deepen when a deeper pass is on offer (Prism CX-10). `meta`: a
+ * support fact beside the label (Deepen's estimate, Prism CH-9), silent (readers hear it in the name).
+ */
+function ActionPill({
+  icon: iconName,
+  label,
+  accessibilityLabel,
+  meta,
+  largeText,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  accessibilityLabel?: string;
+  meta?: string;
+  largeText: boolean;
+  onPress: () => void;
+}) {
+  const t = useTokens();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
+      style={({ pressed }) => ({
+        minHeight: t.size.controlSm,
+        paddingVertical: largeText ? t.space.xs : 0,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: icon.gap,
+        paddingHorizontal: t.space.md,
+        borderRadius: t.radius.full,
+        backgroundColor: pressed ? t.color.bg.raised : t.color.bg.surface,
+      })}
+    >
+      {/* In a pill: icon + text move together onto the pill's middle (iOS draws the label high). */}
+      <IconText icon={iconName} variant="caption" color="secondary" iconColor={t.color.text.secondary} centerOnBox>
+        {label}
+      </IconText>
+      {meta ? (
+        <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+          <MetaLine items={[meta]} variant="caption" />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 /** How an answer's blocks move: grow in when asked in this run, in place when restored; the gap above each. */
 const BlockMotion = createContext<{ appear: boolean; gap: number }>({ appear: false, gap: 0 });
 
@@ -923,6 +974,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   // The body's block opens with its first words, not before (an empty block would grow a bare gap).
   const fastBody = !!answer.fast?.text && showsAnswerBody(answer);
   // Waiting for the user to pick a city: no clock, no receipt (nothing was answered yet).
+  const deepenNow = !active && phase === "done" && canDeepen(answer);
+  const deepenEst = answer.deepAvailable?.estSeconds ? formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) : null;
   // A decline has its receipt too, time only (Prism CX-9, NOVO NORTE P2).
   const pill = waitingForCity ? null : active && !answer.deep ? "elapsed" : receipt ? "receipt" : null;
   return (
@@ -1128,27 +1181,24 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
                 onPress={() => props.onRate("down")}
               />
               <IconButton icon="share-2" variant="surface" size="sm" label={tr("chat.actions.share")} onPress={props.onShare} />
+              {/* With a deeper pass on offer, it takes the pill (the most useful next step, Prism CX-10) and
+                  copying joins the icons: three pills don't fit a 360-390 pt row. */}
+              {deepenNow && (
+                <IconButton icon="copy" variant="surface" size="sm" label={tr("chat.actions.copyAnswer")} onPress={props.onCopy} />
+              )}
               <View style={largeText ? { flexBasis: "100%", height: 0 } : { flex: 1 }} />
-              {/* The mockup's "Copy response" pill: s1, caption in secondary. */}
-              <Pressable
-                onPress={props.onCopy}
-                accessibilityRole="button"
-                accessibilityLabel={tr("chat.actions.copyAnswer")}
-                hitSlop={{ top: (t.size.touch - t.size.controlSm) / 2, bottom: (t.size.touch - t.size.controlSm) / 2 }}
-                style={({ pressed }) => ({
-                  minHeight: t.size.controlSm,
-                  paddingVertical: largeText ? t.space.xs : 0,
-                  justifyContent: "center",
-                  paddingHorizontal: t.space.md,
-                  borderRadius: t.radius.full,
-                  backgroundColor: pressed ? t.color.bg.raised : t.color.bg.surface,
-                })}
-              >
-                {/* In a pill: icon + text move together onto the pill's middle (iOS draws the label high). */}
-                <IconText icon="copy" variant="caption" color="secondary" iconColor={t.color.text.secondary} centerOnBox>
-                  {tr("chat.actions.copyAnswer")}
-                </IconText>
-              </Pressable>
+              {deepenNow ? (
+                <ActionPill
+                  icon="layers"
+                  label={tr("chat.actions.deepen")}
+                  accessibilityLabel={deepenEst ? tr("chat.actions.deepenEstSpoken", { time: deepenEst }) : undefined}
+                  meta={deepenEst ? tr("chat.actions.deepenEst", { time: deepenEst }) : undefined}
+                  largeText={largeText}
+                  onPress={props.onDeepen}
+                />
+              ) : (
+                <ActionPill icon="copy" label={tr("chat.actions.copyAnswer")} largeText={largeText} onPress={props.onCopy} />
+              )}
             </View>
           )}
         </Block>
@@ -1158,8 +1208,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
           )}
         </Block>
-        <Block shown={!active && phase === "done" && canDeepen(answer)}>
-          {!active && phase === "done" && canDeepen(answer) && (
+        {/* Deepen lives in the actions row; alone only if an answer offers it without that row. */}
+        <Block shown={deepenNow && !(done && hasText)}>
+          {deepenNow && !(done && hasText) && (
             // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
             // TextAction brings the touch minimum (Prism CH-7). The estimate is a support fact beside the
             // action, not part of its label (Prism CH-9); readers hear both in the action's name.
