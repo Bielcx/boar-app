@@ -355,11 +355,27 @@ export function noMatchAnswer(intent: GeoIntent, city: string | null, radiusM: n
   const diet = intent.diet.map((d) => DIET_LABEL[L][d]).join(pt ? " ou " : " or ");
   const text = intent.text?.trim();
   const radius = formatDistance(radiusM);
+  // Every filter the search applied is named: "no place tagged kosher" alone would be false when kosher places
+  // exist and only the dish is missing (Sextant, "kosher ramen in Rome").
   if (pt) {
-    const what = diet ? `nenhum lugar marcado como ${diet}` : text ? `nenhum lugar com "${text}"` : "nenhum lugar para comer registrado";
+    const what =
+      diet && text
+        ? `nenhum lugar marcado como ${diet} com "${text}"`
+        : diet
+          ? `nenhum lugar marcado como ${diet}`
+          : text
+            ? `nenhum lugar com "${text}"`
+            : "nenhum lugar para comer registrado";
     return `O mapa offline ${city ? `de ${city}` : "perto de você"} não tem ${what} num raio de ${radius}, então não vou listar nenhum para não inventar.`;
   }
-  const what = diet ? `no place tagged ${diet}` : text ? `no place matching "${text}"` : "no place to eat or drink recorded";
+  const what =
+    diet && text
+      ? `no place tagged ${diet} that matches "${text}"`
+      : diet
+        ? `no place tagged ${diet}`
+        : text
+          ? `no place matching "${text}"`
+          : "no place to eat or drink recorded";
   return `The offline map ${city ? `for ${city}` : "near you"} has ${what} within ${radius}, so I won't list any rather than guess.`;
 }
 
