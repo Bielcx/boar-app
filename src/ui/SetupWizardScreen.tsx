@@ -9,6 +9,8 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, EmptyState, IconName, LARGE_TEXT_SCALE, IconSlot, IconText, ListRow, Mascot, MetaLine, OptionCard, Progress, Screen, Section, Sheet, Stat, Stepper, Switch, Text, TextAction, useAnnounce, useOpticalLine } from "./components";
 import type { TextColor } from "./components/Text";
 import { icon as iconTokens, useTokens } from "./theme";
+import { useMotion } from "./theme/motion";
+import Animated from "react-native-reanimated";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
@@ -349,6 +351,7 @@ function Welcome({
   const { width } = useWindowDimensions();
   // The EN/PT monogram fits two cards side by side on a 393 pt screen, not on a 360 dp one (Iris).
   const monogram = width >= MONOGRAM_MIN_WIDTH && fontScale <= LARGE_TEXT;
+  const motion = useMotion();
   // Measured on this phone; a value the OS would not give is left out, never guessed.
   const phone = [
     { key: "phoneMemory", value: deviceRamBytes > 0 ? formatRam(deviceRamBytes, lang) : null },
@@ -401,11 +404,13 @@ function Welcome({
               <View key={l.id} style={fontScale > LARGE_TEXT ? undefined : { flex: 1 }}>
                 <OptionCard
                   title={l.name}
-                  indicator="check"
+                  // With the monogram, the ember disc + border + raised surface carry the selection; a check
+                  // beside "Português" did not fit and shrank it (Prism S1-2). Without it, the check does.
+                  indicator={monogram ? "none" : "check"}
                   selected={selected}
                   leading={
                     monogram ? (
-                      <View
+                      <Animated.View
                         style={{
                           width: tokens.size.controlSm,
                           height: tokens.size.controlSm,
@@ -413,6 +418,7 @@ function Welcome({
                           alignItems: "center",
                           justifyContent: "center",
                           backgroundColor: selected ? tokens.color.accent.solid : tokens.color.bg.raised,
+                          ...motion.colorTransition(["backgroundColor"]),
                         }}
                         importantForAccessibility="no-hide-descendants"
                         accessibilityElementsHidden
@@ -420,7 +426,7 @@ function Welcome({
                         <Text variant="caption" weight="semibold" color={selected ? "onAccent" : "primary"}>
                           {l.id.toUpperCase()}
                         </Text>
-                      </View>
+                      </Animated.View>
                     ) : undefined
                   }
                   onPress={async () => {

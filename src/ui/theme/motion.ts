@@ -10,7 +10,7 @@ import { CURVE, crossfadeSpec, type Curve, motionSpec, type MotionRole, type Mot
  *
  *   const m = useMotion();
  *   <Animated.View entering={m.entering({ from: "below" })} exiting={m.exiting()} layout={m.layout} />
- *   <Animated.View style={[m.colorTransition(["borderColor", "backgroundColor"]), { borderColor }]} />
+ *   <Animated.View style={{ borderColor, ...m.colorTransition(["borderColor", "backgroundColor"]) }} />  // one object, not an array
  *   Animated.timing(v, { toValue: 1, ...m.timing("enter"), useNativeDriver: true })   // RN Animated
  *
  * Reduce motion is handled here (motionSpec), so every builder opts out of Reanimated's own skip

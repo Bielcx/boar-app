@@ -134,7 +134,7 @@ const m = useMotion();
 <Animated.View entering={m.entering({ from: "below" })} exiting={m.exiting()} layout={m.layout} />  // Reanimated
 const x = m.crossfade("forward");            // content swap: 90 out, then 220 in
 <Animated.View key={step} entering={x.entering} exiting={x.exiting} />
-<Animated.View style={[m.colorTransition(["borderColor", "backgroundColor"]), { borderColor }]} />  // `change`
+<Animated.View style={{ borderColor, ...m.colorTransition(["borderColor", "backgroundColor"]) }} />  // `change`; spread into ONE style object (the CSS transition keys are not accepted inside a style array)
 Animated.timing(v, { toValue: 1, ...m.timing("enter"), useNativeDriver: true });                     // RN Animated
 ```
 
