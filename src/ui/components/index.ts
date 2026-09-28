@@ -34,6 +34,7 @@ export { OptionCard } from "./OptionCard";
 export type { OptionCardProps } from "./OptionCard";
 export { Progress } from "./Progress";
 export type { ProgressProps } from "./Progress";
+export { Reveal, useLateLoad } from "./Reveal";
 export { Screen } from "./Screen";
 export type { ScreenProps, ScreenScroll } from "./Screen";
 export { Section } from "./Section";

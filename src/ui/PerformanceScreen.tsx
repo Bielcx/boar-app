@@ -4,7 +4,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, EmptyState, IconText, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, useToast } from "./components";
+import { Badge, Button, EmptyState, IconText, ListRow, Progress, Reveal, Screen, Section, Sheet, Skeleton, Text, useLateLoad, useToast } from "./components";
 import type { Tone } from "./theme";
 import { useTokens } from "./theme";
 import { catalogLabel } from "./flows/catalogLabel";
@@ -103,6 +103,8 @@ export function PerformanceScreen() {
     }, [refresh])
   );
 
+  const lateLoad = useLateLoad(!!records && catalog.loaded);
+
   if (error) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
@@ -140,94 +142,97 @@ export function PerformanceScreen() {
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
       <ScreenTitle>{t("nav.performance")}</ScreenTitle>
-      {PERF_BANDS_PROVISIONAL && (
-        <Text variant="footnote" color="secondary">
-          {t("flows.performance.provisional")}
-        </Text>
-      )}
+      {/* Replaces the skeleton: fades in when the data came after the screen (TR-5). */}
+      <Reveal animate={lateLoad} style={screenRhythm(tokens)}>
+        {PERF_BANDS_PROVISIONAL && (
+          <Text variant="footnote" color="secondary">
+            {t("flows.performance.provisional")}
+          </Text>
+        )}
 
-      <Section title={t("flows.performance.lastAnswer")}>
-        <View style={{ padding: tokens.space.base, gap: tokens.space.xs }}>
-          {last ? (
-            <>
-              {last.ttftMs != null && (
-                <Metric label={t("flows.performance.ttft")} value={formatSeconds(last.ttftMs, lang)} band={ttftBand(last.ttftMs)} />
-              )}
-              {lastRate != null && (
-                <Metric
-                  label={t("flows.performance.speed")}
-                  value={t("flows.performance.rate", { words: formatRate(toWords(lastRate), lang) })}
-                  band={tokPerSecBand(lastRate)}
-                />
-              )}
-              {last.totalLatencyMs != null && <Metric label={t("flows.performance.total")} value={formatSeconds(last.totalLatencyMs, lang)} />}
-              <Text variant="footnote" color="secondary">
-                {[modelLabel(last.modelId), last.retrievalUsed ? t("flows.performance.usedSources") : t("flows.performance.noSources")]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </Text>
-            </>
-          ) : (
-            <Text variant="callout" color="secondary">
-              {t("flows.performance.empty")}
-            </Text>
-          )}
-        </View>
-      </Section>
-
-      {typical.sampleSize > 1 && (
-        <Section title={t("flows.performance.typical", { count: typical.sampleSize })} footer={t("flows.performance.typicalFooter")}>
+        <Section title={t("flows.performance.lastAnswer")}>
           <View style={{ padding: tokens.space.base, gap: tokens.space.xs }}>
-            {typical.ttftMs != null && (
-              <Metric label={t("flows.performance.ttft")} value={formatSeconds(typical.ttftMs, lang)} band={ttftBand(typical.ttftMs)} />
+            {last ? (
+              <>
+                {last.ttftMs != null && (
+                  <Metric label={t("flows.performance.ttft")} value={formatSeconds(last.ttftMs, lang)} band={ttftBand(last.ttftMs)} />
+                )}
+                {lastRate != null && (
+                  <Metric
+                    label={t("flows.performance.speed")}
+                    value={t("flows.performance.rate", { words: formatRate(toWords(lastRate), lang) })}
+                    band={tokPerSecBand(lastRate)}
+                  />
+                )}
+                {last.totalLatencyMs != null && <Metric label={t("flows.performance.total")} value={formatSeconds(last.totalLatencyMs, lang)} />}
+                <Text variant="footnote" color="secondary">
+                  {[modelLabel(last.modelId), last.retrievalUsed ? t("flows.performance.usedSources") : t("flows.performance.noSources")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              </>
+            ) : (
+              <Text variant="callout" color="secondary">
+                {t("flows.performance.empty")}
+              </Text>
             )}
-            {typical.tokPerSec != null && (
-              <Metric
-                label={t("flows.performance.speed")}
-                value={t("flows.performance.rate", { words: formatRate(toWords(typical.tokPerSec), lang) })}
-                band={tokPerSecBand(typical.tokPerSec)}
-              />
-            )}
-            {typical.totalLatencyMs != null && <Metric label={t("flows.performance.total")} value={formatSeconds(typical.totalLatencyMs, lang)} />}
           </View>
         </Section>
-      )}
 
-      <Section title={t("flows.performance.fits")} footer={t("flows.performance.fitsFooter", { ram: formatRam(RAM_BUDGET_BYTES, lang), storage: formatBytes(STORAGE_BUDGET_BYTES, lang) })}>
-        <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
-          {peakRss > 0 && (
-            <Meter
-              label={t("flows.performance.memory")}
-              used={peakRss}
-              total={RAM_BUDGET_BYTES}
-              text={t("flows.performance.ofLimit", { used: formatRam(peakRss, lang), limit: formatRam(RAM_BUDGET_BYTES, lang) })}
-            />
-          )}
-          <Meter
-            label={t("flows.performance.storage")}
-            used={models + knowledge}
-            total={STORAGE_BUDGET_BYTES}
-            text={t("flows.performance.ofLimit", { used: formatBytes(models + knowledge, lang), limit: formatBytes(STORAGE_BUDGET_BYTES, lang) })}
-          />
-          <Text variant="footnote" color="secondary">
-            {t("flows.performance.storageSplit", { models: formatBytes(models, lang), knowledge: formatBytes(knowledge, lang) })}
-          </Text>
-          {catalog.deviceRamBytes > 0 && (
-            <Text variant="footnote" color="secondary">
-              {t("flows.performance.deviceRam", { ram: formatRam(catalog.deviceRamBytes, lang) })}
-            </Text>
-          )}
-        </View>
-      </Section>
-
-      <Section title={t("flows.models.advanced")}>
-        <ListRow icon="list" title={t("flows.performance.logsTitle")} value={String(records.length)} onPress={() => navigation.navigate("PerformanceLogs")} />
-        {/* A developer tool (English-only results, engine jargon): dev builds only (Prism FL-16). A connected
-            computer still starts an evaluation in any build through ChatScreen's device request. */}
-        {__DEV__ && (
-          <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+        {typical.sampleSize > 1 && (
+          <Section title={t("flows.performance.typical", { count: typical.sampleSize })} footer={t("flows.performance.typicalFooter")}>
+            <View style={{ padding: tokens.space.base, gap: tokens.space.xs }}>
+              {typical.ttftMs != null && (
+                <Metric label={t("flows.performance.ttft")} value={formatSeconds(typical.ttftMs, lang)} band={ttftBand(typical.ttftMs)} />
+              )}
+              {typical.tokPerSec != null && (
+                <Metric
+                  label={t("flows.performance.speed")}
+                  value={t("flows.performance.rate", { words: formatRate(toWords(typical.tokPerSec), lang) })}
+                  band={tokPerSecBand(typical.tokPerSec)}
+                />
+              )}
+              {typical.totalLatencyMs != null && <Metric label={t("flows.performance.total")} value={formatSeconds(typical.totalLatencyMs, lang)} />}
+            </View>
+          </Section>
         )}
-      </Section>
+
+        <Section title={t("flows.performance.fits")} footer={t("flows.performance.fitsFooter", { ram: formatRam(RAM_BUDGET_BYTES, lang), storage: formatBytes(STORAGE_BUDGET_BYTES, lang) })}>
+          <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
+            {peakRss > 0 && (
+              <Meter
+                label={t("flows.performance.memory")}
+                used={peakRss}
+                total={RAM_BUDGET_BYTES}
+                text={t("flows.performance.ofLimit", { used: formatRam(peakRss, lang), limit: formatRam(RAM_BUDGET_BYTES, lang) })}
+              />
+            )}
+            <Meter
+              label={t("flows.performance.storage")}
+              used={models + knowledge}
+              total={STORAGE_BUDGET_BYTES}
+              text={t("flows.performance.ofLimit", { used: formatBytes(models + knowledge, lang), limit: formatBytes(STORAGE_BUDGET_BYTES, lang) })}
+            />
+            <Text variant="footnote" color="secondary">
+              {t("flows.performance.storageSplit", { models: formatBytes(models, lang), knowledge: formatBytes(knowledge, lang) })}
+            </Text>
+            {catalog.deviceRamBytes > 0 && (
+              <Text variant="footnote" color="secondary">
+                {t("flows.performance.deviceRam", { ram: formatRam(catalog.deviceRamBytes, lang) })}
+              </Text>
+            )}
+          </View>
+        </Section>
+
+        <Section title={t("flows.models.advanced")}>
+          <ListRow icon="list" title={t("flows.performance.logsTitle")} value={String(records.length)} onPress={() => navigation.navigate("PerformanceLogs")} />
+          {/* A developer tool (English-only results, engine jargon): dev builds only (Prism FL-16). A connected
+              computer still starts an evaluation in any build through ChatScreen's device request. */}
+          {__DEV__ && (
+            <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+          )}
+        </Section>
+      </Reveal>
     </Screen>
   );
 }
@@ -268,6 +273,8 @@ export function PerformanceLogsScreen() {
     }
   };
 
+  const lateLoad = useLateLoad(!!records);
+
   if (error) {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
@@ -299,60 +306,63 @@ export function PerformanceLogsScreen() {
   return (
     <Screen contentStyle={screenRhythm(tokens)}>
       <ScreenTitle>{t("flows.performance.logsTitle")}</ScreenTitle>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
-        <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportJson")} loading={exporting} onPress={() => doExport("json")} />
-        <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportCsv")} disabled={exporting} onPress={() => doExport("csv")} />
-        <Button size="sm" variant="ghost" tone="danger" icon="trash-2" label={t("flows.performance.clear")} onPress={() => setClearOpen(true)} />
-      </View>
-      <Section>
-        {records.slice(0, shown).map((r) => {
-          const rate = recordTokPerSec(r);
-          const parts = [
-            r.ttftMs != null && `${t("flows.performance.startLabel")} ${formatSeconds(r.ttftMs, lang)}`,
-            rate != null && t("flows.performance.rate", { words: formatRate(toWords(rate), lang) }),
-            r.totalLatencyMs != null && `${t("flows.performance.total")} ${formatSeconds(r.totalLatencyMs, lang)}`,
-          ].filter(Boolean);
-          // Copy-wrap: memory and load go on their own line so the first one stays short.
-          const extra = [
-            r.peakRssBytes != null && `${t("flows.performance.memoryLabel")} ${formatBytes(r.peakRssBytes, lang)}`,
-            r.modelLoadMs != null && `${t("flows.performance.load")} ${formatSeconds(r.modelLoadMs, lang)}`,
-          ].filter(Boolean);
-          return (
-            <ListRow
-              key={r.id}
-              // The model's name, not its engine id; the raw task enum stays in the export (Prism FL-19).
-              title={logModelLabel(r.modelId, t) ?? t("flows.performance.noModel")}
-              value={t(`flows.performance.outcome.${r.outcome ?? "success"}`)}
-              subtitle={[parts.join(" · "), extra.join(" · "), [t(residencyKey(r)), new Date(r.createdAt).toLocaleString(lang)].filter(Boolean).join(" · ")].filter(Boolean).join("\n")}
-            />
-          );
-        })}
-      </Section>
-      {records.length > shown && (
-        <Button size="sm" variant="secondary" label={t("flows.performance.showMore")} onPress={() => setShown((n) => n + LOGS_PAGE)} />
-      )}
+      {/* Replaces the skeleton: fades in when the data came after the screen (TR-5). */}
+      <Reveal animate={lateLoad} style={screenRhythm(tokens)}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
+          <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportJson")} loading={exporting} onPress={() => doExport("json")} />
+          <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportCsv")} disabled={exporting} onPress={() => doExport("csv")} />
+          <Button size="sm" variant="ghost" tone="danger" icon="trash-2" label={t("flows.performance.clear")} onPress={() => setClearOpen(true)} />
+        </View>
+        <Section>
+          {records.slice(0, shown).map((r) => {
+            const rate = recordTokPerSec(r);
+            const parts = [
+              r.ttftMs != null && `${t("flows.performance.startLabel")} ${formatSeconds(r.ttftMs, lang)}`,
+              rate != null && t("flows.performance.rate", { words: formatRate(toWords(rate), lang) }),
+              r.totalLatencyMs != null && `${t("flows.performance.total")} ${formatSeconds(r.totalLatencyMs, lang)}`,
+            ].filter(Boolean);
+            // Copy-wrap: memory and load go on their own line so the first one stays short.
+            const extra = [
+              r.peakRssBytes != null && `${t("flows.performance.memoryLabel")} ${formatBytes(r.peakRssBytes, lang)}`,
+              r.modelLoadMs != null && `${t("flows.performance.load")} ${formatSeconds(r.modelLoadMs, lang)}`,
+            ].filter(Boolean);
+            return (
+              <ListRow
+                key={r.id}
+                // The model's name, not its engine id; the raw task enum stays in the export (Prism FL-19).
+                title={logModelLabel(r.modelId, t) ?? t("flows.performance.noModel")}
+                value={t(`flows.performance.outcome.${r.outcome ?? "success"}`)}
+                subtitle={[parts.join(" · "), extra.join(" · "), [t(residencyKey(r)), new Date(r.createdAt).toLocaleString(lang)].filter(Boolean).join(" · ")].filter(Boolean).join("\n")}
+              />
+            );
+          })}
+        </Section>
+        {records.length > shown && (
+          <Button size="sm" variant="secondary" label={t("flows.performance.showMore")} onPress={() => setShown((n) => n + LOGS_PAGE)} />
+        )}
 
-      <Sheet
-        visible={clearOpen}
-        onClose={() => setClearOpen(false)}
-        title={t("flows.performance.clearTitle")}
-        description={t("flows.performance.clearBody")}
-        footer={
-          <>
-            <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setClearOpen(false)} />
-            <Button
-              label={t("flows.performance.clear")}
-              variant="destructive"
-              fullWidth
-              onPress={async () => {
-                await clearExecutionTelemetry();
-                setClearOpen(false);
-                setRecords([]);
-              }}
-            />
-          </>
-        }
-      />
+        <Sheet
+          visible={clearOpen}
+          onClose={() => setClearOpen(false)}
+          title={t("flows.performance.clearTitle")}
+          description={t("flows.performance.clearBody")}
+          footer={
+            <>
+              <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setClearOpen(false)} />
+              <Button
+                label={t("flows.performance.clear")}
+                variant="destructive"
+                fullWidth
+                onPress={async () => {
+                  await clearExecutionTelemetry();
+                  setClearOpen(false);
+                  setRecords([]);
+                }}
+              />
+            </>
+          }
+        />
+      </Reveal>
     </Screen>
   );
 }

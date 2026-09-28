@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { DocumentPickerAsset } from "expo-document-picker";
 import { useTranslation } from "react-i18next";
-import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Screen, ScreenScroll, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useToast } from "./components";
+import { Button, Card, EmptyState, ListRow, MetaLine, Progress, Reveal, Screen, ScreenScroll, Section, Sheet, Skeleton, Stat, Text, TextField, useAnnounce, useLateLoad, useToast } from "./components";
 import { useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
@@ -82,6 +82,7 @@ export function KnowledgeScreen() {
   );
   useEffect(() => onSeedProgress((p) => setSeed(p.done >= p.total ? null : p)), []);
   useEffect(() => onCollectionIndexStatus(setIndexStatus), []);
+  const lateLoad = useLateLoad(catalog.loaded && collections !== null);
 
   /** One line for a collection's index state; undefined when there is nothing to say. */
   const statusLine = (id: string): string | undefined => {
@@ -172,231 +173,234 @@ export function KnowledgeScreen() {
   return (
     <Screen contentStyle={screenRhythm(tokens)} scrollRef={scrollRef}>
       <ScreenTitle>{t("nav.knowledge")}</ScreenTitle>
-      <Text variant="footnote" color="secondary">
-        {t("flows.knowledge.intro")}
-      </Text>
+      {/* Replaces the skeleton: fades in when the data came after the screen (TR-5). */}
+      <Reveal animate={lateLoad} style={screenRhythm(tokens)}>
+        <Text variant="footnote" color="secondary">
+          {t("flows.knowledge.intro")}
+        </Text>
 
-      {seed && (
-        <Card style={{ gap: tokens.space.md }}>
-          <Stat size="lg" label={t("flows.knowledge.indexingLabel")} value={String(Math.floor((seed.done / seed.total) * 100))} unit="%" />
-          <Progress
-            label={t("flows.knowledge.indexingLabel")}
-            value={seed.done / seed.total}
-            valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
-          />
-          <MetaLine items={[t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })]} />
-        </Card>
-      )}
+        {seed && (
+          <Card style={{ gap: tokens.space.md }}>
+            <Stat size="lg" label={t("flows.knowledge.indexingLabel")} value={String(Math.floor((seed.done / seed.total) * 100))} unit="%" />
+            <Progress
+              label={t("flows.knowledge.indexingLabel")}
+              value={seed.done / seed.total}
+              valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
+            />
+            <MetaLine items={[t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })]} />
+          </Card>
+        )}
 
-      {packs.length > 0 && (
-        <Section title={t("flows.knowledge.topicPacksTitle")} footer={t("flows.knowledge.topicPacksFooter")}>
+        {packs.length > 0 && (
+          <Section title={t("flows.knowledge.topicPacksTitle")} footer={t("flows.knowledge.topicPacksFooter")}>
+            <CatalogList>
+            {packs.map((pack) => (
+              <CatalogRow
+                showKind={false}
+                key={pack.entry.id}
+                model={pack.entry}
+                title={packName(pack, lang)}
+                meta={t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) })}
+                details={[t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") })]}
+                view={catalog.view(pack.entry)}
+                fileImport={catalog.importFor(pack.entry.id)}
+                onDownload={() => catalog.install([pack.entry])}
+                onRemove={() => catalog.remove(pack.entry)}
+              />
+            ))}
+            </CatalogList>
+          </Section>
+        )}
+
+        <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
           <CatalogList>
-          {packs.map((pack) => (
+          <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
+          {CORPUS_CATALOG.map((pack) => (
             <CatalogRow
-              showKind={false}
-              key={pack.entry.id}
-              model={pack.entry}
-              title={packName(pack, lang)}
-              meta={t("flows.knowledge.docs", { count: pack.docCount, value: formatCount(pack.docCount, lang) })}
-              details={[t("flows.knowledge.sourcesLine", { sources: pack.sources.map((s) => s.name).join(", ") })]}
-              view={catalog.view(pack.entry)}
-              fileImport={catalog.importFor(pack.entry.id)}
-              onDownload={() => catalog.install([pack.entry])}
-              onRemove={() => catalog.remove(pack.entry)}
+                showKind={false}
+              key={pack.id}
+              model={pack}
+              details={[statusLine(pack.id)].filter((x): x is string => !!x)}
+              view={catalog.view(pack)}
+              fileImport={catalog.importFor(pack.id)}
+              onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.install([pack]))}
+              onRemove={() => catalog.remove(pack)}
             />
           ))}
           </CatalogList>
         </Section>
-      )}
 
-      <Section title={t("flows.knowledge.appCollections")} footer={t("flows.knowledge.appFooter")}>
-        <CatalogList>
-        <ListRow title={t("flows.knowledge.builtin")} subtitle={[t("flows.knowledge.builtinSub"), statusLine("builtin")].filter(Boolean).join("\n")} />
-        {CORPUS_CATALOG.map((pack) => (
-          <CatalogRow
-              showKind={false}
-            key={pack.id}
-            model={pack}
-            details={[statusLine(pack.id)].filter((x): x is string => !!x)}
-            view={catalog.view(pack)}
-            fileImport={catalog.importFor(pack.id)}
-            onDownload={() => (canDownload(pack) ? downloadPack(pack) : catalog.install([pack]))}
-            onRemove={() => catalog.remove(pack)}
-          />
-        ))}
-        </CatalogList>
-      </Section>
+        {(catalog.imports.length > 0 || regions.some((r) => !canDownload(poiCatalogEntry(r)) && !catalog.statuses[poiCatalogEntry(r).id]?.present)) && (
+          <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
+            <View style={{ padding: tokens.space.base }}>
+              <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
+            </View>
+          </Section>
+        )}
 
-      {(catalog.imports.length > 0 || regions.some((r) => !canDownload(poiCatalogEntry(r)) && !catalog.statuses[poiCatalogEntry(r).id]?.present)) && (
-        <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
+        <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
+          <CatalogList>
           <View style={{ padding: tokens.space.base }}>
-            <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
+            <CitySearch catalog={catalog} />
           </View>
+          <PlaceAreaRows catalog={catalog} />
+          {regions.length === 0 ? (
+            <View style={{ padding: tokens.space.base }}>
+              <Text variant="callout" color="secondary">
+                {t("flows.places.none")}
+              </Text>
+            </View>
+          ) : (
+            regions.map((r) => {
+              const entry = poiCatalogEntry(r);
+              const cities = citySummary(r);
+              const name = lang.startsWith("pt") ? r.name.pt : r.name.en;
+              return (
+                <CatalogRow
+                showKind={false}
+                  key={r.id}
+                  model={entry}
+                  title={name}
+                  meta={t("flows.places.count", { places: formatCount(r.poiCount, lang) })}
+                  details={[
+                    t("flows.places.vegan", { vegan: formatCount(r.veganCount, lang), vegetarian: formatCount(r.vegetarianCount, lang) }),
+                    cities.more > 0
+                      ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more })
+                      : cities.names.join(", "),
+                  ].filter(Boolean)}
+                  view={catalog.view(entry)}
+                  fileImport={catalog.importFor(entry.id)}
+                  onDownload={() => catalog.install(placesInstall(r))}
+                  onRemove={() => catalog.remove(entry)}
+                />
+              );
+            })
+          )}
+          </CatalogList>
         </Section>
-      )}
 
-      <Section title={t("flows.places.title")} footer={regions.length > 0 ? t("flows.places.footer") : undefined}>
-        <CatalogList>
-        <View style={{ padding: tokens.space.base }}>
-          <CitySearch catalog={catalog} />
-        </View>
-        <PlaceAreaRows catalog={catalog} />
-        {regions.length === 0 ? (
-          <View style={{ padding: tokens.space.base }}>
-            <Text variant="callout" color="secondary">
-              {t("flows.places.none")}
-            </Text>
-          </View>
-        ) : (
-          regions.map((r) => {
-            const entry = poiCatalogEntry(r);
-            const cities = citySummary(r);
-            const name = lang.startsWith("pt") ? r.name.pt : r.name.en;
-            return (
-              <CatalogRow
-              showKind={false}
-                key={r.id}
-                model={entry}
-                title={name}
-                meta={t("flows.places.count", { places: formatCount(r.poiCount, lang) })}
-                details={[
-                  t("flows.places.vegan", { vegan: formatCount(r.veganCount, lang), vegetarian: formatCount(r.vegetarianCount, lang) }),
-                  cities.more > 0
-                    ? t("flows.places.citiesMore", { cities: cities.names.join(", "), count: cities.more })
-                    : cities.names.join(", "),
-                ].filter(Boolean)}
-                view={catalog.view(entry)}
-                fileImport={catalog.importFor(entry.id)}
-                onDownload={() => catalog.install(placesInstall(r))}
-                onRemove={() => catalog.remove(entry)}
-              />
-            );
-          })
-        )}
-        </CatalogList>
-      </Section>
-
-      <Section title={t("flows.knowledge.yourCollections")}>
-        {/* The import error takes the empty state's place, where the person just tapped, not below it off screen
-            (Piston, prints 1ca4eb7). Its "Choose again" is then the one primary (Prism FL-12). */}
-        {importError && (
-          <EmptyState
-            tone="error"
-            title={t("flows.knowledge.importFailed")}
-            body={t(userErrorKey(importError))}
-            detail={importError}
-            actionLabel={t("flows.knowledge.pickAgain")}
-            onAction={pick}
-          />
-        )}
-        {collections.length === 0 && !importing ? (
-          !importError && (
-            <EmptyState icon="file-plus" title={t("flows.knowledge.emptyTitle")} body={t("flows.knowledge.emptyBody")} actionLabel={t("flows.knowledge.add")} onAction={pick} />
-          )
-        ) : (
-          collections.map((c) => (
-            <View key={c.id}>
-              <ListRow
-                title={c.name}
-                subtitle={t("flows.knowledge.collectionMeta", {
-                  docs: t("flows.knowledge.docs", { count: c.docCount, value: formatCount(c.docCount, lang) }),
-                  chunks: t("flows.knowledge.chunks", { count: c.chunkCount }),
-                  size: formatBytes(c.sizeBytes, i18n.language),
-                })}
-                accessibilityLabel={t("flows.knowledge.useInAnswers", { name: c.name })}
-                switch={{ value: c.active, onValueChange: (v) => toggle(c, v) }}
-              />
-              <View style={{ flexDirection: "row", gap: tokens.space.sm, paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.md }}>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon="share"
-                  label={t("flows.knowledge.export")}
-                  accessibilityLabel={t("flows.knowledge.exportA11y", { name: c.name })}
-                  loading={exportingId === c.id}
-                  onPress={() => exportOne(c)}
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  tone="danger"
-                  label={t("flows.row.remove")}
-                  accessibilityLabel={t("flows.knowledge.removeA11y", { name: c.name })}
-                  onPress={() => setToRemove(c)}
-                />
-              </View>
-            </View>
-          ))
-        )}
-      </Section>
-
-      {importing && (
-        <Card style={{ gap: tokens.space.md }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
-            <View style={{ flex: 1, gap: tokens.space.xxs }}>
-              <Text variant="label" color="field">
-                {t("flows.knowledge.importingLabel")}
-              </Text>
-              <Text variant="headline" numberOfLines={2}>
-                {importingName}
-              </Text>
-            </View>
-            {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
-          </View>
-          <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
-          <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
-          <Button
-            size="sm"
-            variant="secondary"
-            label={t("common.cancel")}
-            accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
-            onPress={() => abortRef.current?.abort()}
-          />
-        </Card>
-      )}
-
-      {(collections.length > 0 || importing) && !importError && (
-        <Button label={t("flows.knowledge.add")} icon="file-plus" onPress={pick} disabled={!!importing} />
-      )}
-
-      <Sheet
-        visible={picked !== null}
-        onClose={() => setPicked(null)}
-        title={t("flows.knowledge.nameTitle")}
-        description={t("flows.knowledge.filesPicked", { count: picked?.length ?? 0 })}
-        footer={
-          <>
-            <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setPicked(null)} />
-            <Button label={t("flows.knowledge.import")} variant="primary" fullWidth onPress={runImport} />
-          </>
-        }
-      >
-        <TextField label={t("flows.knowledge.nameLabel")} value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={runImport} />
-      </Sheet>
-
-      <Sheet
-        visible={toRemove !== null}
-        onClose={() => setToRemove(null)}
-        title={t("flows.knowledge.removeTitle", { name: toRemove?.name ?? "" })}
-        description={t("flows.knowledge.removeBody", { count: toRemove?.chunkCount ?? 0 })}
-        footer={
-          <>
-            <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setToRemove(null)} />
-            <Button
-              label={t("flows.row.remove")}
-              variant="destructive"
-              fullWidth
-              onPress={async () => {
-                const c = toRemove!;
-                setToRemove(null);
-                await deleteCustomCollection(c.id);
-                setCollections(await listCustomCollections());
-                toast({ message: t("flows.row.removed", { name: c.name }), tone: "success" });
-              }}
+        <Section title={t("flows.knowledge.yourCollections")}>
+          {/* The import error takes the empty state's place, where the person just tapped, not below it off screen
+              (Piston, prints 1ca4eb7). Its "Choose again" is then the one primary (Prism FL-12). */}
+          {importError && (
+            <EmptyState
+              tone="error"
+              title={t("flows.knowledge.importFailed")}
+              body={t(userErrorKey(importError))}
+              detail={importError}
+              actionLabel={t("flows.knowledge.pickAgain")}
+              onAction={pick}
             />
-          </>
-        }
-      />
+          )}
+          {collections.length === 0 && !importing ? (
+            !importError && (
+              <EmptyState icon="file-plus" title={t("flows.knowledge.emptyTitle")} body={t("flows.knowledge.emptyBody")} actionLabel={t("flows.knowledge.add")} onAction={pick} />
+            )
+          ) : (
+            collections.map((c) => (
+              <View key={c.id}>
+                <ListRow
+                  title={c.name}
+                  subtitle={t("flows.knowledge.collectionMeta", {
+                    docs: t("flows.knowledge.docs", { count: c.docCount, value: formatCount(c.docCount, lang) }),
+                    chunks: t("flows.knowledge.chunks", { count: c.chunkCount }),
+                    size: formatBytes(c.sizeBytes, i18n.language),
+                  })}
+                  accessibilityLabel={t("flows.knowledge.useInAnswers", { name: c.name })}
+                  switch={{ value: c.active, onValueChange: (v) => toggle(c, v) }}
+                />
+                <View style={{ flexDirection: "row", gap: tokens.space.sm, paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.md }}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon="share"
+                    label={t("flows.knowledge.export")}
+                    accessibilityLabel={t("flows.knowledge.exportA11y", { name: c.name })}
+                    loading={exportingId === c.id}
+                    onPress={() => exportOne(c)}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    tone="danger"
+                    label={t("flows.row.remove")}
+                    accessibilityLabel={t("flows.knowledge.removeA11y", { name: c.name })}
+                    onPress={() => setToRemove(c)}
+                  />
+                </View>
+              </View>
+            ))
+          )}
+        </Section>
+
+        {importing && (
+          <Card style={{ gap: tokens.space.md }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
+              <View style={{ flex: 1, gap: tokens.space.xxs }}>
+                <Text variant="label" color="field">
+                  {t("flows.knowledge.importingLabel")}
+                </Text>
+                <Text variant="headline" numberOfLines={2}>
+                  {importingName}
+                </Text>
+              </View>
+              {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
+            </View>
+            <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
+            <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
+            <Button
+              size="sm"
+              variant="secondary"
+              label={t("common.cancel")}
+              accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
+              onPress={() => abortRef.current?.abort()}
+            />
+          </Card>
+        )}
+
+        {(collections.length > 0 || importing) && !importError && (
+          <Button label={t("flows.knowledge.add")} icon="file-plus" onPress={pick} disabled={!!importing} />
+        )}
+
+        <Sheet
+          visible={picked !== null}
+          onClose={() => setPicked(null)}
+          title={t("flows.knowledge.nameTitle")}
+          description={t("flows.knowledge.filesPicked", { count: picked?.length ?? 0 })}
+          footer={
+            <>
+              <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setPicked(null)} />
+              <Button label={t("flows.knowledge.import")} variant="primary" fullWidth onPress={runImport} />
+            </>
+          }
+        >
+          <TextField label={t("flows.knowledge.nameLabel")} value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={runImport} />
+        </Sheet>
+
+        <Sheet
+          visible={toRemove !== null}
+          onClose={() => setToRemove(null)}
+          title={t("flows.knowledge.removeTitle", { name: toRemove?.name ?? "" })}
+          description={t("flows.knowledge.removeBody", { count: toRemove?.chunkCount ?? 0 })}
+          footer={
+            <>
+              <Button label={t("common.cancel")} variant="secondary" fullWidth onPress={() => setToRemove(null)} />
+              <Button
+                label={t("flows.row.remove")}
+                variant="destructive"
+                fullWidth
+                onPress={async () => {
+                  const c = toRemove!;
+                  setToRemove(null);
+                  await deleteCustomCollection(c.id);
+                  setCollections(await listCustomCollections());
+                  toast({ message: t("flows.row.removed", { name: c.name }), tone: "success" });
+                }}
+              />
+            </>
+          }
+        />
+      </Reveal>
     </Screen>
   );
 }

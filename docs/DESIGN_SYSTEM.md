@@ -138,6 +138,8 @@ const x = m.crossfade("forward");            // content swap: 90 out, then 220 i
 Animated.timing(v, { toValue: 1, ...m.timing("enter"), useNativeDriver: true });                     // RN Animated
 ```
 
+Loading: `<Skeleton>` keeps its space but shows only after 150 ms (fading in), so a fast load never blinks. The content that replaces it goes in `<Reveal animate={useLateLoad(loaded)}>` (call the hook above any early return): it fades in when the data came after the screen, and draws at once when it was ready at the first render.
+
 Rules:
 1. A content swap is a short sequential crossfade (90 → 220), never two long animations in a row.
 2. Nothing changes height without `layout`. Nothing mounts or unmounts inside a row without its space reserved (a check that only exists when selected re-wraps the title).
