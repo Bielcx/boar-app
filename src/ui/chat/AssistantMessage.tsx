@@ -177,7 +177,7 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
         <Text
           variant="footnote"
           color="secondary"
-          style={{ paddingLeft: t.space.md, borderLeftWidth: 2, borderLeftColor: t.color.line.hairline }}
+          style={{ paddingLeft: t.space.md, borderLeftWidth: t.size.focusRing, borderLeftColor: t.color.line.hairline }}
         >
           {thinking}
         </Text>
@@ -243,7 +243,8 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
   };
 }
 
-function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean }) {
+/** `end`: beside the name, it sits at the row's right edge like the running Elapsed pill (Prism CH-27). */
+function ReceiptToggle({ r, hidden, end }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean; end?: boolean }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   // A caption line: the touch area comes up to the platform minimum (Prism CH-6).
@@ -257,6 +258,8 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       accessibilityElementsHidden={hidden}
       hitSlop={lineSlop(t.size.touch, line.lineHeight, t.space.sm)}
+      // Shrinks (its one line truncates) rather than pushing past the row at large text.
+      style={end ? { marginLeft: "auto", flexShrink: 1 } : undefined}
     >
       <MetaLine items={r.short} variant="caption" numberOfLines={1} />
     </Pressable>
@@ -330,7 +333,8 @@ function RelevanceBar({ band }: { band: RelevanceBand | null }) {
             key={b}
             variant="caption"
             weight="semibold"
-            color={band === "low" ? "secondary" : "field"}
+            // Two tones per card (Prism CH-24): amber stays the single provenance mark (the origin overline).
+            color="secondary"
             numberOfLines={1}
             style={b === band ? undefined : { height: 0, opacity: 0 }}
             // Sizing only: never read (the row's label already says "relevance high").
@@ -386,7 +390,8 @@ const SourceList = memo(function SourceList({
             {tr("chat.sources.heading")}
           </Text>
         </View>
-        <Badge label={String(only?.length ?? answer.sources.length)} tone="field" emphasis="solid" />
+        {/* A plain count: soft, solid is for ACTIVE or a recommendation (Prism CH-23). */}
+        <Badge label={String(only?.length ?? answer.sources.length)} tone="field" emphasis="soft" />
       </View>
       {groups.map((g) => {
         const open = expanded === g.key;
@@ -856,7 +861,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
               step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
             />
-          ) : receipt ? <ReceiptToggle r={receipt} hidden={active} /> : null}
+          ) : receipt ? <ReceiptToggle r={receipt} hidden={active} end /> : null}
         </View>
         {receipt && !waitingForCity && !answer.weakDeclined && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
       </View>
@@ -914,7 +919,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
       {answer.deep && (
         <View style={{ gap: t.space.sm, paddingTop: t.space.md, borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
-          <Text variant="label" color="accent" header>
+          {/* A section overline in secondary, like the others: ember isn't decoration (Prism CH-22). */}
+          <Text variant="label" color="secondary" header>
             {tr("chat.deep.title")}
           </Text>
           {steps && <StepsCard steps={steps} />}

@@ -29,7 +29,6 @@ import {
   geoUri,
   filterName,
   deviceClockApplies,
-  formatDataDate,
   attributionCredit,
   attributionSpoken,
   showUseLocation,
@@ -79,11 +78,14 @@ function useMinuteClock(): Date {
   return now;
 }
 
+/** A place row stacks its facts from here (later than LARGE_TEXT_SCALE: name and distance still fit one line). */
+const PLACE_ROW_STACK_SCALE = 1.6;
+
 function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | null; locale: string; onPress: () => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const { fontScale } = useWindowDimensions();
-  const stacked = fontScale >= 1.6;
+  const stacked = fontScale >= PLACE_ROW_STACK_SCALE;
   const tags = [...dietLabels(place.diet, tr, place.dietFlag), ...cuisineLabels(place.cuisine, tr)].join(" · ");
   const state = openStateAt(place, now);
   const distance = place.distanceM != null ? formatDistance(place.distanceM, locale) : null;
@@ -93,7 +95,7 @@ function PlaceRow({ place, now, locale, onPress }: { place: Place; now: Date | n
       accessibilityRole="button"
       accessibilityLabel={placeA11yLabel(place, now, locale, tr)}
       style={({ pressed }) => ({
-        minHeight: t.size.touch + 8,
+        minHeight: t.size.touch + t.space.sm,
         // The sheet's compact card padding (12/14).
         paddingHorizontal: t.space.md + t.space.xxs,
         paddingVertical: t.space.sm,
