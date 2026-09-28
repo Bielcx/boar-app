@@ -18,6 +18,7 @@ import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
 import { lineSlop } from "./touch";
+import { chatLargeText } from "./largeText";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -763,6 +764,8 @@ const InstantSnippet = memo(function InstantSnippet({
   onOpenSource: (i: number) => void;
 }) {
   const t = useTokens();
+  // At large text the overline wraps to 2 lines, so the source's name stays (Prism AN-1).
+  const overlineLines = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE).snippetOverlineLines;
   const { t: tr } = useTranslation();
   const [userExpanded, setUserExpanded] = useState<boolean | null>(null);
   const snippet = answer.instant!;
@@ -775,7 +778,7 @@ const InstantSnippet = memo(function InstantSnippet({
   const expanded = userExpanded ?? !autoCollapsed;
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
-      <Text variant="caption" color="field" weight="semibold" numberOfLines={1}>
+      <Text variant="caption" color="field" weight="semibold" numberOfLines={overlineLines}>
         {[lang ? `${tr("chat.snippet.fromSource")} (${lang})` : tr("chat.snippet.fromSource"), source?.title].filter(Boolean).join(" · ")}
       </Text>
       <Text variant={isFinal ? "body" : "callout"} selectable>
