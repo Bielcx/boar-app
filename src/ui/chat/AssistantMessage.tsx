@@ -17,6 +17,7 @@ import { formatSeconds } from "./shareFormat";
 import { LocatingPrompt, PlacesCard } from "./PlacesCard";
 import type { AnswerReceipt } from "./answerEvents";
 import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
+import { lineSlop } from "./touch";
 
 export interface AssistantMessageProps {
   answer: AnswerState;
@@ -62,8 +63,11 @@ function useElapsedSeconds(running: boolean): number {
   return seconds;
 }
 
-/** The mockup's step indicator: an ember ring turning (static under reduce motion). */
-function StepSpinner() {
+/**
+ * The mockup's step indicator: an ember ring turning (static under reduce motion). Memoized, with the
+ * interpolation built once (audit #11): a new one per render rebuilt the native animated graph per flush.
+ */
+const StepSpinner = memo(function StepSpinner() {
   const t = useTokens();
   const { reduceMotion } = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
@@ -73,7 +77,7 @@ function StepSpinner() {
     loop.start();
     return () => loop.stop();
   }, [reduceMotion, spin]);
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const rotate = useMemo(() => spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }), [spin]);
   const side = t.size.iconSm - t.space.xxs;
   return (
     <Animated.View
@@ -88,7 +92,7 @@ function StepSpinner() {
       }}
     />
   );
-}
+});
 
 /**
  * What the answer is doing, as the mockup's step card: every step from the start (generatingSteps), each
@@ -158,15 +162,13 @@ function Reasoning({ thinking, inProgress, streaming }: { thinking: string; inPr
   const visible = streaming && inProgress ? tr("chat.reasoning.thinking", { seconds }) : open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show");
   return (
     <View style={{ gap: t.space.xs }}>
-      <Button
+      {/* A secondary move in text.secondary, not ember (Prism CH-14). */}
+      <TextAction
         label={visible}
-        variant="ghost"
-        size="sm"
-        icon="message-circle"
+        leadingIcon="message-circle"
         onPress={() => setOpen((o) => !o)}
         accessibilityLabel={open ? tr("chat.reasoning.hide") : tr("chat.reasoning.show")}
-        accessibilityState={{ expanded: open }}
-        style={{ alignSelf: "flex-start" }}
+        expanded={open}
       />
       {open && (
         <Text
@@ -239,7 +241,10 @@ function useReceipt(receipt: AnswerReceipt | undefined, locale: string, tagKey: 
 }
 
 function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useReceipt>>; hidden: boolean }) {
+  const t = useTokens();
   const { t: tr } = useTranslation();
+  // A caption line: the touch area comes up to the platform minimum (Prism CH-6).
+  const line = useOpticalLine("caption");
   return (
     <Pressable
       onPress={r.toggle}
@@ -248,7 +253,7 @@ function ReceiptToggle({ r, hidden }: { r: NonNullable<ReturnType<typeof useRece
       accessibilityState={{ expanded: r.open }}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       accessibilityElementsHidden={hidden}
-      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+      hitSlop={lineSlop(t.size.touch, line.lineHeight, t.space.sm)}
     >
       <MetaLine items={r.short} variant="caption" numberOfLines={1} />
     </Pressable>
@@ -267,14 +272,7 @@ function ReceiptDetails({ r, onCopy }: { r: NonNullable<ReturnType<typeof useRec
           {row}
         </Text>
       ))}
-      <Button
-        label={tr("chat.receipt.copy")}
-        variant="ghost"
-        size="sm"
-        icon="copy"
-        style={{ alignSelf: "flex-start", marginLeft: -t.space.md }}
-        onPress={() => onCopy(rows.join("\n"))}
-      />
+      <TextAction label={tr("chat.receipt.copy")} leadingIcon="copy" onPress={() => onCopy(rows.join("\n"))} />
     </View>
   );
 }
@@ -624,9 +622,7 @@ function HeldAfterSnippet({ onAnswerAnyway }: { onAnswerAnyway?: () => void }) {
         {tr("chat.weak.heldAfterSnippet")}
       </Text>
       {onAnswerAnyway && (
-        <View style={{ marginLeft: -t.space.md }}>
-          <Button label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} variant="ghost" size="sm" onPress={onAnswerAnyway} />
-        </View>
+        <TextAction label={tr("chat.weak.answerAnyway")} accessibilityHint={tr("chat.weak.answerAnywayHint")} onPress={onAnswerAnyway} />
       )}
     </View>
   );
@@ -655,7 +651,7 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           {tr(body)}
         </Text>
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.md }}>
         {onAnswerAnyway && (
           <Button
             label={tr("chat.weak.answerAnyway")}
@@ -666,11 +662,10 @@ function DeclinedNoSource({ answer, onAnswerAnyway, incomplete }: { answer: Answ
           />
         )}
         {groups.length > 0 && (
-          <Button
+          <TextAction
             label={found ? tr(open ? "chat.weak.hideFound" : "chat.weak.showFound", { count: groups.length }) : tr(open ? "chat.weak.hideClosest" : "chat.weak.showClosest")}
-            variant="ghost"
-            size="sm"
-            accessibilityState={{ expanded: open }}
+            icon={open ? "chevron-up" : "chevron-down"}
+            expanded={open}
             onPress={() => setOpen((o) => !o)}
           />
         )}
@@ -775,22 +770,20 @@ const InstantSnippet = memo(function InstantSnippet({
         {/* FMT-1: a pack's list flattened to " - " reads as a list again. */}
         {expanded ? splitInlineBullets(body) : previewText(body)}
       </Text>
-      <View style={{ flexDirection: "row", gap: t.space.sm, marginLeft: -t.space.md }}>
+      {/* Secondary moves in text.secondary (Prism CH-14), apart enough for their touch areas. */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.base }}>
         {!isFinal && (
-          <Button
+          <TextAction
             label={expanded ? tr("chat.snippet.showLess") : tr("chat.snippet.showMore")}
-            variant="ghost"
-            size="sm"
-            accessibilityState={{ expanded }}
+            icon={expanded ? "chevron-up" : "chevron-down"}
+            expanded={expanded}
             onPress={() => setUserExpanded(!expanded)}
           />
         )}
         {source && (
-          <Button
+          <TextAction
             label={`[${snippet.sourceIndex + 1}]`}
-            variant="ghost"
-            size="sm"
-            icon="book"
+            leadingIcon="book"
             accessibilityLabel={tr("chat.snippet.openSource", { n: snippet.sourceIndex + 1, title: source.title })}
             onPress={() => onOpenSource(snippet.sourceIndex)}
           />
@@ -816,9 +809,16 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   // No strong source: no [n] citations (weak-sources spec rule 4).
   // Memoized on the sources: a new list every token would re-render every Markdown block (TierBody memo).
   const sourceTitles = useMemo(() => (sourceless === "weak" ? [] : answer.sources.map((s) => s.title)), [sourceless, answer.sources]);
+  // The excerpt as a tier, kept while it doesn't change, so its TierBody memo holds too (audit #1 leftover).
+  const extractOutcome = answer.instantDone?.outcome;
+  const extractTier = useMemo<TierState | null>(
+    () => (answer.extract ? { text: answer.extract, stage: null, outcome: extractOutcome } : null),
+    [answer.extract, extractOutcome]
+  );
 
   const placesOnly = !!answer.places && !answer.fast;
   const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
+  const footnoteLine = useOpticalLine("footnote");
   const note = noSourceNote(answer, placesOnly);
   const split = answerSourceSplit(answer);
   const cardMode = sourcesCardMode(!!active, split);
@@ -876,9 +876,9 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
       {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
       {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
-      {answer.extract ? (
+      {extractTier ? (
         <TierBody
-          tier={{ text: answer.extract, stage: null, outcome: answer.instantDone?.outcome }}
+          tier={extractTier}
           streaming={!answer.instantDone}
           sourceTitles={sourceTitles}
           onOpenSource={onOpenSource}
@@ -888,8 +888,11 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
       {props.waitingLibrary ? (
         <Card padding="compact" radius="card" style={{ gap: t.space.xs }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-            <StepSpinner />
+          {/* The spinner on the first line when the text wraps, as the steps card (Prism CH-15). */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+            <LineSlot line={footnoteLine}>
+              <StepSpinner />
+            </LineSlot>
             <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
               {tr("chat.stage.waitingLibrary")}
             </Text>
@@ -1012,19 +1015,26 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
       )}
       {!active && phase === "done" && canDeepen(answer) && (
-        // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris).
-        <Pressable
-          onPress={props.onDeepen}
-          accessibilityRole="button"
-          hitSlop={{ top: t.space.md, bottom: t.space.md }}
-          style={{ alignSelf: "flex-start" }}
-        >
-          <IconText icon="layers" variant="caption" color="secondary" iconColor={t.color.text.secondary}>
-            {answer.deepAvailable?.estSeconds
-              ? tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
-              : tr("chat.actions.deepen")}
-          </IconText>
-        </Pressable>
+        // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
+        // TextAction brings the touch minimum (Prism CH-7). The estimate is a support fact beside the
+        // action, not part of its label (Prism CH-9); readers hear both in the action's name.
+        <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
+          <TextAction
+            leadingIcon="layers"
+            onPress={props.onDeepen}
+            label={tr("chat.actions.deepen")}
+            accessibilityLabel={
+              answer.deepAvailable?.estSeconds
+                ? tr("chat.actions.deepenEstSpoken", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
+                : undefined
+            }
+          />
+          {answer.deepAvailable?.estSeconds ? (
+            <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+              <MetaLine items={[tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })]} variant="caption" />
+            </View>
+          ) : null}
+        </View>
       )}
     </View>
   );

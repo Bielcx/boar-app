@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
+import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
 import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
@@ -71,6 +71,9 @@ import { placesForCopy, sourceName } from "./chat/placesFormat";
 import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
+import { flushDelay } from "./chat/streamBatch";
+import { heightChanged } from "./chat/listPin";
+import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
 const VERBATIM_MESSAGE_COUNT = 6;
 
@@ -171,17 +174,33 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // Deferred a frame: on Android the reported content size can lag one layout behind.
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
   }, []);
+  // Content growing (a token batch, a restored session rendering in batches, an answer's actions) snaps:
+  // animated scrolls restarted on every batch fought each other (audit #13). Animated only where asked for:
+  // sending, the jump button, a model error.
+  const onListContentSize = useCallback(() => {
+    if (followBottom.current) scrollToBottom(false);
+  }, [scrollToBottom]);
+  // The keyboard changes the list's height on every frame: pin the last message then, in the same frame
+  // (no rAF: the content didn't change), and skip layouts that leave the height as it was (audit #8/#10).
+  const listHeight = useRef<number | null>(null);
+  const onListLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    if (!heightChanged(listHeight.current, h)) return;
+    listHeight.current = h;
+    if (followBottom.current) listRef.current?.scrollToEnd({ animated: false });
+  }, []);
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     followBottom.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 120;
     setShowJump(!followBottom.current);
   }, []);
 
-  // ---- events: batched to one state update per frame while tokens stream ----
+  // ---- events: tokens batched (STREAM_FLUSH_MS) into one state update; everything else shows at once ----
   const pendingEvents = useRef<{ messageId: string; event: AnswerEvent }[]>([]);
-  const flushScheduled = useRef(false);
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushEvents = useCallback(() => {
-    flushScheduled.current = false;
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = null;
     const batch = pendingEvents.current;
     if (batch.length === 0) return;
     pendingEvents.current = [];
@@ -194,11 +213,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const queueEvent = useCallback(
     (messageId: string, event: AnswerEvent) => {
       pendingEvents.current.push({ messageId, event });
-      if (!flushScheduled.current) {
-        flushScheduled.current = true;
-        // ~50 ms batches: a handful of renders per second of streaming instead of one per token.
-        setTimeout(flushEvents, 50);
-      }
+      const delay = flushDelay(event);
+      // A stage, the sources or done: flush now, with the tokens queued before it (order kept).
+      if (delay === 0) flushEvents();
+      else if (!flushTimer.current) flushTimer.current = setTimeout(flushEvents, delay);
     },
     [flushEvents]
   );
@@ -276,6 +294,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       setModelsRequested(true);
       await loads;
       startAppMemoryTracking();
+      // Portuguese app: build the PT lexicon now, off the send path (audit #5: the first Portuguese question froze
+      // the JS thread for its 6.5 MB and 173k titles). After the loads, not during: no extra heap next to the GGUF.
+      if (shouldWarmPtLexicon(locale)) setTimeout(() => warmPtLexicon(), 0);
       const stopProgress = onSeedProgress((p) =>
         setLoadStatus({
           label: t("chat.model.indexing", { done: p.done.toLocaleString(locale), total: p.total.toLocaleString(locale) }),
@@ -691,6 +712,20 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     navigation.dispatch(DrawerActions.openDrawer());
   }, [navigation, refreshSessions]);
   const send = useCallback(() => ask(input), [ask, input]);
+  // Stable props for the empty state (memo): typing re-renders this screen on every key (audit #7).
+  const suggestions = useMemo(
+    () => (showSuggestions ? suggestionsFor(activeModel?.id, i18n.language, knowledge) : []),
+    [showSuggestions, activeModel?.id, i18n.language, knowledge]
+  );
+  const openKnowledge = useCallback(() => navigation.navigate("Knowledge"), [navigation]);
+  const fillQuestion = useCallback((q: string) => {
+    setInput(q);
+    inputRef.current?.focus();
+  }, []);
+  const listContentStyle = useMemo(
+    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
+    [tk]
+  );
 
   // Set while another screen (Settings, Models, ...) is pushed on top of the chat;
   // also keeps download toasts meant for that screen out of the chat.
@@ -922,7 +957,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           keyExtractor={(m) => m.id}
           renderItem={renderItem}
           extraData={renderItem}
-          contentContainerStyle={{ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }}
+          contentContainerStyle={listContentStyle}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           // With a conversation on screen, a model error comes in as the next message, above the composer: it
@@ -939,23 +974,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
               <ChatEmptyState
-                suggestions={showSuggestions ? suggestionsFor(activeModel?.id, i18n.language, knowledge) : []}
-                onAddKnowledge={showSuggestions ? () => navigation.navigate("Knowledge") : undefined}
+                suggestions={suggestions}
+                onAddKnowledge={showSuggestions ? openKnowledge : undefined}
                 onAsk={ask}
-                onFill={(q) => {
-                  setInput(q);
-                  inputRef.current?.focus();
-                }}
+                onFill={fillQuestion}
               />
             )
           }
-          // Snap while streaming (animations started on every token fight each other); animate otherwise.
-          onContentSizeChange={() => {
-            if (followBottom.current) scrollToBottom(!generating);
-          }}
-          onLayout={() => {
-            if (followBottom.current) scrollToBottom();
-          }}
+          onContentSizeChange={onListContentSize}
+          onLayout={onListLayout}
           onScroll={onListScroll}
           scrollEventThrottle={100}
         />

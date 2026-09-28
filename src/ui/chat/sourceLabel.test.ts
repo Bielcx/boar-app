@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { answerSourceSplit, bestBand, citedSplit, sourcesCardMode, groupSources, relevanceBands, sourceParts } from "./sourceLabel";
+import { answerSourceSplit, bestBand, citedSplit, sourcesCardMode, groupSources, relevanceBands, sourceParts, sourceSeal } from "./sourceLabel";
 
 describe("sourceParts", () => {
   it("splits the corpus 'Name — URL (license)' string (Prism S-2)", () => {
@@ -92,5 +92,23 @@ describe("sourcesCardMode (Prism: no shrinking card while streaming)", () => {
     expect(sourcesCardMode(false, null)).toBe("all");
     expect(sourcesCardMode(false, { cited: [] })).toBe("related");
     expect(sourcesCardMode(true, { cited: [0] })).toBe("cited"); // Deepen running: the fast pass's card stays
+  });
+});
+
+describe("sourceSeal (Prism CH-17)", () => {
+  const labels = { myDocuments: "My documents", corpus: "Offline library" };
+  it("a pack source: its name in the badge, the URL apart without scheme or license", () => {
+    expect(sourceSeal({ source: "Wikipedia — https://en.wikipedia.org/wiki/Nosebleed (CC BY-SA 4.0)" }, labels)).toEqual({
+      label: "Wikipedia",
+      url: "en.wikipedia.org/wiki/Nosebleed",
+    });
+  });
+  it("the user's documents and unnamed sources", () => {
+    expect(sourceSeal({ source: "notes.pdf", collectionId: "c1" }, labels)).toEqual({ label: "My documents", url: null });
+    expect(sourceSeal({ source: "" }, labels)).toEqual({ label: "Offline library", url: null });
+    expect(sourceSeal({ source: "WikEM" }, labels)).toEqual({ label: "WikEM", url: null });
+  });
+  it("never puts a URL in the badge", () => {
+    expect(sourceSeal({ source: "https://www.wikem.org/wiki/Epistaxis" }, labels).label).toBe("wikem.org");
   });
 });

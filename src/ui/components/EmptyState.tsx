@@ -13,6 +13,8 @@ export interface EmptyStateProps {
   tone?: "neutral" | "error";
   actionLabel?: string;
   onAction?: () => void;
+  /** "secondary" where the screen's one accent belongs to another control (the chat's send). Default primary. */
+  actionVariant?: "primary" | "secondary";
   secondaryLabel?: string;
   onSecondary?: () => void;
 }
@@ -25,6 +27,7 @@ export function EmptyState({
   tone = "neutral",
   actionLabel,
   onAction,
+  actionVariant = "primary",
   secondaryLabel,
   onSecondary,
 }: EmptyStateProps) {
@@ -54,7 +57,7 @@ export function EmptyState({
       )}
       {(actionLabel || secondaryLabel) && (
         <View style={{ gap: t.space.sm, marginTop: t.space.sm, alignSelf: "stretch", alignItems: "center" }}>
-          {actionLabel && onAction && <Button label={actionLabel} onPress={onAction} />}
+          {actionLabel && onAction && <Button label={actionLabel} variant={actionVariant} onPress={onAction} />}
           {secondaryLabel && onSecondary && <Button label={secondaryLabel} variant="ghost" onPress={onSecondary} />}
         </View>
       )}

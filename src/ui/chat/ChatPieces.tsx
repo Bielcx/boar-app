@@ -1,19 +1,22 @@
 import React, { memo, useEffect, useRef, useState } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, useWindowDimensions, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Icon, IconText, Mascot, Progress, Sheet, Text, useToast } from "../components";
-import { useTheme, useTokens } from "../theme";
+import { Badge, Button, Card, Icon, IconText, LARGE_TEXT_SCALE, Mascot, Progress, Sheet, Text, TextAction, useOpticalLine, useToast } from "../components";
+import { icon, useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
 import { showsKnowledgeHint } from "./suggestions";
 import { bootEntranceTiming } from "./presentation";
+import { chatLargeText } from "./largeText";
+import { sourceSeal } from "./sourceLabel";
 
 /** The source behind a citation: title, where it comes from, and the passage. */
 export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk | null; index: number; onClose: () => void }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const toast = useToast();
+  const seal = source ? sourceSeal(source, { myDocuments: tr("chat.sources.myDocuments"), corpus: tr("chat.sources.corpus") }) : null;
   return (
     <Sheet
       visible={!!source}
@@ -37,11 +40,15 @@ export function SourceSheet({ source, index, onClose }: { source: RetrievedChunk
     >
       {source && (
         <View style={{ gap: t.space.md }}>
-          <Badge
-            label={source.collectionId ? tr("chat.sources.myDocuments") : source.source || tr("chat.sources.corpus")}
-            icon={source.collectionId ? "file-text" : "book"}
-            tone="field"
-          />
+          {/* The source's name in the seal, its link as a caption (Prism CH-17: no upper-cased URL in a pill). */}
+          <View style={{ gap: t.space.xs, alignItems: "flex-start" }}>
+            <Badge label={seal!.label} icon={source.collectionId ? "file-text" : "book"} tone="field" />
+            {seal!.url && (
+              <Text variant="caption" color="secondary" selectable>
+                {seal!.url}
+              </Text>
+            )}
+          </View>
           <Text selectable>{source.body}</Text>
         </View>
       )}
@@ -95,7 +102,8 @@ export const UserMessage = memo(function UserMessage({
  * then questions to start with as cards (topic overline + the question). Tap
  * sends; long-press or the screen reader action fills the composer.
  */
-export function ChatEmptyState({
+// Memoized: typing a first question re-renders the chat screen on every key; the hero and cards stay still.
+export const ChatEmptyState = memo(function ChatEmptyState({
   suggestions,
   onAsk,
   onFill,
@@ -114,6 +122,9 @@ export function ChatEmptyState({
   const [firstAfterBoot] = useState(() => !bootHeroShown);
   bootHeroShown = true;
   const heroAppear = useBootEntrance(firstAfterBoot);
+  // The add-knowledge card's support line starts under its label's text.
+  const addLine = useOpticalLine("footnote");
+  const layout = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE);
   return (
     // The mockup's layout (spec-chat-vazio): mascot, wordmark, tagline, then the suggestions.
     <View
@@ -172,7 +183,7 @@ export function ChatEmptyState({
                 <Text variant="caption" weight="semibold" color="field">
                   {tr(`chat.suggestionTopics.${k}`)}
                 </Text>
-                <Text variant="footnote" numberOfLines={2}>
+                <Text variant="footnote" numberOfLines={layout.suggestionLines}>
                   {q}
                 </Text>
               </Card>
@@ -184,19 +195,25 @@ export function ChatEmptyState({
               onPress={onAddKnowledge}
               radius="card"
               padding="compact"
-              accessibilityLabel={tr("chat.empty.addKnowledge")}
+              accessibilityLabel={`${tr("chat.empty.addKnowledge")}, ${tr("chat.empty.addKnowledgeWhy")}`}
               accessibilityHint={tr("chat.empty.addKnowledgeHint")}
             >
-              <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
-                {tr("chat.empty.addKnowledge")}
-              </IconText>
+              {/* The action as the label, the reason on a support line under its text (Prism CH-10). */}
+              <View style={{ gap: t.space.xxs }}>
+                <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
+                  {tr("chat.empty.addKnowledge")}
+                </IconText>
+                <Text variant="caption" color="secondary" style={{ paddingLeft: addLine.iconSize + icon.gap }}>
+                  {tr("chat.empty.addKnowledgeWhy")}
+                </Text>
+              </View>
             </Card>
           )}
         </View>
       )}
     </View>
   );
-}
+});
 
 // Module scope: the empty chat's hero uses the boot entrance only on its first mount after launch (Iris).
 let bootHeroShown = false;
@@ -226,7 +243,7 @@ function useBootEntrance(on: boolean): Animated.Value {
 }
 
 /** The model is still loading: the dimmed mascot with what is happening, centred where the answers will be. */
-export function ChatModelLoading({ label, progress }: { label: string; progress?: number }) {
+export const ChatModelLoading = memo(function ChatModelLoading({ label, progress }: { label: string; progress?: number }) {
   const t = useTokens();
   // The mascot comes in after the native splash's cut: two boars crossed on Android (Prism, 8dc234e).
   const appear = useBootEntrance(true);
@@ -243,7 +260,7 @@ export function ChatModelLoading({ label, progress }: { label: string; progress?
       </View>
     </View>
   );
-}
+});
 
 /**
  * The model didn't load: the dimmed mascot over a danger-bordered card with
@@ -272,6 +289,8 @@ export function ChatModelError({
   onRetry: () => void;
 }) {
   const t = useTokens();
+  // Prism CH-12: at large text the two buttons stack instead of breaking their words.
+  const layout = chatLargeText(useWindowDimensions().fontScale >= LARGE_TEXT_SCALE);
   const { t: tr } = useTranslation();
   const kind = engineKind ?? modelErrorKind(error);
   const setupLeads = modelErrorPrimary(kind) === "setup" && !!onRelaunchWizard;
@@ -299,26 +318,13 @@ export function ChatModelError({
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Badge label={tr("chat.modelError.overline")} tone="danger" icon="alert-triangle" />
           {raw.length > 0 && (
-            // As tall as the chip, so the line doesn't grow; the touch area reaches the minimum through hitSlop.
-            <Pressable
+            // The DS expander (Prism CH-8): touch minimum through its hitSlop, the line doesn't grow.
+            <TextAction
+              icon={details ? "chevron-up" : "chevron-down"}
+              expanded={details}
+              label={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
               onPress={() => setDetails((d) => !d)}
-              accessibilityRole="button"
-              accessibilityLabel={tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
-              accessibilityState={{ expanded: details }}
-              hitSlop={{ top: t.space.md, bottom: t.space.md, left: t.space.sm, right: t.space.sm }}
-            >
-              {/* Icon-align (Iris): one gap token, the chevron on the label's line. */}
-              <IconText
-                icon={details ? "chevron-up" : "chevron-down"}
-                iconPosition="end"
-                variant="caption"
-                weight="semibold"
-                color="secondary"
-                iconColor={t.color.text.secondary}
-              >
-                {tr(details ? "chat.modelError.hideDetails" : "chat.modelError.details")}
-              </IconText>
-            </Pressable>
+            />
           )}
         </View>
         <View style={{ gap: t.space.xs }}>
@@ -348,10 +354,10 @@ export function ChatModelError({
           </View>
         )}
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.sm }}>
-          <View style={{ flexGrow: 1, flexBasis: "40%" }}>
+          <View style={{ flexGrow: 1, flexBasis: layout.errorButtonBasis }}>
             <Button label={tr("chat.modelError.settings")} variant="secondary" fullWidth onPress={onOpenSettings} />
           </View>
-          <View style={{ flexGrow: 1, flexBasis: "40%" }}>
+          <View style={{ flexGrow: 1, flexBasis: layout.errorButtonBasis }}>
             {setupLeads ? (
               <Button label={tr("chat.modelError.setup")} fullWidth onPress={onRelaunchWizard} />
             ) : (
