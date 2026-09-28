@@ -95,8 +95,9 @@ export function buildMotion(reduceMotion: boolean) {
     crossfade(direction: "forward" | "back" | "none" = "none") {
       const x = crossfadeSpec(reduceMotion);
       const from: Travel = direction === "forward" ? "end" : direction === "back" ? "start" : "none";
-      const to: Travel = direction === "forward" ? "start" : direction === "back" ? "end" : "none";
-      return { entering: enterKeyframe(x.in, from, x.in.delay), exiting: exitKeyframe(x.out, to) };
+      // The old block fades out in place: Reanimated runs the `exiting` it had at its last render,
+      // which was built for the PREVIOUS change, so a direction there could point the wrong way.
+      return { entering: enterKeyframe(x.in, from, x.in.delay), exiting: exitKeyframe(x.out, "none") };
     },
     /** Reanimated `layout`: size/position changes of siblings and containers. */
     layout: LinearTransition.duration(layoutSpec.duration).easing(reCurves[layoutSpec.curve]).reduceMotion(ReduceMotion.Never),

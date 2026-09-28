@@ -10,7 +10,7 @@ import { Badge, Button, Card, EmptyState, IconName, LARGE_TEXT_SCALE, IconSlot, 
 import type { TextColor } from "./components/Text";
 import { icon as iconTokens, useTokens } from "./theme";
 import { useMotion } from "./theme/motion";
-import Animated from "react-native-reanimated";
+import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 import { impact, ImpactFeedbackStyle, notification, NotificationFeedbackType } from "../services/haptics";
 import { useLanguage } from "../i18n/LanguageContext";
 import { getSetupProgress, LanguageId, setActiveModelId, setSetupProgress } from "../models/settings";
@@ -87,6 +87,14 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const catalog = useCatalog({ liveProgress: true });
   const lang = i18n.language;
   const [step, setStep] = useState<Step>(1);
+  // A step change is a content swap (DS §6): the old step leaves in 90 ms, the new one enters after
+  // it, travelling in the reading direction when going forward and against it when going back (TR-3).
+  const motion = useMotion();
+  const lastStep = useRef(step);
+  const swap = useMemo(() => motion.crossfade(step > lastStep.current ? "forward" : step < lastStep.current ? "back" : "none"), [motion, step]);
+  useEffect(() => {
+    lastStep.current = step;
+  }, [step]);
   const [packageId, setPackageId] = useState<PackageId>("essential");
   const [backOpen, setBackOpen] = useState(false);
   const [travel, setTravel] = useState<PoiRegion | null>(null);
@@ -199,71 +207,76 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
 
   return (
     <>
-      {step === 1 && (
-        <Welcome
-          titleRef={titleRef}
-          languageId={languageId}
-          setLanguage={setLanguage}
-          deviceRamBytes={catalog.deviceRamBytes}
-          freeBytes={catalog.freeBytes}
-          lang={lang}
-          onNext={() => setStep(2)}
-          onSkip={skip}
-        />
-      )}
-      {step === 2 && (
-        <PackageStep
-          titleRef={titleRef}
-          selected={packageId}
-          onSelect={setPackageId}
-          present={present}
-          freeBytes={catalog.freeBytes}
-          deviceRamBytes={catalog.deviceRamBytes}
-          fit={catalog.fit}
-          loaded={catalog.loaded}
-          lang={lang}
-          travel={travel}
-          onTravel={setTravel}
-          trip={trip}
-          onTrip={setTrip}
-          catalog={catalog}
-          choices={choices}
-          answerTier={answerTier}
-          onAnswerTier={setAnswerTier}
-          packageChosen={packageChosen}
-          answerChosen={answerChosen}
-          onUserPackage={(id) => {
-            setPackageChosen(true);
-            setPackageId(id);
-          }}
-          onUserAnswer={(tierId) => {
-            setAnswerChosen(true);
-            setAnswerTier(tierId);
-          }}
-          restored={restored}
-          onBack={() => setStep(1)}
-          onInstall={startInstall}
-        />
-      )}
-      {step === 3 && (
-        <InstallStep
-          titleRef={titleRef}
-          assets={assets}
-          catalog={catalog}
-          allPresent={allPresent}
-          lang={lang}
-          onBack={() => setBackOpen(true)}
-          onChoosePackage={() => setStep(2)}
-          answerModel={answerModel}
-          placesLabel={trip?.label ?? (travel ? (lang.startsWith("pt") ? travel.name.pt : travel.name.en) : undefined)}
-          onReady={async () => {
-            // The chosen answer model (default or compact) writes the answers from now on.
-            if (answerModel) await setActiveModelId("llm", answerModel.id);
-            setSetupProgress(null);
-            onReady();
-          }}
-        />
-      )}
+      {/* The first step appears with the route's own fade; only later changes animate here. */}
+      <LayoutAnimationConfig skipEntering>
+        <Animated.View key={step} style={{ flex: 1 }} entering={swap.entering} exiting={swap.exiting}>
+          {step === 1 && (
+            <Welcome
+              titleRef={titleRef}
+              languageId={languageId}
+              setLanguage={setLanguage}
+              deviceRamBytes={catalog.deviceRamBytes}
+              freeBytes={catalog.freeBytes}
+              lang={lang}
+              onNext={() => setStep(2)}
+              onSkip={skip}
+            />
+          )}
+          {step === 2 && (
+            <PackageStep
+              titleRef={titleRef}
+              selected={packageId}
+              onSelect={setPackageId}
+              present={present}
+              freeBytes={catalog.freeBytes}
+              deviceRamBytes={catalog.deviceRamBytes}
+              fit={catalog.fit}
+              loaded={catalog.loaded}
+              lang={lang}
+              travel={travel}
+              onTravel={setTravel}
+              trip={trip}
+              onTrip={setTrip}
+              catalog={catalog}
+              choices={choices}
+              answerTier={answerTier}
+              onAnswerTier={setAnswerTier}
+              packageChosen={packageChosen}
+              answerChosen={answerChosen}
+              onUserPackage={(id) => {
+                setPackageChosen(true);
+                setPackageId(id);
+              }}
+              onUserAnswer={(tierId) => {
+                setAnswerChosen(true);
+                setAnswerTier(tierId);
+              }}
+              restored={restored}
+              onBack={() => setStep(1)}
+              onInstall={startInstall}
+            />
+          )}
+          {step === 3 && (
+            <InstallStep
+              titleRef={titleRef}
+              assets={assets}
+              catalog={catalog}
+              allPresent={allPresent}
+              lang={lang}
+              onBack={() => setBackOpen(true)}
+              onChoosePackage={() => setStep(2)}
+              answerModel={answerModel}
+              placesLabel={trip?.label ?? (travel ? (lang.startsWith("pt") ? travel.name.pt : travel.name.en) : undefined)}
+              onReady={async () => {
+                // The chosen answer model (default or compact) writes the answers from now on.
+                if (answerModel) await setActiveModelId("llm", answerModel.id);
+                setSetupProgress(null);
+                onReady();
+              }}
+            />
+          )}
+        </Animated.View>
+      </LayoutAnimationConfig>
       <Sheet
         visible={backOpen}
         onClose={() => setBackOpen(false)}
@@ -1132,6 +1145,10 @@ function InstallStep({
   const extras = catalog.imports
     .filter((f) => f.status === "verified" && f.assetId && !assets.some((a) => a.id === f.assetId))
     .map((f) => { const a = findAsset(f.assetId!); return a ? catalogLabel(a, t) : f.name; });
+  // Install -> done happens under the user's eyes: the done screen fades in (`enter`). When the step
+  // opens already done (restored), the step's own crossfade is enough.
+  const motion = useMotion();
+  const openedReady = useRef(ready).current;
   // The last screen before the chat: centred, one figure-free summary of what is now on the phone (Prism N-13).
   if (ready) {
     const collections = assets.filter((a) => a.kind === "corpus" && !a.id.startsWith("poi-")).length;
@@ -1142,48 +1159,50 @@ function InstallStep({
       seed && seed.total > 0 && { key: "doneIndex", value: t("flows.onboarding.doneArticles", { count: seed.total, value: formatCount(seed.total, lang) }) },
     ].filter((r): r is { key: string; value: string } => !!r);
     return (
-      // ambient: the same ember light as the Welcome, so both ends of setup rhyme (Iris).
-      <Screen center ambient edges={["top", "bottom", "left", "right"]} footer={<Button size="lg" label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
-        <View style={{ alignItems: "center", gap: tokens.space.md }}>
-          <Mascot size="hero" glow />
-          <Text ref={titleRef} variant="title1" align="center" header>
-            {t("flows.onboarding.doneTitle")}
-          </Text>
-          <Text variant="footnote" color="secondary" align="center">
-            {t("flows.onboarding.doneBody")}
-          </Text>
-        </View>
-        {summary.length > 0 && (
-          <Card>
-            <Text variant="label" color="secondary">
-              {t("flows.onboarding.doneSummary")}
+      <Animated.View style={{ flex: 1 }} entering={openedReady ? undefined : motion.entering()}>
+        {/* ambient: the same ember light as the Welcome, so both ends of setup rhyme (Iris). */}
+        <Screen center ambient edges={["top", "bottom", "left", "right"]} footer={<Button size="lg" label={t("flows.onboarding.open")} fullWidth onPress={onReady} />}>
+          <View style={{ alignItems: "center", gap: tokens.space.md }}>
+            <Mascot size="hero" glow />
+            <Text ref={titleRef} variant="title1" align="center" header>
+              {t("flows.onboarding.doneTitle")}
             </Text>
-            {summary.map((r, i) => (
-              <View
-                key={r.key}
-                accessible
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: tokens.space.md,
-                  paddingTop: tokens.space.md,
-                  paddingBottom: i < summary.length - 1 ? tokens.space.md : 0,
-                  borderBottomWidth: i < summary.length - 1 ? tokens.size.hairline : 0,
-                  borderBottomColor: tokens.color.line.hairline,
-                }}
-              >
-                <Text variant="footnote" color="secondary">
-                  {t(`flows.onboarding.${r.key}`)}
-                </Text>
-                <Text variant="footnote" align="right" style={{ flex: 1 }}>
-                  {r.value}
-                </Text>
-              </View>
-            ))}
-          </Card>
-        )}
-      </Screen>
+            <Text variant="footnote" color="secondary" align="center">
+              {t("flows.onboarding.doneBody")}
+            </Text>
+          </View>
+          {summary.length > 0 && (
+            <Card>
+              <Text variant="label" color="secondary">
+                {t("flows.onboarding.doneSummary")}
+              </Text>
+              {summary.map((r, i) => (
+                <View
+                  key={r.key}
+                  accessible
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: tokens.space.md,
+                    paddingTop: tokens.space.md,
+                    paddingBottom: i < summary.length - 1 ? tokens.space.md : 0,
+                    borderBottomWidth: i < summary.length - 1 ? tokens.size.hairline : 0,
+                    borderBottomColor: tokens.color.line.hairline,
+                  }}
+                >
+                  <Text variant="footnote" color="secondary">
+                    {t(`flows.onboarding.${r.key}`)}
+                  </Text>
+                  <Text variant="footnote" align="right" style={{ flex: 1 }}>
+                    {r.value}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          )}
+        </Screen>
+      </Animated.View>
     );
   }
 
