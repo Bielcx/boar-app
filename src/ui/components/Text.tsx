@@ -67,6 +67,9 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
   const isHeader = header ?? HEADER_VARIANTS.includes(variant);
   return (
     <RNText
+      // Spread first: an explicit `maxFontSizeMultiplier={undefined}` (IconText passes one) must not
+      // erase the variant's cap, or text and its icon scale apart (Prism FD-5).
+      {...rest}
       ref={ref}
       accessibilityRole={isHeader ? "header" : rest.accessibilityRole}
       maxFontSizeMultiplier={rest.maxFontSizeMultiplier ?? maxFontSizeMultiplier}
@@ -79,7 +82,6 @@ export const Text = forwardRef<RNText, TextProps>(function Text({
         align && { textAlign: align },
         style,
       ]}
-      {...rest}
     />
   );
 });

@@ -35,12 +35,16 @@ const DEFAULT_ICON: Record<BannerTone, IconName> = {
  * soft fill and the icon (mockup "KEEP BOAR OPEN"); only danger adds a frame,
  * so an info note inside a card doesn't draw a coloured box.
  */
+/** The dismiss disc is pulled this far into the corner, so its x sits near the padding edge, not 6 pt inside it. */
+const DISMISS_PULL = 6;
+
 export function Banner({ tone = "info", title, message, icon, actionLabel, onAction, onDismiss, dismissLabel }: BannerProps) {
   const t = useTokens();
   const { t: tr } = useTranslation();
   const tc = toneColors(t.color, tone);
   // The icon sits on the first line: the title's when there is one, else the message's.
-  const line = useOpticalLine(title ? "headline" : "callout", "title");
+  // Its role follows the line: 20 beside a title, 16 beside a callout message (DS §7, Prism FD-6).
+  const line = useOpticalLine(title ? "headline" : "callout");
   return (
     <View
       accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}
@@ -71,7 +75,7 @@ export function Banner({ tone = "info", title, message, icon, actionLabel, onAct
         )}
       </View>
       {onDismiss && (
-        <IconButton icon="x" size="sm" label={dismissLabel ?? tr("ui.dismiss")} onPress={onDismiss} style={{ marginTop: -6, marginRight: -6 }} />
+        <IconButton icon="x" size="sm" label={dismissLabel ?? tr("ui.dismiss")} onPress={onDismiss} style={{ marginTop: -DISMISS_PULL, marginRight: -DISMISS_PULL }} />
       )}
     </View>
   );

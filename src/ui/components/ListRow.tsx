@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Switch as RNSwitch, useWindowDimensions, View } from "react-native";
 import { impact, ImpactFeedbackStyle, selection } from "../../services/haptics";
-import { icon as iconTokens, useTokens } from "../theme";
+import { icon as iconTokens, space, useTokens } from "../theme";
 import { Icon, IconName } from "./Icon";
 import { IconSlot, useOpticalLine } from "./IconText";
 import { switchColors } from "./Switch";
@@ -166,11 +166,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center" },
   // Icon column + text: the icon stays on line 1 while the row centres the whole block.
   lead: { flex: 1, flexDirection: "row", alignItems: "flex-start" },
-  body: { flex: 1, gap: 2 },
+  body: { flex: 1, gap: space.xxs },
   // Title and value share one line (value right, at most half the width, wrapping in place) instead of
   // the value dropping to a second line on its own (Prism LT-2, 'Keep the last 10').
-  titleLine: { flexDirection: "row", alignItems: "baseline", columnGap: 8 },
-  titleStack: { gap: 2 },
+  titleLine: { flexDirection: "row", alignItems: "baseline", columnGap: space.sm },
+  titleStack: { gap: space.xxs },
   title: { flex: 1, flexShrink: 1 },
   value: { flexShrink: 1, maxWidth: "50%", textAlign: "right" },
 });

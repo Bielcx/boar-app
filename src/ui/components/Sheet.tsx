@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, findNodeHandle, Modal, Pressable, ScrollVi
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useTheme } from "../theme";
+import { opacity, space, useTheme } from "../theme";
 import { IconButton } from "./IconButton";
 import { Text } from "./Text";
 import { sheetAnimates } from "./sheetMotion";
@@ -140,8 +140,11 @@ export function Sheet({
   );
 }
 
+/** The grabber bar: the platform sheets' 36 pt handle. */
+const GRABBER_WIDTH = 36;
+
 const styles = StyleSheet.create({
   anchor: { flex: 1, justifyContent: "flex-end" },
-  grabber: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, marginTop: 8, opacity: 0.6 },
+  grabber: { alignSelf: "center", width: GRABBER_WIDTH, height: space.xs, borderRadius: space.xxs, marginTop: space.sm, opacity: opacity.pressed },
   header: { flexDirection: "row", alignItems: "flex-start" },
 });

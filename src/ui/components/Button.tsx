@@ -1,7 +1,7 @@
 import React, { forwardRef } from "react";
 import { ActivityIndicator, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
-import { useTokens } from "../theme";
+import { space, useTokens } from "../theme";
 import type { IconName } from "./Icon";
 import { IconText } from "./IconText";
 
@@ -109,6 +109,6 @@ export const Button = forwardRef<View, ButtonProps>(function Button({
 });
 
 const styles = StyleSheet.create({
-  base: { alignItems: "center", justifyContent: "center", paddingVertical: 8 },
+  base: { alignItems: "center", justifyContent: "center", paddingVertical: space.sm },
   fullWidth: { alignSelf: "stretch" },
 });
