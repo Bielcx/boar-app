@@ -85,7 +85,7 @@ if [[ " $PHASES " == *" misc "* ]]; then
   $A shell mkdir -p /sdcard/Download/docs; printf 'this is not a pdf\n' > "$OUT/broken.pdf"; $A push "$OUT/broken.pdf" /sdcard/Download/docs/ | tail -1
   $A shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/docs/broken.pdf" >/dev/null
   fontscale 1.0
-  for L in pt en; do fresh; mf setup-$L prints/setup-to-chat.yaml $L && mf misc-$L prints/iris-misc.yaml $L; done
+  for L in pt en; do fresh; mf setup2-$L prints/setup-to-chat.yaml $L && mf misc2-$L prints/iris-misc.yaml $L; done
 fi
 
 if [[ " $PHASES " == *" perf "* ]] || [[ " $PHASES " == *" prints "* ]]; then
@@ -130,6 +130,9 @@ if [[ " $PHASES " == *" perf "* ]]; then
     $A exec-out screencap -p > $PD/streaming-$r-end.png; $A shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; $A exec-out cat /sdcard/ui.xml > $PD/streaming-$r-end.xml
     mf perf-src-$r perf/open-sources.yaml en; gfx_reset; ts=$(date +%s); swipes 3; gfx_dump sources-scroll $r $(( $(date +%s)-ts ))
     $A exec-out screencap -p > $PD/sources-$r-end.png
+    # (b2, from 4b25507 on) the source list really open: expand "Source 1: ..." and scroll the chat with it
+    mf perf-srcopen-$r perf/expand-source.yaml en; gfx_reset; ts=$(date +%s); swipes 3; gfx_dump sources-open $r $(( $(date +%s)-ts ))
+    $A exec-out screencap -p > $PD/sources-open-$r-end.png
   done
   # Perfetto: one extra streaming run (not in the table), 5 s trace starting 15 s after Send (JS thread vs UI thread)
   mf perf-prep-trace perf/prep-ask.yaml en QUESTION="$QLONG"

@@ -76,6 +76,12 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
 - takeScreenshot: 14-settings-appearance_android_${L}
 - scroll
 - takeScreenshot: 14-settings-appearance_android_${L}_b
+# Iris: Settings scrolled to the very end (theme chips vs the 3-button nav bar)
+- scroll
+- scroll
+- scroll
+- scroll
+- takeScreenshot: 14-settings-end_android_${L}
 - runFlow: ../perf/to-chat.yaml
 - tapOn: ${T_MENU}
 - tapOn: ${T_SETTINGS}
