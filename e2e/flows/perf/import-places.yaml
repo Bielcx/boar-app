@@ -1,0 +1,19 @@
+# Knowledge > Import places: tile + gazetteer in one batch (same as 11-offline-places-city).
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- runFlow: to-chat.yaml
+- tapOn: ${T_MENU}
+- tapOn: ${T_KNOWLEDGE}
+- scrollUntilVisible:
+    element: ${T_IMPORT_PLACES}
+- tapOn: ${T_IMPORT_PLACES}
+- runFlow: ../common/pick-places.yaml
+- extendedWaitUntil:
+    visible:
+      text: "${T_VERIFIED} World places.*"
+    timeout: 180000
+- extendedWaitUntil:
+    visible:
+      text: "${T_VERIFIED} (?!World places).*"
+    timeout: 180000
+- runFlow: to-chat.yaml

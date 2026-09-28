@@ -1,0 +1,17 @@
+# Measured window part 1: bring the places list's "Show N more" into view and tap it.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- scrollUntilVisible:
+    element:
+      text: "${T_SHOW_MORE}"
+    direction: UP
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "${T_SHOW_MORE}"
+    optional: true
+- takeScreenshot: perf-places-before-more
+- tapOn:
+    text: "${T_SHOW_MORE}"
+    optional: true
+- takeScreenshot: perf-places-after-more

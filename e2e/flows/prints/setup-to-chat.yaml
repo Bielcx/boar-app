@@ -1,0 +1,42 @@
+# Fresh app -> offline import of everything in Download/ -> empty chat. Same steps as prints-final.yaml.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- runFlow:
+    when:
+      true: ${L == 'pt'}
+    commands:
+      - scrollUntilVisible:
+          element: "Português"
+          optional: true
+      - tapOn: "Português"
+- scrollUntilVisible:
+    element: ${T_START}
+    optional: true
+- tapOn: ${T_START}
+- tapOn:
+    text: "${T_ESSENTIAL}, .*"
+- scrollUntilVisible:
+    element: ${T_CONTINUE}
+- tapOn: ${T_CONTINUE}
+- tapOn: ${T_PICK}
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- tapOn:
+    text: "List view"
+    optional: true
+- longPressOn:
+    text: ".*\\.gguf"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"
+- extendedWaitUntil:
+    visible: ${T_DONE}
+    timeout: 900000
+- scrollUntilVisible:
+    element: ${T_OPEN}
+    optional: true
+- tapOn: ${T_OPEN}
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000

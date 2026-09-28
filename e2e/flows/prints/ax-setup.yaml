@@ -1,0 +1,30 @@
+# Night 28/09 (Boar #3): setup screens 02/03 at the current system font_scale (run-night.sh sets it and
+# clears the app first). SUF tags the file name (_font130, _font200).
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- runFlow:
+    when:
+      true: ${L == 'pt'}
+    commands:
+      - scrollUntilVisible:
+          element: "Português"
+          optional: true
+      - tapOn: "Português"
+- scrollUntilVisible:
+    element: ${T_START}
+    direction: UP
+    optional: true
+- takeScreenshot: 02-setup1-language_android_${L}${SUF}
+- scrollUntilVisible:
+    element: ${T_START}
+    optional: true
+- takeScreenshot: 02-setup1-language_android_${L}${SUF}_b
+- tapOn: ${T_START}
+- extendedWaitUntil:
+    visible:
+      text: "${T_ESSENTIAL}, .*"
+    timeout: 20000
+- takeScreenshot: 03-setup2-model_android_${L}${SUF}
+- scroll
+- takeScreenshot: 03-setup2-model_android_${L}${SUF}_b
