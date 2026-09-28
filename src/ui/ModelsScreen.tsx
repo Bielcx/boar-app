@@ -19,7 +19,7 @@ import { listRecentExecutions } from "../services/executionTelemetry";
 import { ImportList } from "./flows/ImportList";
 import { networkAllowed } from "../config/variant";
 import { useCatalog } from "./flows/useCatalog";
-import { formatBytes, formatBytesParts, formatCount, formatRate } from "./flows/format";
+import { formatBytes, formatBytesParts, formatCount, formatRate, toWords } from "./flows/format";
 import { tokPerSecBand } from "./flows/perfBands";
 import type { RootStackParamList } from "./navigation/types";
 
@@ -162,7 +162,7 @@ export function ModelsScreen() {
                     }
                     meta={[
                       // Words, not tokens: a token is about three quarters of a word.
-                      sp && t("flows.models.wordsRate", { rate: formatCount(Math.round(sp.medianTokPerSec * 0.75), i18n.language) }),
+                      sp && t("flows.models.wordsRate", { rate: formatCount(Math.round(toWords(sp.medianTokPerSec)), i18n.language) }),
                       sp
                         ? t("flows.models.samples", { count: sp.samples, date: sp.lastAt ? new Date(sp.lastAt).toLocaleDateString(i18n.language) : "—" })
                         : t("flows.models.notMeasured"),
@@ -174,7 +174,7 @@ export function ModelsScreen() {
               })}
           </View>
           <Text variant="footnote" color="secondary" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs }}>
-            {t("flows.models.deepFooter", { min: MIN_DEEP_TOK_PER_SEC })}
+            {t("flows.models.deepFooter", { min: formatCount(Math.round(toWords(MIN_DEEP_TOK_PER_SEC)), i18n.language) })}
           </Text>
         </View>
       )}
@@ -323,7 +323,7 @@ export function ModelSearchScreen() {
                 />
                 {open === item.id && (
                   <View style={{ paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.md, gap: tokens.space.sm }}>
-                    {list === "loading" && <Skeleton height={40} />}
+                    {list === "loading" && <Skeleton height={tokens.size.row} />}
                     {list === "error" && (
                       <Text variant="footnote" color="danger">
                         {t("flows.models.filesFailed")}

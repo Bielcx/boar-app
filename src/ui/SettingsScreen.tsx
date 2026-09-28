@@ -11,6 +11,7 @@ import { useTheme, useTokens } from "./theme";
 import { screenRhythm } from "./flows/rhythm";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { catalogLabel } from "./flows/catalogLabel";
+import { formatCount, toWords } from "./flows/format";
 import { MODEL_CATALOG } from "../models/manifest";
 import { useLanguage } from "../i18n/LanguageContext";
 import {
@@ -45,11 +46,11 @@ interface Values {
   voice: boolean;
 }
 
-/** The length as plain words ("A page"); a nonstandard stored value falls back to its token count. */
-function lengthLabel(t: TFunction, maxTokens: number): string {
+/** The length as plain words ("A page"); a nonstandard stored value falls back to its approximate word count. */
+function lengthLabel(t: TFunction, maxTokens: number, locale: string): string {
   return (MAX_TOKENS_OPTIONS as readonly number[]).includes(maxTokens)
     ? t(`flows.length.hint${maxTokens}`)
-    : t("flows.settings.tokens", { count: maxTokens });
+    : t("flows.settings.words", { words: formatCount(Math.round(toWords(maxTokens)), locale) });
 }
 
 /** Which of the four answer modes the two toggles select (see flows-spec §3.1). */
@@ -58,7 +59,7 @@ function answerModeKey(quickFirst: boolean, alwaysComplete: boolean): string {
 }
 
 export function SettingsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const tokens = useTokens();
   const navigation = useNavigation<Nav>();
   const toast = useToast();
@@ -133,7 +134,7 @@ export function SettingsScreen() {
         <ListRow
           icon="align-left"
           title={t("flows.settings.length")}
-          value={lengthLabel(t, values.maxTokens)}
+          value={lengthLabel(t, values.maxTokens, i18n.language)}
           onPress={() => navigation.navigate("SettingsLength")}
         />
         <ListRow

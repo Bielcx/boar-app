@@ -19,10 +19,9 @@ import {
 import { getAppPeakRssBytes } from "../services/telemetry";
 import { PerfBand, PERF_BANDS_PROVISIONAL, recordTokPerSec, summarizeRecent, tokPerSecBand, ttftBand } from "./flows/perfBands";
 import { useCatalog } from "./flows/useCatalog";
-import { formatBytes, formatRam, formatRate, formatSeconds } from "./flows/format";
+import { formatBytes, formatRam, formatRate, formatSeconds, toWords } from "./flows/format";
 
 /** Rough English/Portuguese average; the screen shows words, not tokens (copy-wrap: no jargon). */
-const WORDS_PER_TOKEN = 0.75;
 import type { RootStackParamList } from "./navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -115,8 +114,8 @@ export function PerformanceScreen() {
       <Screen contentStyle={screenRhythm(tokens)}>
         <ScreenTitle>{t("nav.performance")}</ScreenTitle>
         <View accessible accessibilityLabel={t("flows.common.loading")} style={{ gap: tokens.space.md }}>
-          <Skeleton height={120} />
-          <Skeleton height={120} />
+          <Skeleton height={tokens.size.skeletonCard} />
+          <Skeleton height={tokens.size.skeletonCard} />
         </View>
       </Screen>
     );
@@ -155,7 +154,7 @@ export function PerformanceScreen() {
               {lastRate != null && (
                 <Metric
                   label={t("flows.performance.speed")}
-                  value={t("flows.performance.rate", { words: formatRate(lastRate * WORDS_PER_TOKEN, lang) })}
+                  value={t("flows.performance.rate", { words: formatRate(toWords(lastRate), lang) })}
                   band={tokPerSecBand(lastRate)}
                 />
               )}
@@ -183,7 +182,7 @@ export function PerformanceScreen() {
             {typical.tokPerSec != null && (
               <Metric
                 label={t("flows.performance.speed")}
-                value={t("flows.performance.rate", { words: formatRate(typical.tokPerSec * WORDS_PER_TOKEN, lang) })}
+                value={t("flows.performance.rate", { words: formatRate(toWords(typical.tokPerSec), lang) })}
                 band={tokPerSecBand(typical.tokPerSec)}
               />
             )}
@@ -263,7 +262,10 @@ export function PerformanceLogsScreen() {
     return (
       <Screen contentStyle={screenRhythm(tokens)}>
         <ScreenTitle>{t("flows.performance.logsTitle")}</ScreenTitle>
-        <Skeleton height={80} />
+        <View style={{ gap: tokens.space.sm }}>
+          <Skeleton height={tokens.size.row} />
+          <Skeleton height={tokens.size.row} />
+        </View>
       </Screen>
     );
   }
@@ -289,7 +291,7 @@ export function PerformanceLogsScreen() {
           const rate = recordTokPerSec(r);
           const parts = [
             r.ttftMs != null && `${t("flows.performance.startLabel")} ${formatSeconds(r.ttftMs, lang)}`,
-            rate != null && t("flows.performance.rate", { words: formatRate(rate * WORDS_PER_TOKEN, lang) }),
+            rate != null && t("flows.performance.rate", { words: formatRate(toWords(rate), lang) }),
             r.totalLatencyMs != null && `${t("flows.performance.total")} ${formatSeconds(r.totalLatencyMs, lang)}`,
           ].filter(Boolean);
           // Copy-wrap: memory and load go on their own line so the first one stays short.

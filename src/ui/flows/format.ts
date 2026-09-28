@@ -27,6 +27,14 @@ export function formatSeconds(ms: number, locale: string): string {
   return `${number(ms / 1000, locale, ms < 10_000 ? 1 : 0)} s`;
 }
 
+/** A token is about three quarters of an English word: the screen shows words, never tokens (Prism UX-2). */
+export const WORDS_PER_TOKEN = 0.75;
+
+/** Tokens as an approximate word count (a length or a per-second rate). */
+export function toWords(tokens: number): number {
+  return tokens * WORDS_PER_TOKEN;
+}
+
 export function formatRate(tokPerSec: number, locale: string): string {
   return number(tokPerSec, locale, 1);
 }
