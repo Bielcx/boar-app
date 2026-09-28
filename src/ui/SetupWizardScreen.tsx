@@ -592,7 +592,16 @@ function PackageStep({
           style={{ gap: tokens.space.sm }}
           // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
           onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
-          accessibilityLabel={[catalogLabel(answerModel, t), formatBytes(answerModel.sizeBytes, lang)].join(", ")}
+          // The label replaces the children for screen readers, so it says all they show (Prism FL-4).
+          accessibilityLabel={[
+            catalogLabel(answerModel, t),
+            answerTier === recommendedTier && t("flows.onboarding.recommended"),
+            formatBytes(answerModel.sizeBytes, lang),
+            answerFit && t(`flows.row.fitShort.${answerFit.verdict}`),
+            answerFit && t("flows.onboarding.workingMemory", { size: formatRam(answerFit.anonBytes + (answerFit.expertFraction === 0 ? answerFit.fileBytes : 0), lang) }),
+          ]
+            .filter(Boolean)
+            .join(", ")}
           accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
         >
           {/* Wraps at large text: MODEL + RECOMMENDED + size fill 302 of 307 pt at 2.0 (Prism FL-5). */}

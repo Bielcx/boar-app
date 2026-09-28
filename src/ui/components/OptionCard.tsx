@@ -84,11 +84,14 @@ export function OptionCard({
           <Radio on={selected} />
         </LineSlot>
       )}
-      {leading}
+      {/* A title-only card centres its row on the box; the title's glyphs ride on its optical line
+          (iOS ~3.6 pt high), so a leading disc moves with them (Prism FL-21). */}
+      {leading && titleOnly ? <View style={{ transform: [{ translateY: line.offset }] }}>{leading}</View> : leading}
       <View style={{ flex: 1, gap: t.space.xxs }}>
         {/* Title and badge wrap together; the deciding figure keeps its column on the right. */}
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: t.space.sm }}>
-          <View style={{ flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: t.space.sm, rowGap: t.space.xs }}>
+          {/* The badge sits on the title's optical line, not its box middle (Prism FD-2, icon-align §7). */}
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap", columnGap: t.space.sm, rowGap: t.space.xs }}>
             <Text
               variant="cardTitle"
               style={{ flexShrink: 1 }}
@@ -97,7 +100,7 @@ export function OptionCard({
             >
               {title}
             </Text>
-            {badge}
+            {badge ? <LineSlot line={line}>{badge}</LineSlot> : null}
           </View>
           {trailing !== undefined && (
             <View style={{ flexShrink: 0 }}>
