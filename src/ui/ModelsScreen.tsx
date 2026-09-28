@@ -22,6 +22,7 @@ import { useCatalog } from "./flows/useCatalog";
 import { formatBytes, formatBytesParts, formatCount, formatRate, toWords } from "./flows/format";
 import { tokPerSecBand } from "./flows/perfBands";
 import type { RootStackParamList } from "./navigation/types";
+import { userErrorKey } from "./flows/userError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -269,7 +270,7 @@ export function ModelSearchScreen() {
       await addDiscoveredModel(model);
       toast({ message: t("flows.models.added", { name: catalogLabel(model, t) }), tone: "success" });
     } catch (e: any) {
-      toast({ message: t("flows.models.addFailed", { error: e?.message ?? String(e) }), tone: "danger" });
+      toast({ message: t("flows.models.addFailed", { error: t(userErrorKey(e)) }), tone: "danger" });
     } finally {
       setAdding(null);
     }
@@ -298,7 +299,8 @@ export function ModelSearchScreen() {
           tone="error"
           icon="wifi-off"
           title={t("flows.models.searchFailed")}
-          body={search.message}
+          body={t(userErrorKey(search.message))}
+          detail={search.message}
           actionLabel={t("flows.row.retry")}
           onAction={run}
         />
@@ -318,6 +320,8 @@ export function ModelSearchScreen() {
                     downloads: formatCount(item.downloads ?? 0, i18n.language),
                     likes: formatCount(item.likes ?? 0, i18n.language),
                   })}
+                  // It folds its files in place: a disclosure, not navigation (Prism FL-14).
+                  expanded={open === item.id}
                   onPress={() => toggle(item.id)}
                   accessibilityHint={t("flows.models.repoHint")}
                 />

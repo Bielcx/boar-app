@@ -1,6 +1,6 @@
 {
   "common": {
-    "done": "PRONTO",
+    "done": "Pronto",
     "cancel": "Cancelar",
     "close": "Fechar",
     "back": "Voltar",
@@ -58,14 +58,14 @@
     "summary": "{{queries}} perguntas × {{configs}} configurações = {{total}} respostas",
     "keepScreenOn": "Mantenha a tela ligada e o app aberto durante a execução. Cada resposta também aparece no terminal do Metro como uma linha [EVAL].",
     "chatBusy": "Aguarde a resposta atual do chat terminar antes de rodar uma avaliação.",
-    "run": "▶ Rodar",
-    "stop": "■ Parar",
+    "run": "Rodar",
+    "stop": "Parar",
     "stopping": "Parando…",
     "progress": "Config. {{config}}/{{configs}} · Pergunta {{query}}/{{queries}}",
     "savedTo": "Salvo em {{path}}",
     "stoppedEarly": "Interrompido — resultados parciais salvos.",
-    "exportJsonl": "⬇ JSONL",
-    "exportCsv": "⬇ CSV",
+    "exportJsonl": "Exportar JSONL",
+    "exportCsv": "Exportar CSV",
     "exportFailedTitle": "Falha ao exportar",
     "runFailedTitle": "Falha na avaliação",
     "deviceRequest": "Iniciado por um computador conectado (pedido {{id}}).",
@@ -140,7 +140,7 @@
       "performance": "Desempenho",
       "about": "Sobre o BOAR",
       "recovery": "Recuperação",
-      "rerunSetup": "Refazer a configuração inicial",
+      "rerunSetup": "Configurar de novo",
       "eraseAll": "Apagar todos os dados",
       "eraseTitle": "Apagar todos os dados?",
       "eraseBody": "Isto remove deste celular:",
@@ -572,7 +572,6 @@
         "default": "Mais preciso",
         "compact": "Rápido"
       },
-      "suggested": "Sugerido",
       "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o Rápido está selecionado. Você ainda pode escolher o Mais preciso."
     },
     "places": {
@@ -608,8 +607,8 @@
       "areaRemoved": "{{name}} removida",
       "import": "Importar lugares",
       "importHint": "Um arquivo de lugares (.sqlite) do computador ou de outro celular.",
-      "getCity": "Baixar {{city}}",
-      "getCityHint": "Mapa offline de lugares · {{size}}",
+      "getCity": "Baixar mapa",
+      "getCityHint": "Lugares de {{city}}, offline · {{size}}",
       "updateAvailable": "Atualização disponível",
       "gettingCity": "Baixando {{city}}",
       "cityReady": "{{city}} está no celular. Pergunte de novo para ver os lugares."
@@ -648,8 +647,8 @@
     },
     "catalog": {
       "label": {
-        "corpus-standard": "Base de conhecimento padrão (+1.000 temas)",
-        "corpus-full": "Base de conhecimento completa (+4.000 temas)",
+        "corpus-standard": "Acervo padrão (+1.000 temas)",
+        "corpus-full": "Acervo completo (+4.000 temas)",
         "wiki-vital5": "Artigos essenciais da Wikipédia"
       }
     },

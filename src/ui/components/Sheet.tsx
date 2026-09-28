@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, findNodeHandle, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -45,6 +45,8 @@ export function Sheet({
   const [mounted, setMounted] = useState(visible);
   const progress = useRef(new Animated.Value(0)).current;
   const titleRef = useRef<View>(null);
+  // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
+  const slideY = useMemo(() => progress.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }), [progress]);
 
   useEffect(() => {
     // Mounted closed (a row's confirm sheet, the setup pickers): nothing on screen to animate out,
@@ -98,7 +100,7 @@ export function Sheet({
             borderWidth: t.size.hairline,
             borderColor: t.color.line.hairline,
             paddingBottom: Math.max(insets.bottom, t.space.base),
-            transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }) }],
+            transform: [{ translateY: slideY }],
             ...(t.elevation[3] as object),
           }}
         >

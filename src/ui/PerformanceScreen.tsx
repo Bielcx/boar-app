@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Badge, Button, EmptyState, IconText, ListRow, Progress, Screen, Section, Sheet, Skeleton, Text, useToast } from "./components";
 import type { Tone } from "./theme";
 import { useTokens } from "./theme";
@@ -23,6 +24,7 @@ import { formatBytes, formatRam, formatRate, formatSeconds, toWords } from "./fl
 
 /** Rough English/Portuguese average; the screen shows words, not tokens (copy-wrap: no jargon). */
 import type { RootStackParamList } from "./navigation/types";
+import { userErrorKey } from "./flows/userError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -220,10 +222,21 @@ export function PerformanceScreen() {
 
       <Section title={t("flows.models.advanced")}>
         <ListRow icon="list" title={t("flows.performance.logsTitle")} value={String(records.length)} onPress={() => navigation.navigate("PerformanceLogs")} />
-        <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+        {/* A developer tool (English-only results, engine jargon): dev builds only (Prism FL-16). A connected
+            computer still starts an evaluation in any build through ChatScreen's device request. */}
+        {__DEV__ && (
+          <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+        )}
       </Section>
     </Screen>
   );
+}
+
+/** A logged model id as its catalog name; a model not in the manifest (a Hugging Face file) keeps its id. */
+function logModelLabel(id: string | undefined, t: TFunction): string | undefined {
+  if (!id) return undefined;
+  const m = MODEL_CATALOG.find((x) => x.id === id);
+  return m ? catalogLabel(m, t) : id;
 }
 
 function residencyKey(r: ExecutionTelemetryRecord): string {
@@ -249,7 +262,7 @@ export function PerformanceLogsScreen() {
     try {
       await exportExecutionTelemetry(format);
     } catch (e: any) {
-      toast({ message: t("flows.performance.exportFailed", { error: e?.message ?? String(e) }), tone: "danger" });
+      toast({ message: t("flows.performance.exportFailed", { error: t(userErrorKey(e)) }), tone: "danger" });
     } finally {
       setExporting(false);
     }
@@ -289,7 +302,7 @@ export function PerformanceLogsScreen() {
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
         <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportJson")} loading={exporting} onPress={() => doExport("json")} />
         <Button size="sm" variant="secondary" icon="share" label={t("flows.performance.exportCsv")} disabled={exporting} onPress={() => doExport("csv")} />
-        <Button size="sm" variant="ghost" label={t("flows.performance.clear")} onPress={() => setClearOpen(true)} />
+        <Button size="sm" variant="ghost" tone="danger" icon="trash-2" label={t("flows.performance.clear")} onPress={() => setClearOpen(true)} />
       </View>
       <Section>
         {records.slice(0, shown).map((r) => {
@@ -307,9 +320,10 @@ export function PerformanceLogsScreen() {
           return (
             <ListRow
               key={r.id}
-              title={r.modelId ?? t("flows.performance.noModel")}
+              // The model's name, not its engine id; the raw task enum stays in the export (Prism FL-19).
+              title={logModelLabel(r.modelId, t) ?? t("flows.performance.noModel")}
               value={t(`flows.performance.outcome.${r.outcome ?? "success"}`)}
-              subtitle={[parts.join(" · "), extra.join(" · "), [r.taskType, t(residencyKey(r)), new Date(r.createdAt).toLocaleString(lang)].filter(Boolean).join(" · ")].filter(Boolean).join("\n")}
+              subtitle={[parts.join(" · "), extra.join(" · "), [t(residencyKey(r)), new Date(r.createdAt).toLocaleString(lang)].filter(Boolean).join(" · ")].filter(Boolean).join("\n")}
             />
           );
         })}

@@ -49,7 +49,7 @@ export function PlaceAreaRows({ catalog }: { catalog: CatalogState }) {
               undefined
             }
           />
-          <View style={{ flexDirection: "row", paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.md }}>
+          <View style={{ flexDirection: "row", paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.md }}>
             <Button
               size="sm"
               variant="ghost"

@@ -33,6 +33,7 @@ import {
 import { setHapticsEnabledCache } from "../services/haptics";
 import { resetAllAppData } from "../services/appReset";
 import type { RootStackParamList } from "./navigation/types";
+import { userErrorKey } from "./flows/userError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -114,7 +115,7 @@ export function SettingsScreen() {
       navigation.reset({ index: 0, routes: [{ name: "Setup" }] });
     } catch (e: any) {
       setResetting(false);
-      toast({ message: t("flows.settings.resetFailed", { error: e?.message ?? String(e) }), tone: "danger" });
+      toast({ message: t("flows.settings.resetFailed", { error: t(userErrorKey(e)) }), tone: "danger" });
     }
   };
 
@@ -173,7 +174,11 @@ export function SettingsScreen() {
       </Section>
 
       <Section title={t("flows.settings.appearance")}>
-        <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
+        <View style={{ paddingHorizontal: tokens.space.inset, paddingVertical: tokens.space.base, gap: tokens.space.base }}>
+          {/* Every control in the block has its overline, the theme too (Prism FL-26). */}
+          <Text variant="label" color="secondary">
+            {t("flows.settings.theme")}
+          </Text>
           <SegmentedControl<Appearance>
             size="compact"
             label={t("flows.settings.theme")}

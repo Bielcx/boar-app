@@ -168,7 +168,8 @@ export function SettingsHistoryScreen() {
         </View>
       </Section>
 
-      <Button label={t("flows.history.clear")} variant="destructive" icon="trash-2" onPress={() => setClearOpen(true)} />
+      {/* The entry is ghost + danger; the red fill is only on the confirm in the Sheet (Prism FL-18). */}
+      <Button label={t("flows.history.clear")} variant="ghost" tone="danger" icon="trash-2" onPress={() => setClearOpen(true)} />
 
       <Sheet
         visible={clearOpen}

@@ -42,6 +42,8 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
   // image, then fades to the full art with the tagline and bar. iOS starts on the full art, like its native splash.
   const startsAsIcon = Platform.OS === "android";
   const art = useRef(new Animated.Value(startsAsIcon ? 0 : 1)).current;
+  // Built once per value (and width), not on every render: a new interpolation rewires the native animated graph (perf audit #11).
+  const iconFade = useMemo(() => art.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), [art]);
   const [iconShown, setIconShown] = useState(!startsAsIcon);
   const [artLoaded, setArtLoaded] = useState(false);
   useEffect(() => {
@@ -82,7 +84,7 @@ export function BootSplash({ onFirstLayout, textReady = true }: { onFirstLayout?
             height: ANDROID_ICON,
             left: px((width - ANDROID_ICON) / 2),
             top: px((height - ANDROID_ICON) / 2),
-            opacity: art.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            opacity: iconFade,
           }}
         />
       )}

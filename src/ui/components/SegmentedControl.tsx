@@ -90,7 +90,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
                 borderColor: t.color.line.strong,
                 ...(selected ? (t.elevation[1] as object) : null),
               },
-              pressed && !selected && { opacity: 0.6 },
+              pressed && !selected && { opacity: t.opacity.pressed },
             ]}
           >
             {selected && !opt.icon && <Icon name="check" size="sm" color={t.color.text.primary} />}

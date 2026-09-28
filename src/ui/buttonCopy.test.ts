@@ -12,6 +12,9 @@ const SLOT = "x".repeat(6);
 const CONTROL = /<(Button|TextAction|Chip|Badge|EmptyState)\b/g;
 const LABEL_PROP = /\b(label|actionLabel)=\{/g;
 
+const UNBOUNDED = /\{\{\s*(city|name|region|model|label|filter|title)\s*\}\}/;
+const GLYPH = /[\u2190-\u21FF\u2500-\u27BF\u2B00-\u2BFF]/;
+
 type Dict = { [k: string]: string | Dict };
 
 function lookup(dict: Dict, key: string): string[] {
@@ -70,6 +73,10 @@ describe("control labels fit one line", () => {
                 checked++;
                 const shown = text.replace(/\{\{\s*\w+\s*\}\}/g, SLOT);
                 if (shown.length > MAX) over.push(`${relative(root, file)} ${m[1]} ${key} ${lang}: "${text}" (${shown.length})`);
+                // A free-length name makes any label too long ("Download Ciudad Nezahualcoyotl"): it goes on the support line (FL-9).
+                if (UNBOUNDED.test(text)) over.push(`${relative(root, file)} ${m[1]} ${key} ${lang}: "${text}" interpolates a name`);
+                // Icons come from the icon prop, never a glyph in the string (FL-17).
+                if (GLYPH.test(text)) over.push(`${relative(root, file)} ${m[1]} ${key} ${lang}: "${text}" has a glyph icon`);
               }
             }
           }
@@ -93,6 +100,22 @@ describe("no model jargon on the flow screens", () => {
     };
     walk((en as unknown as { flows: Dict }).flows, "en flows.");
     walk((pt as unknown as { flows: Dict }).flows, "pt flows.");
+    expect(hits).toEqual([]);
+  });
+});
+
+describe("product words", () => {
+  it("never says 'knowledge base' on screen: it is the library / acervo (DS, Prism FL-7)", () => {
+    const hits: string[] = [];
+    const walk = (d: Dict, path: string, bad: RegExp) => {
+      for (const [k, v] of Object.entries(d)) {
+        if (typeof v === "string") {
+          if (bad.test(v)) hits.push(`${path}${k}: ${v}`);
+        } else walk(v, `${path}${k}.`, bad);
+      }
+    };
+    walk(en as unknown as Dict, "en ", /knowledge base/i);
+    walk(pt as unknown as Dict, "pt ", /base de conhecimento/i);
     expect(hits).toEqual([]);
   });
 });
