@@ -1,5 +1,5 @@
 import React, { forwardRef, memo, useImperativeHandle, useRef, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
@@ -71,7 +71,7 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
         </Text>
       )}
       {/* In the model-error state the whole composer is dimmed, as the mockup: the card above is where to act (E-5). */}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, opacity: blocked ? 0.45 : 1 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, opacity: blocked ? t.opacity.disabled : 1 }}>
         {voiceEnabled && (
           <VoiceInputButton disabled={!ready} onTranscript={(text) => onChange(value ? `${value} ${text}` : text)} />
         )}
@@ -114,27 +114,16 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
           />
         </View>
         {generating ? (
-          // Stop, as the mockup: s2 disc, ember ring, 16 pt ember square.
-          <Pressable
+          // Stop, as the mockup (s2 disc, ember ring, 16 pt ember square): the DS's IconButton "stop" (Prism CH-29),
+          // busy while the stop lands.
+          <IconButton
+            icon="square"
+            variant="stop"
+            size="lg"
+            label={stopping ? tr("chat.composer.stopping") : tr("chat.composer.stop")}
+            busy={stopping}
             onPress={onStop}
-            disabled={stopping}
-            accessibilityRole="button"
-            accessibilityLabel={stopping ? tr("chat.composer.stopping") : tr("chat.composer.stop")}
-            accessibilityState={{ busy: stopping, disabled: stopping }}
-            style={({ pressed }) => ({
-              width: t.size.composer,
-              height: t.size.composer,
-              borderRadius: t.radius.full,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: pressed ? t.color.bg.sunken : t.color.bg.raised,
-              borderWidth: t.size.border,
-              borderColor: t.color.accent.solid,
-              opacity: stopping ? 0.6 : 1,
-            })}
-          >
-            <View style={{ width: t.space.base, height: t.space.base, borderRadius: t.space.xs, backgroundColor: t.color.accent.solid }} />
-          </Pressable>
+          />
         ) : (
           // With the model ready, send is always the ember disc (the mockup): with an empty field it puts the
           // focus there instead of sending nothing. Neutral and disabled only when the model can't answer.
