@@ -31,7 +31,7 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
   it("CH-27: the finished receipt sits at the row's end, as the running pill", () => {
     // The pill and the receipt share one Swap at the row's end (SEND-MOTION crossfade).
     const src = read("AssistantMessage.tsx");
-    expect(src).toMatch(/<Swap swapKey=\{pill\} style=\{\{ marginLeft: "auto", flexShrink: 1 \}\}>/);
+    expect(src).toMatch(/<Swap swapKey=\{pill\} style=\{\{ marginLeft: "auto", flexShrink: 1, minWidth: 0 \}\}>/);
     expect(src).toMatch(/pill === "elapsed" \? \([\s\S]*?<Elapsed[\s\S]*?<ReceiptToggle r=\{receipt\} hidden=\{active\} \/>/);
   });
   it("CX-8: 'May be wrong.' comes before 'Answer anyway', seen and heard once", () => {
@@ -55,5 +55,11 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(src).toMatch(/\{deepenNow \? \(\s*<ActionPill\s+icon="layers"/);
     expect(src).toMatch(/\{deepenNow && \(\s*<IconButton icon="copy"/);
     expect(src).toMatch(/:\s*\(\s*<ActionPill icon="copy"/);
+  });
+  it("CX-11: the long receipt truncates; the name beside it never shrinks", () => {
+    const src = read("AssistantMessage.tsx");
+    expect(src).toMatch(/<Text variant="headline" color="accent" style=\{\{ flexShrink: 0 \}\}>\s*\{tr\("chat\.assistantName"\)\}/);
+    expect(src).toMatch(/<Swap swapKey=\{pill\} style=\{\{ marginLeft: "auto", flexShrink: 1, minWidth: 0 \}\}>/);
+    expect(src).toMatch(/<MetaLine items=\{r\.short\} variant="caption" numberOfLines=\{1\} \/>/);
   });
 });

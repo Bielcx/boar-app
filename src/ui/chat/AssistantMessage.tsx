@@ -985,13 +985,14 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
             <Mascot size="avatarSm" />
             {/* The mockup's name in ember (Boar: the artifact wins over "one accent per screen"). */}
-            <Text variant="headline" color="accent" style={{ flexShrink: 1 }}>
+            {/* Never pushed or cut by the receipt beside it (Prism CX-11): the receipt truncates instead. */}
+            <Text variant="headline" color="accent" style={{ flexShrink: 0 }}>
               {tr("chat.assistantName")}
             </Text>
             {/* The running pill crossfades into the receipt in the same place (SEND-MOTION). */}
             {pill && (
               // Shrinks (the receipt's one line truncates) rather than pushing past the row at large text.
-              <Swap swapKey={pill} style={{ marginLeft: "auto", flexShrink: 1 }}>
+              <Swap swapKey={pill} style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0 }}>
                 {pill === "elapsed" ? (
                   <Elapsed
                     locale={locale}
