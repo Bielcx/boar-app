@@ -31,11 +31,6 @@
     "next": "Next",
     "dontShowAgain": "Don't show again"
   },
-  "processingIndicator": {
-    "retrieving": "🔍 Searching offline corpus…",
-    "thinking": "🧠 Reasoning over local context…",
-    "generating": "⚡ Streaming tokens…"
-  },
   "personalities": {
     "succinct": {
       "label": "Succinct & Direct",
@@ -105,56 +100,6 @@
     "chatDeleted": "Conversation deleted",
     "activeSession": "current",
     "setup": "Setup"
-  },
-  "usageStats": {
-    "ramTitle": "Memory (RAM)",
-    "ramWithinLimit": "Within the {{limit}} limit",
-    "ramOverLimit": "Over the {{limit}} limit",
-    "appProcessRss": "App memory in use",
-    "cap": "{{limit}} limit",
-    "currentRss": "Memory in use now",
-    "peakRss": "Peak this session",
-    "deviceRam": "Device RAM",
-    "detecting": "Detecting…",
-    "ramMargin": "Headroom to the limit",
-    "storageTitle": "Storage used by the app",
-    "legendModels": "Models",
-    "legendCorpus": "Knowledge base",
-    "legendOther": "Embeddings and database",
-    "legendFree": "Free on device",
-    "lastQueryTitle": "Last answer",
-    "generationSpeed": "Writing speed",
-    "tokPerSecValue": "{{rate}} tokens/s",
-    "ttft": "Time to first word",
-    "tokensOutput": "Tokens written",
-    "tokensValue_one": "{{count}} token",
-    "tokensValue_other": "{{count}} tokens",
-    "totalDuration": "Total time",
-    "peakQueryMemory": "Peak memory during the answer",
-    "lastQueryEmpty": "Ask a question to see measurements here.",
-    "routingTitle": "Last routing decision",
-    "outcome": {
-      "success": "Success",
-      "failure": "Failed",
-      "cancelled": "Cancelled"
-    },
-    "routingFailed": "Adaptive routing failed for the last message, so the selected model answered instead.",
-    "modelUsed": "Model used",
-    "taskType": "Task type",
-    "retrievalUsed": "Used sources",
-    "modelSwitches": "Model switches (this answer)",
-    "crossMessageSwitch": "Model changed since last message",
-    "generationLatency": "Generation time",
-    "reasonCodes": "Reason codes",
-    "engineTitle": "Loaded model",
-    "model": "Model",
-    "contextWindow": "Context window",
-    "threads": "CPU threads",
-    "threadsValue_one": "{{count}} thread",
-    "threadsValue_other": "{{count}} threads",
-    "license": "License",
-    "inference": "Inference engine",
-    "noModelLoaded": "No model is loaded."
   },
   "flows": {
     "settings": {
