@@ -173,7 +173,11 @@ export function SettingsScreen() {
       </Section>
 
       <Section title={t("flows.settings.appearance")}>
-        <View style={{ padding: tokens.space.base, gap: tokens.space.base }}>
+        <View style={{ paddingHorizontal: tokens.space.inset, paddingVertical: tokens.space.base, gap: tokens.space.base }}>
+          {/* Every control in the block has its overline, the theme too (Prism FL-26). */}
+          <Text variant="label" color="secondary">
+            {t("flows.settings.theme")}
+          </Text>
           <SegmentedControl<Appearance>
             size="compact"
             label={t("flows.settings.theme")}

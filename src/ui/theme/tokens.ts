@@ -232,6 +232,8 @@ export const space = {
   gutterChat: 16,
   /** Gap between suggestion cards in the chat (mockup 14). */
   cardGap: 14,
+  /** Left/right inset of rows and blocks inside a Section (ListRow, Section title, catalog rows): 14. */
+  inset: 14,
 } as const;
 
 /** From the mockup: pills for actions and inputs, soft cards. */

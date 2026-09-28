@@ -288,7 +288,7 @@ export function KnowledgeScreen() {
                 accessibilityLabel={t("flows.knowledge.useInAnswers", { name: c.name })}
                 switch={{ value: c.active, onValueChange: (v) => toggle(c, v) }}
               />
-              <View style={{ flexDirection: "row", gap: tokens.space.sm, paddingHorizontal: tokens.space.base, paddingBottom: tokens.space.md }}>
+              <View style={{ flexDirection: "row", gap: tokens.space.sm, paddingHorizontal: tokens.space.inset, paddingBottom: tokens.space.md }}>
                 <Button
                   size="sm"
                   variant="secondary"
