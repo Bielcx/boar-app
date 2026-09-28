@@ -95,6 +95,17 @@ describe("noMatchAnswer (T2-6)", () => {
     );
     expect(noMatchAnswer(intent("vegan or halal restaurants in Rome"), "Rome", 25_000)).toMatch(/no place tagged vegan or halal within 25 km/);
   });
+
+  it("with a diet and a dish, names both: 'no place tagged kosher' alone is false when kosher places exist (Sextant)", () => {
+    const i = intent("kosher ramen in Rome");
+    expect(i).toMatchObject({ diet: ["kosher"], text: "ramen" });
+    expect(noMatchAnswer(i, "Rome", 25_000)).toBe(
+      'The offline map for Rome has no place tagged kosher that matches "ramen" within 25 km, so I won\'t list any rather than guess.'
+    );
+    expect(noMatchAnswer({ ...i, lang: "pt" }, "Roma", 25_000)).toBe(
+      'O mapa offline de Roma não tem nenhum lugar marcado como kosher com "ramen" num raio de 25 km, então não vou listar nenhum para não inventar.'
+    );
+  });
 });
 
 // ---- Pipeline --------------------------------------------------------------
