@@ -1,17 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const files = new Map<string, string>();
+const fsCalls = { info: 0, read: 0 };
 vi.mock("expo-file-system/legacy", () => ({
   documentDirectory: "file:///docs/",
-  getInfoAsync: async (p: string) => ({ exists: files.has(p) }),
-  readAsStringAsync: async (p: string) => files.get(p),
+  getInfoAsync: async (p: string) => (fsCalls.info++, { exists: files.has(p) }),
+  readAsStringAsync: async (p: string) => (fsCalls.read++, files.get(p)),
   writeAsStringAsync: async (p: string, c: string) => void files.set(p, c),
+  deleteAsync: async (p: string) => void files.delete(p),
 }));
 
-import { getSetupProgress, setSetupProgress, getLanguageId, getVoiceInputEnabled, languageForLocale, setLanguageId, setVoiceInputEnabled } from "./settings";
+import { clearSettings, getMaxTokens, getSetupProgress, setSetupProgress, getLanguageId, getVoiceInputEnabled, languageForLocale, resetSettingsCache, setLanguageId, setMaxTokens, setVoiceInputEnabled } from "./settings";
 
 describe("voice input setting", () => {
-  beforeEach(() => files.clear());
+  beforeEach(() => {
+    files.clear();
+    resetSettingsCache();
+  });
 
   it("is off on a fresh install", async () => {
     expect(await getVoiceInputEnabled()).toBe(false);
@@ -24,7 +29,10 @@ describe("voice input setting", () => {
 });
 
 describe("language", () => {
-  beforeEach(() => files.clear());
+  beforeEach(() => {
+    files.clear();
+    resetSettingsCache();
+  });
 
   it("maps any Portuguese locale to pt and everything else to en", () => {
     expect(languageForLocale("pt-BR")).toBe("pt");
@@ -41,7 +49,10 @@ describe("language", () => {
 });
 
 describe("setup progress", () => {
-  beforeEach(() => files.clear());
+  beforeEach(() => {
+    files.clear();
+    resetSettingsCache();
+  });
 
   it("round-trips and clears", async () => {
     expect(await getSetupProgress()).toBeNull();
@@ -91,5 +102,36 @@ describe("CR-4: crash ledger", () => {
     expect((await s.getAnswerSettings()).largeModelConfirmedIds).toEqual([ID]);
     await s.recordLoadSuccess(ID);
     expect(await s.getLoadCrashedIds()).toEqual([]);
+  });
+});
+
+describe("in-memory cache (perf audit #34)", () => {
+  beforeEach(() => {
+    files.clear();
+    resetSettingsCache();
+    fsCalls.info = fsCalls.read = 0;
+  });
+
+  it("reads the file once, then serves getters from memory", async () => {
+    files.set("file:///docs/settings.json", JSON.stringify({ activeModelId: {}, maxTokens: 256, languageId: "pt" }));
+    expect(await getMaxTokens()).toBe(256);
+    expect(await getLanguageId()).toBe("pt");
+    expect(await getMaxTokens()).toBe(256);
+    expect(fsCalls).toEqual({ info: 1, read: 1 });
+  });
+
+  it("a write is what the next read sees, without touching the file", async () => {
+    await setMaxTokens(1024);
+    fsCalls.info = fsCalls.read = 0;
+    expect(await getMaxTokens()).toBe(1024);
+    expect(fsCalls.info + fsCalls.read).toBe(0);
+  });
+
+  it("after clearSettings, reads fall back to defaults", async () => {
+    await setLanguageId("pt");
+    await clearSettings();
+    expect(files.size).toBe(0);
+    expect(await getVoiceInputEnabled()).toBe(false);
+    expect(await getMaxTokens()).toBe(await (async () => (resetSettingsCache(), getMaxTokens()))());
   });
 });

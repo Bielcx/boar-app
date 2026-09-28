@@ -4,7 +4,18 @@
  * file size plus an expert-fraction hint for mixture-of-experts files.
  */
 import type { CatalogModel } from "../../models/manifest";
-import { estimateMemoryFit, MemoryFit } from "../../inference/memoryFit";
+import { contextSizeForRam, estimateMemoryFit, MemoryFit } from "../../inference/memoryFit";
+
+/** The phone's RAM at one moment: read once per render, shared by every row (perf audit #3). */
+export interface RamSnapshot {
+  totalBytes: number;
+  availableBytes: number;
+}
+
+/** catalogFit against a snapshot, with the context size the engine would use on this phone. Pure. */
+export function fitForSnapshot(model: Pick<CatalogModel, "id" | "kind" | "sizeBytes">, ram: RamSnapshot | undefined): MemoryFit | undefined {
+  return ram ? catalogFit(model, ram, contextSizeForRam(ram.totalBytes)) : undefined;
+}
 
 /** "-a1b", "-a3b": the active-parameter suffix mixture-of-experts files carry. */
 const MOE_ID = /-a\d+(\.\d+)?b\b/i;

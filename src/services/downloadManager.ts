@@ -56,11 +56,40 @@ const inFlight = new Map<string, Promise<void>>();
 /** The asset behind each in-flight download, to cancel it (cancelAllDownloads). */
 const inFlightAssets = new Map<string, CatalogModel>();
 const downloadTimestamps = new Map<string, { lastBytes: number; lastTime: number; startTime: number }>();
-type Listener = () => void;
+/**
+ * What changed. `progressOnly`: the same phase of one asset moved forward (bytes written or
+ * hashed); a screen that only lists phases can skip it, a row showing that asset's bar can't.
+ */
+export interface DownloadEvent {
+  assetId?: string;
+  progressOnly: boolean;
+}
+type Listener = (event: DownloadEvent) => void;
 const listeners = new Set<Listener>();
 
-function notify() {
-  listeners.forEach((l) => l());
+function notify(event: DownloadEvent = { progressOnly: false }) {
+  listeners.forEach((l) => l(event));
+}
+
+/**
+ * Progress events reach the UI at most this often per asset (5 Hz). iOS sends one per network
+ * chunk (dozens to hundreds a second, no native throttle); Android's module already caps at
+ * 100 ms. The bar moves in 1% steps, so faster updates change nothing on screen (perf audit #2/#4).
+ */
+export const PROGRESS_NOTIFY_MS = 200;
+const lastProgressNotify = new Map<string, { at: number; phase: string }>();
+
+/** Pure gate: notify a progress event when the phase changed or PROGRESS_NOTIFY_MS passed. */
+export function progressDue(last: { at: number; phase: string } | undefined, phase: string, now: number): boolean {
+  return !last || last.phase !== phase || now - last.at >= PROGRESS_NOTIFY_MS;
+}
+
+function notifyProgress(assetId: string, phase: string) {
+  const now = Date.now();
+  const last = lastProgressNotify.get(assetId);
+  if (!progressDue(last, phase, now)) return;
+  lastProgressNotify.set(assetId, { at: now, phase });
+  notify({ assetId, progressOnly: !!last && last.phase === phase });
 }
 
 export function subscribeDownloads(listener: Listener): () => void {
@@ -100,6 +129,7 @@ export function resetDownloadState(): void {
   inFlight.clear();
   inFlightAssets.clear();
   downloadTimestamps.clear();
+  lastProgressNotify.clear();
   notify();
 }
 
@@ -192,7 +222,9 @@ export function startDownload(asset: CatalogModel): Promise<void> {
     speedBytesPerSec: 0,
     etaSeconds: 0,
   });
-  notify();
+  // The start is the phase change; the progress events after it are progress-only (throttled).
+  lastProgressNotify.set(asset.id, { at: now, phase: "downloading" });
+  notify({ assetId: asset.id, progressOnly: false });
 
   const releaseWakeLock = holdWakeLockForDownload(asset.id);
   const promise = modelManager
@@ -207,7 +239,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
           bytesWritten: p.totalBytesWritten,
           bytesExpected: total,
         });
-        notify();
+        notifyProgress(asset.id, "verifying");
         return;
       }
       const progress = p.totalBytesExpectedToWrite > 0 ? p.totalBytesWritten / p.totalBytesExpectedToWrite : 0;
@@ -244,7 +276,7 @@ export function startDownload(asset: CatalogModel): Promise<void> {
         speedBytesPerSec,
         etaSeconds,
       });
-      notify();
+      notifyProgress(asset.id, "downloading");
     })
     .then(async () => {
       state.set(asset.id, {
@@ -277,7 +309,8 @@ export function startDownload(asset: CatalogModel): Promise<void> {
       releaseWakeLock();
       inFlight.delete(asset.id);
       inFlightAssets.delete(asset.id);
-      notify();
+      lastProgressNotify.delete(asset.id);
+      notify({ assetId: asset.id, progressOnly: false });
     });
 
   inFlight.set(asset.id, promise);

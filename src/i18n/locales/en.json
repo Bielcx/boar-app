@@ -384,6 +384,7 @@
       "typical_one": "Typical (last {{count}} answer)",
       "typical_other": "Typical (last {{count}} answers)",
       "typicalFooter": "Medians. Words per second are estimated.",
+      "showMore": "Show more",
       "band": {
         "fast": "Fast",
         "ok": "OK",

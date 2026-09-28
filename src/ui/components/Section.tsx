@@ -2,6 +2,7 @@ import React from "react";
 import { View, ViewProps } from "react-native";
 import { useTokens } from "../theme";
 import { Text } from "./Text";
+import { childKey } from "./childKey";
 
 export interface SectionProps extends ViewProps {
   title?: string;
@@ -32,7 +33,7 @@ export function Section({ title, footer, inset = true, children, style, ...rest 
           }}
         >
           {items.map((child, i) => (
-            <View key={i}>
+            <View key={childKey(child, i)}>
               {/* The separator is inset; the row itself is not, so every row keeps the same left edge. */}
               {i > 0 && (
                 <View
