@@ -383,7 +383,7 @@
       "load": "load",
       "usedSources": "used your sources",
       "noSources": "no sources",
-      "empty": "Ask a question to see measurements here.",
+      "empty": "Answers written by a model show up here.",
       "typical_one": "Typical (last {{count}} answer)",
       "typical_other": "Typical (last {{count}} answers)",
       "typicalFooter": "Medians. Words per second are estimated.",

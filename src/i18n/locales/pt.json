@@ -383,7 +383,7 @@
       "load": "carga",
       "usedSources": "usou suas fontes",
       "noSources": "sem fontes",
-      "empty": "Faça uma pergunta para ver as medidas aqui.",
+      "empty": "As respostas escritas por um modelo aparecem aqui.",
       "typical_one": "Típico (última {{count}} resposta)",
       "typical_other": "Típico (últimas {{count}} respostas)",
       "typicalFooter": "Medianas. As palavras por segundo são estimadas.",
