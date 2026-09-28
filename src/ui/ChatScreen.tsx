@@ -174,7 +174,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   // synchronous guard that closes the double-send race (set before any await).
   const activeRef = useRef<ActiveAnswer | null>(null);
   const [active, setActive] = useState<ActiveAnswer | null>(null);
-  const generating = active !== null;
+  // Answers whose model is done but whose text is still showing its last words (Prism CX-12): send and
+  // stop swap only once the text has finished, with the receipt.
+  const [revealing, setRevealing] = useState<ReadonlySet<string>>(new Set());
+  const generating = active !== null || revealing.size > 0;
   const [stopping, setStopping] = useState(false);
 
   const memorySettingsRef = useRef<MemorySettingsType>(DEFAULT_MEMORY_SETTINGS);
@@ -907,6 +910,14 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     // The offline maps live in Knowledge › Places (the button said "Get the map" and opened Settings).
     getMap: () => navigation.navigate("Knowledge"),
     copyReceipt: (text) => copyText(text, t("chat.receipt.copied")),
+    revealing: (id, on) =>
+      setRevealing((prev) => {
+        if (prev.has(id) === on) return prev;
+        const next = new Set(prev);
+        if (on) next.add(id);
+        else next.delete(id);
+        return next;
+      }),
     copyQuestion: (text) => copyText(text, t("chat.actions.questionCopied")),
     editQuestion: (text) => {
       setInput(text);
@@ -935,6 +946,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       useLocation: (id) => rowActions.current.useLocation?.(id),
       getMap: () => rowActions.current.getMap(),
       copyReceipt: (text) => rowActions.current.copyReceipt(text),
+      revealing: (id, on) => rowActions.current.revealing(id, on),
       copyQuestion: (text) => rowActions.current.copyQuestion(text),
       editQuestion: (text) => rowActions.current.editQuestion(text),
     }),
@@ -1157,6 +1169,7 @@ interface RowActions {
   useLocation?: (id: string) => void;
   getMap: () => void;
   copyReceipt: (text: string) => void;
+  revealing: (id: string, on: boolean) => void;
   copyQuestion: (text: string) => void;
   editQuestion: (text: string) => void;
 }
@@ -1205,6 +1218,7 @@ const AssistantRow = memo(function AssistantRow({
       onUseLocation: actions.useLocation ? () => actions.useLocation!(id) : undefined,
       onGetMap: actions.getMap,
       onCopyReceipt: actions.copyReceipt,
+      onRevealing: (on: boolean) => actions.revealing(id, on),
     }),
     [actions, id]
   );

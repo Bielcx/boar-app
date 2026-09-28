@@ -162,3 +162,16 @@ export function toneTail<T extends { type: string; text?: string }>(
   }
   return reversed.reverse();
 }
+
+/**
+ * Prism CX-12: the receipt and the send button came 0.3-0.5 s before the text finished showing (the steady
+ * reveal drains after the model is done). A text block is still showing its end while the stream is over
+ * and the reveal hasn't settled; an answer counts as running until none of its blocks is.
+ */
+export function isDraining(streaming: boolean, settled: boolean): boolean {
+  return !streaming && !settled;
+}
+
+export function answerStillShowing(running: boolean, draining: Readonly<Record<string, boolean>>): boolean {
+  return running || Object.values(draining).some(Boolean);
+}

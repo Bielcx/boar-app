@@ -21,6 +21,7 @@ import { lineSlop } from "./touch";
 import { chatLargeText } from "./largeText";
 import { Reveal } from "./Reveal";
 import { useSmoothText } from "./useSmoothText";
+import { answerStillShowing, isDraining } from "./streamReveal";
 import { Swap } from "./Swap";
 import { StepsSlot } from "./StepsSlot";
 import { useMotion } from "../theme/motion";
@@ -50,6 +51,8 @@ export interface AssistantMessageProps {
   onCopy: () => void;
   onShare: () => void;
   onCopyReceipt: (text: string) => void;
+  /** The model is done but the text is still showing its last words (Prism CX-12). */
+  onRevealing?: (revealing: boolean) => void;
   /** Places answers: re-ask for a typed city, or with the device position. */
   onCity: (city: string) => void;
   /** Weak-sources state A: generate anyway for the same question. */
@@ -212,11 +215,16 @@ const TierBody = memo(function TierBody({
   streaming,
   sourceTitles,
   onOpenSource,
+  drainKey,
+  onDraining,
 }: {
   tier: TierState;
   streaming: boolean;
   sourceTitles: string[];
   onOpenSource: (index: number) => void;
+  /** Reports while this block still shows its end after the stream (Prism CX-12). */
+  drainKey?: string;
+  onDraining?: (key: string, draining: boolean) => void;
 }) {
   const t = useTokens();
   const { t: tr } = useTranslation();
@@ -227,6 +235,12 @@ const TierBody = memo(function TierBody({
   // v2 P1: the text flows at a steady pace, newest characters fading in; reduce motion shows it as it comes.
   const smooth = useSmoothText(answerText, streaming, !reduceMotion);
   const live = streaming || !smooth.settled;
+  const draining = isDraining(streaming, smooth.settled);
+  useEffect(() => {
+    if (!drainKey || !onDraining) return;
+    onDraining(drainKey, draining);
+    return () => onDraining(drainKey, false);
+  }, [drainKey, onDraining, draining]);
   // Invented citations are cleaned only once the answer is done (sources are final then) and on screen.
   const shown = live ? smooth.text : splitInlineBullets(cleanCitations(answerText, sourceTitles.length));
   const onCitationPress = useCallback((n: number) => onOpenSource(n - 1), [onOpenSource]);
@@ -924,7 +938,22 @@ function Block({ shown, gap, children }: { shown: boolean; gap?: number; childre
 }
 
 export const AssistantMessage = memo(function AssistantMessage(props: AssistantMessageProps) {
-  const { answer, active, stopping, interrupted, feedback, locale, onOpenSource } = props;
+  const { answer, active: running, stopping, interrupted, feedback, locale, onOpenSource } = props;
+  // Prism CX-12: the answer reads as running until its text has finished showing (the steady reveal drains
+  // after the model is done): the receipt, the actions and the send button wait for the last words.
+  const [draining, setDraining] = useState<Record<string, boolean>>({});
+  const onDraining = useCallback(
+    (key: string, d: boolean) => setDraining((prev) => (!!prev[key] === d ? prev : { ...prev, [key]: d })),
+    []
+  );
+  const active = answerStillShowing(!!running, draining);
+  const revealing = active && !running;
+  const onRevealing = props.onRevealing;
+  useEffect(() => {
+    onRevealing?.(revealing);
+    // Unmounted mid-reveal (the list recycles rows): never leave the screen waiting on it.
+    return () => onRevealing?.(false);
+  }, [onRevealing, revealing]);
   const t = useTokens();
   const { t: tr } = useTranslation();
   const phase = answerPhase(answer);
@@ -954,13 +983,13 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const hasText =
     showsAnswerBody(answer) && !!(answer.fast?.text || answer.deep?.text || answer.instant || answer.extract || answer.places?.places.length);
   const done = !active && (lastTier?.outcome || instantOnly);
-  const steps = active && !stopping ? generatingSteps(answer, tr) : null;
+  const steps = running && !stopping ? generatingSteps(answer, tr) : null;
   const ringStill = !stepSpinnerRuns(answer);
   // D3: the card shrinks at the first words while they take its place (the pill keeps the progress).
   const stepsShown = stepsCardShown(answer, steps);
   const fastSteps = !answer.deep && stepsShown && !props.waitingLibrary;
-  const fastStreaming = active && !answer.deep && !answer.fast?.outcome;
-  const deepStreaming = active && !!answer.deep && !answer.deep.outcome;
+  const fastStreaming = running && !answer.deep && !answer.fast?.outcome;
+  const deepStreaming = running && !!answer.deep && !answer.deep.outcome;
 
   const topReceipt = answer.fast?.receipt ?? (instantOnly ? answer.instantDone?.receipt : undefined);
   const receipt = useReceipt(topReceipt, locale, receiptTagKey(answer), !!answer.weakDeclined);
@@ -1042,6 +1071,8 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               streaming={!answer.instantDone}
               sourceTitles={sourceTitles}
               onOpenSource={onOpenSource}
+              drainKey="extract"
+              onDraining={onDraining}
             />
           ) : null}
         </Block>
@@ -1071,7 +1102,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             steps={fastSteps && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
             body={
               fastBody && answer.fast ? (
-                <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
+                <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} drainKey="fast" onDraining={onDraining} />
               ) : null
             }
             released={!active || !!answer.fast?.outcome}
@@ -1091,7 +1122,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               <View style={{ paddingTop: t.space.sm }}>
                 <StepsSlot
                   steps={stepsShown && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
-                  body={<TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />}
+                  body={<TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} drainKey="deep" onDraining={onDraining} />}
                   released={!active || !!answer.deep.outcome}
                 />
               </View>

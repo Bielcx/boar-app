@@ -62,4 +62,14 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(src).toMatch(/<Swap swapKey=\{pill\} style=\{\{ marginLeft: "auto", flexShrink: 1, minWidth: 0 \}\}>/);
     expect(src).toMatch(/<MetaLine items=\{r\.short\} variant="caption" numberOfLines=\{1\} \/>/);
   });
+  it("CX-12: send/stop and the receipt wait until the answer's text has finished showing", () => {
+    const screen = read("../ChatScreen.tsx");
+    expect(screen).toMatch(/const generating = active !== null \|\| revealing\.size > 0;/);
+    const msg = read("AssistantMessage.tsx");
+    expect(msg).toMatch(/const active = answerStillShowing\(!!running, draining\);/);
+    // The model's own state still drives the streaming and the steps.
+    expect(msg).toMatch(/const steps = running && !stopping/);
+    expect(msg).toMatch(/const fastStreaming = running && /);
+    for (const key of ["fast", "deep", "extract"]) expect(msg).toContain(`drainKey="${key}"`);
+  });
 });

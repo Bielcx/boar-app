@@ -14,6 +14,8 @@ import {
   safeCut,
   toneTail,
   wordCut,
+  isDraining,
+  answerStillShowing,
   MAX_WORD,
   type RevealMark,
 } from "./streamReveal";
@@ -175,5 +177,19 @@ describe("wordCut (cost option 1: the screen moves a word at a time)", () => {
   it("keeps safeCut's rules", () => {
     const cite = "It is Canberra [12] today";
     expect(cite.slice(0, wordCut(cite, cite.indexOf("[12]") + 2))).toBe("It is Canberra");
+  });
+});
+
+describe("the end waits for the text (Prism CX-12)", () => {
+  it("a block drains after its stream is over, until the reveal settles", () => {
+    expect(isDraining(true, false)).toBe(false);
+    expect(isDraining(false, false)).toBe(true);
+    expect(isDraining(false, true)).toBe(false);
+  });
+  it("the answer counts as running while any of its blocks drains", () => {
+    expect(answerStillShowing(false, {})).toBe(false);
+    expect(answerStillShowing(false, { fast: true })).toBe(true);
+    expect(answerStillShowing(false, { fast: false, deep: false })).toBe(false);
+    expect(answerStillShowing(true, {})).toBe(true);
   });
 });
