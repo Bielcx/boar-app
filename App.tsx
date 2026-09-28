@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { InteractionManager, StyleSheet, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -14,6 +14,7 @@ import { AnnouncerProvider, ToastProvider } from "./src/ui/components";
 import { RootNavigator } from "./src/ui/navigation/RootNavigator";
 import { initHaptics } from "./src/services/haptics";
 import { initialRoute as bootRoute } from "./src/ui/flows/boot";
+import { afterFirstFrame } from "./src/ui/flows/afterFirstFrame";
 import { registerGeoProviders } from "./src/routing/answerService";
 import { geoProvidersFrom } from "./src/routing/geoWiring";
 import { getCurrentPoint, getLocationFix } from "./src/services/location";
@@ -56,8 +57,6 @@ function AppContent() {
 
   useEffect(() => {
     initHaptics();
-    // The tile index lives in the gazetteer: without this, a tile is neither downloadable nor importable.
-    void loadTileCatalog().catch((e) => console.warn("[pois] tile index:", e?.message ?? e));
     (async () => {
       // Setup unless the chat has an answer model it can load (and saves that one as active).
       // A failed disk read also lands in setup, never on a spinner or a chat that cannot answer.
@@ -91,6 +90,20 @@ function AppContent() {
     console.info(`[boot] ready after=${Date.now() - m.t0}ms${m.recreate ? " via=recreate" : ""}`);
     hideNative("ready");
   }, [ready, hideNative]);
+  // The tile index lives in the gazetteer: without it a tile is neither downloadable nor importable. It
+  // registers after the first screen is up (8,374 tiles in the world gazetteer), still before anything the
+  // person can import; installing the gazetteer reloads it itself (rag/pois onAssetInstalled).
+  useEffect(() => {
+    if (!ready) return;
+    return afterFirstFrame(
+      () => void loadTileCatalog().catch((e) => console.warn("[pois] tile index:", e?.message ?? e)),
+      {
+        nextFrame: requestAnimationFrame,
+        cancelFrame: cancelAnimationFrame,
+        afterInteractions: (task) => InteractionManager.runAfterInteractions(task),
+      }
+    );
+  }, [ready]);
 
   if (!ready) {
     // Under the native splash: the same canvas colour, in case the OS reveals this frame.
