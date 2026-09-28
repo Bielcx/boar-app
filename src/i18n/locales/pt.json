@@ -33,7 +33,7 @@
   },
   "personalities": {
     "succinct": {
-      "label": "Sucinto e Direto",
+      "label": "Sucinto e direto",
       "description": "Mais rápido: 2–3 parágrafos curtos ou tópicos. Padrão."
     },
     "detailed": {
@@ -79,7 +79,9 @@
     "delete": "Apagar",
     "back": "Voltar",
     "offline": "Offline",
-    "localModel": "Modelo local"
+    "localModel": "Modelo local",
+    "details": "Detalhes",
+    "hideDetails": "Ocultar detalhes"
   },
   "nav": {
     "subtitle": "Pesquisa offline",
@@ -224,6 +226,7 @@
         "hash-mismatch": "O arquivo veio diferente do esperado. Pegue uma cópia nova do arquivo e tente de novo.",
         "empty-file": "O arquivo está vazio (0 bytes). Copie-o de novo para o celular.",
         "unreadable-file": "O BOAR não conseguiu ler este arquivo.",
+        "corrupt": "O arquivo parece corrompido. Copie de novo ou escolha outro.",
         "size-mismatch": "O arquivo veio incompleto. Pegue uma cópia nova do arquivo e tente de novo.",
         "offline-variant": "Esta versão não acessa a internet. Importe o arquivo.",
         "load": "Não foi possível carregar este modelo.",

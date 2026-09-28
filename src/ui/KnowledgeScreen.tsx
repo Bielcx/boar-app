@@ -268,15 +268,22 @@ export function KnowledgeScreen() {
       </Section>
 
       <Section title={t("flows.knowledge.yourCollections")}>
-        {collections.length === 0 && !importing ? (
+        {/* The import error takes the empty state's place, where the person just tapped, not below it off screen
+            (Piston, prints 1ca4eb7). Its "Choose again" is then the one primary (Prism FL-12). */}
+        {importError && (
           <EmptyState
-            icon="file-plus"
-            title={t("flows.knowledge.emptyTitle")}
-            body={t("flows.knowledge.emptyBody")}
-            // With an import error on screen, its "Choose again" is the one primary (Prism FL-12).
-            actionLabel={importError ? undefined : t("flows.knowledge.add")}
+            tone="error"
+            title={t("flows.knowledge.importFailed")}
+            body={t(userErrorKey(importError))}
+            detail={importError}
+            actionLabel={t("flows.knowledge.pickAgain")}
             onAction={pick}
           />
+        )}
+        {collections.length === 0 && !importing ? (
+          !importError && (
+            <EmptyState icon="file-plus" title={t("flows.knowledge.emptyTitle")} body={t("flows.knowledge.emptyBody")} actionLabel={t("flows.knowledge.add")} onAction={pick} />
+          )
         ) : (
           collections.map((c) => (
             <View key={c.id}>
@@ -337,17 +344,6 @@ export function KnowledgeScreen() {
             onPress={() => abortRef.current?.abort()}
           />
         </Card>
-      )}
-
-      {importError && (
-        <EmptyState
-          tone="error"
-          title={t("flows.knowledge.importFailed")}
-          body={t(userErrorKey(importError))}
-          detail={importError}
-          actionLabel={t("flows.knowledge.pickAgain")}
-          onAction={pick}
-        />
       )}
 
       {(collections.length > 0 || importing) && !importError && (
