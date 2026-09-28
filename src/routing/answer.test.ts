@@ -58,6 +58,7 @@ interface Fake {
   retrieved: RetrievedChunk[];
   loadError: string | null;
   verdict: string;
+  records: Parameters<NonNullable<AnswerDeps["recordExecution"]>>[0][];
 }
 
 function makeFake(): Fake {
@@ -76,6 +77,7 @@ function makeFake(): Fake {
     retrieved: [CANBERRA, MOLD, HALL],
     loadError: null,
     verdict: "SUPPORTED. Matches [1].",
+    records: [],
     deps: null as unknown as AnswerDeps,
   };
   f.deps = {
@@ -132,6 +134,9 @@ function makeFake(): Fake {
     },
     assemblePrompt,
     assembleChatMessages,
+    recordExecution: async (r) => {
+      f.records.push(r);
+    },
   };
   return f;
 }
@@ -1637,5 +1642,64 @@ describe("answer(): device-dependent default model", () => {
     f.deps.deviceRamBytes = () => 12 * GB;
     const { result } = await collect("Tell me about Canberra");
     expect(result.receipt.modelId).toBe("qwen1.5");
+  });
+});
+
+describe("answer(): execution telemetry (regression since 4e4f49d: nothing recorded)", () => {
+  it("records one execution at the end of a model's answer", async () => {
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.tier).toBe("fast");
+    expect(f.records).toHaveLength(1);
+    const r = f.records[0];
+    expect(r).toMatchObject({
+      modelId: "qwen1.5",
+      taskType: expect.any(String),
+      adaptiveRoutingUsed: true,
+      modelResidency: "cold",
+      tokensGenerated: 5,
+      generationLatencyMs: 50,
+      outcome: "success",
+    });
+    expect(r.tokPerSec).toBeCloseTo(100);
+    expect(r.ttftMs).toBeGreaterThan(0);
+    expect(r.totalLatencyMs).toBeGreaterThanOrEqual(r.ttftMs!);
+    expect(r.reasonCodes).toEqual(result.receipt.reasonCodes);
+  });
+
+  it("records the model as resident on the next answer, and one record per answer", async () => {
+    await collect("What is the capital of Australia and where is it?");
+    await collect("What is the capital of Australia and where is it?");
+    expect(f.records.map((r) => r.modelResidency)).toEqual(["cold", "resident"]);
+  });
+
+  it("records nothing for an instant excerpt answered without a model", async () => {
+    const { result } = await collect("What is the capital of Australia?");
+    expect(result.tier).toBe("instant");
+    expect(f.records).toHaveLength(0);
+  });
+
+  it("records nothing when the model never generated (load failed)", async () => {
+    f.loadError = "boom";
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("error");
+    expect(f.records).toHaveLength(0);
+  });
+
+  it("records a failed generation as a failure with its message", async () => {
+    f.deps.engine.generate = async () => {
+      throw new Error("decode crashed");
+    };
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("error");
+    expect(f.records).toHaveLength(1);
+    expect(f.records[0]).toMatchObject({ modelId: "qwen1.5", outcome: "failure", errorMessage: "decode crashed" });
+  });
+
+  it("a telemetry write failure never breaks the answer", async () => {
+    f.deps.recordExecution = async () => {
+      throw new Error("sqlite locked");
+    };
+    const { result } = await collect("What is the capital of Australia and where is it?");
+    expect(result.outcome).toBe("success");
   });
 });
