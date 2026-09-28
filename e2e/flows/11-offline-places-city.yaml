@@ -1,0 +1,59 @@
+# Places on the mini (gate/next15 ecb83d3+): offline build, fresh install. run-e2e.sh pushes the
+# 1°x1° tile and the world gazetteer to Download/places/ (PLACES_FILES), so the setup's "Select all"
+# skips them. Import both, in one batch, from Knowledge > Places > Import places, then:
+#  - "best vegan restaurants in ${CITY}": list from the tile, with the OSM credit;
+#  - "vegan restaurants in ${NO_TILE_CITY}" (no tile): honest empty state, nothing guessed;
+#  - "kosher restaurants in ${NO_MATCH_CITY}" (tile covers it, nothing tagged within 25 km): no_match,
+#    checked as a warning only (resolution and radius are the engine's call), read from maestro.out.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- runFlow: common/offline-setup.yaml
+- tapOn: "Open BOAR"
+- extendedWaitUntil:
+    visible: "Ask something"
+    timeout: 120000
+- tapOn: "Open menu"
+- tapOn: "Knowledge"
+- scrollUntilVisible:
+    element: "Import places"
+# Both in one batch (dcdab04+: the importer checks the gazetteer first, Bramble 94fda8c; on ecb83d3
+# the tile was rejected as unknown when picked together with the gazetteer).
+- tapOn: "Import places"
+- runFlow: common/pick-places.yaml
+- extendedWaitUntil:
+    visible:
+      text: "Verified: World places.*"
+    timeout: ${IMPORT_TIMEOUT || 180000}
+- extendedWaitUntil:
+    visible:
+      text: "Verified: .*${TILE || 'N41E012'}.*"
+    timeout: ${IMPORT_TIMEOUT || 180000}
+- takeScreenshot: shots/11-places-imported
+- back
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "best vegan restaurants in ${CITY || 'Rome'}"
+- assertVisible:
+    text: "(?i)vegan · [0-9]+ places"
+- assertVisible:
+    text: ".*OpenStreetMap contributors.*"
+- takeScreenshot: shots/11-places-city
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "vegan restaurants in ${NO_TILE_CITY || 'Lima'}"
+- assertVisible:
+    text: ".*Nothing here is guessed.*"
+- takeScreenshot: shots/11-places-no-tile
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "kosher restaurants in ${NO_MATCH_CITY || 'Aprilia'}"
+- assertVisible:
+    text: "(?i)no kosher places.*${NO_MATCH_CITY || 'Aprilia'}.*"
+    optional: true
+- assertVisible:
+    text: ".*Nothing here is guessed.*"
+    optional: true
+- takeScreenshot: shots/11-places-no-match

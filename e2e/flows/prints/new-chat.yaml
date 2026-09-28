@@ -1,0 +1,7 @@
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- tapOn: ${T_MENU}
+- tapOn: ${T_NEWCHAT}
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 30000

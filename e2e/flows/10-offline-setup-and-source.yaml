@@ -3,26 +3,7 @@
 # wait for the index, open BOAR and ask a suggestion that has a source.
 appId: ${APP_ID || "team.sopa.aoair.offline"}
 ---
-- launchApp
-- tapOn: "Get started"
-- tapOn:
-    text: "Essential, .*"
-- scrollUntilVisible:
-    element: "Continue"
-- tapOn: "Continue"
-- assertVisible: "Import the files"
-- tapOn: "Choose files"
-- tapOn: "Show roots"
-- tapOn: "Downloads"
-- tapOn: "List view"
-- longPressOn:
-    text: ".*\\.gguf"
-- tapOn: "More options"
-- tapOn: "Select all"
-- tapOn: "Select"
-- extendedWaitUntil:
-    visible: "Everything runs offline from now on."
-    timeout: ${SETUP_TIMEOUT || 900000}
+- runFlow: common/offline-setup.yaml
 - takeScreenshot: shots/10-setup-ready
 - tapOn: "Open BOAR"
 - extendedWaitUntil:

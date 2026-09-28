@@ -1,0 +1,7 @@
+# Types ${QUESTION} through Maestro's clipboard (pasteText handles accents; inputText on the AVD doesn't) and sends it.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- tapOn: ${T_ASK}
+- setClipboard: ${QUESTION}
+- pasteText
+- tapOn: ${T_SEND}
