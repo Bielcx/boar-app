@@ -852,29 +852,17 @@ const InstantSnippet = memo(function InstantSnippet({
 const BlockMotion = createContext<{ appear: boolean; gap: number }>({ appear: false, gap: 0 });
 
 /**
- * One block of the answer under its header (SEND-MOTION): it enters, leaves and changes height animated,
+ * One block of the answer under its header (SEND-MOTION): it enters and leaves in height (Reveal),
  * carrying its own gap, so nothing appears, vanishes or jumps in a single frame. Always rendered in its
- * place (stable position); `shown` says whether it has content. `follow`: streamed text.
- * A restored answer doesn't move: plain views, no animated values for every block of the history, except
- * `resizes`: blocks the user opens and closes ("Show more", a source, more places), animated there too.
+ * place (stable position); `shown` says whether it has content.
+ * A restored answer doesn't move: plain views, no animated values for every block of the history (its
+ * folds open with the DS's animateNextLayout, as in a fresh answer at rest).
  */
-function Block({
-  shown,
-  follow,
-  resizes,
-  gap,
-  children,
-}: {
-  shown: boolean;
-  follow?: boolean;
-  resizes?: boolean;
-  gap?: number;
-  children?: ReactNode;
-}) {
+function Block({ shown, gap, children }: { shown: boolean; gap?: number; children?: ReactNode }) {
   const m = useContext(BlockMotion);
-  if (!m.appear && !resizes) return shown ? <View style={{ paddingTop: gap ?? m.gap }}>{children}</View> : null;
+  if (!m.appear) return shown ? <View style={{ paddingTop: gap ?? m.gap }}>{children}</View> : null;
   return (
-    <Reveal shown={shown} appear={m.appear} follow={follow} spaceBefore={gap ?? m.gap}>
+    <Reveal shown={shown} appear={m.appear} spaceBefore={gap ?? m.gap}>
       {children}
     </Reveal>
   );
@@ -969,7 +957,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
         <Block shown={locating}>{locating && <LocatingPrompt onCity={props.onCity} />}</Block>
 
-        <Block shown={!!answer.places} resizes>
+        <Block shown={!!answer.places}>
           {answer.places && (
             <PlacesCard
               answer={answer}
@@ -983,11 +971,11 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           )}
         </Block>
 
-        <Block shown={showsInstantSnippet(answer)} resizes>
+        <Block shown={showsInstantSnippet(answer)}>
           {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
         </Block>
         {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
-        <Block shown={!!extractTier} follow>
+        <Block shown={!!extractTier}>
           {extractTier ? (
             <TierBody
               tier={extractTier}
@@ -1021,7 +1009,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         <Block shown={!answer.deep && stepsShown && !props.waitingLibrary}>
           {steps && <StepsCard steps={steps} still={ringStill} />}
         </Block>
-        <Block shown={fastBody} follow>
+        <Block shown={fastBody}>
           {fastBody && answer.fast && (
             <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} />
           )}
@@ -1030,7 +1018,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
           <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
         </Block>
 
-        <Block shown={!!answer.deep} follow>
+        <Block shown={!!answer.deep}>
           {answer.deep && (
             <View style={{ paddingTop: t.space.md, borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
               {/* A section overline in secondary, like the others: ember isn't decoration (Prism CH-22). */}
@@ -1073,7 +1061,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
         {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
         <Block shown={emergency}>{emergency && <EmergencyNote />}</Block>
 
-        <Block shown={sourcesShown} resizes>
+        <Block shown={sourcesShown}>
           {sourcesShown && (
             // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
             // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
