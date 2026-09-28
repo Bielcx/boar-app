@@ -101,6 +101,15 @@ export function buildMotion(reduceMotion: boolean) {
     },
     /** Reanimated `layout`: size/position changes of siblings and containers. */
     layout: LinearTransition.duration(layoutSpec.duration).easing(reCurves[layoutSpec.curve]).reduceMotion(ReduceMotion.Never),
+    /** Reanimated 4 CSS transition for a box that moves or resizes (`layout`), e.g. a segment's sliding pill. */
+    layoutProps(properties: ("left" | "top" | "width" | "height")[]) {
+      const [lx1, ly1, lx2, ly2] = CURVE[layoutSpec.curve];
+      return {
+        transitionProperty: properties,
+        transitionDuration: layoutSpec.duration,
+        transitionTimingFunction: cubicBezier(lx1, ly1, lx2, ly2),
+      };
+    },
     /** Reanimated 4 CSS transition for in-place state (`change`): colours of a selection, a fill, a border. */
     colorTransition(properties: ("borderColor" | "backgroundColor" | "color" | "opacity")[]) {
       return {
