@@ -366,6 +366,15 @@ export function showsAnswerBody(a: AnswerState): boolean {
  * vsync for the whole generation, one traversal per animation callback). Once the answer's text is on
  * screen, the text and its caret show the progress: the ring stands still (as under reduce motion).
  */
+/**
+ * Whether a tier ends with a notice under its text (stopped, interrupted, timed out, failed): the block
+ * exists only then, so an answer's animated blocks never keep a gap for nothing (SEND-MOTION).
+ */
+export function noticeShown(tier: { outcome?: string } | undefined, interrupted?: boolean): boolean {
+  if (!tier?.outcome) return false;
+  return !!interrupted || ["interrupted", "stopped", "timeout", "error"].includes(tier.outcome);
+}
+
 export function stepSpinnerRuns(state: AnswerState): boolean {
   // A Deepen shows its own steps: only the deep text counts there.
   const written = state.deep ? state.deep.text : state.fast?.text || state.extract || "";

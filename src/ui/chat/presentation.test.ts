@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AnswerState } from "./answerReducer";
-import { stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
+import { noticeShown, stepSpinnerRuns, phaseAnnouncement, previewText, receiptDetails, receiptLine, receiptShort, approxWords, stageLine, stageIcon, loadCrashMessage, generatingSteps, bootEntranceTiming, modelDisplayName, withDisplayNames, offersAskModel, receiptTagKey, noSourceNote, showsInstantSnippet, sourceLanguageLead, declineCopy, declineAfterSnippet, showsAnswerBody } from "./presentation";
 
 // Echoes the key and options, so tests check which string is picked and with what.
 const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}${JSON.stringify(opts)}` : key);
@@ -419,5 +419,18 @@ describe("stepSpinnerRuns (GFXINFO: a ring turning for the whole generation aske
     const fastDone = { text: "Short answer.", stage: null, outcome: "success" as const };
     expect(stepSpinnerRuns({ ...base, fast: fastDone, deep: { text: "", stage: "prefill" } })).toBe(true);
     expect(stepSpinnerRuns({ ...base, fast: fastDone, deep: { text: "More", stage: "generating" } })).toBe(false);
+  });
+});
+
+describe("noticeShown (SEND-MOTION: no animated block without content)", () => {
+  it("only for a tier that ended without success", () => {
+    expect(noticeShown(undefined)).toBe(false);
+    expect(noticeShown({})).toBe(false);
+    expect(noticeShown({ outcome: "success" })).toBe(false);
+    for (const outcome of ["stopped", "interrupted", "timeout", "error"]) expect(noticeShown({ outcome })).toBe(true);
+  });
+  it("an interrupted run shows it even over a finished tier", () => {
+    expect(noticeShown({ outcome: "success" }, true)).toBe(true);
+    expect(noticeShown(undefined, true)).toBe(false);
   });
 });
