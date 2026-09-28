@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createBottomPin, GLIDE_GUARD_MS, heightChanged } from "./listPin";
+import { createBottomPin, GLIDE_GUARD_MS, heightChanged, jumpToLatestShown } from "./listPin";
 
 describe("heightChanged (audit #8/#10)", () => {
   it("pins on the first layout and while the keyboard moves the list", () => {
@@ -131,5 +131,17 @@ describe("createBottomPin (SEND-MOTION D4)", () => {
     h.pin.cancel();
     h.pin.pin(true, "layout");
     expect(h.calls).toEqual([true, false]);
+  });
+});
+
+describe("jumpToLatestShown (Prism CX-6)", () => {
+  it("without an answer writing: only more than a screen from the end", () => {
+    expect(jumpToLatestShown({ distance: 900, viewport: 700, generating: false })).toBe(true);
+    expect(jumpToLatestShown({ distance: 500, viewport: 700, generating: false })).toBe(false);
+    expect(jumpToLatestShown({ distance: 0, viewport: 700, generating: false })).toBe(false);
+  });
+  it("while an answer writes: as soon as the list stops following it", () => {
+    expect(jumpToLatestShown({ distance: 200, viewport: 700, generating: true })).toBe(true);
+    expect(jumpToLatestShown({ distance: 60, viewport: 700, generating: true })).toBe(false);
   });
 });

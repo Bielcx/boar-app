@@ -73,7 +73,7 @@ import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
-import { createBottomPin, heightChanged } from "./chat/listPin";
+import { createBottomPin, FOLLOW_SLACK, heightChanged, jumpToLatestShown } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
 import { Reveal } from "./chat/Reveal";
@@ -186,7 +186,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   // ---- list scrolling: follow the newest text unless the user scrolled up ----
   const followBottom = useRef(true);
-  const [showJump, setShowJump] = useState(false);
+  // Whether "Jump to latest" shows while an answer writes and otherwise (Prism CX-6, jumpToLatestShown).
+  const [jump, setJump] = useState({ writing: false, idle: false });
   const [composerHeight, setComposerHeight] = useState(0);
   const onComposerLayout = useCallback((e: LayoutChangeEvent) => setComposerHeight(e.nativeEvent.layout.height), []);
   // One anchor for every move to the end (SEND-MOTION D4): snaps for small growth, one native glide for
@@ -226,8 +227,12 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     // Our own glide passes through "far from the end" on its way there: it still follows.
     if (bottomPin.gliding()) return;
-    followBottom.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 120;
-    setShowJump(!followBottom.current);
+    const distance = Math.max(0, contentSize.height - layoutMeasurement.height - contentOffset.y);
+    followBottom.current = distance < FOLLOW_SLACK;
+    const at = { distance, viewport: layoutMeasurement.height };
+    const next = { writing: jumpToLatestShown({ ...at, generating: true }), idle: jumpToLatestShown({ ...at, generating: false }) };
+    // A render only when the button would change.
+    setJump((j) => (j.writing === next.writing && j.idle === next.idle ? j : next));
   }, [bottomPin]);
   // A drag is the user's: a glide in flight or armed stops moving the list.
   const onListDrag = useCallback(() => bottomPin.cancel(), [bottomPin]);
@@ -1083,20 +1088,25 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           </View>
         </Swap>
 
-        {showJump && generating && (
-          // Above the composer as tall as it is now (it grows with lines and large text; Prism CH-28).
-          <View style={{ position: "absolute", right: tk.space.base, bottom: composerHeight + tk.space.sm }}>
+        {(generating ? jump.writing : jump.idle) && (
+          // Above the composer as tall as it is now (it grows with lines and large text; Prism CH-28); it comes
+          // and goes with the DS enter/exit (Prism CX-6).
+          <Animated.View
+            entering={motion.entering({ from: "below" })}
+            exiting={motion.exiting({ to: "below" })}
+            style={{ position: "absolute", right: tk.space.base, bottom: composerHeight + tk.space.sm }}
+          >
             <IconButton
               icon="arrow-down"
               variant="tonal"
               label={t("chat.jumpToLatest")}
               onPress={() => {
                 followBottom.current = true;
-                setShowJump(false);
+                setJump({ writing: false, idle: false });
                 glideToBottom();
               }}
             />
-          </View>
+          </Animated.View>
         )}
 
         <View onLayout={onComposerLayout}>

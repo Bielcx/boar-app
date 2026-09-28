@@ -93,3 +93,15 @@ export function createBottomPin(deps: {
     },
   };
 }
+
+/** Within this distance of the end the list still follows it (a new line may push it past the edge). */
+export const FOLLOW_SLACK = 120;
+
+/**
+ * Whether "Jump to latest" shows (Prism CX-6): more than a screen from the end, answer or not (a long
+ * conversation read back up had no way down once the answer was done); while an answer writes, as soon as
+ * the list stops following it (the new text lands out of view). It goes once the end is reached.
+ */
+export function jumpToLatestShown(p: { distance: number; viewport: number; generating: boolean }): boolean {
+  return p.generating ? p.distance >= FOLLOW_SLACK : p.distance > p.viewport;
+}
