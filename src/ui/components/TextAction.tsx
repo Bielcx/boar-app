@@ -17,6 +17,11 @@ export interface TextActionProps {
   accessibilityHint?: string;
   accessibilityLabel?: string;
   disabled?: boolean;
+  /**
+   * `accent`: ember text for the one action that must read as tappable next to secondary text of the
+   * same size (the chat's "Answer anyway" under the grey decline line). Counts as the screen's accent.
+   */
+  tone?: "neutral" | "accent";
 }
 
 /**
@@ -33,8 +38,10 @@ export function TextAction({
   accessibilityHint,
   accessibilityLabel,
   disabled,
+  tone = "neutral",
 }: TextActionProps) {
   const t = useTokens();
+  const ink = tone === "accent" ? t.color.accent.text : t.color.text.secondary;
   const line = useOpticalLine("footnote");
   const lineHeight = line.lineHeight;
   const slop = Math.max(0, (t.size.touch - lineHeight) / 2);
@@ -50,12 +57,12 @@ export function TextAction({
       style={({ pressed }) => ({ alignSelf: "flex-start", opacity: disabled ? t.opacity.disabled : pressed ? t.opacity.pressed : 1 })}
     >
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap }}>
-        {leadingIcon && <IconSlot name={leadingIcon} line={line} color={t.color.text.secondary} />}
-        <Text variant="footnote" color="secondary" style={{ flexShrink: 1 }}>
+        {leadingIcon && <IconSlot name={leadingIcon} line={line} color={ink} />}
+        <Text variant="footnote" color={tone === "accent" ? "accent" : "secondary"} style={{ flexShrink: 1 }}>
           {label}
         </Text>
         {/* Trailing: its stroke, not its box, meets a row's right edge (Prism CH-20). */}
-        {icon && <IconSlot name={icon} line={line} color={t.color.text.secondary} edge="end" />}
+        {icon && <IconSlot name={icon} line={line} color={ink} edge="end" />}
       </View>
     </Pressable>
   );
