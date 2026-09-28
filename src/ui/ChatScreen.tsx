@@ -73,7 +73,6 @@ import { locate } from "./chat/locationApi";
 import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
-import { createBottomPin, heightChanged } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
 import { useMotion } from "./theme/motion";
@@ -183,48 +182,17 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const [showJump, setShowJump] = useState(false);
   const [composerHeight, setComposerHeight] = useState(0);
   const onComposerLayout = useCallback((e: LayoutChangeEvent) => setComposerHeight(e.nativeEvent.layout.height), []);
-  // One anchor for every move to the end (SEND-MOTION D4): snaps for small growth, one native glide for
-  // content appearing at once, and no snap ever cutting a glide (the send's jumps).
-  const reduceMotionRef = useRef(reduceMotion);
-  reduceMotionRef.current = reduceMotion;
-  const bottomPin = useMemo(
-    () =>
-      createBottomPin({
-        // Content: deferred a frame (on Android the reported content size can lag one layout behind).
-        // The list's own layout: in the same frame, the content didn't change (audit #8/#10).
-        scrollToEnd: (animated, sameFrame) =>
-          sameFrame
-            ? listRef.current?.scrollToEnd({ animated })
-            : requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated })),
-      }),
-    []
+  // SEND-MOTION v2 P2: the list is inverted (newest at offset 0, drawn at the bottom), the standard chat
+  // technique. Its end stays anchored natively: streamed text, blocks entering, the keyboard and a restored
+  // session grow from the bottom and no scroll ever has to be corrected (the v1 pin/glide is gone).
+  const scrollToLatest = useCallback(
+    () => listRef.current?.scrollToOffset({ offset: 0, animated: !reduceMotion }),
+    [reduceMotion]
   );
-  const glideToBottom = useCallback(() => bottomPin.glide(!reduceMotionRef.current), [bottomPin]);
-  useEffect(() => () => bottomPin.cancel(), [bottomPin]);
-  // Content growing (a token batch, a restored session rendering in batches, a height animating) snaps:
-  // animated scrolls restarted on every batch fought each other (audit #13). Glides only where asked for:
-  // sending (armed, so it starts once the question is measured), the jump button, a model error.
-  const onListContentSize = useCallback(() => {
-    if (followBottom.current) bottomPin.pin(!reduceMotionRef.current);
-  }, [bottomPin]);
-  // The keyboard changes the list's height on every frame: pin the last message then, and skip layouts that
-  // leave the height as it was (audit #8/#10). During a glide (the keyboard closing on send) it's held.
-  const listHeight = useRef<number | null>(null);
-  const onListLayout = useCallback((e: LayoutChangeEvent) => {
-    const h = e.nativeEvent.layout.height;
-    if (!heightChanged(listHeight.current, h)) return;
-    listHeight.current = h;
-    if (followBottom.current) bottomPin.pin(!reduceMotionRef.current, "layout");
-  }, [bottomPin]);
   const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-    // Our own glide passes through "far from the end" on its way there: it still follows.
-    if (bottomPin.gliding()) return;
-    followBottom.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 120;
+    followBottom.current = e.nativeEvent.contentOffset.y < 120;
     setShowJump(!followBottom.current);
-  }, [bottomPin]);
-  // A drag is the user's: a glide in flight or armed stops moving the list.
-  const onListDrag = useCallback(() => bottomPin.cancel(), [bottomPin]);
+  }, []);
 
   // ---- events: tokens batched (STREAM_FLUSH_MS) into one state update; everything else shows at once ----
   const pendingEvents = useRef<{ messageId: string; event: AnswerEvent }[]>([]);
@@ -490,9 +458,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       KeyboardController.dismiss();
       // And leave the field unfocused, as the mockup (with a hardware keyboard, dismiss() keeps the caret).
       inputRef.current?.blur();
-      // No scroll yet: the question isn't in the list. The content change it makes glides, once (D4).
+      // Sent from further up: back to the newest, where the question lands.
+      if (!followBottom.current) scrollToLatest();
       followBottom.current = true;
-      bottomPin.armGlide();
 
       const userItem: ChatItem = { kind: "user", id: `${Date.now()}-u`, text: query };
       enterIds.current.add(userItem.id);
@@ -567,7 +535,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       }
     },
     // canAsk, not ready: asking works while the model loads (a stale closure here swallowed the first tap, Harbor).
-    [activeSessionId, canAsk, cancelBackgroundTask, runInto, refreshSessions, bottomPin, finish]
+    [activeSessionId, canAsk, cancelBackgroundTask, runInto, refreshSessions, scrollToLatest, finish]
   );
 
   /**
@@ -637,7 +605,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   useEffect(() => {
     if (!loadError || itemsRef.current.length === 0) return;
     followBottom.current = true;
-    glideToBottom();
+    scrollToLatest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadError]);
 
@@ -771,8 +739,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     setInput(q);
     inputRef.current?.focus();
   }, []);
+  // Newest first for the inverted list.
+  const listData = useMemo(() => [...items].reverse(), [items]);
   const listContentStyle = useMemo(
-    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
+    // Inverted list: paddingTop is drawn at the bottom (above the composer), paddingBottom at the top.
+    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.base, paddingBottom: tk.space.sm, gap: tk.space.cardGap, flexGrow: 1 }),
     [tk]
   );
 
@@ -1008,7 +979,11 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
           <FlatList
             ref={listRef}
             style={{ flex: 1 }}
-            data={items}
+            data={listData}
+            inverted
+            // Reading further up while an answer streams: the rows in view stay put (the question and older
+            // ones; index 0 is the answer growing). Following the end, nothing to hold: the end is anchored.
+            maintainVisibleContentPosition={showJump ? HOLD_WHILE_READING : undefined}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
             extraData={renderItem}
@@ -1016,33 +991,35 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             // With a conversation on screen, a model error comes in as the next message, above the composer: it
-            // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
-            ListFooterComponent={
+            // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1). Inverted list:
+            // the header is drawn at the bottom.
+            ListHeaderComponent={
               items.length > 0 && loadError ? (
                 <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
               ) : null
             }
+            // The inverted list flips its empty component through its `style`: a plain View takes it, so the
+            // states inside (which don't forward a style) stay upright and centred.
             ListEmptyComponent={
-              loadError ? (
-                <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-              ) : !modelsRequested ? (
-                <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
-              ) : (
-                // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
-                <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
-                  <ChatEmptyState
-                    suggestions={suggestions}
-                    onAddKnowledge={showSuggestions ? openKnowledge : undefined}
-                    onAsk={ask}
-                    onFill={fillQuestion}
-                  />
-                </Animated.View>
-              )
+              <View style={{ flexGrow: 1 }}>
+                {loadError ? (
+                  <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+                ) : !modelsRequested ? (
+                  <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
+                ) : (
+                  // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
+                  <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
+                    <ChatEmptyState
+                      suggestions={suggestions}
+                      onAddKnowledge={showSuggestions ? openKnowledge : undefined}
+                      onAsk={ask}
+                      onFill={fillQuestion}
+                    />
+                  </Animated.View>
+                )}
+              </View>
             }
-            onContentSizeChange={onListContentSize}
-            onLayout={onListLayout}
             onScroll={onListScroll}
-            onScrollBeginDrag={onListDrag}
             scrollEventThrottle={100}
           />
         </Swap>
@@ -1057,7 +1034,7 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
               onPress={() => {
                 followBottom.current = true;
                 setShowJump(false);
-                glideToBottom();
+                scrollToLatest();
               }}
             />
           </View>
@@ -1114,6 +1091,9 @@ interface RowActions {
   copyQuestion: (text: string) => void;
   editQuestion: (text: string) => void;
 }
+
+/** v2 P2 (Boar a): while reading above, keep the rows from the question up in place as the answer grows. */
+const HOLD_WHILE_READING = { minIndexForVisible: 1 };
 
 const UserRow = memo(function UserRow({ text, actions }: { text: string; actions: RowActions }) {
   const onCopy = useCallback(() => actions.copyQuestion(text), [actions, text]);
