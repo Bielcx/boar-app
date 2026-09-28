@@ -24,7 +24,7 @@ $A install "$APK" | tail -1; $A shell cmd connectivity airplane-mode enable
 { echo "apk $(basename "$APK") $(shasum -a 256 "$APK" | cut -c1-64)"; echo "avd boar_api35 $($A shell getprop ro.build.version.release) API $($A shell getprop ro.build.version.sdk) $($A shell getprop ro.product.cpu.abi) gpu swiftshader_indirect"; $A shell wm size; $A shell wm density; grep -E '^hw.ramSize|^hw.cpu.ncore' $HOME/.android/avd/boar_api35.avd/config.ini; echo "host $(sysctl -n machdep.cpu.brand_string) $(sysctl -n hw.ncpu) cpu"; } | tr -d '\r' | tee "$OUT/device.txt"
 $A push "$M/bge-small-en-v1.5-q8_0.gguf" "$M/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf" "$D/corpus-standard.json" "$D/corpus-full.json" /sdcard/Download/ | tail -1
 $A shell mkdir -p /sdcard/Download/places
-PF=${PLACES_FILES:?PLACES_FILES}
+PF=${PLACES_FILES:-"$PL/8e5f7d856754a3610242bdd33e42c04bde7fc2de198b6f40a044a6ff5f2de629/t-N41E012.sqlite $PL/8b6cca48664f5fc59aab2a13ea2fe2d79f18c289bb7108001db4860b6082b36c/world-places.sqlite"}
 $A push $PF /sdcard/Download/places/ | tail -1
 for f in bge-small-en-v1.5-q8_0.gguf Qwen2.5-1.5B-Instruct-Q4_K_M.gguf corpus-standard.json corpus-full.json $(for f in $PF; do echo places/$(basename $f); done); do $A shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/$f" >/dev/null; done
 
