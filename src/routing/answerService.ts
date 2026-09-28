@@ -23,7 +23,7 @@ import { getActiveModelId, getAnswerSettings } from "../models/settings";
 import { runDeepResearch } from "../services/orchestrator";
 import { createAnswerer, InstalledLlm } from "./answer";
 import { measuredSpeeds } from "./depth";
-import { listRecentExecutions } from "../services/executionTelemetry";
+import { listRecentExecutions, recordExecution } from "../services/executionTelemetry";
 import type { GeoProviders } from "./geo";
 
 let geoProviders: GeoProviders | null = null;
@@ -92,4 +92,5 @@ export const { answer, deepen, effectiveModel: effectiveAnswerModel } = createAn
   },
   getGeoProviders: () => geoProviders,
   getModelSpeeds: async () => measuredSpeeds(await listRecentExecutions(500)),
+  recordExecution,
 });

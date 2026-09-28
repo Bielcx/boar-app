@@ -202,6 +202,43 @@ export function distanceMeters(a: { lat: number; lon: number }, b: { lat: number
   return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** Same place when two records share a normalized name and lie closer than this (an OSM node and its building, overlapping tiles). */
+export const DUPLICATE_PLACE_RADIUS_M = 50;
+
+/** "The Conscious Kitchen" / "Conscious Kitchen, The" / "the conscious-kitchen" -> "conscious kitchen". */
+export function normalizePlaceName(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/^(?:the|o|a|os|as|le|la|les|el|los|las|il|lo|der|die|das) (?=\S)|,? (?:the)$/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * One record per real place: a later record with the same normalized name within DUPLICATE_PLACE_RADIUS_M of a kept
+ * one is dropped ("The Conscious Kitchen" twice in Cape Town). Order is kept (the pack's ranking); the kept record
+ * takes the address, hours, phone and website it lacks from its duplicate.
+ */
+export function dedupPlaces<T extends PoiRecord>(pois: T[]): T[] {
+  const kept: { p: T; key: string }[] = [];
+  for (const p of pois) {
+    const key = normalizePlaceName(p.name);
+    const twin = key ? kept.find((k) => k.key === key && distanceMeters(k.p, p) < DUPLICATE_PLACE_RADIUS_M) : undefined;
+    if (!twin) {
+      kept.push({ p, key });
+      continue;
+    }
+    const fill: Partial<PoiRecord> = {};
+    for (const f of ["address", "openingHours", "phone", "website"] as const) if (!twin.p[f] && p[f]) fill[f] = p[f];
+    if (Object.keys(fill).length) twin.p = { ...twin.p, ...fill };
+  }
+  return kept.map((k) => k.p);
+}
+
 export function toPlace(p: PoiRecord & { distanceM?: number }, sourceIndex: number, withDistance: boolean): Place {
   return {
     id: p.id,

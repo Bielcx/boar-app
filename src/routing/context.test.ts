@@ -10,6 +10,7 @@ import {
   isCurrentEventQuery,
   wrongScriptSentences,
   stripModelDisclaimer,
+  stripModelReferences,
   isPortugueseQuestion,
   excerptRules,
   withAfterPart,
@@ -789,6 +790,37 @@ describe("stripModelDisclaimer (gate cd1478a: the notice twice)", () => {
   });
   it("leaves an answer that doesn't open with a notice alone", () => {
     for (const t of ["The offline library is a feature of this app.", "Esta resposta depende do país.", "RSA is broken by quantum computers."]) expect(stripModelDisclaimer(t, false)).toBe(t);
+  });
+});
+
+describe("stripModelReferences (CT-A: an invented reference at the end of a PT answer)", () => {
+  it("removes the exact line the Rápido wrote", () => {
+    const text = "As monções são ventos sazonais que trazem chuva ao sul da Ásia [1].\n\n[1] Monsoon, Wikipedia, acessado em 1 de fevereiro de 2023";
+    expect(stripModelReferences(text)).toBe("As monções são ventos sazonais que trazem chuva ao sul da Ásia [1].");
+  });
+  it("removes reference sections and dated lines, EN and PT", () => {
+    const cases: Array<[string, string]> = [
+      ["Canberra is the capital [1].\n\nReferences:\n[1] Canberra, Wikipedia, retrieved on 3 March 2023\n[2] Hall Primary School, Wikipedia", "Canberra is the capital [1]."],
+      ["O Brasil usa tomadas tipo N [1].\n\nFontes:\n- Plug, Wikipedia\n- https://example.org/plugs", "O Brasil usa tomadas tipo N [1]."],
+      ["O Brasil usa tomadas tipo N [1].\n\n**Referências**\n1. Tomada, Wikipédia, acessado em 2 de março de 2024", "O Brasil usa tomadas tipo N [1]."],
+      ["Mold needs moisture [2].\nFonte: Wikipedia", "Mold needs moisture [2]."],
+      ["Mold needs moisture [2].\nRetrieved on 12 May 2022.", "Mold needs moisture [2]."],
+      ["Mold needs moisture [2]. [3] Mold, Wikipedia, accessed on 1 June 2023", "Mold needs moisture [2]."],
+      ["### Sources\n\n[1] Canberra, Wikipedia", ""],
+    ];
+    for (const [input, out] of cases) expect(stripModelReferences(input), input).toBe(out);
+  });
+  it("keeps the markers of a sources line that holds only [n]", () => {
+    expect(stripModelReferences("Canberra is the capital of Australia.\n\nFontes: [1], [2]")).toBe("Canberra is the capital of Australia. [1][2]");
+  });
+  it("leaves answers without a reference list alone", () => {
+    for (const t of [
+      "Sources of vitamin C: oranges, lemons and peppers [1].",
+      "1. Boil the water for one minute [1].\n2. Let it cool.",
+      "The Wikipedia article is one of the offline sources [2].",
+      "Fontes de ferro incluem feijão e lentilha [1].",
+    ])
+      expect(stripModelReferences(t), t).toBe(t);
   });
 });
 
