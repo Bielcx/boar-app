@@ -1,7 +1,7 @@
 #!/bin/bash
 # Heavy job (inside the lock), night 28/09: Boar #3 (Android prints: 07 PT + 12, then 02/03/07/11/12 at font 1.3 and 2.0)
 # and #7 (dumpsys gfxinfo: streaming, sources list, Models, Knowledge, places + "Show N more", cold start; 3 reps each).
-# One headless AVD boot for all phases (prints | iris | misc | perf). usage: [PHASES="prints perf"] [FLOOR_GB=12] [REPS=3] run-night.sh <apk> <sha>
+# One headless AVD boot for all phases (prints | iris | misc | cold | perf); cold needs APK_B (COLD_ROUNDS=10). usage: [PHASES="prints perf"] [FLOOR_GB=12] [REPS=3] run-night.sh <apk> <sha>
 # Flows in ~/boar/android/e2e/flows-piston/{prints,perf}. Output: ~/boar/android/e2e-out/night-<sha>-<ts>/
 set -uo pipefail
 APK=${1:?apk}; SHA=${2:?sha}; SDK=$HOME/Library/Android/sdk; A=$SDK/platform-tools/adb; P=team.sopa.aoair.offline
@@ -86,6 +86,33 @@ if [[ " $PHASES " == *" misc "* ]]; then
   $A shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/docs/broken.pdf" >/dev/null
   fontscale 1.0
   for L in pt en; do fresh; mf setup2-$L prints/setup-to-chat.yaml $L && mf misc2-$L prints/iris-misc.yaml $L; done
+fi
+
+if [[ " $PHASES " == *" cold "* ]]; then
+  # Cold start A/B on one boot (Boar: rule out the environment). <apk> = A, APK_B = B, same package: set up once
+  # with A, then alternate `install -r -d` (keeps the app data) A B A B ...; per round one discarded warm-up
+  # launch, then one measured cold start (am start -W TotalTime + seconds until "Ask something" + gfxinfo).
+  B=${APK_B:?APK_B}; ROUNDS=${COLD_ROUNDS:-10}; CD=$OUT/cold; mkdir -p $CD; CR=$CD/results.tsv
+  echo -e "round\tbuild\ttotaltime_ms\tusable_s\tframes\tjanky_pct\tp90\tp99" > $CR
+  fontscale 1.0; fresh; mf setup-cold prints/setup-to-chat.yaml en
+  ACT=$($A shell cmd package resolve-activity --brief $P | tail -1 | tr -d '\r')
+  for r in $(seq 1 $ROUNDS); do
+    if [ $((r % 2)) = 1 ]; then apk=$APK; else apk=$B; fi
+    tag=$(basename "$apk" | sed -E 's/boar-integration-([0-9a-f]+)-.*/\1/')
+    out=$($A install -r -d "$apk" 2>&1 | tail -1); [ "$out" != "Success" ] && { log "cold: install $tag failed: $out"; break; }
+    $A shell am start -W -n "$ACT" >/dev/null; sleep 8; $A shell am force-stop $P; sleep 5   # warm-up (post-install compile), discarded
+    ts=$(python3 -c 'import time;print(time.time())')
+    tt=$($A shell am start -W -n "$ACT" | tr -d '\r' | awk '/TotalTime/{print $2}')
+    until $A shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && $A shell cat /sdcard/ui.xml | grep -q 'Ask something'; do
+      [ $(python3 -c "import time;print(int(time.time()-$ts))") -gt 90 ] && break; done
+    us=$(python3 -c "import time;print(round(time.time()-$ts,1))"); sleep 2
+    g=$CD/r$r-$tag.gfxinfo.txt; $A shell dumpsys gfxinfo $P | tr -d '\r' > $g
+    fr=$(grep -m1 'Total frames rendered' $g | awk -F': ' '{print $2}'); jk=$(grep -m1 '^Janky frames:' $g | sed -E 's/.*\(([0-9.]+)%\).*/\1/')
+    p90=$(grep -m1 '^90th percentile' $g | sed -E 's/.*: ([0-9]+)ms/\1/'); p99=$(grep -m1 '^99th percentile' $g | sed -E 's/.*: ([0-9]+)ms/\1/')
+    echo -e "$r\t$tag\t$tt\t$us\t$fr\t$jk\t$p90\t$p99" | tee -a $CR
+    $A shell am force-stop $P; sleep 3
+  done
+  log "cold done"; column -t -s $'\t' $CR | tee -a "$OUT/night.log"
 fi
 
 if [[ " $PHASES " == *" perf "* ]] || [[ " $PHASES " == *" prints "* ]]; then
