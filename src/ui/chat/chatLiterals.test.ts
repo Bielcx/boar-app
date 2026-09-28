@@ -72,4 +72,11 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(msg).toMatch(/const fastStreaming = running && /);
     for (const key of ["fast", "deep", "extract"]) expect(msg).toContain(`drainKey="${key}"`);
   });
+  it("F2-9: the end notes fade in whole (no height reveal), with no layout animation on their commit", () => {
+    const msg = read("AssistantMessage.tsx");
+    expect(msg).toMatch(/<Block shown=\{!!answer\.weakDeclined && !active\} fade>/);
+    expect(msg).toMatch(/<Block shown=\{!!note && !!done\} fade>/);
+    const finish = read("../ChatScreen.tsx").match(/const finish = useCallback\(\(\) => \{[\s\S]*?\n  \}, \[\]\);/)![0];
+    expect(finish).not.toMatch(/animateNextLayout\(\)/);
+  });
 });

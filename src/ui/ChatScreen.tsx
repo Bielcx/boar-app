@@ -484,8 +484,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   );
 
   const finish = useCallback(() => {
-    // The answer stops running: "N passages" becomes the list, the actions come in (Prism F2-1).
-    motionRef.current.animateNextLayout();
+    // No layout animation here (was F2-1): since CX-12 an answer with text ends on screen when its reveal
+    // drains, not in this commit; a decline's note mounts in it, and the native layout animation over a
+    // view mounting in a Reveal made it blink in whole for a frame (Prism F2-9).
     activeRef.current = null;
     setActive(null);
     setStopping(false);

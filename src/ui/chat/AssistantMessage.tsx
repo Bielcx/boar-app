@@ -9,7 +9,7 @@ import { splitThinking } from "../../services/thinking";
 import { cleanCitations } from "../../services/citations";
 import { splitInlineBullets } from "../../services/answerFormat";
 import { answerPhase, canDeepen, isLocating, noSourceKind, type AnswerState, type TierState } from "./answerReducer";
-import { declineAfterSnippet, declineCopy, answerReceiptShort, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, type GeneratingStep } from "./presentation";
+import { declineAfterSnippet, declineCopy, answerReceiptShort, snippetAutoCollapses, generatingSteps, noticeShown, stepsCardShown, showsAnswerBody, noSourceNote, offersAskModel, receiptTagKey, showsInstantSnippet, stepSpinnerRuns, sourceLanguageLead, previewText, receiptDetails, receiptLine, type GeneratingStep } from "./presentation";
 import { answerSourceSplit, groupSources, sourcesCardMode, relevanceBands, bestBand, BAND_FILL, sourceParts, type RelevanceBand } from "./sourceLabel";
 import { answerShowsEmergencyNote } from "./safetyNote";
 import { withoutUncitedPreface } from "./uncitedPreface";
@@ -19,6 +19,7 @@ import type { AnswerReceipt } from "./answerEvents";
 import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
 import { lineSlop } from "./touch";
 import { chatLargeText } from "./largeText";
+import Reanimated from "react-native-reanimated";
 import { Reveal } from "./Reveal";
 import { useSmoothText } from "./useSmoothText";
 import { answerStillShowing, isDraining } from "./streamReveal";
@@ -824,7 +825,7 @@ const InstantSnippet = memo(function InstantSnippet({
   // 0-based, as the engine sends it ("[n]" = sourceIndex + 1).
   const source = answer.sources[snippet.sourceIndex];
   // Collapses to a short preview once the model's answer is done, unless the user chose otherwise.
-  const autoCollapsed = answer.fast?.outcome === "success" && !isFinal;
+  const autoCollapsed = snippetAutoCollapses(answer, isFinal);
   const expanded = userExpanded ?? !autoCollapsed;
   return (
     <Card padding="sm" style={{ gap: t.space.xs }}>
@@ -863,7 +864,8 @@ const InstantSnippet = memo(function InstantSnippet({
   a.isFinal === b.isFinal &&
   a.onOpenSource === b.onOpenSource &&
   sameAnswerFields(a.answer, b.answer, ["instant", "sources"]) &&
-  a.answer.fast?.outcome === b.answer.fast?.outcome
+  a.answer.fast?.outcome === b.answer.fast?.outcome &&
+  a.answer.weakDeclined === b.answer.weakDeclined
 );
 
 /**
@@ -927,9 +929,19 @@ const BlockMotion = createContext<{ appear: boolean; gap: number }>({ appear: fa
  * A restored answer doesn't move: plain views, no animated values for every block of the history (its
  * folds open with the DS's animateNextLayout, as in a fresh answer at rest).
  */
-function Block({ shown, gap, children }: { shown: boolean; gap?: number; children?: ReactNode }) {
+function Block({ shown, gap, fade, children }: { shown: boolean; gap?: number; fade?: boolean; children?: ReactNode }) {
   const m = useContext(BlockMotion);
+  const motion = useMotion();
   if (!m.appear) return shown ? <View style={{ paddingTop: gap ?? m.gap }}>{children}</View> : null;
+  // `fade`: an end note that comes in whole with the DS enter (a fade, 220 ms; 90 under reduce motion) and
+  // no growing height: revealed by height it blinked in whole for a frame, then grew with its line cut
+  // (Prism F2-9). Below everything, at the end: the list glides to it.
+  if (fade)
+    return shown ? (
+      <Reanimated.View entering={motion.entering()} exiting={motion.exiting()} style={{ paddingTop: gap ?? m.gap }}>
+        {children}
+      </Reanimated.View>
+    ) : null;
   return (
     <Reveal shown={shown} appear={m.appear} spaceBefore={gap ?? m.gap}>
       {children}
@@ -1178,7 +1190,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
             </Swap>
           )}
         </Block>
-        <Block shown={!!answer.weakDeclined && !active}>
+        <Block shown={!!answer.weakDeclined && !active} fade>
           {answer.weakDeclined && !active &&
             (declineAfterSnippet(answer) ? (
               <HeldAfterSnippet onAnswerAnyway={props.onAnswerAnyway} />
@@ -1186,7 +1198,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
               <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />
             ))}
         </Block>
-        <Block shown={!!note && !!done}>
+        <Block shown={!!note && !!done} fade>
           {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
         </Block>
 

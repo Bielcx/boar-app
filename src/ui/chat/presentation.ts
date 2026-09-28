@@ -386,6 +386,16 @@ export function noticeShown(tier: { outcome?: string } | undefined, interrupted?
 }
 
 /**
+ * Whether the instant snippet folds to its preview on its own: once the model's answer is done, unless the
+ * snippet is the final answer, or the model's answer was declined (Prism F2-10): then "the passage above is
+ * what the library says" and the passage is the answer, so it stays whole (folding it also shrank a long
+ * answer under the screen and made the list jump).
+ */
+export function snippetAutoCollapses(a: { fast?: { outcome?: string }; weakDeclined?: boolean }, isFinal: boolean): boolean {
+  return a.fast?.outcome === "success" && !isFinal && !a.weakDeclined;
+}
+
+/**
  * SEND-MOTION D3 (Boar: option A): the steps card stays until the answer's own text starts, then shrinks
  * while the text takes its place; the progress goes on in the header pill (time + step) and the caret.
  * So at the end nothing leaves ABOVE the text (the card "vanishing out of nowhere" r4to saw). Option B
