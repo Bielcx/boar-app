@@ -76,6 +76,8 @@ import { flushDelay } from "./chat/streamBatch";
 import { createBottomPin, heightChanged } from "./chat/listPin";
 import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
+import { Reveal } from "./chat/Reveal";
+import { loadStripKey, loadStripShown } from "./chat/loadStrip";
 import { useMotion } from "./theme/motion";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
@@ -1002,16 +1004,20 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             <Banner tone="warning" icon="book-open" message={t("chat.library.incomplete")} actionLabel={t("chat.actions.retry")} onAction={reseed} />
           </View>
         )}
-        {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state. */}
-        {!loadError && !ready && (items.length > 0 || modelsRequested) ? (
+        {/* While the model loads or the library indexes, the status sits on top, above the chat or the empty state.
+            It leaves in height (DS layout + exit; reduce motion: a short fade) instead of vanishing and
+            lifting the chat 46 dp in one frame; a new status crossfades, a counter updates in place (Prism L3-1). */}
+        <Reveal shown={loadStripShown({ loadError: !!loadError, ready, itemCount: items.length, modelsRequested })} appear={false}>
           <View style={{ paddingHorizontal: tk.space.gutterChat, paddingVertical: tk.space.sm, gap: tk.space.sm }}>
-            {/* Seen, not read: the progress bar below speaks the same label (Prism CH-32). */}
-            <Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
-              {loadStatus.label}
-            </Text>
+            <Swap swapKey={loadStripKey(loadStatus.label)}>
+              {/* Seen, not read: the progress bar below speaks the same label (Prism CH-32). */}
+              <Text variant="footnote" color="secondary" importantForAccessibility="no" accessibilityElementsHidden>
+                {loadStatus.label}
+              </Text>
+            </Swap>
             <Progress label={loadStatus.label} value={loadStatus.progress} tone="accent" height={tk.space.xs} />
           </View>
-        ) : null}
+        </Reveal>
 
         {/* TR-10: switching conversations crossfades the list (DS crossfade, keyed by the conversation). */}
         <Swap swapKey={conversationKey} style={{ flex: 1 }}>
