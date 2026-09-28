@@ -20,6 +20,15 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
     element: ${T_START}
     optional: true
 - takeScreenshot: 02-setup1-language_android_${L}${SUF}_b
+# Prism FL-3: scroll to the end of the "This phone" card (the "Runs on | On the phone itself" row vs the footer)
+- scrollUntilVisible:
+    element:
+      text: "(Roda em|Runs on)"
+    optional: true
+- takeScreenshot: 02-setup1-language_android_${L}${SUF}_c
+- scroll
+- scroll
+- takeScreenshot: 02-setup1-language_android_${L}${SUF}_end
 - tapOn: ${T_START}
 - extendedWaitUntil:
     visible:

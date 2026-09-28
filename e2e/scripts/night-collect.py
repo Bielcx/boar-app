@@ -10,7 +10,7 @@ root = Path(sys.argv[3] if len(sys.argv) > 3 else "/Users/r4to/Script/boar/shots
 dst = root / sha / "android"; dst.mkdir(parents=True, exist_ok=True)
 (dst / "extra").mkdir(exist_ok=True)
 copied = []
-for png in sorted(night.glob("*/*.png")):
+for png in sorted(list(night.glob("*/*.png")) + list(night.glob("*/maestro/**/takeScreenshot/*.png"))):
     if not re.match(r"\d\d-", png.name):
         continue  # perf-*, fail.png, final.png stay in the raw dir
     name = png.stem.replace("_font100", "")
@@ -61,9 +61,9 @@ for r in rows:
 print()
 for x in sorted((night / "perf").glob("streaming-*-end.xml")):
     t = x.read_text(errors="ignore")
-    texts = [re.sub(r"&#10;|&amp;|&quot;", " ", m) for m in re.findall(r'(?:text|content-desc)="([^"]{200,})"', t)]
-    longest = max(texts, key=len) if texts else ""
+    texts = [re.sub(r"&#10;|&amp;|&quot;", " ", m) for m in re.findall(r' text="([^"]+)"', t)]
+    longest = " ".join(texts)  # every visible text node (the answer is split into one node per block)
     w = len(longest.split())
     cites = len(set(re.findall(r"\[\d+\]", longest)))
     listed = len(re.findall(r"(?:^|\s)\d+\.\s", longest))
-    print(f"- {x.stem}: ~{w} palavras (~{round(w*1.33)} tokens), {listed} itens numerados, {cites} citações [n] distintas; visível no dump (pode estar cortado pela rolagem)")
+    print(f"- {x.stem}: ~{w} palavras (~{round(w*1.33)} tokens), {listed} itens numerados, {cites} citações [n] distintas; todo texto visível na tela ao fim (inclui a pergunta e rótulos; a resposta pode passar da tela)")
