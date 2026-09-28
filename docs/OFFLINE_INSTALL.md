@@ -69,7 +69,7 @@ government works, CC0 EIPs, MIT ethereum.org), every link pinned to a dataset co
 
 | Asset | Size | Places (OSM + Wikivoyage) | Download | SHA-256 |
 |---|---|---|---|---|
-| World gazetteer (GeoNames, 34,149 places) **(needed for any places pack)** | 21.7 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/b9e77a26cfbf9b31f454d012e3218e65195d1333/places/world-places.sqlite) | `8b6cca48664f5fc59aab2a13ea2fe2d79f18c289bb7108001db4860b6082b36c` |
+| World gazetteer (GeoNames, 34,149 places) **(needed for any places pack)** | 23.0 MB | — | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/0d75f30fc9d439a7b4e3685c6fcd5a34236f33f6/places/world-places.sqlite) | `215ce4663b2f79dbf25e9cacab90cd8aa0a8711721663a733cb53bc49d972892` |
 | Places: São Paulo | 1.4 MB | 7,013 (126 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/sao-paulo.sqlite) | `42e6caf31e9018ad76e282f26114812dbdf0ab23c2aaf269199b9126bbe935d3` |
 | Places: Singapore | 1.9 MB | 10,188 (97 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/singapore.sqlite) | `bd7c1afcb59f4438bb2a9b0fbde2360720194ea05ac5081ee9dc4fed0c094506` |
 | Places: Taipei | 3.4 MB | 18,857 (156 vegan) | [link](https://huggingface.co/datasets/r4topunk/boar-packs/resolve/2b5b193b8fbd9f69dcf0af4447fa324066904a4f/places/cities/taipei.sqlite) | `0831d93f747e4fa002d850523fc4098bc58ee262058b8b54b6a0b3cc60f5f480` |
