@@ -209,6 +209,7 @@ export function fuseRetrievalResults(
       if (existing) {
         existing.score += norm;
         existing.matchType = "hybrid";
+        if (c.similarity !== undefined) existing.similarity = Math.max(existing.similarity ?? -1, c.similarity);
       } else {
         byId.set(c.chunkId, { ...c, score: norm });
       }
@@ -234,6 +235,34 @@ export function fuseRetrievalResults(
 }
 
 export const MAX_CHUNKS_PER_ARTICLE = 2;
+
+/**
+ * Relevance gate on fused results (retrieve.ts), on the real cosine similarity rather than the
+ * fused score, which is only relative. Measured with bge-small over the Vital Articles pack
+ * (scripts/rag-calibrate.mjs): the right sources for the evaluation questions scored 0.73-0.86,
+ * while noise like "can you help me?" matched at 0.54-0.57.
+ *
+ * - ANSWER_MIN_SIMILARITY: nothing below it is sent to the model.
+ * - RELEVANCE_WINDOW: nothing further than this below the best chunk, so one strong match
+ *   doesn't bring weak ones along. That keeps the prompt, and the wait before the first word,
+ *   short.
+ *
+ * Chunks with no similarity (a keyword-only hit) are dropped: a word in common isn't enough.
+ * Questions that share only a word with an article ("whats your name?" and Name at 0.69) are
+ * kept out earlier, by classifyTask's "conversation" type.
+ */
+export const ANSWER_MIN_SIMILARITY = 0.7;
+export const RELEVANCE_WINDOW = 0.06;
+
+export function gateByRelevance<T extends { similarity?: number }>(
+  chunks: T[],
+  minSimilarity = ANSWER_MIN_SIMILARITY,
+  window = RELEVANCE_WINDOW
+): T[] {
+  const best = Math.max(-1, ...chunks.map((c) => c.similarity ?? -1));
+  const floor = Math.max(minSimilarity, best - window);
+  return chunks.filter((c) => c.similarity !== undefined && c.similarity >= floor);
+}
 
 export interface ConversationTurn {
   role: "user" | "assistant";

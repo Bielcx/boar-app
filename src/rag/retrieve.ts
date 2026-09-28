@@ -6,6 +6,7 @@ import {
   filterByMinScore,
   filterByTermCoverage,
   fuseRetrievalResults,
+  gateByRelevance,
   MIN_SEMANTIC_SIMILARITY,
 } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
@@ -77,12 +78,14 @@ async function semanticSearch(queryVec: Float32Array, limit: number): Promise<Re
       r.embedding.byteOffset,
       r.embedding.byteLength / 4
     );
+    const similarity = cosineSimilarity(queryVec, vec);
     return {
       chunkId: r.chunk_id,
       docId: r.doc_id,
       title: r.title,
       body: r.body,
-      score: cosineSimilarity(queryVec, vec),
+      score: similarity,
+      similarity,
       matchType: "semantic" as const,
     };
   });
@@ -109,7 +112,10 @@ export async function retrieve(query: string, topK = 6): Promise<RetrievedChunk[
     searchPacks(query, queryVec, topK * 2).catch(() => ({ lexical: [], semantic: [] })),
   ]);
 
-  return fuseRetrievalResults([...lexical, ...packs.lexical], [...semantic, ...packs.semantic], topK);
+  // Fuse twice as many as needed, then keep only the ones that are actually close to the question:
+  // a strong first match must not drag weak ones along, and an unrelated question gets none.
+  const fused = fuseRetrievalResults([...lexical, ...packs.lexical], [...semantic, ...packs.semantic], topK * 2);
+  return gateByRelevance(fused).slice(0, topK);
 }
 
 export { assemblePrompt } from "./pure";

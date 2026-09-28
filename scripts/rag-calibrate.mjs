@@ -6,7 +6,7 @@
 //   node scripts/rag-calibrate.mjs [build/knowledge-pack/wiki-vital5.sqlite]
 import { DatabaseSync } from "node:sqlite";
 import { getLlama } from "node-llama-cpp";
-import { buildLexicalQuery, cosineSimilarityInt8 } from "../src/rag/pure.ts";
+import { buildLexicalQuery, cosineSimilarityInt8, gateByRelevance } from "../src/rag/pure.ts";
 
 const packPath = process.argv[2] ?? "build/knowledge-pack/wiki-vital5.sqlite";
 
@@ -49,5 +49,6 @@ for (const [q, expected] of CASES) {
     .filter((r, i, all) => all.findIndex((x) => x.title === r.title) === i)
     .slice(0, 4);
   const top = scored.map((r) => `${r.title} ${r.sim.toFixed(2)}`).join(" | ");
-  console.log(`${expected ? "WANT " + expected.padEnd(32) : "WANT nothing".padEnd(37)} terms=[${lq?.terms.join(",") ?? ""}]\n    ${q}\n    ${top || "(no keyword candidates)"}`);
+  const kept = gateByRelevance(scored.map((r) => ({ ...r, similarity: r.sim }))).map((r) => r.title);
+  console.log(`${expected ? "WANT " + expected.padEnd(32) : "WANT nothing".padEnd(37)} terms=[${lq?.terms.join(",") ?? ""}]\n    ${q}\n    ${top || "(no keyword candidates)"}\n    gate keeps ${kept.length}: ${kept.join(", ") || "-"}`);
 }
