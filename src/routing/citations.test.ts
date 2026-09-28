@@ -36,6 +36,40 @@ describe("checkCitations (CT-1)", () => {
   });
 });
 
+describe("checkCitations in English: paraphrase of a short source (iPhone 13, 28/09)", () => {
+  // Real prompt source and answers (desktop replay of the app pipeline, seeds 1-3; the device texts were not logged).
+  const GREENHOUSE = src(
+    "Greenhouse effect",
+    "The greenhouse effect occurs when heat-trapping gases in a planet's atmosphere prevent the planet from losing heat to space, raising its surface temperature. Surface heating can happen from an internal heat source or come from an external source, such as a host star. In the case of Earth, the Sun emits shortwave radiation (sunlight) that passes through greenhouse gases to heat the Earth's surface. In response, the Earth's surface emits longwave radiation that is mostly absorbed by greenhouse gases, reducing the rate at which the Earth can cool off."
+  );
+  const AVOGADRO = src(
+    "Amedeo Avogadro",
+    "Lorenzo Romano Amedeo Carlo Avogadro, Count of Quaregna and Cerreto (, also US: , Italian: [ameˈdɛːo avoˈɡaːdro]; 9 August 1776 – 9 July 1856) was an Italian scientist, most noted for his contribution to molecular theory now known as Avogadro's law, which states that equal volumes of gases under the same conditions of temperature and pressure will contain equal numbers of molecules. In tribute to him, the ratio of the number of elementary entities (atoms, molecules, ions or other particles) in a substance to its amount of substance (the latter having the unit mole), 6.02214076×1023 mol−1, is known as the Avogadro constant."
+  );
+
+  it("keeps the 4B's greenhouse citation: 'like', 're-' and 'radiate'/'radiation' no longer count against it", () => {
+    const answer = "Greenhouse gases like carbon dioxide and water vapor absorb this radiation and re-radiate it, trapping heat and warming the atmosphere [1].";
+    expect(checkCitations(answer, [GREENHOUSE]).removed).toEqual([]);
+  });
+
+  it("a [1] closing a whole explanation vouches for the paragraph (the 1.5B's style), at the bar for adding one", () => {
+    const answer =
+      "The greenhouse effect is when heat-trapping gases in Earth's atmosphere trap heat from the sun, warming the planet's surface. When the sun emits shortwave radiation, it passes through the atmosphere and heats the Earth's surface. The Earth then emits longwave radiation, mostly absorbed by greenhouse gases, reducing cooling. This cycle keeps Earth warm, essential for life. [1]";
+    expect(checkCitations(answer, [GREENHOUSE])).toEqual({ text: answer, removed: [] });
+    // Loose word overlap over a paragraph is not support (the 4B, gate c7a7f17: 0.5 as one claim).
+    expect(checkCitations("The United States has 50 states. The element with atomic number 50 is tin (Sn). [1]", [AVOGADRO]).removed).toEqual([1]);
+    // Inside a paragraph a citation still answers for its own sentence.
+    expect(checkCitations("This cycle keeps Earth warm, essential for life [1]. The greenhouse effect traps heat.", [GREENHOUSE]).removed).toEqual([1]);
+  });
+
+  it("stays off-topic-proof: the seasons from the Walipini and the Irish famine from the Great Recession", () => {
+    expect(checkCitations("Earth's axial tilt causes the seasons [1].", [WALIPINI]).removed).toEqual([1]);
+    const recession = src("Great Recession in Africa", "As a direct result of the late 2000s recession, some economies in Africa have been primarily affected by reduced global demand and lower prices of commodities such as oil, platinum, nickel, gold, and copper.");
+    const famine = "The Great Famine in Ireland was primarily caused by the late 19th century potato blight, which reduced the potato crop yield to nearly zero. The consequences included mass starvation and emigration of Irish people to other countries. [1]";
+    expect(checkCitations(famine, [recession]).removed).toEqual([1]);
+  });
+});
+
 describe("attributeCitations (the inverse of CT-1)", () => {
   const src = (title: string, body: string) => ({ chunkId: title, docId: title, title, body, score: 1, matchType: "lexical" as const });
   const MONSOON = src("Monsoon", "A monsoon is a seasonal reversing wind accompanied by changes in precipitation.");
