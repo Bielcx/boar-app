@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, FlatList, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, Share, TextInput, View } from "react-native";
 import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
+import Animated from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { DrawerActions, useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -73,6 +74,8 @@ import { suggestionsFor } from "./chat/suggestions";
 import { installedKnowledgeIds } from "./chat/knowledgeApi";
 import { flushDelay } from "./chat/streamBatch";
 import { createBottomPin, heightChanged } from "./chat/listPin";
+import { EnterOnce } from "./chat/EnterOnce";
+import { useMotion } from "./theme/motion";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
 const VERBATIM_MESSAGE_COUNT = 6;
@@ -112,6 +115,7 @@ let draftInput = "";
 export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void }) {
   const tk = useTokens();
   const { reduceMotion } = useTheme();
+  const motion = useMotion();
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const announce = useAnnounce();
@@ -122,6 +126,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
   const itemsRef = useRef<ChatItem[]>([]);
   // Answers asked in this run (not restored from history): only these may take focus (the city prompt).
   const askedIds = useRef<Set<string>>(new Set());
+  // Rows sent in this run that haven't entered yet (SEND-MOTION S1): each enters once.
+  const enterIds = useRef<Set<string>>(new Set());
   itemsRef.current = items;
   // The unsent question survives a remount too (FS-1).
   const [input, setInput] = useState<string>(draftInput);
@@ -485,6 +491,8 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       bottomPin.armGlide();
 
       const userItem: ChatItem = { kind: "user", id: `${Date.now()}-u`, text: query };
+      enterIds.current.add(userItem.id);
+      enterIds.current.add(assistantId);
       const assistantItem: ChatItem = {
         kind: "assistant",
         id: assistantId,
@@ -909,21 +917,24 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
   const activeId = active?.messageId ?? null;
   const renderItem = useCallback(
-    ({ item }: { item: ChatItem }) =>
-      item.kind === "user" ? (
-        <UserRow text={item.text} actions={actions} />
-      ) : (
-        <AssistantRow
-          item={item}
-          active={activeId === item.id}
-          waitingLibrary={waitingLibrary === item.id ? loadStatus.label : undefined}
-          libraryIncomplete={libraryIncomplete}
-          fresh={askedIds.current.has(item.id)}
-          stopping={activeId === item.id && stopping}
-          locale={locale}
-          actions={actions}
-        />
-      ),
+    ({ item }: { item: ChatItem }) => (
+      <EnterOnce enter={enterIds.current.has(item.id)} onEntered={() => enterIds.current.delete(item.id)}>
+        {item.kind === "user" ? (
+          <UserRow text={item.text} actions={actions} />
+        ) : (
+          <AssistantRow
+            item={item}
+            active={activeId === item.id}
+            waitingLibrary={waitingLibrary === item.id ? loadStatus.label : undefined}
+            libraryIncomplete={libraryIncomplete}
+            fresh={askedIds.current.has(item.id)}
+            stopping={activeId === item.id && stopping}
+            locale={locale}
+            actions={actions}
+          />
+        )}
+      </EnterOnce>
+    ),
     [actions, activeId, stopping, locale, waitingLibrary, loadStatus.label, libraryIncomplete]
   );
 
@@ -1009,12 +1020,15 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
             ) : !modelsRequested ? (
               <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
             ) : (
-              <ChatEmptyState
-                suggestions={suggestions}
-                onAddKnowledge={showSuggestions ? openKnowledge : undefined}
-                onAsk={ask}
-                onFill={fillQuestion}
-              />
+              // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
+              <Animated.View exiting={motion.exiting()} style={{ flexGrow: 1 }}>
+                <ChatEmptyState
+                  suggestions={suggestions}
+                  onAddKnowledge={showSuggestions ? openKnowledge : undefined}
+                  onAsk={ask}
+                  onFill={fillQuestion}
+                />
+              </Animated.View>
             )
           }
           onContentSizeChange={onListContentSize}
