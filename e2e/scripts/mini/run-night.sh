@@ -1,7 +1,7 @@
 #!/bin/bash
 # Heavy job (inside the lock), night 28/09: Boar #3 (Android prints: 07 PT + 12, then 02/03/07/11/12 at font 1.3 and 2.0)
 # and #7 (dumpsys gfxinfo: streaming, sources list, Models, Knowledge, places + "Show N more", cold start; 3 reps each).
-# One headless AVD boot for all phases (prints | iris | perf). usage: [PHASES="prints perf"] [FLOOR_GB=12] [REPS=3] run-night.sh <apk> <sha>
+# One headless AVD boot for all phases (prints | iris | misc | perf). usage: [PHASES="prints perf"] [FLOOR_GB=12] [REPS=3] run-night.sh <apk> <sha>
 # Flows in ~/boar/android/e2e/flows-piston/{prints,perf}. Output: ~/boar/android/e2e-out/night-<sha>-<ts>/
 set -uo pipefail
 APK=${1:?apk}; SHA=${2:?sha}; SDK=$HOME/Library/Android/sdk; A=$SDK/platform-tools/adb; P=team.sopa.aoair.offline
@@ -78,6 +78,14 @@ if [[ " $PHASES " == *" iris "* ]]; then
     [ $fs = 1.0 ] && mf misc-$L prints/iris-misc.yaml $L
   done
   fontscale 1.0
+fi
+
+if [[ " $PHASES " == *" misc "* ]]; then
+  # re-run of the Iris misc screens alone (13-17) at 1.0, PT then EN
+  $A shell mkdir -p /sdcard/Download/docs; printf 'this is not a pdf\n' > "$OUT/broken.pdf"; $A push "$OUT/broken.pdf" /sdcard/Download/docs/ | tail -1
+  $A shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/docs/broken.pdf" >/dev/null
+  fontscale 1.0
+  for L in pt en; do fresh; mf setup-$L prints/setup-to-chat.yaml $L && mf misc-$L prints/iris-misc.yaml $L; done
 fi
 
 if [[ " $PHASES " == *" perf "* ]] || [[ " $PHASES " == *" prints "* ]]; then

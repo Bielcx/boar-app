@@ -39,9 +39,14 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
 - extendedWaitUntil:
     visible: "Show roots"
     timeout: 20000
-- tapOn: "Show roots"
-- tapOn: "Downloads"
-- tapOn: "docs"
+# the second picker of a session can open on "Recent", which already lists broken.pdf
+- runFlow:
+    when:
+      notVisible: "broken.pdf"
+    commands:
+      - tapOn: "Show roots"
+      - tapOn: "Downloads"
+      - tapOn: "docs"
 - tapOn: "broken.pdf"
 - extendedWaitUntil:
     visible: ${T_IMPORT_BTN}
@@ -49,15 +54,16 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
     optional: true
 - takeScreenshot: 13-knowledge-import-name_android_${L}
 - tapOn: ${T_IMPORT_BTN}
+# 13 = what the user sees right after Import (1ca4eb7: the error card is below the fold); _b = scrolled to it
 - extendedWaitUntil:
-    visible:
-      text: "${T_IMPORT_FAILED}.*"
-    timeout: 60000
+    notVisible: ${T_IMPORT_BTN}
+    timeout: 20000
     optional: true
 - takeScreenshot: 13-knowledge-import-error_android_${L}
 - scrollUntilVisible:
     element:
       text: "${T_IMPORT_FAILED}.*"
+    timeout: 60000
     optional: true
 - takeScreenshot: 13-knowledge-import-error_android_${L}_b
 - runFlow: ../perf/to-chat.yaml
@@ -65,8 +71,8 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
 - tapOn: ${T_MENU}
 - tapOn: ${T_SETTINGS}
 - scrollUntilVisible:
-    element: ${T_APPEARANCE}
-- tapOn: ${T_APPEARANCE}
+    element: ${T_LIGHT}
+    centerElement: true
 - takeScreenshot: 14-settings-appearance_android_${L}
 - scroll
 - takeScreenshot: 14-settings-appearance_android_${L}_b
@@ -82,8 +88,8 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
 - tapOn: ${T_MENU}
 - tapOn: ${T_SETTINGS}
 - scrollUntilVisible:
-    element: ${T_APPEARANCE}
-- tapOn: ${T_APPEARANCE}
+    element: ${T_LIGHT}
+    centerElement: true
 - tapOn: ${T_LIGHT}
 - takeScreenshot: 17-light-appearance_android_${L}
 - runFlow: ../perf/to-chat.yaml
@@ -97,7 +103,7 @@ appId: ${APP_ID || "team.sopa.aoair.offline"}
 - tapOn: ${T_SETTINGS}
 - takeScreenshot: 17-light-settings_android_${L}
 - scrollUntilVisible:
-    element: ${T_APPEARANCE}
-- tapOn: ${T_APPEARANCE}
+    element: ${T_DARK}
+    centerElement: true
 - tapOn: ${T_DARK}
 - runFlow: ../perf/to-chat.yaml
