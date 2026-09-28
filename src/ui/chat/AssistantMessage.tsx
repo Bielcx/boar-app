@@ -818,6 +818,7 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
 
   const placesOnly = !!answer.places && !answer.fast;
   const largeText = useWindowDimensions().fontScale >= LARGE_TEXT_SCALE;
+  const footnoteLine = useOpticalLine("footnote");
   const note = noSourceNote(answer, placesOnly);
   const split = answerSourceSplit(answer);
   const cardMode = sourcesCardMode(!!active, split);
@@ -887,8 +888,11 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
       {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
       {props.waitingLibrary ? (
         <Card padding="compact" radius="card" style={{ gap: t.space.xs }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-            <StepSpinner />
+          {/* The spinner on the first line when the text wraps, as the steps card (Prism CH-15). */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+            <LineSlot line={footnoteLine}>
+              <StepSpinner />
+            </LineSlot>
             <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
               {tr("chat.stage.waitingLibrary")}
             </Text>

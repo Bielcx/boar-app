@@ -13,9 +13,9 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { KeyboardController } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, IconText, Sheet, Text, TextAction, TextField, useToast } from "../components";
+import { Badge, Banner, Button, Card, Chip, EmptyState, Icon, IconText, LineSlot, Sheet, Text, TextAction, TextField, useOpticalLine, useToast } from "../components";
 import { installedPoiCities } from "../flows/adapters";
-import { useTokens } from "../theme";
+import { icon, useTokens } from "../theme";
 import type { Place } from "./answerEvents";
 import { CityMapOffer } from "../flows/CityMapOffer";
 import type { AnswerState, PlacesResult } from "./answerReducer";
@@ -365,6 +365,8 @@ function CityPrompt({
   const [city, setCity] = useState("");
   const inputRef = useRef<TextInput>(null);
   const titleRef = useRef<RNText>(null);
+  // The spinner on the title's optical line (Baloo rides high on iOS; Prism CH-16).
+  const titleLine = useOpticalLine("cardTitle");
   useEffect(() => {
     if (!focus) return;
     inputRef.current?.focus();
@@ -397,8 +399,11 @@ function CityPrompt({
       {locationStatus === "unavailable" && <Banner tone="info" icon="map-pin" message={tr("chat.places.locationUnavailable")} />}
       {locating ? (
         <View style={{ gap: t.space.xs }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-            <ActivityIndicator size="small" color={t.color.field.solid} />
+          {/* Loading is the accent, not amber (amber is provenance); on the title's first line (Prism CH-16). */}
+          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+            <LineSlot line={titleLine}>
+              <ActivityIndicator size="small" color={t.color.accent.solid} />
+            </LineSlot>
             <Text ref={titleRef} variant="cardTitle" header style={{ flex: 1 }}>
               {tr("chat.places.locating")}
             </Text>
