@@ -84,4 +84,11 @@ describe("chat visual minors (Prism CH-22..CH-28)", () => {
     expect(screen).toMatch(/if \(itemsRef\.current\.length > 0\) list\.scrollToEnd\(\{ animated \}\);\s*else \(list\.getNativeScrollRef\(\)/);
     expect(screen).toMatch(/sameFrame \? scrollListToEnd\(animated\) : requestAnimationFrame\(\(\) => scrollListToEnd\(animated\)\)/);
   });
+  it("iPhone v9 F2-2: a follow-up makes a restored answer live; its blocks don't regrow what is on screen", () => {
+    const followUp = read("../ChatScreen.tsx").match(/const followUp = useCallback\([\s\S]*?setActive\(activeRef\.current\);/)![0];
+    expect(followUp).toMatch(/askedIds\.current\.add\(messageId\);/);
+    const msg = read("AssistantMessage.tsx");
+    expect(msg).toMatch(/<Reveal shown=\{shown\} appear=\{false\} spaceBefore=\{gap \?\? m\.gap\}>/);
+    expect(msg).toMatch(/<LayoutAnimationConfig skipEntering>\s*<View style=\{\{ alignSelf: "stretch" \}\}>/);
+  });
 });

@@ -19,7 +19,7 @@ import type { AnswerReceipt } from "./answerEvents";
 import { sameAnswerFields, sameNumbers, sameSteps } from "./renderEquality";
 import { lineSlop } from "./touch";
 import { chatLargeText } from "./largeText";
-import Reanimated from "react-native-reanimated";
+import Reanimated, { LayoutAnimationConfig } from "react-native-reanimated";
 import { Reveal } from "./Reveal";
 import { useSmoothText } from "./useSmoothText";
 import { answerStillShowing, isDraining } from "./streamReveal";
@@ -943,7 +943,9 @@ function Block({ shown, gap, fade, children }: { shown: boolean; gap?: number; f
       </Reanimated.View>
     ) : null;
   return (
-    <Reveal shown={shown} appear={m.appear} spaceBefore={gap ?? m.gap}>
+    // appear={false}: a block grows in only when it shows after mounting hidden. What is already on screen
+    // when an answer turns live (a follow-up on a restored one) or when the list remounts a row stays put.
+    <Reveal shown={shown} appear={false} spaceBefore={gap ?? m.gap}>
       {children}
     </Reveal>
   );
@@ -1021,263 +1023,267 @@ export const AssistantMessage = memo(function AssistantMessage(props: AssistantM
   const pill = waitingForCity ? null : active && !answer.deep ? "elapsed" : receipt ? "receipt" : null;
   return (
     <BlockMotion.Provider value={motion}>
-      <View style={{ alignSelf: "stretch" }}>
-        <View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
-            <Mascot size="avatarSm" />
-            {/* The mockup's name in ember (Boar: the artifact wins over "one accent per screen"). */}
-            {/* Never pushed or cut by the receipt beside it (Prism CX-11): the receipt truncates instead. */}
-            <Text variant="headline" color="accent" style={{ flexShrink: 0 }}>
-              {tr("chat.assistantName")}
-            </Text>
-            {/* The running pill crossfades into the receipt in the same place (SEND-MOTION). */}
-            {pill && (
-              // Shrinks (the receipt's one line truncates) rather than pushing past the row at large text.
-              <Swap swapKey={pill} style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0 }}>
-                {pill === "elapsed" ? (
-                  <Elapsed
-                    locale={locale}
-                    // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
-                    step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
+      {/* The row's first mount (a new answer is empty then; a recycled or reopened one is whole) enters nothing:
+          only blocks that come in later do. */}
+      <LayoutAnimationConfig skipEntering>
+        <View style={{ alignSelf: "stretch" }}>
+          <View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: t.space.sm }}>
+              <Mascot size="avatarSm" />
+              {/* The mockup's name in ember (Boar: the artifact wins over "one accent per screen"). */}
+              {/* Never pushed or cut by the receipt beside it (Prism CX-11): the receipt truncates instead. */}
+              <Text variant="headline" color="accent" style={{ flexShrink: 0 }}>
+                {tr("chat.assistantName")}
+              </Text>
+              {/* The running pill crossfades into the receipt in the same place (SEND-MOTION). */}
+              {pill && (
+                // Shrinks (the receipt's one line truncates) rather than pushing past the row at large text.
+                <Swap swapKey={pill} style={{ marginLeft: "auto", flexShrink: 1, minWidth: 0 }}>
+                  {pill === "elapsed" ? (
+                    <Elapsed
+                      locale={locale}
+                      // Waiting for the library, nothing is searched yet: the pill says so (Prism HX-2).
+                      step={props.waitingLibrary ? tr("chat.stepShort.prepare") : steps?.find((x) => x.status === "active")?.short}
+                    />
+                  ) : (
+                    receipt && <ReceiptToggle r={receipt} hidden={active} />
+                  )}
+                </Swap>
+              )}
+            </View>
+            {/* The receipt's details open and close in height (SEND-MOTION S10). */}
+            <Reveal shown={!!receipt?.open && !waitingForCity} spaceBefore={t.space.sm}>
+              {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
+            </Reveal>
+          </View>
+
+          <Block shown={!!answer.streamsFromStorage}>
+            {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
+          </Block>
+
+          <Block shown={locating}>{locating && <LocatingPrompt onCity={props.onCity} />}</Block>
+
+          <Block shown={!!answer.places}>
+            {answer.places && (
+              <PlacesCard
+                answer={answer}
+                locale={locale}
+                onOpenSource={onOpenSource}
+                onCity={props.onCity}
+                onUseLocation={props.onUseLocation}
+                onGetMap={props.onGetMap}
+                focusCity={!!props.fresh}
+              />
+            )}
+          </Block>
+
+          <Block shown={showsInstantSnippet(answer)}>
+            {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
+          </Block>
+          {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
+          <Block shown={!!extractTier}>
+            {extractTier ? (
+              <TierBody
+                tier={extractTier}
+                streaming={!answer.instantDone}
+                sourceTitles={sourceTitles}
+                onOpenSource={onOpenSource}
+                drainKey="extract"
+                onDraining={onDraining}
+              />
+            ) : null}
+          </Block>
+
+          {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
+          <Block shown={!!props.waitingLibrary}>
+            {props.waitingLibrary ? (
+              <Card padding="compact" radius="card" style={{ gap: t.space.xs }}>
+                {/* The spinner on the first line when the text wraps, as the steps card (Prism CH-15). */}
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
+                  <LineSlot line={footnoteLine}>
+                    <StepSpinner />
+                  </LineSlot>
+                  <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
+                    {tr("chat.stage.waitingLibrary")}
+                  </Text>
+                </View>
+                <Text variant="caption" color="secondary">
+                  {props.waitingLibrary}
+                </Text>
+              </Card>
+            ) : null}
+          </Block>
+          {/* The steps and the text share one slot: the card gives way to the first words in place (D3, v2 P3). */}
+          <Block shown={fastSteps || fastBody}>
+            <StepsSlot
+              steps={fastSteps && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
+              body={
+                fastBody && answer.fast ? (
+                  <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} drainKey="fast" onDraining={onDraining} />
+                ) : null
+              }
+              released={!active || !!answer.fast?.outcome}
+            />
+          </Block>
+          <Block shown={noticeShown(answer.fast, interrupted && !answer.deep)}>
+            <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
+          </Block>
+
+          <Block shown={!!answer.deep}>
+            {answer.deep && (
+              <View style={{ paddingTop: t.space.md, borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
+                {/* A section overline in secondary, like the others: ember isn't decoration (Prism CH-22). */}
+                <Text variant="label" color="secondary" header>
+                  {tr("chat.deep.title")}
+                </Text>
+                <View style={{ paddingTop: t.space.sm }}>
+                  <StepsSlot
+                    steps={stepsShown && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
+                    body={<TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} drainKey="deep" onDraining={onDraining} />}
+                    released={!active || !!answer.deep.outcome}
                   />
+                </View>
+                <Block shown={noticeShown(answer.deep, interrupted)} gap={t.space.sm}>
+                  <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
+                </Block>
+                <Block shown={!!answer.deep.receipt} gap={t.space.sm}>
+                  {answer.deep.receipt && (
+                    <Receipt receipt={answer.deep.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
+                  )}
+                </Block>
+              </View>
+            )}
+          </Block>
+
+          <Block shown={instantBanner}>
+            {instantBanner && answer.instantDone && (
+              <Banner
+                tone={answer.instantDone.outcome === "error" ? "danger" : "info"}
+                message={
+                  answer.instantDone.outcome === "error"
+                    ? tr(`chat.error.${answer.instantDone.error?.code ?? "generic"}`)
+                    : tr(`chat.notice.${answer.instantDone.outcome}`)
+                }
+                actionLabel={answer.instantDone.outcome === "stopped" ? undefined : tr("chat.actions.retry")}
+                onAction={props.onRetry}
+              />
+            )}
+          </Block>
+
+          {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
+          <Block shown={emergency}>{emergency && <EmergencyNote />}</Block>
+
+          <Block shown={sourcesShown}>
+            {sourcesShown && (
+              // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
+              // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
+              // The count crossfades into the list while the block's height follows (SEND-MOTION S7).
+              <Swap swapKey={cardMode === "found" || cardMode === "related" ? cardMode : "list"}>
+                {cardMode === "found" ? (
+                  <Card radius="card" padding="compact">
+                    <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
+                      {tr("chat.sources.found", { count: answer.sources.length })}
+                    </IconText>
+                  </Card>
+                ) : cardMode === "related" && split ? (
+                  <Card radius="card" padding="compact">
+                    <RelatedSources answer={answer} indexes={split.related} />
+                  </Card>
                 ) : (
-                  receipt && <ReceiptToggle r={receipt} hidden={active} />
+                  <SourceList answer={answer} onOpenSource={onOpenSource} only={split?.cited} related={split?.related} />
                 )}
               </Swap>
             )}
-          </View>
-          {/* The receipt's details open and close in height (SEND-MOTION S10). */}
-          <Reveal shown={!!receipt?.open && !waitingForCity} spaceBefore={t.space.sm}>
-            {receipt && <ReceiptDetails r={receipt} onCopy={props.onCopyReceipt} />}
-          </Reveal>
-        </View>
+          </Block>
+          <Block shown={!!answer.weakDeclined && !active} fade>
+            {answer.weakDeclined && !active &&
+              (declineAfterSnippet(answer) ? (
+                <HeldAfterSnippet onAnswerAnyway={props.onAnswerAnyway} />
+              ) : (
+                <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />
+              ))}
+          </Block>
+          <Block shown={!!note && !!done} fade>
+            {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
+          </Block>
 
-        <Block shown={!!answer.streamsFromStorage}>
-          {answer.streamsFromStorage && <Banner tone="info" icon="hard-drive" message={tr("chat.notice.streamsFromStorage")} />}
-        </Block>
-
-        <Block shown={locating}>{locating && <LocatingPrompt onCity={props.onCity} />}</Block>
-
-        <Block shown={!!answer.places}>
-          {answer.places && (
-            <PlacesCard
-              answer={answer}
-              locale={locale}
-              onOpenSource={onOpenSource}
-              onCity={props.onCity}
-              onUseLocation={props.onUseLocation}
-              onGetMap={props.onGetMap}
-              focusCity={!!props.fresh}
-            />
-          )}
-        </Block>
-
-        <Block shown={showsInstantSnippet(answer)}>
-          {showsInstantSnippet(answer) && <InstantSnippet answer={answer} isFinal={extractiveOnly} onOpenSource={onOpenSource} />}
-        </Block>
-        {/* NB-1: health/safety answers are the source's literal excerpt, with its [n], no model. */}
-        <Block shown={!!extractTier}>
-          {extractTier ? (
-            <TierBody
-              tier={extractTier}
-              streaming={!answer.instantDone}
-              sourceTitles={sourceTitles}
-              onOpenSource={onOpenSource}
-              drainKey="extract"
-              onDraining={onDraining}
-            />
-          ) : null}
-        </Block>
-
-        {/* First boot: the question waits for the library to be indexed, instead of searching an empty one. */}
-        <Block shown={!!props.waitingLibrary}>
-          {props.waitingLibrary ? (
-            <Card padding="compact" radius="card" style={{ gap: t.space.xs }}>
-              {/* The spinner on the first line when the text wraps, as the steps card (Prism CH-15). */}
-              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}>
-                <LineSlot line={footnoteLine}>
-                  <StepSpinner />
-                </LineSlot>
-                <Text variant="footnote" weight="semibold" style={{ flex: 1 }}>
-                  {tr("chat.stage.waitingLibrary")}
-                </Text>
-              </View>
-              <Text variant="caption" color="secondary">
-                {props.waitingLibrary}
-              </Text>
-            </Card>
-          ) : null}
-        </Block>
-        {/* The steps and the text share one slot: the card gives way to the first words in place (D3, v2 P3). */}
-        <Block shown={fastSteps || fastBody}>
-          <StepsSlot
-            steps={fastSteps && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
-            body={
-              fastBody && answer.fast ? (
-                <TierBody tier={answer.fast} streaming={fastStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} drainKey="fast" onDraining={onDraining} />
-              ) : null
-            }
-            released={!active || !!answer.fast?.outcome}
-          />
-        </Block>
-        <Block shown={noticeShown(answer.fast, interrupted && !answer.deep)}>
-          <Notice tier={answer.fast} snippetShown={!!answer.instant} interrupted={interrupted && !answer.deep} onRetry={props.onRetry} />
-        </Block>
-
-        <Block shown={!!answer.deep}>
-          {answer.deep && (
-            <View style={{ paddingTop: t.space.md, borderTopWidth: t.size.hairline, borderTopColor: t.color.line.hairline }}>
-              {/* A section overline in secondary, like the others: ember isn't decoration (Prism CH-22). */}
-              <Text variant="label" color="secondary" header>
-                {tr("chat.deep.title")}
-              </Text>
-              <View style={{ paddingTop: t.space.sm }}>
-                <StepsSlot
-                  steps={stepsShown && steps ? <StepsCard steps={steps} still={ringStill} /> : null}
-                  body={<TierBody tier={answer.deep} streaming={deepStreaming} sourceTitles={sourceTitles} onOpenSource={onOpenSource} drainKey="deep" onDraining={onDraining} />}
-                  released={!active || !!answer.deep.outcome}
+          <Block shown={!!done && hasText}>
+            {done && hasText && (
+              // Prism AX-1: the row wraps; at large text "Copy answer" takes a line of its own, label kept.
+              <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.sm }}>
+                <IconButton
+                  icon="thumbs-up"
+                  variant="surface"
+                  size="sm"
+                  label={tr("chat.actions.helpful")}
+                  selected={feedback === "up"}
+                  accessibilityState={{ selected: feedback === "up" }}
+                  onPress={() => props.onRate("up")}
                 />
-              </View>
-              <Block shown={noticeShown(answer.deep, interrupted)} gap={t.space.sm}>
-                <Notice tier={answer.deep} snippetShown={false} interrupted={interrupted} onRetry={props.onRetry} />
-              </Block>
-              <Block shown={!!answer.deep.receipt} gap={t.space.sm}>
-                {answer.deep.receipt && (
-                  <Receipt receipt={answer.deep.receipt} locale={locale} hidden={active} onCopy={props.onCopyReceipt} />
+                <IconButton
+                  icon="thumbs-down"
+                  variant="surface"
+                  size="sm"
+                  label={tr("chat.actions.unhelpful")}
+                  selected={feedback === "down"}
+                  accessibilityState={{ selected: feedback === "down" }}
+                  onPress={() => props.onRate("down")}
+                />
+                <IconButton icon="share-2" variant="surface" size="sm" label={tr("chat.actions.share")} onPress={props.onShare} />
+                {/* With a deeper pass on offer, it takes the pill (the most useful next step, Prism CX-10) and
+                    copying joins the icons: three pills don't fit a 360-390 pt row. */}
+                {deepenNow && (
+                  <IconButton icon="copy" variant="surface" size="sm" label={tr("chat.actions.copyAnswer")} onPress={props.onCopy} />
                 )}
-              </Block>
-            </View>
-          )}
-        </Block>
+                <View style={largeText ? { flexBasis: "100%", height: 0 } : { flex: 1 }} />
+                {deepenNow ? (
+                  <ActionPill
+                    icon="layers"
+                    label={tr("chat.actions.deepen")}
+                    accessibilityLabel={deepenEst ? tr("chat.actions.deepenEstSpoken", { time: deepenEst }) : undefined}
+                    meta={deepenEst ? tr("chat.actions.deepenEst", { time: deepenEst }) : undefined}
+                    largeText={largeText}
+                    onPress={props.onDeepen}
+                  />
+                ) : (
+                  <ActionPill icon="copy" label={tr("chat.actions.copyAnswer")} largeText={largeText} onPress={props.onCopy} />
+                )}
+              </View>
+            )}
+          </Block>
 
-        <Block shown={instantBanner}>
-          {instantBanner && answer.instantDone && (
-            <Banner
-              tone={answer.instantDone.outcome === "error" ? "danger" : "info"}
-              message={
-                answer.instantDone.outcome === "error"
-                  ? tr(`chat.error.${answer.instantDone.error?.code ?? "generic"}`)
-                  : tr(`chat.notice.${answer.instantDone.outcome}`)
-              }
-              actionLabel={answer.instantDone.outcome === "stopped" ? undefined : tr("chat.actions.retry")}
-              onAction={props.onRetry}
-            />
-          )}
-        </Block>
-
-        {/* Right under the text, before the sources (Iris, Prism NB-1): on a risky answer it weighs more than the list. */}
-        <Block shown={emergency}>{emergency && <EmergencyNote />}</Block>
-
-        <Block shown={sourcesShown}>
-          {sourcesShown && (
-            // CT-2: once the engine says which [n] stayed, the card lists only those; nothing cited = no card.
-            // While it writes, only the count (Prism): no list that could shrink, no passage shown as a source yet.
-            // The count crossfades into the list while the block's height follows (SEND-MOTION S7).
-            <Swap swapKey={cardMode === "found" || cardMode === "related" ? cardMode : "list"}>
-              {cardMode === "found" ? (
-                <Card radius="card" padding="compact">
-                  <IconText icon="book-open" variant="footnote" color="secondary" iconColor={t.color.text.secondary}>
-                    {tr("chat.sources.found", { count: answer.sources.length })}
-                  </IconText>
-                </Card>
-              ) : cardMode === "related" && split ? (
-                <Card radius="card" padding="compact">
-                  <RelatedSources answer={answer} indexes={split.related} />
-                </Card>
-              ) : (
-                <SourceList answer={answer} onOpenSource={onOpenSource} only={split?.cited} related={split?.related} />
-              )}
-            </Swap>
-          )}
-        </Block>
-        <Block shown={!!answer.weakDeclined && !active} fade>
-          {answer.weakDeclined && !active &&
-            (declineAfterSnippet(answer) ? (
-              <HeldAfterSnippet onAnswerAnyway={props.onAnswerAnyway} />
-            ) : (
-              <DeclinedNoSource answer={answer} onAnswerAnyway={props.onAnswerAnyway} incomplete={props.libraryIncomplete} />
-            ))}
-        </Block>
-        <Block shown={!!note && !!done} fade>
-          {note && done && <WeakSourceNote answer={answer} incomplete={props.libraryIncomplete} uncited={note === "uncited"} />}
-        </Block>
-
-        <Block shown={!!done && hasText}>
-          {done && hasText && (
-            // Prism AX-1: the row wraps; at large text "Copy answer" takes a line of its own, label kept.
-            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.space.sm }}>
-              <IconButton
-                icon="thumbs-up"
-                variant="surface"
-                size="sm"
-                label={tr("chat.actions.helpful")}
-                selected={feedback === "up"}
-                accessibilityState={{ selected: feedback === "up" }}
-                onPress={() => props.onRate("up")}
-              />
-              <IconButton
-                icon="thumbs-down"
-                variant="surface"
-                size="sm"
-                label={tr("chat.actions.unhelpful")}
-                selected={feedback === "down"}
-                accessibilityState={{ selected: feedback === "down" }}
-                onPress={() => props.onRate("down")}
-              />
-              <IconButton icon="share-2" variant="surface" size="sm" label={tr("chat.actions.share")} onPress={props.onShare} />
-              {/* With a deeper pass on offer, it takes the pill (the most useful next step, Prism CX-10) and
-                  copying joins the icons: three pills don't fit a 360-390 pt row. */}
-              {deepenNow && (
-                <IconButton icon="copy" variant="surface" size="sm" label={tr("chat.actions.copyAnswer")} onPress={props.onCopy} />
-              )}
-              <View style={largeText ? { flexBasis: "100%", height: 0 } : { flex: 1 }} />
-              {deepenNow ? (
-                <ActionPill
-                  icon="layers"
-                  label={tr("chat.actions.deepen")}
-                  accessibilityLabel={deepenEst ? tr("chat.actions.deepenEstSpoken", { time: deepenEst }) : undefined}
-                  meta={deepenEst ? tr("chat.actions.deepenEst", { time: deepenEst }) : undefined}
-                  largeText={largeText}
+          <Block shown={!active && offersAskModel(answer)}>
+            {!active && offersAskModel(answer) && (
+              <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
+            )}
+          </Block>
+          {/* Deepen lives in the actions row; alone only if an answer offers it without that row. */}
+          <Block shown={deepenNow && !(done && hasText)}>
+            {deepenNow && !(done && hasText) && (
+              // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
+              // TextAction brings the touch minimum (Prism CH-7). The estimate is a support fact beside the
+              // action, not part of its label (Prism CH-9); readers hear both in the action's name.
+              <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
+                <TextAction
+                  leadingIcon="layers"
                   onPress={props.onDeepen}
+                  label={tr("chat.actions.deepen")}
+                  accessibilityLabel={
+                    answer.deepAvailable?.estSeconds
+                      ? tr("chat.actions.deepenEstSpoken", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
+                      : undefined
+                  }
                 />
-              ) : (
-                <ActionPill icon="copy" label={tr("chat.actions.copyAnswer")} largeText={largeText} onPress={props.onCopy} />
-              )}
-            </View>
-          )}
-        </Block>
-
-        <Block shown={!active && offersAskModel(answer)}>
-          {!active && offersAskModel(answer) && (
-            <Button label={tr("chat.actions.askModel")} variant="secondary" icon="cpu" onPress={props.onAskModel} style={{ alignSelf: "flex-start" }} />
-          )}
-        </Block>
-        {/* Deepen lives in the actions row; alone only if an answer offers it without that row. */}
-        <Block shown={deepenNow && !(done && hasText)}>
-          {deepenNow && !(done && hasText) && (
-            // Not in the mockup: a quiet text link under the actions, so it doesn't compete with copying (Iris);
-            // TextAction brings the touch minimum (Prism CH-7). The estimate is a support fact beside the
-            // action, not part of its label (Prism CH-9); readers hear both in the action's name.
-            <View style={{ flexDirection: "row", alignItems: "center", gap: icon.gap }}>
-              <TextAction
-                leadingIcon="layers"
-                onPress={props.onDeepen}
-                label={tr("chat.actions.deepen")}
-                accessibilityLabel={
-                  answer.deepAvailable?.estSeconds
-                    ? tr("chat.actions.deepenEstSpoken", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })
-                    : undefined
-                }
-              />
-              {answer.deepAvailable?.estSeconds ? (
-                <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-                  <MetaLine items={[tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })]} variant="caption" />
-                </View>
-              ) : null}
-            </View>
-          )}
-        </Block>
-      </View>
+                {answer.deepAvailable?.estSeconds ? (
+                  <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                    <MetaLine items={[tr("chat.actions.deepenEst", { time: formatSeconds(answer.deepAvailable.estSeconds * 1000, locale) })]} variant="caption" />
+                  </View>
+                ) : null}
+              </View>
+            )}
+          </Block>
+        </View>
+      </LayoutAnimationConfig>
     </BlockMotion.Provider>
   );
 });

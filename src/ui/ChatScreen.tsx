@@ -613,6 +613,9 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       const item = itemsRef.current.find((m) => m.id === messageId);
       if (!item || item.kind !== "assistant" || activeRef.current || !canAsk) return;
       const sessionId = activeSessionId;
+      // A follow-up makes the answer live again, restored or not: its blocks move (iPhone v9, F2-2: on a
+      // reopened conversation "Answer with AI" ran with plain views, and the declined text vanished in a frame).
+      askedIds.current.add(messageId);
       activeRef.current = { messageId, handle: null };
       setActive(activeRef.current);
       let written!: () => void;
