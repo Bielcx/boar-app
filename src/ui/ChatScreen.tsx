@@ -78,6 +78,7 @@ import { EnterOnce } from "./chat/EnterOnce";
 import { Swap } from "./chat/Swap";
 import { Reveal } from "./chat/Reveal";
 import { loadStripKey, loadStripShown } from "./chat/loadStrip";
+import { headerVeil } from "./chat/listEdge";
 import { useMotion } from "./theme/motion";
 import { shouldWarmPtLexicon, warmPtLexicon } from "./chat/lexiconWarmup";
 
@@ -783,8 +784,10 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
     setInput(q);
     inputRef.current?.focus();
   }, []);
+  const veil = useMemo(() => headerVeil(tk.color.bg.canvas), [tk.color.bg.canvas]);
   const listContentStyle = useMemo(
-    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.sm, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
+    // paddingTop = the header veil's height: at the top the veil covers only this empty space (Prism CX-3).
+    () => ({ paddingHorizontal: tk.space.gutterChat, paddingTop: tk.space.base, paddingBottom: tk.space.base, gap: tk.space.cardGap, flexGrow: 1 }),
     [tk]
   );
 
@@ -1021,47 +1024,63 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
 
         {/* TR-10: switching conversations crossfades the list (DS crossfade, keyed by the conversation). */}
         <Swap swapKey={conversationKey} style={{ flex: 1 }}>
-          <FlatList
-            ref={listRef}
-            style={{ flex: 1 }}
-            data={items}
-            keyExtractor={(m) => m.id}
-            renderItem={renderItem}
-            extraData={renderItem}
-            contentContainerStyle={listContentStyle}
-            keyboardDismissMode="interactive"
-            keyboardShouldPersistTaps="handled"
-            // With a conversation on screen, a model error comes in as the next message, above the composer: it
-            // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
-            ListFooterComponent={
-              items.length > 0 && loadError ? (
-                <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-              ) : null
-            }
-            ListEmptyComponent={
-              loadError ? (
-                <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
-              ) : !modelsRequested ? (
-                <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
-              ) : (
-                // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
-                // The swap half of the DS crossfade: the conversation enters right after it (F2-4b).
-                <Animated.View exiting={motion.exiting({ swap: true })} style={{ flexGrow: 1 }}>
-                  <ChatEmptyState
-                    suggestions={suggestions}
-                    onAddKnowledge={showSuggestions ? openKnowledge : undefined}
-                    onAsk={ask}
-                    onFill={fillQuestion}
-                  />
-                </Animated.View>
-              )
-            }
-            onContentSizeChange={onListContentSize}
-            onLayout={onListLayout}
-            onScroll={onListScroll}
-            onScrollBeginDrag={onListDrag}
-            scrollEventThrottle={100}
-          />
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={listRef}
+              style={{ flex: 1 }}
+              data={items}
+              keyExtractor={(m) => m.id}
+              renderItem={renderItem}
+              extraData={renderItem}
+              contentContainerStyle={listContentStyle}
+              keyboardDismissMode="interactive"
+              keyboardShouldPersistTaps="handled"
+              // With a conversation on screen, a model error comes in as the next message, above the composer: it
+              // never covers an earlier answer or reads as that answer failing (Iris/Prism ER-1).
+              ListFooterComponent={
+                items.length > 0 && loadError ? (
+                  <ChatModelError compact error={loadError} kind={loadErrorKind} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+                ) : null
+              }
+              ListEmptyComponent={
+                loadError ? (
+                  <ChatModelError error={loadError} kind={loadErrorKind} modelLabel={activeModel ? chatModelName(activeModel, t) : undefined} onOpenSettings={openSettings} onRelaunchWizard={onRelaunchWizard} onRetry={initModels} />
+                ) : !modelsRequested ? (
+                  <ChatModelLoading label={loadStatus.label} progress={loadStatus.progress} />
+                ) : (
+                  // Leaves with the DS exit when the first question comes in, instead of vanishing (SEND-MOTION S1).
+                  // The swap half of the DS crossfade: the conversation enters right after it (F2-4b).
+                  <Animated.View exiting={motion.exiting({ swap: true })} style={{ flexGrow: 1 }}>
+                    <ChatEmptyState
+                      suggestions={suggestions}
+                      onAddKnowledge={showSuggestions ? openKnowledge : undefined}
+                      onAsk={ask}
+                      onFill={fillQuestion}
+                    />
+                  </Animated.View>
+                )
+              }
+              onContentSizeChange={onListContentSize}
+              onLayout={onListLayout}
+              onScroll={onListScroll}
+              onScrollBeginDrag={onListDrag}
+              scrollEventThrottle={100}
+            />
+            {/* Text scrolling under the header fades out instead of being cut through the letters (Prism CX-3). */}
+            <View
+              pointerEvents="none"
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: tk.space.base,
+                experimental_backgroundImage: veil,
+              }}
+            />
+          </View>
         </Swap>
 
         {showJump && generating && (
