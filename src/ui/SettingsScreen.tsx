@@ -20,6 +20,7 @@ import {
   setAnswerSettings,
   FontScale,
   getHapticsEnabled,
+  getShowLiveStats,
   getMaxTokens,
   getMemorySettings,
   getPersonalityId,
@@ -27,6 +28,7 @@ import {
   LanguageId,
   PaletteChoice,
   setHapticsEnabled,
+  setShowLiveStats,
   setVoiceInputEnabled,
   getActiveModelId,
 } from "../models/settings";
@@ -45,6 +47,7 @@ interface Values {
   maxSavedSessions: number;
   haptics: boolean;
   voice: boolean;
+  liveStats: boolean;
 }
 
 /** The length as plain words ("A page"); a nonstandard stored value falls back to its approximate word count. */
@@ -84,7 +87,7 @@ export function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const [personality, maxTokens, quickFirst, alwaysComplete, memory, haptics, voice] = await Promise.all([
+        const [personality, maxTokens, quickFirst, alwaysComplete, memory, haptics, voice, liveStats] = await Promise.all([
           getPersonalityId(),
           getMaxTokens(),
           getAnswerSettings().then((a) => a.quickFirst),
@@ -92,8 +95,9 @@ export function SettingsScreen() {
           getMemorySettings(),
           getHapticsEnabled(),
           getVoiceInputEnabled(),
+          getShowLiveStats(),
         ]);
-        setValues({ personality, maxTokens, quickFirst, alwaysComplete, maxSavedSessions: memory.maxSavedSessions, haptics, voice });
+        setValues({ personality, maxTokens, quickFirst, alwaysComplete, maxSavedSessions: memory.maxSavedSessions, haptics, voice, liveStats });
       })();
     }, [])
   );
@@ -237,6 +241,11 @@ export function SettingsScreen() {
             setHapticsEnabledCache(v);
             update("haptics", v, setHapticsEnabled);
           } }}
+        />
+        <ListRow
+          title={t("flows.settings.liveStats")}
+          subtitle={t("flows.settings.liveStatsHint")}
+          switch={{ value: values.liveStats, onValueChange: (v) => update("liveStats", v, setShowLiveStats) }}
         />
       </Section>
 

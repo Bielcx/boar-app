@@ -139,7 +139,12 @@
     "deleteChatConfirm": "Apagar",
     "chatDeleted": "Conversa apagada",
     "activeSession": "atual",
-    "setup": "Configuração"
+    "setup": "Configuração",
+    "liveStats": {
+      "ram": "RAM {{size}}",
+      "storage": "Armazenamento {{size}}",
+      "last": "Última {{rate}} tok/s"
+    }
   },
   "flows": {
     "settings": {
@@ -195,7 +200,9 @@
       "alwaysCompleteHint": "Pesquisa cada parte da pergunta. Mais lento.",
       "palette": "Cores",
       "paletteFogueira": "Fogueira",
-      "paletteLuar": "Luar"
+      "paletteLuar": "Luar",
+      "liveStats": "Estatísticas no menu",
+      "liveStatsHint": "RAM em uso, armazenamento e velocidade da última resposta, embaixo do menu."
     },
     "tone": {
       "footer": "Muda o jeito de escrever as respostas a partir da próxima pergunta.",
@@ -732,6 +739,27 @@
       "downloading": "Baixando {{name}}",
       "verifying": "Verificando {{name}}",
       "indexing": "Montando o índice de busca"
+    },
+    "system": {
+      "title": "Detalhes do sistema",
+      "sub": "Hardware, memória e armazenamento, para benchmarks e relatos de erro",
+      "memory": "Memória",
+      "memoryFooter": "O orçamento de modelo é o que o BOAR usa para planejar modelos: a RAM do celular menos uma reserva para o sistema.",
+      "ramTotal": "RAM do celular",
+      "modelBudget": "Orçamento de modelo",
+      "ramNow": "BOAR agora",
+      "ramPeak": "Pico do BOAR",
+      "storage": "Armazenamento",
+      "models": "Modelos",
+      "knowledge": "Conhecimento",
+      "other": "Outros",
+      "free": "Livre no celular",
+      "loaded": "Modelo carregado",
+      "file": "Arquivo",
+      "none": "Nenhum carregado",
+      "context": "Contexto",
+      "contextValue": "{{n}} tokens",
+      "threads": "Threads"
     }
   },
   "chat": {
@@ -933,7 +961,8 @@
         "load-crashed": "Respondendo com o modelo {{model}}. O {{from}} fechou o app neste celular",
         "hint": "Abre Modelos"
       },
-      "onDeviceSealSpoken": "No aparelho: as respostas são calculadas neste celular"
+      "onDeviceSealSpoken": "No aparelho: as respostas são calculadas neste celular",
+      "answerModeA11y": "{{model}}. Modo de resposta"
     },
     "jumpToLatest": "Ir para a resposta mais recente",
     "share": {

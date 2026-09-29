@@ -3,13 +3,14 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "re
 import { DrawerContentComponentProps, useDrawerStatus } from "@react-navigation/drawer";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { getMemorySettings } from "../../models/settings";
+import { getMemorySettings, getShowLiveStats } from "../../models/settings";
 import { impact, ImpactFeedbackStyle } from "../../services/haptics";
 import { Button, IconButton, IconName, LARGE_TEXT_SCALE, ListRow, Mascot, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import { useChatBridge } from "./chatBridge";
 import { ActivityCard } from "../flows/ActivityCard";
 import { useActivity } from "../flows/useActivity";
+import { LiveStats } from "../flows/LiveStats";
 import type { RootStackParamList } from "./types";
 
 function relativeTime(ms: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -37,6 +38,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
   const activity = useActivity();
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [maxSessions, setMaxSessions] = useState<number | null>(null);
+  const [liveStats, setLiveStats] = useState(false);
   const trashRefs = useRef(new Map<string, View | null>());
   const returnFocusRef = useRef<View | null>(null);
   const newChatRef = useRef<View | null>(null);
@@ -47,6 +49,9 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
     getMemorySettings()
       .then((m) => setMaxSessions(m.maxSavedSessions))
       .catch(() => {});
+    getShowLiveStats()
+      .then(setLiveStats)
+      .catch(() => {});
     // Refresh each time the drawer opens, not on every bridge update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
@@ -56,7 +61,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
     { route: "Settings", icon: "sliders", label: tr("nav.settings") },
     { route: "Performance", icon: "activity", label: tr("nav.performance") },
   ];
-  if (__DEV__) destinations.push({ route: "Catalog", icon: "grid", label: tr("nav.catalog") });
+  // The component catalog (route "Catalog") stays reachable in code, but not from the menu.
 
   const go = (fn: () => void) => {
     navigation.closeDrawer();
@@ -72,6 +77,8 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
         marginTop: pinFooter ? 0 : t.space.base,
       }}
     >
+      {/* As in the original menu: the prompt ideas come back even after they were hidden. */}
+      <ListRow title={tr("nav.promptIdeas")} icon="zap" chevron={false} onPress={() => go(chat.openPromptIdeas)} />
       {destinations.map((d) => (
         <ListRow
           key={d.route}
@@ -81,6 +88,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
           onPress={() => go(() => navigation.getParent()?.navigate(d.route))}
         />
       ))}
+      {liveStats && <LiveStats active={status === "open"} />}
     </View>
   );
 

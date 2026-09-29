@@ -131,7 +131,7 @@
     "settings": "Settings",
     "performance": "Performance",
     "about": "About",
-    "promptIdeas": "Question ideas",
+    "promptIdeas": "Prompt ideas",
     "catalog": "Component catalog",
     "deleteChatA11y": "Delete conversation: {{title}}",
     "deleteChatTitle": "Delete this conversation?",
@@ -139,7 +139,12 @@
     "deleteChatConfirm": "Delete",
     "chatDeleted": "Conversation deleted",
     "activeSession": "current",
-    "setup": "Setup"
+    "setup": "Setup",
+    "liveStats": {
+      "ram": "RAM {{size}}",
+      "storage": "Storage {{size}}",
+      "last": "Last {{rate}} tok/s"
+    }
   },
   "flows": {
     "settings": {
@@ -195,7 +200,9 @@
       "alwaysCompleteHint": "Researches each part of the question. Slower.",
       "palette": "Colors",
       "paletteFogueira": "Campfire",
-      "paletteLuar": "Moonlight"
+      "paletteLuar": "Moonlight",
+      "liveStats": "Live stats in the menu",
+      "liveStatsHint": "RAM in use, storage and the last answer's speed, under the menu."
     },
     "tone": {
       "footer": "Changes how answers are written, starting with the next question.",
@@ -732,6 +739,27 @@
       "downloading": "Downloading {{name}}",
       "verifying": "Checking {{name}}",
       "indexing": "Building the search index"
+    },
+    "system": {
+      "title": "System details",
+      "sub": "Hardware, memory and storage, for benchmarks and bug reports",
+      "memory": "Memory",
+      "memoryFooter": "The model budget is what BOAR plans models against: the phone's RAM minus a reserve for the system.",
+      "ramTotal": "Phone RAM",
+      "modelBudget": "Model budget",
+      "ramNow": "BOAR now",
+      "ramPeak": "BOAR peak",
+      "storage": "Storage",
+      "models": "Models",
+      "knowledge": "Knowledge",
+      "other": "Other",
+      "free": "Free on the phone",
+      "loaded": "Loaded model",
+      "file": "File",
+      "none": "None loaded",
+      "context": "Context",
+      "contextValue": "{{n}} tokens",
+      "threads": "Threads"
     }
   },
   "chat": {
@@ -933,7 +961,8 @@
         "load-crashed": "Answering with the {{model}} model. {{from}} closed the app on this phone",
         "hint": "Opens Models"
       },
-      "onDeviceSealSpoken": "On device: answers are computed on this phone"
+      "onDeviceSealSpoken": "On device: answers are computed on this phone",
+      "answerModeA11y": "{{model}}. Answer mode"
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {

@@ -47,6 +47,8 @@ interface Settings {
   pendingLoadCrash?: StoredLoadCrash | null;
   /** Random id created the first time this install shares results (src/eval/shareResults.ts). */
   installId?: string;
+  /** The menu's live line (RAM, storage, last speed). On unless turned off in Settings. */
+  showLiveStats?: boolean;
 }
 
 export interface MemorySettings {
@@ -176,6 +178,20 @@ export async function getOrCreateInstallId(create: () => string): Promise<string
     s.installId = create();
     await writeSettings(s);
     return s.installId;
+  });
+}
+
+/** The menu's live stats line (RAM in use, BOAR's storage, the last answer's speed). */
+export async function getShowLiveStats(): Promise<boolean> {
+  const s = await readSettings();
+  return s.showLiveStats ?? true;
+}
+
+export async function setShowLiveStats(show: boolean): Promise<void> {
+  return serialized(async () => {
+    const s = await readSettings();
+    s.showLiveStats = show;
+    await writeSettings(s);
   });
 }
 

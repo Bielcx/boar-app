@@ -230,6 +230,7 @@ export function PerformanceScreen() {
               docs/RESULTS_SCORE.md). Starting one from a connected computer (ChatScreen's device request)
               stays a development-build feature. */}
           <ListRow icon="check-square" title={t("flows.performance.evaluationTitle")} subtitle={t("flows.performance.evaluationSub")} onPress={() => navigation.navigate("Evaluation")} />
+          <ListRow icon="cpu" title={t("flows.system.title")} subtitle={t("flows.system.sub")} onPress={() => navigation.navigate("SystemDetails")} />
         </Section>
       </Reveal>
     </Screen>

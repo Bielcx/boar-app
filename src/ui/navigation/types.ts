@@ -18,6 +18,7 @@ export type RootStackParamList = {
   Performance: undefined;
   PerformanceLogs: undefined;
   Evaluation: undefined;
+  SystemDetails: undefined;
   About: undefined;
   /** Dev-only component catalog for visual QA. */
   Catalog: undefined;

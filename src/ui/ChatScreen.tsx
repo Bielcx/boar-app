@@ -17,6 +17,7 @@ import { subscribeDownloads, listDownloadStates } from "../services/downloadMana
 import {
   getActiveModelId,
   getHidePromptIdeas,
+  setHidePromptIdeas,
   getPersonalityId,
   getCustomSystemPrompt,
   getMaxTokens,
@@ -864,8 +865,13 @@ export function ChatScreen({ onRelaunchWizard }: { onRelaunchWizard?: () => void
       selectSession,
       deleteSession: removeSession,
       refreshSessions,
-      // Suggestions live in the empty state of a new chat.
-      openPromptIdeas: resetToNewChat,
+      // Suggestions live in the empty state of a new chat; opening them from the menu also undoes a
+      // "don't show again" (as the original menu's Prompt Ideas did).
+      openPromptIdeas: () => {
+        setHidePromptIdeas(false).catch(() => {});
+        setShowSuggestions(true);
+        resetToNewChat();
+      },
     });
   }, [sessions, activeSessionId, generating, resetToNewChat, selectSession, removeSession, refreshSessions]);
 

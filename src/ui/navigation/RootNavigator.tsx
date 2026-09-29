@@ -16,6 +16,7 @@ import { SettingsAssistantScreen } from "../SettingsAssistantScreen";
 import { ModelsScreen, ModelSearchScreen } from "../ModelsScreen";
 import { KnowledgeScreen } from "../KnowledgeScreen";
 import { PerformanceScreen, PerformanceLogsScreen } from "../PerformanceScreen";
+import { SystemDetailsScreen } from "../SystemDetailsScreen";
 import { EvaluationScreen } from "../EvaluationScreen";
 import { AboutScreen } from "../AboutScreen";
 import { ComponentCatalogScreen } from "../dev/ComponentCatalogScreen";
@@ -178,6 +179,7 @@ export function RootNavigator({ initialRoute }: { initialRoute: "Main" | "Setup"
         <Stack.Screen name="Performance" component={PerformanceScreen} options={flowHeader(t, tr("nav.performance"))} />
         <Stack.Screen name="PerformanceLogs" component={PerformanceLogsScreen} options={flowHeader(t, tr("flows.performance.logsTitle"), false)} />
         <Stack.Screen name="Evaluation" component={EvaluationRoute} options={flowHeader(t, tr("flows.performance.evaluationTitle"), false)} />
+        <Stack.Screen name="SystemDetails" component={SystemDetailsScreen} options={flowHeader(t, tr("flows.system.title"), false)} />
         <Stack.Screen name="About" component={AboutScreen} options={flowHeader(t, tr("nav.about"))} />
         <Stack.Screen
           name="Catalog"
