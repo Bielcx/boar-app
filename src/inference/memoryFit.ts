@@ -222,16 +222,24 @@ export function estimateMemoryFit(i: FitInputs): MemoryFit {
   };
 }
 
+/** Kept for the system and the app you came from: a quarter of the phone's RAM, at least 2.5 GB. */
+export const SYSTEM_RESERVE_FRACTION = 0.25;
+export const MIN_SYSTEM_RESERVE_BYTES = 2.5 * GiB;
+
 /**
- * RAM a new model can use. Prefers the OS's own "available" figure
- * (ActivityManager.MemoryInfo.availMem ≈ MemAvailable: free + reclaimable
- * cache), which is what the kernel will actually give us. Falls back to the
- * old heuristic (total − our RSS − 2GB for OS/other apps) when the native
- * module predates getAvailableRamBytes.
+ * RAM a new model can use: the phone's total minus a reserve for the system, or what the OS says is
+ * available right now (ActivityManager.MemoryInfo.availMem ≈ MemAvailable) when that is more.
+ *
+ * availMem alone read the moment, not the phone: during a video call a 12 GB phone reported 3.6 GB,
+ * and every model above ~2.5 GB was labelled slow although it ran well once loaded. Android frees more
+ * when a large app asks for it (it stops cached background apps and pages out to zram), so the budget
+ * is what the phone can give, and measured speed says whether a model is slow here
+ * (src/routing/depth.ts, src/ui/flows/perfBands.ts).
  */
 export function availableRamFrom(r: { totalBytes: number; rssBytes: number; availBytes?: number }): number {
-  if (r.availBytes && r.availBytes > 0) return r.availBytes;
-  return Math.max(r.totalBytes - r.rssBytes - 2 * GiB, 0);
+  const reserve = Math.max(MIN_SYSTEM_RESERVE_BYTES, r.totalBytes * SYSTEM_RESERVE_FRACTION);
+  const budget = Math.max(r.totalBytes - reserve, 0);
+  return Math.max(budget, r.availBytes && r.availBytes > 0 ? r.availBytes : 0);
 }
 
 export const toGb = (b: number) => (b / GiB).toFixed(1);

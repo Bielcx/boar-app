@@ -148,11 +148,17 @@ describe("estimateMemoryFit", () => {
 });
 
 describe("availableRamFrom", () => {
-  it("prefers the OS figure", () => {
-    expect(availableRamFrom({ totalBytes: 12 * GiB, rssBytes: GiB, availBytes: 6 * GiB })).toBe(6 * GiB);
+  it("is the total minus a quarter kept for the system, not the RAM free at the moment", () => {
+    // The 12 GB phone that reported 3.6 GB free during a video call.
+    expect(availableRamFrom({ totalBytes: 12 * GiB, rssBytes: GiB, availBytes: 3.6 * GiB })).toBe(9 * GiB);
+    // 8 GB: the 2.5 GB minimum is more than a quarter.
+    expect(availableRamFrom({ totalBytes: 8 * GiB, rssBytes: GiB, availBytes: 0 })).toBe(5.5 * GiB);
   });
-  it("falls back to total − RSS − 2GB", () => {
-    expect(availableRamFrom({ totalBytes: 12 * GiB, rssBytes: GiB, availBytes: 0 })).toBe(9 * GiB);
-    expect(availableRamFrom({ totalBytes: GiB, rssBytes: GiB })).toBe(0);
+  it("keeps at least 2.5 GB for the system on small phones", () => {
+    expect(availableRamFrom({ totalBytes: 4 * GiB, rssBytes: GiB })).toBe(1.5 * GiB);
+    expect(availableRamFrom({ totalBytes: 2 * GiB, rssBytes: GiB })).toBe(0);
+  });
+  it("uses what the OS reports when that is more", () => {
+    expect(availableRamFrom({ totalBytes: 12 * GiB, rssBytes: GiB, availBytes: 10 * GiB })).toBe(10 * GiB);
   });
 });

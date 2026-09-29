@@ -241,14 +241,16 @@ describe("LlamaEngine pre-flight memory check (mmap-aware)", () => {
 
   it("still refuses when KV + buffers alone cannot fit, without creating a context", async () => {
     header = QWEN3_MOE_HEADER;
+    // A phone too small for it: 2.5 GB total leaves nothing after the system's reserve.
+    ram.total = 2.5 * GiB;
     ram.avail = 200 * 1024 ** 2;
     const engine = new LlamaEngine();
     await expect(engine.load("models/m.gguf")).rejects.toThrow(/cannot be streamed/);
     expect(created).toHaveLength(0);
   });
 
-  it("falls back to total − RSS − 2GB when the native module has no available-RAM readout", async () => {
-    // 12 − 1 − 2 = 9GB available, 1MB dense file without header → resident.
+  it("budgets total RAM minus the system's reserve when the native module has no available-RAM readout", async () => {
+    // 12 GB − max(2.5 GB, 25%) = 9 GB available, 1MB dense file without header → resident.
     const engine = new LlamaEngine();
     const result = await engine.load("models/a.gguf");
     expect(result.fit?.availableBytes).toBe(9 * GiB);
