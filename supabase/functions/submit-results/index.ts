@@ -16,6 +16,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_ROWS = 1000;
 const MAX_RUNS_PER_DAY = 20;
+// The install id is chosen by the caller, so the per-install limit alone can be dodged by
+// sending a new id each time. This cap on all submissions doesn't depend on the caller.
+const MAX_RUNS_PER_HOUR_ALL = 300;
 const MAX_ANSWER_CHARS = 8000;
 
 const json = (status: number, body: unknown) =>
@@ -39,6 +42,11 @@ const posInt = (v: unknown): number | null => {
 /** Short lowercase CPU flags like "i8mm" or "asimddp", at most 100 of them. */
 const cpuFlags = (v: unknown): string[] | null =>
   Array.isArray(v) ? v.filter((f) => typeof f === "string" && /^[a-z0-9_]{1,32}$/.test(f)).slice(0, 100) : null;
+const int = (v: unknown): number | null => {
+  const n = num(v);
+  return n !== null && Number.isInteger(n) && n >= 0 ? n : null;
+};
+const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null);
 /** Core frequencies in kHz (0 = unknown), at most 64 cores. */
 const freqs = (v: unknown): number[] | null =>
   Array.isArray(v) && v.length <= 64 && v.every((f) => Number.isInteger(f) && f >= 0 && f < 10_000_000) ? v : null;
@@ -83,6 +91,12 @@ Deno.serve(async (req) => {
     if (!queryId || !configId || !outcome) return json(400, { error: "each row needs queryId, configId and outcome" });
     const data = { ...r };
     if (typeof data.answer === "string") data.answer = data.answer.slice(0, MAX_ANSWER_CHARS);
+    // The fields compute_eval_scores casts: anything malformed becomes null instead of failing the run.
+    data.tokensGenerated = int(r.tokensGenerated);
+    data.peakRssBytes = int(r.peakRssBytes);
+    data.timedOut = bool(r.timedOut);
+    data.expectedKbHit = bool(r.expectedKbHit);
+    data.configLabel = str(r.configLabel, 200);
     records.push({
       query_id: queryId,
       config_id: configId,
@@ -107,6 +121,12 @@ Deno.serve(async (req) => {
     .gte("received_at", since);
   if (countError) return json(500, { error: "could not check the rate limit" });
   if ((count ?? 0) >= MAX_RUNS_PER_DAY) return json(429, { error: "too many runs today" });
+  const { count: hourCount, error: hourError } = await db
+    .from("eval_runs")
+    .select("id", { count: "exact", head: true })
+    .gte("received_at", new Date(Date.now() - 3600 * 1000).toISOString());
+  if (hourError) return json(500, { error: "could not check the rate limit" });
+  if ((hourCount ?? 0) >= MAX_RUNS_PER_HOUR_ALL) return json(429, { error: "too many runs right now" });
 
   const { data: inserted, error: runError } = await db
     .from("eval_runs")

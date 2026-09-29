@@ -138,8 +138,14 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const confirmShare = async () => {
     if (!run) return;
     setSharing(true);
-    const result: ShareResult = await shareEvalRun(run.rows);
-    setSharing(false);
+    let result: ShareResult = "failed";
+    try {
+      result = await shareEvalRun(run.rows);
+    } catch {
+      // e.g. the install id couldn't be saved; reported as a failed share below.
+    } finally {
+      setSharing(false);
+    }
     setPreviewDevice(null);
     if (result === "shared" || result === "already-shared") setShared(run.runId);
     Alert.alert(t("evaluation.shareTitle"), t(`evaluation.shareResult.${result}`));
