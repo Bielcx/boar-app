@@ -198,6 +198,49 @@ export function KnowledgeScreen() {
           </Card>
         )}
 
+        {/* Adding documents comes first; the collections are listed at the end of the screen. */}
+        {importError && (
+            <EmptyState
+              tone="error"
+              title={t("flows.knowledge.importFailed")}
+              body={t(userErrorKey(importError))}
+              detail={importError}
+              actionLabel={t("flows.knowledge.pickAgain")}
+              onAction={pick}
+            />
+          )}
+        {collections.length === 0 && !importing && !importError && (
+          <EmptyState icon="file-plus" title={t("flows.knowledge.emptyTitle")} body={t("flows.knowledge.emptyBody")} actionLabel={t("flows.knowledge.add")} onAction={pick} />
+        )}
+        {importing && (
+          <Card style={{ gap: tokens.space.md }}>
+            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
+              <View style={{ flex: 1, gap: tokens.space.xxs }}>
+                <Text variant="label" color="field">
+                  {t("flows.knowledge.importingLabel")}
+                </Text>
+                <Text variant="headline" numberOfLines={2}>
+                  {importingName}
+                </Text>
+              </View>
+              {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
+            </View>
+            <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
+            <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
+            <Button
+              size="sm"
+              variant="secondary"
+              label={t("common.cancel")}
+              accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
+              onPress={() => abortRef.current?.abort()}
+            />
+          </Card>
+        )}
+        {collections.length > 0 && !importing && !importError && (
+          <Button label={t("flows.knowledge.add")} icon="file-plus" onPress={pick} />
+        )}
+
+
         {packs.length > 0 && (
           <Section title={t("flows.knowledge.topicPacksTitle")} footer={t("flows.knowledge.topicPacksFooter")}>
             <CatalogList>
@@ -286,25 +329,12 @@ export function KnowledgeScreen() {
           </CatalogList>
         </Section>
 
-        <Section title={t("flows.knowledge.yourCollections")}>
-          {/* The import error takes the empty state's place, where the person just tapped, not below it off screen
-              (Piston, prints 1ca4eb7). Its "Choose again" is then the one primary (Prism FL-12). */}
-          {importError && (
-            <EmptyState
-              tone="error"
-              title={t("flows.knowledge.importFailed")}
-              body={t(userErrorKey(importError))}
-              detail={importError}
-              actionLabel={t("flows.knowledge.pickAgain")}
-              onAction={pick}
-            />
-          )}
-          {collections.length === 0 && !importing ? (
-            !importError && (
-              <EmptyState icon="file-plus" title={t("flows.knowledge.emptyTitle")} body={t("flows.knowledge.emptyBody")} actionLabel={t("flows.knowledge.add")} onAction={pick} />
-            )
-          ) : (
-            collections.map((c) => (
+
+
+
+        {collections.length > 0 && (
+          <Section title={t("flows.knowledge.yourCollections")}>
+            {collections.map((c) => (
               <View key={c.id}>
                 <ListRow
                   title={c.name}
@@ -336,37 +366,8 @@ export function KnowledgeScreen() {
                   />
                 </View>
               </View>
-            ))
-          )}
-        </Section>
-
-        {importing && (
-          <Card style={{ gap: tokens.space.md }}>
-            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: tokens.space.md }}>
-              <View style={{ flex: 1, gap: tokens.space.xxs }}>
-                <Text variant="label" color="field">
-                  {t("flows.knowledge.importingLabel")}
-                </Text>
-                <Text variant="headline" numberOfLines={2}>
-                  {importingName}
-                </Text>
-              </View>
-              {importValue != null && <Stat size="md" align="right" value={String(Math.round(importValue * 100))} unit="%" />}
-            </View>
-            <Progress label={t("flows.knowledge.importingLabel")} value={importValue} valueText={importValue != null ? `${Math.round(importValue * 100)}%` : undefined} />
-            <MetaLine items={[t(`flows.knowledge.stage.${importing.stage}`, { current: (importing.chunkIndex ?? 0) + 1, total: importing.chunkCount ?? 0 })]} />
-            <Button
-              size="sm"
-              variant="secondary"
-              label={t("common.cancel")}
-              accessibilityLabel={t("flows.knowledge.cancelImportA11y", { name: importingName })}
-              onPress={() => abortRef.current?.abort()}
-            />
-          </Card>
-        )}
-
-        {(collections.length > 0 || importing) && !importError && (
-          <Button label={t("flows.knowledge.add")} icon="file-plus" onPress={pick} disabled={!!importing} />
+            ))}
+          </Section>
         )}
 
         <Sheet
