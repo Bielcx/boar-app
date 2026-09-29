@@ -3,18 +3,21 @@ import { View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, EmptyState, ListRow, MetaLine, OptionCard, Screen, Section, Skeleton, Stat, Text, TextField, useToast } from "./components";
+import { Badge, Button, Card, EmptyState, ListRow, MetaLine, OptionCard, Screen, Section, SegmentedControl, Skeleton, Stat, Text, TextField, useToast } from "./components";
+import { getDeviceTotalRamBytes } from "ram-monitor";
+import { availableRamFrom } from "../inference/memoryFit";
+import { passesSizeFilter, type SizeFilter } from "./flows/sizeFilter";
 import { useTokens } from "./theme";
 import { useMotion } from "./theme/motion";
 import { screenRhythm } from "./flows/rhythm";
-import { catalogLabel, isAdvancedModel } from "./flows/catalogLabel";
+import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { CatalogModel, MODEL_CATALOG } from "../models/manifest";
 import { addDiscoveredModel } from "../models/discoveredModels";
 import { HFGgufFile, HFModelSummary, listGgufFiles, searchModels, toCatalogModel } from "../services/modelBrowser";
 import { CatalogRow } from "./flows/CatalogRow";
 import { CatalogList } from "./flows/CatalogList";
-import { DEEP_AUTO_MIN_TOK_PER_SEC as MIN_DEEP_TOK_PER_SEC, deepAutoEligible, MIN_SPEED_SAMPLES, ModelSpeed, modelSpeedStats } from "../routing/depth";
+import { DEEP_AUTO_MIN_TOK_PER_SEC as MIN_DEEP_TOK_PER_SEC, deepAutoEligible, MIN_SPEED_SAMPLES, ModelSpeed, modelSpeedStats, resolveDeepModel } from "../routing/depth";
 import { AnswerSettings, getAnswerSettings, setAnswerSettings } from "../models/settings";
 import { listRecentExecutions } from "../services/executionTelemetry";
 import { ImportList } from "./flows/ImportList";
@@ -70,22 +73,30 @@ export function ModelsScreen() {
     ...MODEL_CATALOG.filter((m) => m.kind === "llm" || m.kind === "embedding"),
     ...catalog.discovered.filter((d) => !MODEL_CATALOG.some((c) => c.filename === d.filename)),
   ];
-  const groups = { inUse: [] as CatalogModel[], installed: [] as CatalogModel[], available: [] as CatalogModel[], larger: [] as CatalogModel[], advanced: [] as CatalogModel[] };
+  // Two jobs, two sections: choose among the models on the phone, then get more (search, import,
+  // download). Every installed model is listed with the others, found on Hugging Face or not.
+  const groups = { yours: [] as CatalogModel[], available: [] as CatalogModel[], larger: [] as CatalogModel[] };
   for (const m of models) {
     const kind = catalog.view(m).state.kind;
-    if (kind === "in-use") groups.inUse.push(m);
-    // Models other than Fast, More accurate and Search live in Advanced only (r4to, decision 5C).
-    else if (isAdvancedModel(m) && !catalog.view(m).wontFit) groups.advanced.push(m);
+    const installed = kind === "in-use" || kind === "installed" || kind === "loading" || (kind === "failed" && !!catalog.statuses[m.id]?.present);
+    if (installed) groups.yours.push(m);
     // Can't open on this phone: out of the list, in a folded section that says why (CR-1).
     else if (catalog.view(m).wontFit) groups.larger.push(m);
-    else if (kind === "not-installed" || kind === "downloading" || kind === "verifying" || (kind === "failed" && !catalog.statuses[m.id]?.present))
-      groups.available.push(m);
-    else groups.installed.push(m);
+    else groups.available.push(m);
   }
+  // The model in use first.
+  groups.yours.sort((x, y) => Number(catalog.view(y).state.kind === "in-use") - Number(catalog.view(x).state.kind === "in-use"));
+
+  /** The model's real name ("Qwen2.5-1.5B-Instruct"); its role and license go under it. */
+  const nameOf = (m: CatalogModel) => catalogLabel(m, t, { technical: true });
+  const roleAndLicense = (m: CatalogModel) => {
+    const role = catalogLabel(m, t);
+    return [role !== nameOf(m) ? role : null, m.license].filter(Boolean).join(" · ");
+  };
 
   const use = async (m: CatalogModel) => {
     const ok = await catalog.use(m);
-    if (ok) toast({ message: t("flows.models.nowAnswering", { name: catalogLabel(m, t) }), tone: "success" });
+    if (ok) toast({ message: t("flows.models.nowAnswering", { name: nameOf(m) }), tone: "success" });
   };
 
   const renderGroup = (list: CatalogModel[]) => (
@@ -94,6 +105,8 @@ export function ModelsScreen() {
         <CatalogRow
           key={m.id}
           model={m}
+          title={nameOf(m)}
+          meta={roleAndLicense(m)}
           view={catalog.view(m)}
           fileImport={catalog.importFor(m.id)}
           fit={catalog.fit(m)}
@@ -104,6 +117,22 @@ export function ModelsScreen() {
         />
       ))}
     </CatalogList>
+  );
+
+  // What "Automatic" would pick right now, with the same rule the chat uses (routing/depth.ts).
+  const installedLlms = models.filter((m) => m.kind === "llm" && catalog.statuses[m.id]?.present);
+  const activeLlm = installedLlms.find((m) => m.id === catalog.activeLlmId);
+  const autoDeep = resolveDeepModel(
+    installedLlms.map((m) => ({
+      id: m.id,
+      label: nameOf(m),
+      sizeBytes: m.sizeBytes,
+      roles: m.capabilities?.roles ?? [],
+      fit: catalog.fit(m)?.verdict,
+      tokPerSec: speeds[m.id]?.medianTokPerSec,
+    })),
+    catalog.activeLlmId,
+    undefined
   );
 
   return (
@@ -117,11 +146,9 @@ export function ModelsScreen() {
         )}
       </Card>
 
-      <Section title={t("flows.models.inUse")} footer={t("flows.models.inUseFooter")}>
-        {renderGroup(groups.inUse)}
+      <Section title={t("flows.models.yours")} footer={t("flows.models.yoursFooter")}>
+        {renderGroup(groups.yours)}
       </Section>
-
-      {groups.installed.length > 0 && <Section title={t("flows.models.installed")}>{renderGroup(groups.installed)}</Section>}
 
       {answer && (
         <View style={{ gap: tokens.space.md }}>
@@ -132,19 +159,28 @@ export function ModelsScreen() {
           <View accessibilityRole="radiogroup" style={{ gap: tokens.space.md }}>
             <OptionCard
               title={t("flows.models.deepAuto")}
-              description={t("flows.models.deepAutoSub", { min: MIN_DEEP_TOK_PER_SEC })}
+              description={
+                autoDeep
+                  ? t("flows.models.deepAutoPicks", { name: autoDeep.label })
+                  : t("flows.models.deepAutoNone", { min: MIN_DEEP_TOK_PER_SEC, name: activeLlm ? nameOf(activeLlm) : "—" })
+              }
               selected={answer.deepModelId === undefined}
               onPress={() => chooseDeep(undefined)}
             />
-            <OptionCard title={t("flows.models.deepNone")} description={t("flows.models.deepNoneSub")} selected={answer.deepModelId === null} onPress={() => chooseDeep(null)} />
-            {models
-              .filter((m) => m.kind === "llm" && catalog.statuses[m.id]?.present && m.id !== catalog.activeLlmId)
+            <OptionCard
+              title={t("flows.models.deepNone")}
+              description={t("flows.models.deepNoneNamed", { name: activeLlm ? nameOf(activeLlm) : "—" })}
+              selected={answer.deepModelId === null}
+              onPress={() => chooseDeep(null)}
+            />
+            {installedLlms
+              .filter((m) => m.id !== catalog.activeLlmId)
               .map((m) => {
                 const sp = speeds[m.id];
                 return (
                   <OptionCard
                     key={m.id}
-                    title={catalogLabel(m, t)}
+                    title={nameOf(m)}
                     // Same risk as Use for answers on a low-RAM phone (CR-1).
                     badge={catalog.view(m).mayCloseApp ? <Badge label={t(catalog.view(m).didNotOpen ? "flows.row.didNotOpen" : "flows.row.mayClose")} tone="danger" dot caps={false} /> : undefined}
                     // The measured speed decides; nothing is shown that was not measured here.
@@ -173,6 +209,11 @@ export function ModelsScreen() {
                   />
                 );
               })}
+            {installedLlms.length < 2 && (
+              <Text variant="footnote" color="secondary" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs }}>
+                {t("flows.models.deepOnlyOne")}
+              </Text>
+            )}
           </View>
           <Text variant="footnote" color="secondary" style={{ paddingHorizontal: tokens.space.md + tokens.space.xxs }}>
             {t("flows.models.deepFooter", { min: formatCount(MIN_DEEP_TOK_PER_SEC, i18n.language) })}
@@ -180,15 +221,9 @@ export function ModelsScreen() {
         </View>
       )}
 
-      {(offline || catalog.imports.length > 0) && (
-        <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
-          <View style={{ padding: tokens.space.base }}>
-            <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
-          </View>
-        </Section>
-      )}
-
-      <Section title={t("flows.models.available")} footer={t("flows.models.availableFooter")}>
+      <Section title={t("flows.models.getMore")} footer={t("flows.models.availableFooter")}>
+        {/* Search first: it reaches every GGUF on Hugging Face, the list below is the curated catalog. */}
+        {!offline && <ListRow icon="search" title={t("flows.models.searchTitle")} subtitle={t("flows.models.searchFooter")} onPress={() => navigation.navigate("ModelSearch")} />}
         {groups.available.length > 0 ? (
           renderGroup(groups.available)
         ) : (
@@ -200,6 +235,14 @@ export function ModelsScreen() {
         )}
       </Section>
 
+      {(offline || catalog.imports.length > 0) && (
+        <Section title={t("flows.import.title")} footer={t("flows.import.footer")}>
+          <View style={{ padding: tokens.space.base }}>
+            <ImportList imports={catalog.imports} onPick={catalog.importFiles} onCancel={catalog.cancelImports} />
+          </View>
+        </Section>
+      )}
+
       {groups.larger.length > 0 && (
         <Section title={t("flows.models.larger")} footer={t("flows.models.largerFooter")}>
           <ListRow
@@ -208,13 +251,6 @@ export function ModelsScreen() {
             onPress={() => setShowLarger((v) => !v)}
           />
           {showLarger && renderGroup(groups.larger)}
-        </Section>
-      )}
-
-      {(!offline || groups.advanced.length > 0) && (
-        <Section title={t("flows.models.advanced")} footer={offline ? undefined : t("flows.models.searchFooter")}>
-          {groups.advanced.length > 0 && renderGroup(groups.advanced)}
-          {!offline && <ListRow icon="search" title={t("flows.models.searchTitle")} onPress={() => navigation.navigate("ModelSearch")} />}
         </Section>
       )}
     </Screen>
@@ -237,6 +273,11 @@ export function ModelSearchScreen() {
   const motion = useMotion();
   const [files, setFiles] = useState<Record<string, HFGgufFile[] | "loading" | "error">>({});
   const [adding, setAdding] = useState<string | null>(null);
+  const [sizeFilter, setSizeFilter] = useState<SizeFilter>("fits");
+  const [budget] = useState(() => {
+    const total = getDeviceTotalRamBytes();
+    return total > 0 ? availableRamFrom({ totalBytes: total, rssBytes: 0 }) : 0;
+  });
 
   const run = async () => {
     const q = query.trim();
@@ -296,6 +337,18 @@ export function ModelSearchScreen() {
         autoCorrect={false}
       />
       <Button label={t("flows.models.searchButton")} icon="search" onPress={run} loading={search.kind === "searching"} disabled={!query.trim()} />
+      <SegmentedControl<SizeFilter>
+        label={t("flows.models.sizeFilter")}
+        size="compact"
+        value={sizeFilter}
+        onChange={setSizeFilter}
+        options={[
+          { value: "fits", label: t("flows.models.sizeFits") },
+          { value: "2", label: t("flows.models.sizeUpTo", { gb: 2 }) },
+          { value: "4", label: t("flows.models.sizeUpTo", { gb: 4 }) },
+          { value: "any", label: t("flows.models.sizeAny") },
+        ]}
+      />
 
       {search.kind === "error" && (
         <EmptyState
@@ -336,13 +389,18 @@ export function ModelSearchScreen() {
                         {t("flows.models.filesFailed")}
                       </Text>
                     )}
+                    {Array.isArray(list) && list.length > 0 && !list.some((f) => passesSizeFilter(f.sizeBytes, sizeFilter, budget)) && (
+                      <Text variant="footnote" color="secondary">
+                        {t("flows.models.noneInSize")}
+                      </Text>
+                    )}
                     {Array.isArray(list) && list.length === 0 && (
                       <Text variant="footnote" color="secondary">
                         {t("flows.models.noGguf")}
                       </Text>
                     )}
                     {Array.isArray(list) &&
-                      list.map((file) => {
+                      list.filter((f) => passesSizeFilter(f.sizeBytes, sizeFilter, budget)).map((file) => {
                         const key = `${item.id}/${file.filename}`;
                         return (
                           <View key={key} style={{ gap: tokens.space.xs }}>
