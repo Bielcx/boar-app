@@ -1,10 +1,12 @@
 import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { LayoutChangeEvent, TextInput, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useTranslation } from "react-i18next";
-import { IconButton, Text } from "../components";
+import { IconButton, Text, useToast } from "../components";
+import { getAnswerSettings, setAnswerSettings } from "../../models/settings";
 import { footerBottom } from "../components/Screen";
 import { useTokens } from "../theme";
 import { useMotion } from "../theme/motion";
@@ -84,6 +86,23 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
     [layout, m, pill]
   );
   const pillStyle = useAnimatedStyle(() => ({ height: pill.value }));
+  // Answer mode, as icons next to the question (Settings › Answers holds the same two switches).
+  const toast = useToast();
+  const [answerMode, setAnswerMode] = useState<{ quickFirst: boolean; alwaysComplete: boolean } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      getAnswerSettings()
+        .then((a) => setAnswerMode({ quickFirst: a.quickFirst, alwaysComplete: a.alwaysComplete }))
+        .catch(() => {});
+    }, [])
+  );
+  const toggleMode = (key: "quickFirst" | "alwaysComplete") => {
+    if (!answerMode) return;
+    const next = { ...answerMode, [key]: !answerMode[key] };
+    setAnswerMode(next);
+    setAnswerSettings({ [key]: next[key] }).catch(() => {});
+    toast({ message: tr(`flows.settings.answerMode.${next.quickFirst ? "quick" : "direct"}${next.alwaysComplete ? "Complete" : "Model"}`) });
+  };
   return (
     <View
       style={{
@@ -97,6 +116,28 @@ const ComposerView = forwardRef<TextInput, Props>(function Composer(
         <Text variant="caption" color="secondary">
           {line}
         </Text>
+      )}
+      {answerMode && (
+        <View style={{ flexDirection: "row", gap: t.space.xs }}>
+          <IconButton
+            icon="zap"
+            size="sm"
+            variant={answerMode.quickFirst ? "tonal" : "plain"}
+            selected={answerMode.quickFirst}
+            label={tr("flows.settings.quickFirst")}
+            accessibilityHint={tr("flows.settings.quickFirstHint")}
+            onPress={() => toggleMode("quickFirst")}
+          />
+          <IconButton
+            icon="layers"
+            size="sm"
+            variant={answerMode.alwaysComplete ? "tonal" : "plain"}
+            selected={answerMode.alwaysComplete}
+            label={tr("flows.settings.alwaysComplete")}
+            accessibilityHint={tr("flows.settings.alwaysCompleteHint")}
+            onPress={() => toggleMode("alwaysComplete")}
+          />
+        </View>
       )}
       {/* In the model-error state the whole composer is dimmed, as the mockup: the card above is where to act (E-5). */}
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: t.space.sm, opacity: blocked ? t.opacity.disabled : 1 }}>

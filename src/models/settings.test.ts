@@ -18,13 +18,13 @@ describe("voice input setting", () => {
     resetSettingsCache();
   });
 
-  it("is off on a fresh install", async () => {
-    expect(await getVoiceInputEnabled()).toBe(false);
+  it("is on on a fresh install, as in the original UI (the mic is on-device first)", async () => {
+    expect(await getVoiceInputEnabled()).toBe(true);
   });
 
   it("keeps the user's choice", async () => {
-    await setVoiceInputEnabled(true);
-    expect(await getVoiceInputEnabled()).toBe(true);
+    await setVoiceInputEnabled(false);
+    expect(await getVoiceInputEnabled()).toBe(false);
   });
 });
 
@@ -131,7 +131,7 @@ describe("in-memory cache (perf audit #34)", () => {
     await setLanguageId("pt");
     await clearSettings();
     expect(files.size).toBe(0);
-    expect(await getVoiceInputEnabled()).toBe(false);
+    expect(await getVoiceInputEnabled()).toBe(true);
     expect(await getMaxTokens()).toBe(await (async () => (resetSettingsCache(), getMaxTokens()))());
   });
 });

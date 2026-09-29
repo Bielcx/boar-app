@@ -1,8 +1,7 @@
 import React, { memo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Icon, IconButton, IconText, ListRow, Mascot, OfflineSeal, Section, Sheet, Text, useOpticalLine } from "./components";
-import { getAnswerSettings, setAnswerSettings } from "../models/settings";
+import { Icon, IconButton, IconText, Mascot, OfflineSeal, Sheet, Text, useOpticalLine } from "./components";
 import { useTokens } from "./theme";
 import { headerFit, sealCopy } from "./chat/headerLayout";
 import { lineSlop } from "./chat/touch";
@@ -41,18 +40,6 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
   const { t: tr } = useTranslation();
   const { width, fontScale } = useWindowDimensions();
   const [offlineOpen, setOfflineOpen] = useState(false);
-  // The model line opens the answer mode (Settings › Answers), so it can be changed from the chat.
-  const [modeOpen, setModeOpen] = useState(false);
-  const [mode, setMode] = useState<{ quickFirst: boolean; alwaysComplete: boolean } | null>(null);
-  const openMode = async () => {
-    const a = await getAnswerSettings();
-    setMode({ quickFirst: a.quickFirst, alwaysComplete: a.alwaysComplete });
-    setModeOpen(true);
-  };
-  const changeMode = (next: { quickFirst: boolean; alwaysComplete: boolean }) => {
-    setMode(next);
-    setAnswerSettings(next).catch(() => {});
-  };
   // "OFFLINE" like the mockup only where it is literally true (the build without INTERNET); the downloader
   // build says "ON DEVICE" (Boar: the answer is computed on the phone), same pill. Readers hear the long form.
   const seal = sealCopy(OFFLINE_BUILD);
@@ -95,25 +82,9 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
           {activeModelLabel && !downgradedFrom && (
             // The mockup's model line: caps, secondary, raised from 9.5 px to the 12 pt floor.
             // Prism AX-5: capped at 1.5x, so at AX-XXL the model line stays inside the header.
-            <Pressable
-              onPress={openMode}
-              accessibilityRole="button"
-              accessibilityLabel={tr("chat.header.answerModeA11y", { model: activeModelLabel })}
-              hitSlop={lineSlop(t.size.touch, metaLine.lineHeight, t.space.sm)}
-            >
-              <IconText
-                icon="chevron-down"
-                iconPosition="end"
-                variant="capsMeta"
-                color="secondary"
-                iconColor={t.color.text.secondary}
-                iconRole="seal"
-                numberOfLines={1}
-                maxFontSizeMultiplier={HEADER_META_MAX_SCALE}
-              >
-                {activeModelLabel}
-              </IconText>
-            </Pressable>
+            <Text variant="capsMeta" color="secondary" numberOfLines={1} maxFontSizeMultiplier={HEADER_META_MAX_SCALE}>
+              {activeModelLabel}
+            </Text>
           )}
           {activeModelLabel && downgradedFrom && (
             <Pressable
@@ -154,28 +125,6 @@ export const ChatHeader = memo(function ChatHeader({ activeModelLabel, downgrade
           )}
         </Pressable>
       </View>
-
-      <Sheet visible={modeOpen} onClose={() => setModeOpen(false)} title={tr("flows.settings.answers")}>
-        {mode && (
-          <View style={{ gap: t.space.md }}>
-            <Section>
-              <ListRow
-                title={tr("flows.settings.quickFirst")}
-                subtitle={tr("flows.settings.quickFirstHint")}
-                switch={{ value: mode.quickFirst, onValueChange: (v) => changeMode({ ...mode, quickFirst: v }) }}
-              />
-              <ListRow
-                title={tr("flows.settings.alwaysComplete")}
-                subtitle={tr("flows.settings.alwaysCompleteHint")}
-                switch={{ value: mode.alwaysComplete, onValueChange: (v) => changeMode({ ...mode, alwaysComplete: v }) }}
-              />
-            </Section>
-            <Text variant="footnote" color="secondary">
-              {tr(`flows.settings.answerMode.${mode.quickFirst ? "quick" : "direct"}${mode.alwaysComplete ? "Complete" : "Model"}`)}
-            </Text>
-          </View>
-        )}
-      </Sheet>
 
       <Sheet visible={offlineOpen} onClose={() => setOfflineOpen(false)} title={tr(seal.title)}>
         <View style={{ gap: t.space.md }}>

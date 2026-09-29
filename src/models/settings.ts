@@ -264,8 +264,9 @@ export async function setHapticsEnabled(enabled: boolean): Promise<void> {
 /** Whether the chat shows the microphone button. */
 export async function getVoiceInputEnabled(): Promise<boolean> {
   const s = await readSettings();
-  // Off by default: the system recognizer may use the network on devices with Google services.
-  return s.voiceInputEnabled ?? false;
+  // On by default, as the original UI: the mic uses on-device recognition (Android 12+), and the
+  // network recognizer only after the user accepts it (src/voice/voicePolicy.ts). Off in Settings › Input.
+  return s.voiceInputEnabled ?? true;
 }
 
 export async function setVoiceInputEnabled(enabled: boolean): Promise<void> {
