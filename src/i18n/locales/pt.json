@@ -447,7 +447,6 @@
     "sharing": "Compartilhando…",
     "shared": "✓ Compartilhado",
     "shareTitle": "Compartilhar resultados",
-    "shareBody": "Isto envia esta avaliação ao projeto BOAR, para comparar celulares e modelos:\n\n• Celular: {{device}}\n• Versão do app\n• {{count}} respostas: as perguntas da avaliação, as respostas, os modelos usados e os tempos\n\nNão é enviado: suas conversas, seus documentos, seu nome ou sua localização. Este celular é identificado só por um número aleatório criado nele.",
     "shareConfirm": "Compartilhar",
     "shareResult": {
       "shared": "Compartilhado. Obrigado!",
@@ -455,6 +454,32 @@
       "rate-limited": "Muitas avaliações compartilhadas deste celular hoje. Tente amanhã.",
       "rejected": "O servidor não aceitou esta avaliação. Atualize o app e tente de novo.",
       "failed": "Não foi possível falar com o servidor. Verifique a internet e tente de novo."
+    },
+    "preview": {
+      "title": "O que será compartilhado",
+      "subtitle": "Leia tudo antes de enviar. Nada é enviado até você tocar em Compartilhar.",
+      "phoneSection": "Este celular",
+      "phone": "Celular",
+      "chipset": "Chipset",
+      "cpu": "CPU",
+      "cores": "{{count}} núcleos",
+      "ram": "RAM",
+      "os": "Sistema",
+      "app": "Versão do BOAR",
+      "yes": "sim",
+      "no": "não",
+      "modelsSection": "Modelos testados",
+      "parts": "velocidade {{speed}} · concluídas {{reliability}} · fontes {{retrieval}}",
+      "tokPerSec": "tokens/s",
+      "ttft": "1º token",
+      "total": "total",
+      "peakRam": "pico de RAM",
+      "completed": "concluídas",
+      "sources": "fontes achadas",
+      "formula": "Pontuação v{{version}}, de 0 a 100: {{speed}}% velocidade (mediana de tokens/s, nota máxima com {{reference}}), {{reliability}}% respostas concluídas, {{retrieval}}% fontes esperadas encontradas; 0 se menos da metade concluir. Mede velocidade e confiabilidade, não se as respostas estão certas. O servidor recalcula a partir das respostas.",
+      "answers": "{{count}} perguntas e respostas (toque para ler)",
+      "notSentSection": "Não é enviado",
+      "notSent": "Suas conversas, seus documentos, seu nome, sua localização, seus contatos. Este celular é identificado só por um número aleatório criado no app."
     }
   }
 }

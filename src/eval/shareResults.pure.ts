@@ -6,9 +6,20 @@ import type { EvalResultRow } from "./evalHarness.pure";
 export interface ShareDevice {
   platform: "android" | "ios";
   osVersion?: string;
+  apiLevel?: number;
   brand?: string;
   model?: string;
+  /** Chipset, e.g. "MT6897" (Android 12+). */
+  soc?: string;
+  socManufacturer?: string;
+  /** Build.HARDWARE: the board name, often the chipset on older phones. */
+  hardware?: string;
   ramBytes?: number;
+  cpuCores?: number;
+  /** CPU flags from /proc/cpuinfo, e.g. ["asimddp", "i8mm"]. */
+  cpuFeatures?: string[];
+  /** Each core's top frequency in kHz, in core order; 0 where unknown. */
+  coreMaxFreqKHz?: number[];
 }
 
 export interface ShareSubmission {
@@ -19,9 +30,16 @@ export interface ShareSubmission {
     appVersion: string;
     platform: "android" | "ios";
     osVersion?: string;
+    apiLevel?: number;
     deviceBrand?: string;
     deviceModel?: string;
+    soc?: string;
+    socManufacturer?: string;
+    hardware?: string;
     ramBytes?: number;
+    cpuCores?: number;
+    cpuFeatures?: string[];
+    coreMaxFreqKHz?: number[];
   };
   rows: EvalResultRow[];
 }
@@ -47,9 +65,16 @@ export function buildSubmission(
       appVersion,
       platform: device.platform,
       osVersion: device.osVersion,
+      apiLevel: device.apiLevel,
       deviceBrand: device.brand,
       deviceModel: device.model,
+      soc: device.soc || undefined,
+      socManufacturer: device.socManufacturer || undefined,
+      hardware: device.hardware || undefined,
       ramBytes: device.ramBytes && device.ramBytes > 0 ? device.ramBytes : undefined,
+      cpuCores: device.cpuCores,
+      cpuFeatures: device.cpuFeatures,
+      coreMaxFreqKHz: device.coreMaxFreqKHz,
     },
     rows,
   };
@@ -66,10 +91,31 @@ export function shareResultFromStatus(status: number): ShareResult {
   return "failed";
 }
 
-/** "POCO 2311DRK48G · Android 15 · 11 GB RAM", for the confirmation before sending. */
-export function describeDevice(d: ShareDevice): string {
-  const name = [d.brand, d.model].filter(Boolean).join(" ") || "Unknown phone";
-  const os = d.osVersion ? `${d.platform === "ios" ? "iOS" : "Android"} ${d.osVersion}` : null;
-  const ram = d.ramBytes && d.ramBytes > 0 ? `${Math.round(d.ramBytes / 1024 ** 3)} GB RAM` : null;
-  return [name, os, ram].filter(Boolean).join(" · ");
+/** The Features line of /proc/cpuinfo as a list of flags. */
+export function parseCpuFeatures(line: string | undefined): string[] {
+  return (line ?? "").split(/\s+/).filter(Boolean);
+}
+
+/** "MediaTek MT6897", falling back to the board name when Android doesn't report the chipset. */
+export function describeChipset(d: ShareDevice): string | undefined {
+  if (d.soc) return [d.socManufacturer, d.soc].filter(Boolean).join(" ");
+  return d.hardware || undefined;
+}
+
+/** "4 × 3.35 GHz + 4 × 2.2 GHz": cores grouped by top frequency, fastest first. */
+export function describeCores(coreMaxFreqKHz: number[] | undefined): string | undefined {
+  const known = (coreMaxFreqKHz ?? []).filter((f) => f > 0);
+  if (known.length === 0) return undefined;
+  const counts = new Map<number, number>();
+  for (const f of known) counts.set(f, (counts.get(f) ?? 0) + 1);
+  return Array.from(counts.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map(([f, n]) => `${n} × ${Number((f / 1e6).toFixed(2))} GHz`)
+    .join(" + ");
+}
+
+/** The CPU features llama.cpp's speed depends on most: int8 matrix multiply and dot product. */
+export function inferenceFeatures(features: string[] | undefined): { i8mm: boolean; dotprod: boolean } | undefined {
+  if (!features || features.length === 0) return undefined;
+  return { i8mm: features.includes("i8mm"), dotprod: features.includes("asimddp") };
 }

@@ -11,7 +11,9 @@ import { exportEvalResults, listInstalledEvalModels, runEvaluation, EvalProgress
 import { runDeviceEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
 import { resultsSharingAvailable, shareDevice, shareEvalRun } from "../eval/shareResults";
-import { describeDevice, type ShareResult } from "../eval/shareResults.pure";
+import type { ShareDevice, ShareResult } from "../eval/shareResults.pure";
+import { SharePreview } from "./SharePreview";
+import appConfig from "../../app.json";
 import { colors } from "./theme/colors";
 import { typography } from "./theme/typography";
 import { spacing, radii } from "./theme/spacing";
@@ -53,6 +55,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shared, setShared] = useState<string | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<ShareDevice | null>(null);
   const stopRef = useRef(false);
 
   useEffect(() => {
@@ -124,28 +127,22 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     }
   };
 
-  // Nothing leaves the phone until the user has read what will be sent and confirmed it.
+  // Nothing leaves the phone until the user has seen everything that will be sent (SharePreview)
+  // and pressed Share there.
   const handleShare = () => {
     if (!run || run.rows.length === 0) return;
-    const rowsToSend = run.rows;
-    Alert.alert(
-      t("evaluation.shareTitle"),
-      t("evaluation.shareBody", { device: describeDevice(shareDevice()), count: rowsToSend.length }),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("evaluation.shareConfirm"),
-          onPress: async () => {
-            impact(ImpactFeedbackStyle.Light);
-            setSharing(true);
-            const result: ShareResult = await shareEvalRun(rowsToSend);
-            setSharing(false);
-            if (result === "shared" || result === "already-shared") setShared(run.runId);
-            if (result !== "shared") Alert.alert(t("evaluation.shareTitle"), t(`evaluation.shareResult.${result}`));
-          },
-        },
-      ]
-    );
+    impact(ImpactFeedbackStyle.Light);
+    setPreviewDevice(shareDevice());
+  };
+
+  const confirmShare = async () => {
+    if (!run) return;
+    setSharing(true);
+    const result: ShareResult = await shareEvalRun(run.rows);
+    setSharing(false);
+    setPreviewDevice(null);
+    if (result === "shared" || result === "already-shared") setShared(run.runId);
+    Alert.alert(t("evaluation.shareTitle"), t(`evaluation.shareResult.${result}`));
   };
 
   const canRun = !running && !chatBusy && chosen.length > 0 && models !== null;
@@ -294,6 +291,17 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
           );
         })}
       </ScrollView>
+      {run && previewDevice && (
+        <SharePreview
+          visible
+          rows={run.rows}
+          device={previewDevice}
+          appVersion={appConfig.expo.version}
+          sending={sharing}
+          onCancel={() => setPreviewDevice(null)}
+          onShare={confirmShare}
+        />
+      )}
     </View>
   );
 }
