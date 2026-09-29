@@ -357,7 +357,7 @@
       "notMeasured": "Ainda não medido neste celular",
       "lowRamNotAuto": "Não entra no automático neste celular: grande demais para a memória dele.",
       "samples_one": "{{count}} resposta medida aqui · {{date}}",
-      "samples_other": "Mediana de {{count}} respostas medidas aqui · {{date}}",
+      "samples_other": "Velocidade típica em {{count}} respostas aqui · {{date}}",
       "usedLabel": "Usado pelo BOAR",
       "freeMeta": "{{size}} livres no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
@@ -377,7 +377,7 @@
       "noneInSize": "Nenhum arquivo deste modelo cabe no filtro de tamanho."
     },
     "knowledge": {
-      "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",
+      "intro": "O que o BOAR pode usar nas respostas, tudo guardado neste celular: conhecimento (artigos da Wikipédia e seus documentos) para perguntas sobre qualquer assunto, e lugares (restaurantes e dicas de viagem) para onde ir.",
       "indexing": "Indexando {{done}} de {{total}}",
       "indexingLabel": "Indexação do conhecimento",
       "appCollections": "Coleções do BOAR",
@@ -437,7 +437,7 @@
       "empty": "As respostas escritas por um modelo aparecem aqui.",
       "typical_one": "Típico (última {{count}} resposta)",
       "typical_other": "Típico (últimas {{count}} respostas)",
-      "typicalFooter": "Medianas. As palavras por segundo são estimadas.",
+      "typicalFooter": "Valores típicos: o meio das respostas recentes, para uma resposta lenta não distorcer.",
       "showMore": "Mostrar mais",
       "band": {
         "fast": "Rápido",
@@ -646,7 +646,7 @@
     },
     "places": {
       "title": "Lugares (offline)",
-      "footer": "Restaurantes e lugares do OpenStreetMap (ODbL) e dicas de viagem do Wikivoyage (CC BY-SA). Busca feita no celular, sem internet.",
+      "footer": "Restaurantes e lugares do OpenStreetMap (ODbL) e dicas de viagem do Wikivoyage (CC BY-SA), buscados no celular sem internet. O chat usa isso para perguntas como \"restaurantes veganos perto de mim\" ou \"em Lisboa\".",
       "none": "Os pacotes de lugares ainda não estão disponíveis nesta versão.",
       "meta": "{{places}} lugares · {{size}}",
       "placesFor": "Lugares de {{region}}",

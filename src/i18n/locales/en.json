@@ -357,7 +357,7 @@
       "notMeasured": "Not measured on this phone yet",
       "lowRamNotAuto": "Not in automatic mode on this phone: too big for its memory.",
       "samples_one": "{{count}} answer measured here · {{date}}",
-      "samples_other": "Median of {{count}} answers measured here · {{date}}",
+      "samples_other": "Typical speed over {{count}} answers here · {{date}}",
       "usedLabel": "Used by BOAR",
       "freeMeta": "{{size}} free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
@@ -377,7 +377,7 @@
       "noneInSize": "No file of this model matches the size filter."
     },
     "knowledge": {
-      "intro": "What BOAR can cite in its answers, all stored on this phone.",
+      "intro": "What BOAR can use in its answers, all stored on this phone: knowledge (Wikipedia articles and your documents) for questions about anything, and places (restaurants and travel tips) for where to go.",
       "indexing": "Indexing {{done}} of {{total}}",
       "indexingLabel": "Knowledge indexing",
       "appCollections": "BOAR collections",
@@ -392,20 +392,20 @@
       "collectionMeta": "{{docs}} · {{chunks}} · {{size}}",
       "docs_one": "{{value}} document",
       "docs_other": "{{value}} documents",
-      "chunks_one": "{{count}} passage",
-      "chunks_other": "{{count}} passages",
+      "chunks_one": "{{count}} section",
+      "chunks_other": "{{count}} sections",
       "useInAnswers": "Use {{name}} in answers",
       "export": "Export",
       "exportA11y": "Export {{name}}",
       "exportFailed": "Couldn't export: {{error}}",
       "removeA11y": "Remove {{name}}",
       "removeTitle": "Remove {{name}}?",
-      "removeBody_one": "Its {{count}} passage will be deleted from this phone.",
-      "removeBody_other": "Its {{count}} passages will be deleted from this phone.",
+      "removeBody_one": "Its {{count}} section will be deleted from this phone.",
+      "removeBody_other": "Its {{count}} sections will be deleted from this phone.",
       "stage": {
         "reading": "Reading files",
-        "chunking": "Splitting into passages",
-        "embedding": "Indexing passage {{current}} of {{total}}"
+        "chunking": "Splitting into sections",
+        "embedding": "Indexing section {{current}} of {{total}}"
       },
       "importingLabel": "Import progress",
       "imported": "{{name}} added",
@@ -437,7 +437,7 @@
       "empty": "Answers written by a model show up here.",
       "typical_one": "Typical (last {{count}} answer)",
       "typical_other": "Typical (last {{count}} answers)",
-      "typicalFooter": "Medians. Words per second are estimated.",
+      "typicalFooter": "Typical values: the middle of your recent answers, so one slow answer doesn't skew them.",
       "showMore": "Show more",
       "band": {
         "fast": "Fast",
@@ -646,7 +646,7 @@
     },
     "places": {
       "title": "Places (offline)",
-      "footer": "Restaurants and places from OpenStreetMap (ODbL) and travel tips from Wikivoyage (CC BY-SA). Searched on the phone, no internet.",
+      "footer": "Restaurants and places from OpenStreetMap (ODbL) and travel tips from Wikivoyage (CC BY-SA), searched on the phone without internet. The chat uses them for questions like \"vegan restaurants near me\" or \"in Lisbon\".",
       "none": "Place packs are not available in this version yet.",
       "meta": "{{places}} places · {{size}}",
       "placesFor": "Places for {{region}}",
