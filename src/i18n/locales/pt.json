@@ -141,9 +141,9 @@
     "activeSession": "atual",
     "setup": "Configuração",
     "liveStats": {
-      "ram": "RAM {{size}}",
-      "storage": "Armazenamento {{size}}",
-      "last": "Última {{rate}} tok/s"
+      "ramLabel": "RAM",
+      "storageLabel": "Espaço",
+      "speedLabel": "Última"
     }
   },
   "flows": {
