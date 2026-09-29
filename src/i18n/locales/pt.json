@@ -562,8 +562,8 @@
       "chooseAnswerHint": "Escolher Rápido ou Mais preciso",
       "workingMemory": "precisa de ~{{size}} de memória",
       "currentItem": "Item {{n}} de {{total}} — {{name}}",
-      "keepOpenTitle": "Mantenha o BOAR aberto",
-      "keepOpenIndex": "Mantenha o BOAR aberto enquanto ele monta o índice de busca. Se sair, ele pode pausar.",
+      "keepOpenTitle": "Melhor com o BOAR aberto",
+      "keepOpenIndex": "O índice de busca é feito neste celular. Se você sair, ele pausa e continua de onde parou quando você voltar.",
       "stage": {
         "start": "Início",
         "choose": "Escolha",
@@ -585,7 +585,7 @@
       "downloadFailed": "Um download falhou",
       "restart": "Baixar de novo",
       "restartHint": "Os downloads pararam de avançar?",
-      "keepOpen": "Mantenha o BOAR aberto até terminar. Se você sair, o download pode pausar; ele continua de onde parou quando você voltar.",
+      "keepOpen": "Os downloads vão mais rápido com o BOAR aberto. Se você sair, eles pausam e continuam de onde pararam quando você voltar.",
       "doneTitle": "Pronto",
       "doneBody": "Tudo roda offline a partir de agora.",
       "doneSummary": "Neste celular",
@@ -613,7 +613,23 @@
         "default": "Mais preciso",
         "compact": "Rápido"
       },
-      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o Rápido está selecionado. Você ainda pode escolher o Mais preciso."
+      "compactLowRam": "Este celular tem {{ram}} de memória ou menos, por isso o Rápido está selecionado. Você ainda pode escolher o Mais preciso.",
+      "canLeaveTitle": "Pode sair do BOAR",
+      "indexReading": "Lendo: {{title}}",
+      "loadingLines": {
+        "l1": "Alimentando o javali…",
+        "l2": "O javali parou para farejar uma trufa…",
+        "l3": "Afiando as presas…",
+        "l4": "Separando as bolotas por assunto…",
+        "l5": "Ensinando o javali a ler notas de rodapé…",
+        "l6": "Cavando fatos debaixo do carvalho…",
+        "l7": "O javali está lendo a enciclopédia inteira. Devagar.",
+        "l8": "Arrumando lanches para a viagem sem internet…",
+        "l9": "Conferindo cada fonte duas vezes…",
+        "l10": "Rolando na lama do conhecimento…",
+        "l11": "O javali achou um atalho. Era uma árvore.",
+        "l12": "Contando páginas com os cascos…"
+      }
     },
     "places": {
       "title": "Lugares (offline)",

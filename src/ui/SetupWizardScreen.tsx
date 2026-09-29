@@ -18,6 +18,7 @@ import { CatalogModel, MODEL_CATALOG, TIERS } from "../models/manifest";
 import { findAsset } from "../models/assetRegistry";
 import { restartDownload } from "../services/downloadManager";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
+import { LoadingLine } from "./flows/LoadingLine";
 import { embeddingEngine } from "../rag/embed";
 import { useCatalog } from "./flows/useCatalog";
 import type { MemoryFit } from "../inference/memoryFit";
@@ -173,7 +174,11 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
       }),
     [onSkip]
   );
+  // While the search index is being built, back does nothing: the on-screen back link is hidden then too,
+  // and leaving the step would hide the progress while indexing carries on.
+  const indexingRef = useRef(false);
   const goBack = useCallback(() => {
+    if (step === 3 && indexingRef.current) return true;
     if (step === 3 && !allPresent) setBackOpen(true);
     else if (step > 1) setStep((s) => (s - 1) as Step);
     else if (skip) skip();
@@ -265,6 +270,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
               allPresent={allPresent}
               lang={lang}
               onBack={() => setBackOpen(true)}
+              onIndexingChange={(v) => (indexingRef.current = v)}
               onChoosePackage={() => setStep(2)}
               answerModel={answerModel}
               placesLabel={trip?.label ?? (travel ? (lang.startsWith("pt") ? travel.name.pt : travel.name.en) : undefined)}
@@ -939,6 +945,7 @@ function InstallStep({
   allPresent,
   lang,
   onBack,
+  onIndexingChange,
   onChoosePackage,
   onReady,
   answerModel,
@@ -950,6 +957,8 @@ function InstallStep({
   allPresent: boolean;
   lang: string;
   onBack: () => void;
+  /** Tells the wizard when the index is being built, so the hardware back button can stay put. */
+  onIndexingChange?: (indexing: boolean) => void;
   onChoosePackage: () => void;
   onReady: () => void;
   /** For the closing summary: what will answer, and the places chosen (region or trip). */
@@ -1091,6 +1100,7 @@ function InstallStep({
 
   const ready = indexPhase === "ready";
   const indexing = indexPhase === "building" || indexPhase === "error";
+  useEffect(() => onIndexingChange?.(indexPhase === "building"), [indexPhase, onIndexingChange]);
   const { fontScale } = useWindowDimensions();
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
   // The item whose bytes are arriving now, "Item 2 of 5 — name" under the bar (the mockup's "Model 1 of 3 — …").
@@ -1279,6 +1289,12 @@ function InstallStep({
               )}
             </View>
             <Progress label={hero.label} value={hero.fraction} valueText={hero.meta.join(", ")} height={tokens.space.sm + tokens.space.xxs} />
+            {allPresent && indexPhase === "building" && seed?.title ? (
+              <Text variant="footnote" numberOfLines={1} ellipsizeMode="tail">
+                {t("flows.onboarding.indexReading", { title: seed.title })}
+              </Text>
+            ) : null}
+            {(transferring || indexPhase === "building") && <LoadingLine />}
             {!allPresent && offline && activeImport && (
               // Large text gets a second line before the middle ellipsis; the reader always hears the whole name (Prism FL-33).
               <Text
@@ -1414,11 +1430,12 @@ function InstallStep({
         {(transferring || indexPhase === "building") && (
           // The mockup's warning card: warm wash, radius 18, 12/14 padding, body in the primary ink (FIDELITY).
           <Card level={0} radius="card" padding="compact" style={{ gap: tokens.space.xs, backgroundColor: tokens.color.status.warning.soft }}>
-            <IconText icon="alert-triangle" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
-              {t("flows.onboarding.keepOpenTitle")}
+            <IconText icon="info" variant="label" color="warning" iconColor={tokens.color.status.warning.solid}>
+              {t(indexPhase === "building" && !transferring ? "flows.onboarding.canLeaveTitle" : "flows.onboarding.keepOpenTitle")}
             </IconText>
             <Text variant="footnote">
-              {/* Indexing runs in the app's JS, which the OS may suspend in the background (Prism IX-2). */}
+              {/* Both resume: downloads from the partial file (ModelManager), indexing by skipping the
+                  articles already in (seedCorpus). Leaving only pauses them. */}
               {t(indexPhase === "building" && !transferring ? "flows.onboarding.keepOpenIndex" : offline ? "flows.onboarding.keepOpenImport" : "flows.onboarding.keepOpen")}
             </Text>
           </Card>

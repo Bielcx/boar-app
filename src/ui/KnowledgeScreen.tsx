@@ -20,6 +20,7 @@ import {
 } from "../services/documentImporter";
 import type { CustomCollection } from "../rag/db";
 import { onSeedProgress, seedKnowledgeBaseIfEmpty, SeedProgress } from "../rag/seedCorpus";
+import { LoadingLine } from "./flows/LoadingLine";
 import { CollectionIndexStatus, getCollectionIndexStatus, onCollectionIndexStatus } from "../rag/indexStatus";
 import { CatalogRow } from "./flows/CatalogRow";
 import { CatalogList } from "./flows/CatalogList";
@@ -188,6 +189,12 @@ export function KnowledgeScreen() {
               valueText={t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })}
             />
             <MetaLine items={[t("flows.knowledge.indexing", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) })]} />
+            {seed.title ? (
+              <Text variant="footnote" numberOfLines={1} ellipsizeMode="tail">
+                {t("flows.onboarding.indexReading", { title: seed.title })}
+              </Text>
+            ) : null}
+            <LoadingLine />
           </Card>
         )}
 

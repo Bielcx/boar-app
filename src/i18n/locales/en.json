@@ -562,8 +562,8 @@
       "chooseAnswerHint": "Choose Fast or More accurate",
       "workingMemory": "needs ~{{size}} of memory",
       "currentItem": "Item {{n}} of {{total}} — {{name}}",
-      "keepOpenTitle": "Keep BOAR open",
-      "keepOpenIndex": "Keep BOAR open while it builds the search index. If you leave, it may pause.",
+      "keepOpenTitle": "Best with BOAR open",
+      "keepOpenIndex": "The search index is built on this phone. If you leave, it pauses and picks up where it stopped when you come back.",
       "stage": {
         "start": "Start",
         "choose": "Choose",
@@ -585,7 +585,7 @@
       "downloadFailed": "A download failed",
       "restart": "Restart downloads",
       "restartHint": "Downloads not moving?",
-      "keepOpen": "Keep BOAR open until it finishes. If you leave, the download may pause; it continues where it stopped when you come back.",
+      "keepOpen": "Downloads go fastest with BOAR open. If you leave, they pause, and they continue where they stopped when you come back.",
       "doneTitle": "Ready",
       "doneBody": "Everything runs offline from now on.",
       "doneSummary": "On this phone",
@@ -613,7 +613,23 @@
         "default": "More accurate",
         "compact": "Fast"
       },
-      "compactLowRam": "This phone has {{ram}} of memory or less, so Fast is selected. You can still choose More accurate."
+      "compactLowRam": "This phone has {{ram}} of memory or less, so Fast is selected. You can still choose More accurate.",
+      "canLeaveTitle": "You can leave BOAR",
+      "indexReading": "Reading: {{title}}",
+      "loadingLines": {
+        "l1": "Feeding the boar…",
+        "l2": "The boar stopped to sniff a truffle…",
+        "l3": "Sharpening the tusks…",
+        "l4": "Sorting acorns by subject…",
+        "l5": "Teaching the boar to read footnotes…",
+        "l6": "Digging for facts under the oak tree…",
+        "l7": "The boar is reading the whole encyclopedia. Slowly.",
+        "l8": "Packing snacks for the trip offline…",
+        "l9": "Checking every source twice…",
+        "l10": "Rolling in the mud of knowledge…",
+        "l11": "The boar found a shortcut. It was a tree.",
+        "l12": "Counting pages with hooves…"
+      }
     },
     "places": {
       "title": "Places (offline)",
