@@ -6,7 +6,7 @@ import { Badge, Button, Card, Icon, IconText, LARGE_TEXT_SCALE, Mascot, Progress
 import { icon, useTheme, useTokens } from "../theme";
 import type { RetrievedChunk } from "../../rag/retrieve.types";
 import { modelErrorKind, modelErrorPrimary, showsRawError, type ModelErrorKind } from "./modelError";
-import { showsKnowledgeHint } from "./suggestions";
+import { isResearchIdea, showsKnowledgeHint } from "./suggestions";
 import { bootEntranceTiming } from "./presentation";
 import { chatLargeText } from "./largeText";
 import { sourceSeal } from "./sourceLabel";
@@ -158,7 +158,7 @@ export const ChatEmptyState = memo(function ChatEmptyState({
           {tr("chat.empty.tagline")}
         </Text>
       </View>
-      {(suggestions.length > 0 || (onAddKnowledge && showsKnowledgeHint(suggestions.length))) && (
+      {(suggestions.length > 0 || (onAddKnowledge && showsKnowledgeHint(suggestions.filter((k) => !isResearchIdea(k)).length))) && (
         <View style={{ gap: t.space.cardGap }}>
           {suggestions.length > 0 && (
             <Text variant="label" color="secondary" header style={{ paddingHorizontal: t.space.xs }}>
@@ -190,7 +190,7 @@ export const ChatEmptyState = memo(function ChatEmptyState({
             );
           })}
           {/* Few questions are covered by the knowledge on this phone: say why, and where to get more. */}
-          {onAddKnowledge && showsKnowledgeHint(suggestions.length) && (
+          {onAddKnowledge && showsKnowledgeHint(suggestions.filter((k) => !isResearchIdea(k)).length) && (
             <Card
               onPress={onAddKnowledge}
               radius="card"

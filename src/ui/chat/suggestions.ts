@@ -90,6 +90,22 @@ export function suggestionsFor(modelId: string | undefined, language: string | u
   return coveredSuggestions(byLang[lang] ?? [], installed, lang);
 }
 
+/**
+ * The original UI's research prompts (chat.suggestions.r1..r6), listed after the validated questions
+ * in every language and with every model. Unlike q1..q9 they aren't checked against a corpus: they
+ * show what BOAR can be asked, and whether it answers them well depends on the knowledge installed.
+ */
+export const RESEARCH_IDEAS = ["r1", "r2", "r3", "r4", "r5", "r6"] as const;
+
+export function isResearchIdea(key: string): boolean {
+  return (RESEARCH_IDEAS as readonly string[]).includes(key);
+}
+
+/** The empty chat's cards: the validated questions first, then the research prompts. */
+export function promptIdeasFor(modelId: string | undefined, language: string | undefined, installed: Iterable<string> = []): string[] {
+  return [...suggestionsFor(modelId, language, installed), ...RESEARCH_IDEAS];
+}
+
 /** Below this many suggestions, the empty chat adds "Add a knowledge pack for more topics" (Iris). */
 export const MIN_SUGGESTIONS = 3;
 

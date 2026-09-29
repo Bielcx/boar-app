@@ -939,7 +939,13 @@
       "q4": "Como estancar um sangramento nasal?",
       "q7": "O que causa o efeito estufa?",
       "q8": "O que é uma monção?",
-      "q9": "O que é tectônica de placas?"
+      "q9": "O que é tectônica de placas?",
+      "r1": "Estou fazendo trekking em um ambiente árido de grande altitude. Resuma métodos de purificação de água sem infraestrutura, compare tratamento químico com microfiltração e descreva como lidar com o mal da altitude.",
+      "r2": "Compare a arquitetura moura do sul da Espanha com a arquitetura otomana nos Bálcãs, detalhando elementos estruturais para observar nos sítios históricos sem consulta à internet.",
+      "r3": "Explique as diferenças principais entre os algoritmos de consenso Paxos e Raft em sistemas distribuídos. Compare a eleição de líder e o tratamento de partições de rede.",
+      "r4": "Resuma os argumentos econômicos sobre o imposto sobre o valor da terra versus o IPTU tradicional em relação à oferta de moradia e à densidade urbana.",
+      "r5": "Resuma as diferenças ecológicas entre o reflorestamento ativo e a regeneração natural em solos tropicais degradados, detalhando o impacto do microbioma do solo na sobrevivência das mudas.",
+      "r6": "Avalie protocolos de primeiros socorros para estabilizar fraturas fechadas graves quando o transporte médico atrasa 24 horas. Compare tração com imobilização rígida padrão."
     },
     "header": {
       "menu": "Abrir menu",
@@ -1128,7 +1134,13 @@
       "q4": "Primeiros socorros",
       "q7": "Clima",
       "q8": "Tempo",
-      "q9": "Ciências da Terra"
+      "q9": "Ciências da Terra",
+      "r1": "Expedição e navegação",
+      "r2": "Arquitetura e história",
+      "r3": "Sistemas distribuídos",
+      "r4": "Economia e política urbana",
+      "r5": "Restauração ecológica",
+      "r6": "Medicina de emergência em áreas remotas"
     },
     "modelError": {
       "overline": "Ação necessária",

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { coveredSuggestions, showsKnowledgeHint, SUGGESTION_SOURCES, suggestionsFor } from "./suggestions";
+import { isResearchIdea, promptIdeasFor, RESEARCH_IDEAS } from "./suggestions";
 
 const ALL = ["wiki-vital5", "boar-preparedness"];
 
@@ -74,5 +75,19 @@ describe("coveredSuggestions (RT-1)", () => {
 describe("showsKnowledgeHint (Iris)", () => {
   it("adds the knowledge-pack card below three suggestions, including none", () => {
     expect([0, 1, 2, 3, 4].map(showsKnowledgeHint)).toEqual([true, true, true, false, false]);
+  });
+});
+
+describe("promptIdeasFor", () => {
+  it("lists the validated questions first, then the original research prompts", () => {
+    const ideas = promptIdeasFor("qwen2.5-1.5b-instruct-q4km", "en", []);
+    expect(ideas.slice(-RESEARCH_IDEAS.length)).toEqual([...RESEARCH_IDEAS]);
+    expect(ideas.slice(0, -RESEARCH_IDEAS.length)).toEqual(suggestionsFor("qwen2.5-1.5b-instruct-q4km", "en", []));
+  });
+
+  it("keeps the research prompts for a model with no validated questions", () => {
+    expect(promptIdeasFor("some-other-model", "pt", [])).toEqual([...RESEARCH_IDEAS]);
+    expect(isResearchIdea("r3")).toBe(true);
+    expect(isResearchIdea("q3")).toBe(false);
   });
 });

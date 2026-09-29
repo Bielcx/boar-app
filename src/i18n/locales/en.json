@@ -939,7 +939,13 @@
       "q4": "How do I stop a nosebleed?",
       "q7": "What causes the greenhouse effect?",
       "q8": "What is a monsoon?",
-      "q9": "What is plate tectonics?"
+      "q9": "What is plate tectonics?",
+      "r1": "I'm trekking in a high-altitude arid environment. Synthesize methods for off-grid water purification, compare chemical treatment vs. microfiltration, and outline altitude sickness management protocols.",
+      "r2": "Compare Moorish design in Southern Spain with Ottoman architecture in the Balkans, detailing specific structural features to observe at historical sites without internet reference.",
+      "r3": "Explain the core differences between Paxos and Raft consensus algorithms in distributed systems. Compare leader election mechanisms and network partition handling.",
+      "r4": "Synthesize economic arguments surrounding land value tax vs. traditional property tax on housing supply and urban density.",
+      "r5": "Synthesize ecological differences between active reforestation and natural regeneration in degraded tropical soils, detailing soil microbiome impact on seedling survival.",
+      "r6": "Evaluate first-aid protocols for stabilizing severe closed fractures when medical transport is delayed 24 hours. Compare traction vs. standard rigid splinting."
     },
     "header": {
       "menu": "Open menu",
@@ -1128,7 +1134,13 @@
       "q4": "First aid",
       "q7": "Climate",
       "q8": "Weather",
-      "q9": "Earth science"
+      "q9": "Earth science",
+      "r1": "Expedition & field navigation",
+      "r2": "Architecture & history",
+      "r3": "Distributed systems",
+      "r4": "Economics & urban policy",
+      "r5": "Ecological restoration",
+      "r6": "Wilderness emergency medicine"
     },
     "modelError": {
       "overline": "Action needed",
