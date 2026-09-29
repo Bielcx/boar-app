@@ -10,6 +10,10 @@ import { EvalConfig, evalConfigId, EvalResultRow } from "../eval/evalHarness.pur
 import { exportEvalResults, listInstalledEvalModels, runEvaluation, EvalProgress, EvaluationRun } from "../eval/evalHarness";
 import { runDeviceEvalRequest } from "../eval/deviceEvalRequest";
 import type { EvalRequest } from "../eval/deviceEvalRequest.pure";
+import { resultsSharingAvailable, shareDevice, shareEvalRun } from "../eval/shareResults";
+import type { ShareDevice, ShareResult } from "../eval/shareResults.pure";
+import { SharePreview } from "./SharePreview";
+import appConfig from "../../app.json";
 import { colors } from "./theme/colors";
 import { typography } from "./theme/typography";
 import { spacing, radii } from "./theme/spacing";
@@ -49,6 +53,9 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const [rows, setRows] = useState<EvalResultRow[]>([]);
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState<string | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<ShareDevice | null>(null);
   const stopRef = useRef(false);
 
   useEffect(() => {
@@ -118,6 +125,30 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     } catch (e: any) {
       Alert.alert(t("evaluation.exportFailedTitle"), e?.message ?? String(e));
     }
+  };
+
+  // Nothing leaves the phone until the user has seen everything that will be sent (SharePreview)
+  // and pressed Share there.
+  const handleShare = () => {
+    if (!run || run.rows.length === 0) return;
+    impact(ImpactFeedbackStyle.Light);
+    setPreviewDevice(shareDevice());
+  };
+
+  const confirmShare = async () => {
+    if (!run) return;
+    setSharing(true);
+    let result: ShareResult = "failed";
+    try {
+      result = await shareEvalRun(run.rows);
+    } catch {
+      // e.g. the install id couldn't be saved; reported as a failed share below.
+    } finally {
+      setSharing(false);
+    }
+    setPreviewDevice(null);
+    if (result === "shared" || result === "already-shared") setShared(run.runId);
+    Alert.alert(t("evaluation.shareTitle"), t(`evaluation.shareResult.${result}`));
   };
 
   const canRun = !running && !chatBusy && chosen.length > 0 && models !== null;
@@ -202,6 +233,17 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
               <Pressable style={styles.actionBtn} onPress={() => handleExport("csv")}>
                 <Text style={styles.actionBtnText}>{t("evaluation.exportCsv")}</Text>
               </Pressable>
+              {resultsSharingAvailable && (
+                <Pressable
+                  style={[styles.actionBtn, (sharing || shared === run.runId) && styles.disabled]}
+                  onPress={handleShare}
+                  disabled={sharing || shared === run.runId}
+                >
+                  <Text style={styles.actionBtnText}>
+                    {sharing ? t("evaluation.sharing") : shared === run.runId ? t("evaluation.shared") : t("evaluation.share")}
+                  </Text>
+                </Pressable>
+              )}
             </>
           )}
         </View>
@@ -255,6 +297,17 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
           );
         })}
       </ScrollView>
+      {run && previewDevice && (
+        <SharePreview
+          visible
+          rows={run.rows}
+          device={previewDevice}
+          appVersion={appConfig.expo.version}
+          sending={sharing}
+          onCancel={() => setPreviewDevice(null)}
+          onShare={confirmShare}
+        />
+      )}
     </View>
   );
 }

@@ -26,6 +26,8 @@ interface Settings {
   routingPreset?: RoutingPreset;
   modelRoleAssignments?: Partial<Record<ModelRole, string>>;
   adaptiveRoutingEnabled?: boolean;
+  /** Random id created the first time this install shares results (src/eval/shareResults.ts). */
+  installId?: string;
 }
 
 export interface MemorySettings {
@@ -76,6 +78,15 @@ export async function setActiveModelId(kind: AssetKind, id: string): Promise<voi
   const s = await readSettings();
   s.activeModelId[kind] = id;
   await writeSettings(s);
+}
+
+/** This install's random id for shared results, created on first use. Only its SHA-256 is stored server-side. */
+export async function getOrCreateInstallId(create: () => string): Promise<string> {
+  const s = await readSettings();
+  if (s.installId) return s.installId;
+  s.installId = create();
+  await writeSettings(s);
+  return s.installId;
 }
 
 /** "Don't show again" preference for the prompt-ideas onboarding carousel. */

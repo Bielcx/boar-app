@@ -2,9 +2,11 @@ package expo.modules.rammonitor
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
 import android.os.Debug
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
 import java.io.RandomAccessFile
 
 /**
@@ -38,6 +40,39 @@ class RamMonitorModule : Module() {
     // the device actually has, not just the bounty's 12GB ceiling).
     Function("getDeviceTotalRamBytes") {
       readDeviceTotalRamBytes()
+    }
+
+    // The hardware an evaluation ran on, for shared results (src/eval/shareResults.ts):
+    // llama.cpp speed depends on the chipset, the cores' top frequencies and CPU
+    // features such as i8mm and dotprod. The chipset name needs Android 12 (API 31).
+    Function("getHardwareInfo") {
+      mapOf(
+        "socModel" to (if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else ""),
+        "socManufacturer" to (if (Build.VERSION.SDK_INT >= 31) Build.SOC_MANUFACTURER else ""),
+        "hardware" to Build.HARDWARE,
+        "apiLevel" to Build.VERSION.SDK_INT,
+        "cpuFeatures" to readCpuFeatures(),
+        "coreMaxFreqKHz" to readCoreMaxFreqs()
+      )
+    }
+  }
+
+  private fun readCpuFeatures(): String {
+    return try {
+      File("/proc/cpuinfo").readLines().firstOrNull { it.startsWith("Features") }?.substringAfter(':')?.trim() ?: ""
+    } catch (e: Exception) {
+      ""
+    }
+  }
+
+  /** Each core's highest frequency in kHz, in core order; 0 where the kernel doesn't say. */
+  private fun readCoreMaxFreqs(): List<Int> {
+    return (0 until Runtime.getRuntime().availableProcessors()).map { cpu ->
+      try {
+        File("/sys/devices/system/cpu/cpu$cpu/cpufreq/cpuinfo_max_freq").readText().trim().toInt()
+      } catch (e: Exception) {
+        0
+      }
     }
   }
 

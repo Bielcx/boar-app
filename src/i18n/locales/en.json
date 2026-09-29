@@ -442,6 +442,44 @@
     "exportFailedTitle": "Export failed",
     "runFailedTitle": "Evaluation failed",
     "deviceRequest": "Started from a connected computer (request {{id}}).",
-    "noRetrieval": "no retrieval"
+    "noRetrieval": "no retrieval",
+    "share": "⇪ Share results",
+    "sharing": "Sharing…",
+    "shared": "✓ Shared",
+    "shareTitle": "Share results",
+    "shareConfirm": "Share",
+    "shareResult": {
+      "shared": "Shared. Thank you!",
+      "already-shared": "This run was already shared.",
+      "rate-limited": "Too many runs shared from this phone today. Try again tomorrow.",
+      "rejected": "The server didn't accept this run. Update the app and try again.",
+      "failed": "Couldn't reach the server. Check the internet connection and try again."
+    },
+    "preview": {
+      "title": "What will be shared",
+      "subtitle": "Read it all before sending. Nothing is sent until you press Share.",
+      "phoneSection": "This phone",
+      "phone": "Phone",
+      "chipset": "Chipset",
+      "cpu": "CPU",
+      "cores": "{{count}} cores",
+      "ram": "RAM",
+      "os": "System",
+      "app": "BOAR version",
+      "yes": "yes",
+      "no": "no",
+      "modelsSection": "Models tested",
+      "parts": "speed {{speed}} · completed {{reliability}} · sources {{retrieval}}",
+      "tokPerSec": "tokens/s",
+      "ttft": "first token",
+      "total": "total",
+      "peakRam": "peak RAM",
+      "completed": "completed",
+      "sources": "sources found",
+      "formula": "Score v{{version}}, 0 to 100: {{speed}}% speed (median tokens/s, full marks at {{reference}}), {{reliability}}% answers completed, {{retrieval}}% expected sources found; 0 if under half completed. It measures speed and reliability, not whether answers are correct. The server recomputes it from the answers.",
+      "answers": "{{count}} questions and answers (tap to read)",
+      "notSentSection": "Not sent",
+      "notSent": "Your chats, your documents, your name, your location, your contacts. This phone is identified only by a random number created in the app."
+    }
   }
 }
