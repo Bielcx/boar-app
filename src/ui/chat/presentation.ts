@@ -5,7 +5,7 @@ import { numberFormat } from "./numberFormat";
 import { placesEmptyTitle } from "./placesFormat";
 import { chatModelName, chatModelNameById, type NameableModel } from "./modelName";
 import { answerSourceSplit } from "./sourceLabel";
-import { toWords } from "../flows/format";
+import { formatCount, toWords } from "../flows/format";
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -128,7 +128,12 @@ export function loadCrashMessage(crash: { crashedLabel: string; fallbackLabel: s
   return fallback ? t("chat.loadCrash.message", { model, fallback }) : t("chat.loadCrash.messageNoFallback", { model });
 }
 
-/** Tokens as an approximate word count ("8"): whole words, one decimal under 1. The caller adds "~". The chat says words, never tokens (Prism UX-1). */
+/** A generation speed in tokens/s ("16", "8.4"): one decimal under 10. */
+export function formatTokRate(tokPerSec: number, locale: string): string {
+  return numberFormat(locale, 0, tokPerSec < 10 ? 1 : 0).format(tokPerSec);
+}
+
+/** Tokens as an approximate word count ("8"): whole words, one decimal under 1. The caller adds "~". */
 export function approxWords(tokens: number, locale: string): string {
   const words = toWords(tokens);
   return numberFormat(locale, 0, words < 1 ? 1 : 0).format(words);
@@ -136,7 +141,7 @@ export function approxWords(tokens: number, locale: string): string {
 
 /**
  * Total time first, since that's what a person compares: "Answered in 6.2 s ·
- * Fast · ~11 words/s · started in 2.1 s · offline". The source-passage and
+ * Fast · 15 tok/s · started in 2.1 s · offline". The source-passage and
  * offline-map answers name their source instead of a model.
  */
 export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
@@ -147,7 +152,7 @@ export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
   if (r.modelId === GROUNDING_GUARD_MODEL_ID) return [total, t("chat.receipt.noOfflineSource"), t("chat.receipt.offline")].join(" · ");
   if (r.modelId === CALCULATOR_MODEL_ID) return [total, t("chat.receipt.calculator"), t("chat.receipt.offline")].join(" · ");
   const parts = [total, (r.modelLabel && chatModelNameById(r.modelId, r.modelLabel, t)) || t("chat.receipt.localModel")];
-  if (r.tokPerSec > 0) parts.push(t("chat.receipt.speed", { words: approxWords(r.tokPerSec, locale) }));
+  if (r.tokPerSec > 0) parts.push(t("chat.receipt.speed", { rate: formatTokRate(r.tokPerSec, locale) }));
   if (r.ttftMs > 0) parts.push(t("chat.receipt.started", { time: formatSeconds(r.ttftMs, locale) }));
   parts.push(t("chat.receipt.offline"));
   return parts.join(" · ");
@@ -155,13 +160,13 @@ export function receiptLine(r: AnswerReceipt, locale: string, t: T): string {
 
 /**
  * The receipt facts that sit next to the assistant's name (a MetaLine): total time, plus the
- * generation speed when a model wrote the answer ("9.1 s · ~8 words/s"). The spoken and
+ * generation speed when a model wrote the answer ("9.1 s · 10.7 tok/s"). The spoken and
  * expanded forms use `receiptLine`.
  */
 export function receiptShort(r: AnswerReceipt, locale: string, t: T): string[] {
   const parts = [formatSeconds(r.totalMs, locale)];
   if (r.modelId !== EXTRACTIVE_MODEL_ID && r.modelId !== PLACES_MODEL_ID && r.tokPerSec > 0) {
-    parts.push(t("chat.receipt.speed", { words: approxWords(r.tokPerSec, locale) }));
+    parts.push(t("chat.receipt.speed", { rate: formatTokRate(r.tokPerSec, locale) }));
   }
   return parts;
 }
@@ -181,10 +186,15 @@ export function receiptDetails(r: AnswerReceipt, locale: string, t: T): { label:
   if (r.loadMs) rows.push({ label: t("chat.receipt.load"), value: s(r.loadMs) });
   if (r.retrievalMs != null) rows.push({ label: t("chat.receipt.search"), value: s(r.retrievalMs) });
   if (r.prefillMs != null) rows.push({ label: t("chat.receipt.prefill"), value: s(r.prefillMs) });
-  // Counts in approximate words, as the speed (Prism UX-1: no "token" on screen).
-  if (r.ctxTokens != null) rows.push({ label: t("chat.receipt.context"), value: t("chat.receipt.wordCount", { words: approxWords(r.ctxTokens, locale) }) });
+  if (r.ctxTokens != null) rows.push({ label: t("chat.receipt.context"), value: t("chat.receipt.tokenCount", { tokens: formatCount(r.ctxTokens, locale), words: approxWords(r.ctxTokens, locale) }) });
   rows.push({ label: t("chat.receipt.start"), value: s(r.ttftMs) });
-  rows.push({ label: t("chat.receipt.words"), value: t("chat.receipt.wordCount", { words: approxWords(r.tokens, locale) }) });
+  // The run's own numbers, for comparing models and phones: which model, and its speed both ways.
+  const generated = r.tokens > 0 && r.modelId !== EXTRACTIVE_MODEL_ID && r.modelId !== PLACES_MODEL_ID;
+  if (generated && r.modelLabel) rows.push({ label: t("chat.receipt.model"), value: r.modelLabel });
+  if (generated && r.tokPerSec > 0) {
+    rows.push({ label: t("chat.receipt.speedLabel"), value: t("chat.receipt.speedBoth", { rate: formatTokRate(r.tokPerSec, locale), words: approxWords(r.tokPerSec, locale) }) });
+  }
+  rows.push({ label: t("chat.receipt.words"), value: t("chat.receipt.tokenCount", { tokens: formatCount(r.tokens, locale), words: approxWords(r.tokens, locale) }) });
   rows.push({ label: t("chat.receipt.total"), value: s(r.totalMs) });
   if (r.verification) rows.push({ label: t("chat.receipt.verification"), value: t(`chat.receipt.verified.${r.verification}`) });
   return rows;

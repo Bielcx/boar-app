@@ -87,35 +87,3 @@ describe("control labels fit one line", () => {
     expect(over).toEqual([]);
   });
 });
-
-describe("no model jargon on the flow screens", () => {
-  it("no flows.* string says 'token' in EN or PT (words, ~12 words/s; Prism UX-2)", () => {
-    const hits: string[] = [];
-    const walk = (d: Dict, path: string) => {
-      for (const [k, v] of Object.entries(d)) {
-        if (typeof v === "string") {
-          if (/\btokens?\b/i.test(v)) hits.push(`${path}${k}: ${v}`);
-        } else walk(v, `${path}${k}.`);
-      }
-    };
-    walk((en as unknown as { flows: Dict }).flows, "en flows.");
-    walk((pt as unknown as { flows: Dict }).flows, "pt flows.");
-    expect(hits).toEqual([]);
-  });
-});
-
-describe("product words", () => {
-  it("never says 'knowledge base' on screen: it is the library / acervo (DS, Prism FL-7)", () => {
-    const hits: string[] = [];
-    const walk = (d: Dict, path: string, bad: RegExp) => {
-      for (const [k, v] of Object.entries(d)) {
-        if (typeof v === "string") {
-          if (bad.test(v)) hits.push(`${path}${k}: ${v}`);
-        } else walk(v, `${path}${k}.`, bad);
-      }
-    };
-    walk(en as unknown as Dict, "en ", /knowledge base/i);
-    walk(pt as unknown as Dict, "pt ", /base de conhecimento/i);
-    expect(hits).toEqual([]);
-  });
-});

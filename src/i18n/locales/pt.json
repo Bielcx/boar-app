@@ -348,12 +348,11 @@
       "showLarger_one": "Mostrar {{count}} modelo maior",
       "showLarger_other": "Mostrar {{count}} modelos maiores",
       "deepTitle": "Modelo para respostas completas",
-      "deepFooter": "As respostas completas usam este modelo. O automático só escolhe um modelo medido neste celular a ~{{min}} palavras/s ou mais.",
+      "deepFooter": "Respostas completas usam este modelo. O modo automático só escolhe um modelo medido neste celular a {{min}} tok/s ou mais.",
       "deepAuto": "Automático",
       "deepAutoSub": "O maior modelo instalado que cabe e é rápido o bastante aqui.",
       "deepNone": "Nenhum",
       "deepNoneSub": "Sempre usar o modelo de respostas",
-      "wordsRate": "~{{rate}} palavras/s",
       "notMeasured": "Ainda não medido neste celular",
       "lowRamNotAuto": "Não entra no automático neste celular: grande demais para a memória dele.",
       "samples_one": "{{count}} resposta medida aqui · {{date}}",
@@ -361,7 +360,8 @@
       "usedLabel": "Usado pelo BOAR",
       "freeMeta": "{{size}} livres no celular",
       "tooSlow": "Não disponível no automático: muito lento neste celular.",
-      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular."
+      "notEnoughSamples": "Não entra no automático até ter {{min}} respostas medidas neste celular.",
+      "tokRate": "{{rate}} tok/s"
     },
     "knowledge": {
       "intro": "O que o BOAR pode citar nas respostas, tudo guardado neste celular.",
@@ -416,7 +416,7 @@
       "lastAnswer": "Última resposta",
       "ttft": "Começou a responder em",
       "speed": "Velocidade de escrita",
-      "rate": "~{{words}} palavras/s",
+      "rate": "{{rate}} tok/s",
       "total": "Tempo total",
       "load": "carga",
       "usedSources": "usou suas fontes",
@@ -812,14 +812,14 @@
       "calculator": "Cálculo",
       "started": "começou em {{time}}",
       "offline": "offline",
-      "speed": "~{{words}} palavras/s",
+      "speed": "{{rate}} tok/s",
       "details": "Detalhes de desempenho",
       "load": "Carregar modelo",
       "search": "Busca",
       "prefill": "Leitura das fontes",
       "context": "Contexto",
       "start": "Início",
-      "words": "Palavras",
+      "words": "Gerado",
       "wordCount": "~{{words}} palavras",
       "total": "Total",
       "verification": "Verificação",
@@ -831,7 +831,11 @@
         "uncertain": "incerta"
       },
       "answeredIn": "Respondido em {{time}}",
-      "offlineMap": "Mapa offline"
+      "offlineMap": "Mapa offline",
+      "speedLabel": "Velocidade",
+      "speedBoth": "{{rate}} tok/s (~{{words}} palavras/s)",
+      "model": "Modelo",
+      "tokenCount": "{{tokens}} tokens (~{{words}} palavras)"
     },
     "actions": {
       "copy": "Copiar resposta",

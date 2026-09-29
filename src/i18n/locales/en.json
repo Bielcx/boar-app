@@ -348,12 +348,11 @@
       "showLarger_one": "Show {{count}} larger model",
       "showLarger_other": "Show {{count}} larger models",
       "deepTitle": "Model for full answers",
-      "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at ~{{min}} words/s or more.",
+      "deepFooter": "Full answers use this model. Automatic mode only picks a model measured on this phone at {{min}} tok/s or more.",
       "deepAuto": "Automatic",
       "deepAutoSub": "The largest installed model that fits and is fast enough here.",
       "deepNone": "None",
       "deepNoneSub": "Always use the answer model",
-      "wordsRate": "~{{rate}} words/s",
       "notMeasured": "Not measured on this phone yet",
       "lowRamNotAuto": "Not in automatic mode on this phone: too big for its memory.",
       "samples_one": "{{count}} answer measured here · {{date}}",
@@ -361,7 +360,8 @@
       "usedLabel": "Used by BOAR",
       "freeMeta": "{{size}} free on this phone",
       "tooSlow": "Not available in automatic mode: too slow on this phone.",
-      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone."
+      "notEnoughSamples": "Not in automatic mode until it has {{min}} measured answers on this phone.",
+      "tokRate": "{{rate}} tok/s"
     },
     "knowledge": {
       "intro": "What BOAR can cite in its answers, all stored on this phone.",
@@ -416,7 +416,7 @@
       "lastAnswer": "Last answer",
       "ttft": "Started answering in",
       "speed": "Writing speed",
-      "rate": "~{{words}} words/s",
+      "rate": "{{rate}} tok/s",
       "total": "Total time",
       "load": "load",
       "usedSources": "used your sources",
@@ -812,14 +812,14 @@
       "calculator": "Calculation",
       "started": "started in {{time}}",
       "offline": "offline",
-      "speed": "~{{words}} words/s",
+      "speed": "{{rate}} tok/s",
       "details": "Performance details",
       "load": "Model load",
       "search": "Search",
       "prefill": "Reading sources",
       "context": "Context",
       "start": "Start",
-      "words": "Words",
+      "words": "Generated",
       "wordCount": "~{{words}} words",
       "total": "Total",
       "verification": "Verification",
@@ -831,7 +831,11 @@
         "uncertain": "uncertain"
       },
       "answeredIn": "Answered in {{time}}",
-      "offlineMap": "Offline map"
+      "offlineMap": "Offline map",
+      "speedLabel": "Speed",
+      "speedBoth": "{{rate}} tok/s (~{{words}} words/s)",
+      "model": "Model",
+      "tokenCount": "{{tokens}} tokens (~{{words}} words)"
     },
     "actions": {
       "copy": "Copy answer",

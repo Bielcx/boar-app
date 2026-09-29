@@ -70,9 +70,9 @@ describe("phaseAnnouncement", () => {
 });
 
 describe("receiptLine", () => {
-  it("lists model, speed in words, time to start and total", () => {
+  it("lists model, speed in tok/s, time to start and total", () => {
     expect(receiptLine(receipt, "pt-BR", t)).toBe(
-      'chat.receipt.answeredIn{"time":"6,2 s"} · Qwen3 4B · chat.receipt.speed{"words":"11"} · chat.receipt.started{"time":"2,1 s"} · chat.receipt.offline'
+      'chat.receipt.answeredIn{"time":"6,2 s"} · Qwen3 4B · chat.receipt.speed{"rate":"15"} · chat.receipt.started{"time":"2,1 s"} · chat.receipt.offline'
     );
   });
 
@@ -105,10 +105,10 @@ describe("receiptLine", () => {
 });
 
 describe("receiptShort", () => {
-  it("is the total time and the speed in words (Prism UX-1: no tokens on screen)", () => {
-    expect(receiptShort(receipt, "pt-BR", t)).toEqual(["6,2 s", 'chat.receipt.speed{"words":"11"}']);
-    // Boar's example: 9.1 s at 10.7 tok/s reads "9,1 s · ~8 palavras/s".
-    expect(receiptShort({ ...receipt, tokPerSec: 10.7, totalMs: 9100 }, "pt-BR", t)).toEqual(["9,1 s", 'chat.receipt.speed{"words":"8"}']);
+  it("is the total time and the speed in tok/s", () => {
+    expect(receiptShort(receipt, "pt-BR", t)).toEqual(["6,2 s", 'chat.receipt.speed{"rate":"15"}']);
+    // One decimal under 10 tok/s: 9.1 s at 8.4 tok/s reads "9,1 s · 8,4 tok/s".
+    expect(receiptShort({ ...receipt, tokPerSec: 8.4, totalMs: 9100 }, "pt-BR", t)).toEqual(["9,1 s", 'chat.receipt.speed{"rate":"8,4"}']);
   });
 
   it("keeps only the time when no model generated the answer", () => {
@@ -127,13 +127,20 @@ describe("receiptDetails", () => {
     );
   });
 
-  it("says start and approximate words, never tokens (Prism UX-1)", () => {
+  it("gives the run's model, its speed in tok/s and words/s, and the token counts", () => {
     const rows = receiptDetails({ ...receipt, ctxTokens: 1100 }, "pt-BR", t);
-    expect(rows.map((d) => d.label)).not.toContain("chat.receipt.firstToken");
-    expect(rows.find((d) => d.label === "chat.receipt.start")?.value).toBe("2,1 s");
-    expect(rows.find((d) => d.label === "chat.receipt.words")?.value).toBe('chat.receipt.wordCount{"words":"68"}');
-    expect(rows.find((d) => d.label === "chat.receipt.context")?.value).toBe('chat.receipt.wordCount{"words":"825"}');
-    expect(rows.some((d) => /tok/.test(d.value))).toBe(false);
+    const value = (label: string) => rows.find((d) => d.label === label)?.value;
+    expect(value("chat.receipt.start")).toBe("2,1 s");
+    expect(value("chat.receipt.model")).toBe(receipt.modelLabel);
+    expect(value("chat.receipt.speedLabel")).toBe('chat.receipt.speedBoth{"rate":"15","words":"11"}');
+    expect(value("chat.receipt.words")).toBe('chat.receipt.tokenCount{"tokens":"90","words":"68"}');
+    expect(value("chat.receipt.context")).toBe('chat.receipt.tokenCount{"tokens":"1.100","words":"825"}');
+  });
+
+  it("leaves out model and speed when no model wrote the answer", () => {
+    const labels = receiptDetails({ ...receipt, modelId: "extractive", tokens: 0, tokPerSec: 0 }, "en-US", t).map((d) => d.label);
+    expect(labels).not.toContain("chat.receipt.model");
+    expect(labels).not.toContain("chat.receipt.speedLabel");
   });
 });
 
