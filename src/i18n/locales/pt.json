@@ -720,6 +720,12 @@
       "detailsA11y": "Nomes técnicos dos modelos",
       "search": "Busca",
       "otherInUse": "Outro modelo está em uso. Troque em Modelos."
+    },
+    "activity": {
+      "title": "Em andamento",
+      "downloading": "Baixando {{name}}",
+      "verifying": "Verificando {{name}}",
+      "indexing": "Montando o índice de busca"
     }
   },
   "chat": {

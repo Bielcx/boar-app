@@ -8,6 +8,8 @@ import { impact, ImpactFeedbackStyle } from "../../services/haptics";
 import { Button, IconButton, IconName, LARGE_TEXT_SCALE, ListRow, Mascot, Sheet, Text, useToast } from "../components";
 import { useTokens } from "../theme";
 import { useChatBridge } from "./chatBridge";
+import { ActivityCard } from "../flows/ActivityCard";
+import { useActivity } from "../flows/useActivity";
 import type { RootStackParamList } from "./types";
 
 function relativeTime(ms: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -32,6 +34,7 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
   const toast = useToast();
   const status = useDrawerStatus();
   const chat = useChatBridge();
+  const activity = useActivity();
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [maxSessions, setMaxSessions] = useState<number | null>(null);
   const trashRefs = useRef(new Map<string, View | null>());
@@ -101,6 +104,14 @@ export function AppDrawerContent({ navigation }: DrawerContentComponentProps) {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: pinFooter ? t.space.base : insets.bottom }}>
+        {/* Downloads and indexing keep going outside the setup; the menu shows them (and nothing when idle). */}
+        <View style={{ paddingHorizontal: t.space.base }}>
+          <ActivityCard
+            activity={activity}
+            onOpenDownloads={() => go(() => navigation.getParent()?.navigate("Models"))}
+            onOpenIndex={() => go(() => navigation.getParent()?.navigate("Knowledge"))}
+          />
+        </View>
         <Text variant="label" color="tertiary" header style={{ paddingHorizontal: t.space.base, paddingVertical: t.space.sm }}>
           {tr("nav.recent")}
         </Text>

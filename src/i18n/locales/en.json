@@ -720,6 +720,12 @@
       "detailsA11y": "Technical model names",
       "search": "Search",
       "otherInUse": "Another model is in use. Change it in Models."
+    },
+    "activity": {
+      "title": "In progress",
+      "downloading": "Downloading {{name}}",
+      "verifying": "Checking {{name}}",
+      "indexing": "Building the search index"
     }
   },
   "chat": {
