@@ -15,7 +15,6 @@ import type { ShareDevice, ShareResult } from "../eval/shareResults.pure";
 import { SharePreview } from "./SharePreview";
 import appConfig from "../../app.json";
 import { Button, IconSlot, Progress, Screen, Section, Skeleton, Text, useOpticalLine, useToast } from "./components";
-import { catalogLabel } from "./flows/catalogLabel";
 import { ScreenTitle } from "./flows/ScreenTitle";
 import { screenRhythm } from "./flows/rhythm";
 import type { TextColor } from "./components";
@@ -78,7 +77,8 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   }, []);
 
   const configs: EvalConfig[] = [
-    ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: catalogLabel(m, t) })),
+    // The model's real name, not its role ("Fast"): it is saved with every answer and shared with other phones.
+    ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: m.label })),
     { kind: "adaptive", label: t("evaluation.adaptiveConfig", { preset }) },
   ];
   const chosen = configs.filter((c) => selected.has(evalConfigId(c)));
