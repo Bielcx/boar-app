@@ -2,7 +2,11 @@
 //
 // POST /functions/v1/submit-results, header `apikey: <publishable key>`, JSON body:
 //   { installId, run: { runId, evalSetVersion, appVersion, platform, osVersion?, deviceBrand?,
-//     deviceModel?, soc?, ramBytes?, cpuCores? }, rows: [<eval JSONL row>, ...] }
+//     deviceModel?, soc?, socManufacturer?, hardware?, apiLevel?, ramBytes?, cpuCores?,
+//     cpuFeatures?: string[], coreMaxFreqKHz?: number[] }, rows: [<eval JSONL row>, ...] }
+//
+// After saving the rows it computes each model's score (compute_eval_scores, score v1) into the
+// public eval_scores table; the score is never taken from the app.
 //
 // The publishable key is public (it ships in the APK), so it only keeps out random callers;
 // the limits below are what protect the tables. verify_jwt is off (supabase/config.toml)
@@ -32,6 +36,12 @@ const posInt = (v: unknown): number | null => {
   const n = num(v);
   return n !== null && Number.isInteger(n) && n > 0 ? n : null;
 };
+/** Short lowercase CPU flags like "i8mm" or "asimddp", at most 100 of them. */
+const cpuFlags = (v: unknown): string[] | null =>
+  Array.isArray(v) ? v.filter((f) => typeof f === "string" && /^[a-z0-9_]{1,32}$/.test(f)).slice(0, 100) : null;
+/** Core frequencies in kHz (0 = unknown), at most 64 cores. */
+const freqs = (v: unknown): number[] | null =>
+  Array.isArray(v) && v.length <= 64 && v.every((f) => Number.isInteger(f) && f >= 0 && f < 10_000_000) ? v : null;
 
 async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -110,8 +120,13 @@ Deno.serve(async (req) => {
       device_brand: str(run.deviceBrand, 80),
       device_model: str(run.deviceModel, 80),
       soc: str(run.soc, 80),
+      soc_manufacturer: str(run.socManufacturer, 80),
+      hardware: str(run.hardware, 80),
+      api_level: posInt(run.apiLevel),
       ram_bytes: posInt(run.ramBytes),
       cpu_cores: posInt(run.cpuCores),
+      cpu_features: cpuFlags(run.cpuFeatures),
+      core_max_khz: freqs(run.coreMaxFreqKHz),
       row_count: records.length,
     })
     .select("id")
@@ -127,5 +142,14 @@ Deno.serve(async (req) => {
     await db.from("eval_runs").delete().eq("id", inserted.id);
     return json(500, { error: "could not save the rows" });
   }
-  return json(201, { id: inserted.id, rows: records.length });
+  const { error: scoreError } = await db.rpc("compute_eval_scores", { p_run: inserted.id });
+  if (scoreError) {
+    await db.from("eval_runs").delete().eq("id", inserted.id);
+    return json(500, { error: "could not score the run" });
+  }
+  const { data: scores } = await db
+    .from("eval_scores")
+    .select("config_id, score, median_tok_per_sec, median_ttft_ms, peak_rss_bytes")
+    .eq("run", inserted.id);
+  return json(201, { id: inserted.id, rows: records.length, scores: scores ?? [] });
 });
