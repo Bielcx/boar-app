@@ -973,8 +973,7 @@
         "load-crashed": "Answering with the {{model}} model. {{from}} closed the app on this phone",
         "hint": "Opens Models"
       },
-      "onDeviceSealSpoken": "On device: answers are computed on this phone",
-      "answerModeA11y": "{{model}}. Answer mode"
+      "onDeviceSealSpoken": "On device: answers are computed on this phone"
     },
     "jumpToLatest": "Jump to the latest answer",
     "share": {

@@ -973,8 +973,7 @@
         "load-crashed": "Respondendo com o modelo {{model}}. O {{from}} fechou o app neste celular",
         "hint": "Abre Modelos"
       },
-      "onDeviceSealSpoken": "No aparelho: as respostas são calculadas neste celular",
-      "answerModeA11y": "{{model}}. Modo de resposta"
+      "onDeviceSealSpoken": "No aparelho: as respostas são calculadas neste celular"
     },
     "jumpToLatest": "Ir para a resposta mais recente",
     "share": {
