@@ -442,6 +442,19 @@
     "exportFailedTitle": "Export failed",
     "runFailedTitle": "Evaluation failed",
     "deviceRequest": "Started from a connected computer (request {{id}}).",
-    "noRetrieval": "no retrieval"
+    "noRetrieval": "no retrieval",
+    "share": "⇪ Share results",
+    "sharing": "Sharing…",
+    "shared": "✓ Shared",
+    "shareTitle": "Share results",
+    "shareBody": "This sends this run to the BOAR project so others can compare phones and models:\n\n• Phone: {{device}}\n• App version\n• {{count}} answers: the evaluation questions, the answers, the models used and their timings\n\nNot sent: your chats, your documents, your name or your location. This phone is identified only by a random number created on it.",
+    "shareConfirm": "Share",
+    "shareResult": {
+      "shared": "Shared. Thank you!",
+      "already-shared": "This run was already shared.",
+      "rate-limited": "Too many runs shared from this phone today. Try again tomorrow.",
+      "rejected": "The server didn't accept this run. Update the app and try again.",
+      "failed": "Couldn't reach the server. Check the internet connection and try again."
+    }
   }
 }

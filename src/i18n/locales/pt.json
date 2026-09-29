@@ -442,6 +442,19 @@
     "exportFailedTitle": "Falha ao exportar",
     "runFailedTitle": "Falha na avaliação",
     "deviceRequest": "Iniciado por um computador conectado (pedido {{id}}).",
-    "noRetrieval": "sem recuperação"
+    "noRetrieval": "sem recuperação",
+    "share": "⇪ Compartilhar resultados",
+    "sharing": "Compartilhando…",
+    "shared": "✓ Compartilhado",
+    "shareTitle": "Compartilhar resultados",
+    "shareBody": "Isto envia esta avaliação ao projeto BOAR, para comparar celulares e modelos:\n\n• Celular: {{device}}\n• Versão do app\n• {{count}} respostas: as perguntas da avaliação, as respostas, os modelos usados e os tempos\n\nNão é enviado: suas conversas, seus documentos, seu nome ou sua localização. Este celular é identificado só por um número aleatório criado nele.",
+    "shareConfirm": "Compartilhar",
+    "shareResult": {
+      "shared": "Compartilhado. Obrigado!",
+      "already-shared": "Esta avaliação já foi compartilhada.",
+      "rate-limited": "Muitas avaliações compartilhadas deste celular hoje. Tente amanhã.",
+      "rejected": "O servidor não aceitou esta avaliação. Atualize o app e tente de novo.",
+      "failed": "Não foi possível falar com o servidor. Verifique a internet e tente de novo."
+    }
   }
 }
