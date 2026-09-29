@@ -581,7 +581,10 @@
         "start": "Start",
         "choose": "Choose",
         "install": "Install",
-        "index": "Index"
+        "index": "Index",
+        "model": "Model",
+        "knowledge": "Knowledge",
+        "download": "Download"
       },
       "stageOf": "Step {{n}} of {{total}}: {{name}}",
       "checking": "Checking",
@@ -642,7 +645,10 @@
         "l10": "Rolling in the mud of knowledge…",
         "l11": "The boar found a shortcut. It was a tree.",
         "l12": "Counting pages with hooves…"
-      }
+      },
+      "modelTitle": "Choose the answer model",
+      "modelSub": "It writes the answers on this phone. You can change it later in Models.",
+      "knowledgeTitle": "Choose your knowledge"
     },
     "places": {
       "title": "Places (offline)",

@@ -58,7 +58,7 @@ interface Props {
   onSkip?: () => void;
 }
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 /** The mockup's setup rhythm (FIDELITY): 14 pt between blocks, content right under the stepper. */
 function setupRhythm(t: ReturnType<typeof useTokens>) {
@@ -124,7 +124,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
         // The trip's items back from their ids; one that no longer exists drops the trip rather than half of it.
         const tripAssets = p.trip?.assetIds.map((id) => findAsset(id));
         if (p.trip && tripAssets?.every(Boolean)) setTrip({ label: p.trip.label, assets: tripAssets as CatalogModel[] });
-        setStep(p.step);
+        // Saved before the model got its own step (flow 1: 1 welcome, 2 choose, 3 install).
+        setStep(!p.flow && p.step === 3 ? 4 : !p.flow && p.step === 2 ? 2 : (p.step as Step));
       }
       setRestored(true);
     });
@@ -132,6 +133,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   useEffect(() => {
     if (restored)
       setSetupProgress({
+        flow: 2,
         step,
         packageId,
         travelRegionId: travel?.id,
@@ -178,8 +180,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   // and leaving the step would hide the progress while indexing carries on.
   const indexingRef = useRef(false);
   const goBack = useCallback(() => {
-    if (step === 3 && indexingRef.current) return true;
-    if (step === 3 && !allPresent) setBackOpen(true);
+    if (step === 4 && indexingRef.current) return true;
+    if (step === 4 && !allPresent) setBackOpen(true);
     else if (step > 1) setStep((s) => (s - 1) as Step);
     else if (skip) skip();
     else return false;
@@ -194,7 +196,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   // Restored into step 3 (process killed mid-download): start what is still missing, once.
   const resumed = useRef(false);
   useEffect(() => {
-    if (!restored || resumed.current || step !== 3 || !catalog.loaded || !networkAllowed()) return;
+    if (!restored || resumed.current || step !== 4 || !catalog.loaded || !networkAllowed()) return;
     resumed.current = true;
     for (const a of assets) {
       const kind = catalog.view(a).state.kind;
@@ -206,8 +208,8 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
   const startInstall = () => {
     resumed.current = true;
     impact(ImpactFeedbackStyle.Medium);
-    setStep(3);
-    // The offline build has no network: step 3 imports files instead.
+    setStep(4);
+    // The offline build has no network: step 4 imports files instead.
     for (const a of assets) if (!present[a.id] && canDownload(a)) catalog.download(a);
   };
 
@@ -229,13 +231,32 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
             />
           )}
           {step === 2 && (
+            <ModelStep
+              titleRef={titleRef}
+              choices={choices}
+              answerTier={answerTier}
+              onAnswerTier={setAnswerTier}
+              answerChosen={answerChosen}
+              onUserAnswer={(tierId) => {
+                setAnswerChosen(true);
+                setAnswerTier(tierId);
+              }}
+              fit={catalog.fit}
+              deviceRamBytes={catalog.deviceRamBytes}
+              loaded={catalog.loaded}
+              restored={restored}
+              lang={lang}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
+          )}
+          {step === 3 && (
             <PackageStep
               titleRef={titleRef}
               selected={packageId}
               onSelect={setPackageId}
               present={present}
               freeBytes={catalog.freeBytes}
-              deviceRamBytes={catalog.deviceRamBytes}
               fit={catalog.fit}
               loaded={catalog.loaded}
               lang={lang}
@@ -246,23 +267,17 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
               catalog={catalog}
               choices={choices}
               answerTier={answerTier}
-              onAnswerTier={setAnswerTier}
               packageChosen={packageChosen}
-              answerChosen={answerChosen}
               onUserPackage={(id) => {
                 setPackageChosen(true);
                 setPackageId(id);
               }}
-              onUserAnswer={(tierId) => {
-                setAnswerChosen(true);
-                setAnswerTier(tierId);
-              }}
               restored={restored}
-              onBack={() => setStep(1)}
+              onBack={() => setStep(2)}
               onInstall={startInstall}
             />
           )}
-          {step === 3 && (
+          {step === 4 && (
             <InstallStep
               titleRef={titleRef}
               assets={assets}
@@ -273,7 +288,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
               onIndexingChange={(v) => {
                 indexingRef.current = v;
               }}
-              onChoosePackage={() => setStep(2)}
+              onChoosePackage={() => setStep(3)}
               answerModel={answerModel}
               placesLabel={trip?.label ?? (travel ? (lang.startsWith("pt") ? travel.name.pt : travel.name.en) : undefined)}
               onReady={async () => {
@@ -300,7 +315,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
               fullWidth
               onPress={() => {
                 setBackOpen(false);
-                setStep(2);
+                setStep(3);
               }}
             />
           </>
@@ -311,7 +326,7 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
 }
 
 /** The four stages the user sees: step 3 covers both install and index. */
-const STAGES = ["start", "choose", "install", "index"] as const;
+const STAGES = ["start", "model", "knowledge", "download", "index"] as const;
 
 /** The labelled stepper (the mockup's HARDWARE → MODEL TIER → INSTALL → INDEXING). */
 function SetupStepper({ stage }: { stage: number }) {
@@ -493,13 +508,107 @@ function Welcome({
   );
 }
 
+/**
+ * Step 2: the model that writes the answers, chosen from the suggested ones (the standard and the
+ * compact answer model) with their real name, size and how they fit this phone. Tusk's rule
+ * (src/routing/defaultModel.ts) pre-selects one until the user picks.
+ */
+function ModelStep({
+  titleRef,
+  choices,
+  answerTier,
+  onAnswerTier,
+  answerChosen,
+  onUserAnswer,
+  fit,
+  deviceRamBytes,
+  loaded,
+  restored,
+  lang,
+  onBack,
+  onNext,
+}: {
+  titleRef: React.RefObject<RNText | null>;
+  choices: Partial<Record<AnswerTier, CatalogModel>>;
+  answerTier: AnswerTier;
+  onAnswerTier: (tier: AnswerTier) => void;
+  answerChosen: boolean;
+  onUserAnswer: (tier: AnswerTier) => void;
+  fit: (model: CatalogModel) => MemoryFit | undefined;
+  deviceRamBytes: number;
+  loaded: boolean;
+  restored: boolean;
+  lang: string;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const { t } = useTranslation();
+  const tokens = useTokens();
+  const tiers = (["default", "compact"] as const).filter((tierId) => !!choices[tierId]);
+  const pick = pickDefaultAnswerModel(
+    tiers.map((tierId) => choices[tierId]!).map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fit(m)?.verdict })),
+    deviceRamBytes
+  );
+  const compactSuggested = !!choices.compact && pick?.id === choices.compact.id;
+  const recommendedTier: AnswerTier | undefined = pick ? (pick.id === choices.compact?.id ? "compact" : "default") : undefined;
+  // Recommended = pre-selected: follow the routing rule until the user picks.
+  useEffect(() => {
+    if (restored && loaded && !answerChosen && recommendedTier) onAnswerTier(recommendedTier);
+  }, [restored, loaded, answerChosen, recommendedTier, onAnswerTier]);
+  const why = compactSuggested
+    ? pick?.reason === "compact-low-ram"
+      ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
+      : t("flows.onboarding.compactWhy")
+    : undefined;
+
+  return (
+    <Screen
+      contentStyle={setupRhythm(tokens)}
+      edges={["top", "bottom", "left", "right"]}
+      footer={
+        <>
+          <Button size="lg" icon="arrow-right" iconPosition="end" label={t("flows.onboarding.continue")} fullWidth disabled={!loaded} onPress={onNext} />
+          <BackLink label={t("flows.onboarding.back")} onPress={onBack} />
+        </>
+      }
+    >
+      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.modelTitle")} subtitle={t("flows.onboarding.modelSub")} />
+      <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
+        {tiers.map((tierId) => {
+          const m = choices[tierId]!;
+          const f = fit(m);
+          return (
+            <OptionCard
+              key={tierId}
+              title={catalogLabel(m, t, { technical: true })}
+              description={`${catalogLabel(m, t)} · ${t(`flows.assistant.sub.${tierId}`)}`}
+              selected={answerTier === tierId}
+              onPress={() => onUserAnswer(tierId)}
+              badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" /> : undefined}
+              trailing={formatBytes(m.sizeBytes, lang)}
+              meta={[
+                f && t(`flows.row.fitShort.${f.verdict}`),
+                f && t("flows.onboarding.workingMemory", { size: formatRam(f.anonBytes + (f.expertFraction === 0 ? f.fileBytes : 0), lang) }),
+              ]}
+            />
+          );
+        })}
+      </View>
+      {why && (
+        <Text variant="footnote" color="secondary">
+          {why}
+        </Text>
+      )}
+    </Screen>
+  );
+}
+
 function PackageStep({
   titleRef,
   selected,
   onSelect,
   present,
   freeBytes,
-  deviceRamBytes,
   fit,
   loaded,
   lang,
@@ -510,11 +619,8 @@ function PackageStep({
   catalog,
   choices,
   answerTier,
-  onAnswerTier,
   packageChosen,
-  answerChosen,
   onUserPackage,
-  onUserAnswer,
   restored,
   onBack,
   onInstall,
@@ -524,7 +630,6 @@ function PackageStep({
   onSelect: (id: PackageId) => void;
   present: Record<string, boolean>;
   freeBytes: number;
-  deviceRamBytes: number;
   /** catalog.fit: one RAM snapshot for every model on the step (perf audit #3). */
   fit: (model: CatalogModel) => MemoryFit | undefined;
   loaded: boolean;
@@ -536,36 +641,15 @@ function PackageStep({
   catalog: ReturnType<typeof useCatalog>;
   choices: Partial<Record<AnswerTier, CatalogModel>>;
   answerTier: AnswerTier;
-  onAnswerTier: (tier: AnswerTier) => void;
   packageChosen: boolean;
-  answerChosen: boolean;
   onUserPackage: (id: PackageId) => void;
-  onUserAnswer: (tier: AnswerTier) => void;
   restored: boolean;
   onBack: () => void;
   onInstall: () => void;
 }) {
-  // Tusk's rule (src/routing/defaultModel.ts): standard model unless the phone is low on RAM or it won't run well.
-  const pick = pickDefaultAnswerModel(
-    (["default", "compact"] as const)
-      .map((tierId) => choices[tierId])
-      .filter((m): m is CatalogModel => !!m)
-      .map((m) => ({ id: m.id, answerTier: m.answerTier, fit: fit(m)?.verdict })),
-    deviceRamBytes
-  );
-  const compactSuggested = !!choices.compact && pick?.id === choices.compact.id;
-  const recommendedTier: AnswerTier | undefined = pick ? (pick.id === choices.compact?.id ? "compact" : "default") : undefined;
-  // Recommended = pre-selected: follow the routing rule until the user picks.
-  useEffect(() => {
-    if (restored && loaded && !answerChosen && recommendedTier) onAnswerTier(recommendedTier);
-  }, [restored, loaded, answerChosen, recommendedTier, onAnswerTier]);
   const answerModel = (answerTier === "compact" && choices.compact) || choices.default;
-  // Computed from Tusk's estimate for this phone: the honest stand-in for the mockup's "Runs Great / RAM".
-  const answerFit = answerModel ? fit(answerModel) : undefined;
-  const [modelSheetOpen, setModelSheetOpen] = useState(false);
   const { t } = useTranslation();
   const tokens = useTokens();
-  const headlineLine = useOpticalLine("headline");
   const offline = !networkAllowed();
   const plans = PACKAGES.map((p) => {
     const tier = TIERS.find((x) => x.id === p.tier)!;
@@ -613,89 +697,7 @@ function PackageStep({
         </>
       }
     >
-      <StepHeader titleRef={titleRef} stage={1} title={t("flows.onboarding.step2Title")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
-      {/* The mockup's model card on top: what will answer, with a computed fact in place of "Runs Great" (FIDELITY). */}
-      {answerModel && (
-        <Card
-          padding="compact"
-          style={{ gap: tokens.space.sm }}
-          // Standard/Compact is chosen by tapping the card, not an extra row (the mockup has none).
-          onPress={choices.compact && choices.default ? () => setModelSheetOpen(true) : undefined}
-          // The label replaces the children for screen readers, so it says all they show (Prism FL-4).
-          accessibilityLabel={[
-            catalogLabel(answerModel, t),
-            answerTier === recommendedTier && t("flows.onboarding.recommended"),
-            formatBytes(answerModel.sizeBytes, lang),
-            answerFit && t(`flows.row.fitShort.${answerFit.verdict}`),
-            answerFit && t("flows.onboarding.workingMemory", { size: formatRam(answerFit.anonBytes + (answerFit.expertFraction === 0 ? answerFit.fileBytes : 0), lang) }),
-          ]
-            .filter(Boolean)
-            .join(", ")}
-          accessibilityHint={choices.compact && choices.default ? t("flows.onboarding.chooseAnswerHint") : undefined}
-        >
-          {/* Wraps at large text: MODEL + RECOMMENDED + size fill 302 of 307 pt at 2.0 (Prism FL-5). */}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: iconTokens.gapTight, rowGap: tokens.space.xs }}>
-            <Text variant="label" color="field">
-              {t("flows.onboarding.llmLabel")}
-            </Text>
-            {answerTier === recommendedTier && <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" />}
-            <Text variant="caption" color="secondary" numeric style={{ marginLeft: "auto" }}>
-              {formatBytes(answerModel.sizeBytes, lang)}
-            </Text>
-          </View>
-          {/* Chevron on the name's optical line, at the card's edge (icon-align). */}
-          <View style={{ flexDirection: "row", alignItems: "flex-start", gap: iconTokens.gap }}>
-            <Text variant="headline" style={{ flex: 1 }}>
-              {catalogLabel(answerModel, t)}
-            </Text>
-            {choices.compact && choices.default && (
-              <IconSlot name="chevron-right" line={headlineLine} color={tokens.color.text.secondary} edge="end" />
-            )}
-          </View>
-          {answerFit && (
-            <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: tokens.space.xs + tokens.space.xxs }}>
-              <Badge label={t(`flows.row.fitShort.${answerFit.verdict}`)} tone={ANSWER_FIT_TONE[answerFit.verdict]} dot caps={false} />
-              <Text variant="caption" color="secondary" numeric>
-                {t("flows.onboarding.workingMemory", { size: formatRam(answerFit.anonBytes + (answerFit.expertFraction === 0 ? answerFit.fileBytes : 0), lang) })}
-              </Text>
-            </View>
-          )}
-        </Card>
-      )}
-      {choices.compact && choices.default && (
-        <Sheet
-          visible={modelSheetOpen}
-          onClose={() => setModelSheetOpen(false)}
-          title={t("flows.onboarding.chooseAnswerTitle")}
-          description={
-            compactSuggested
-              ? pick?.reason === "compact-low-ram"
-                ? t("flows.onboarding.compactLowRam", { ram: formatRam(COMPACT_ONLY_MAX_RAM_BYTES, lang) })
-                : t("flows.onboarding.compactWhy")
-              : undefined
-          }
-        >
-          <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
-            {(["default", "compact"] as const).map((tierId) => {
-              const m = choices[tierId]!;
-              return (
-                <OptionCard
-                  key={tierId}
-                  title={catalogLabel(m, t)}
-                  description={t(`flows.assistant.sub.${tierId}`)}
-                  selected={answerTier === tierId}
-                  onPress={() => {
-                    onUserAnswer(tierId);
-                    setModelSheetOpen(false);
-                  }}
-                  badge={tierId === recommendedTier ? <Badge label={t("flows.onboarding.recommended")} tone="accent" emphasis="solid" /> : undefined}
-                  trailing={formatBytes(m.sizeBytes, lang)}
-                />
-              );
-            })}
-          </View>
-        </Sheet>
-      )}
+      <StepHeader titleRef={titleRef} stage={2} title={t("flows.onboarding.knowledgeTitle")} subtitle={t(offline ? "flows.onboarding.step2SubOffline" : "flows.onboarding.step2Sub")} />
       <View accessibilityRole="radiogroup" style={{ gap: tokens.space.sm }}>
         {plans.map((p) => {
           const warning =
@@ -1259,7 +1261,7 @@ function InstallStep({
       >
         <StepHeader
           titleRef={titleRef}
-          stage={indexPhase === "waiting" ? 2 : 3}
+          stage={indexPhase === "waiting" ? 3 : 4}
           // Once the files are in, the header describes the offline indexing, not the download (Harbor, iOS shot 04).
           title={t(`flows.onboarding.${ready ? "doneTitle" : indexing ? "indexTitle" : offline ? "importTitle" : "step3Title"}`)}
           subtitle={t(`flows.onboarding.${ready ? "doneBody" : indexing ? "indexSub" : offline ? "importSub" : "step3Sub"}`)}

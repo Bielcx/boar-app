@@ -581,7 +581,10 @@
         "start": "Início",
         "choose": "Escolha",
         "install": "Instalar",
-        "index": "Indexar"
+        "index": "Índice",
+        "model": "Modelo",
+        "knowledge": "Conhecimento",
+        "download": "Download"
       },
       "stageOf": "Passo {{n}} de {{total}}: {{name}}",
       "checking": "Conferindo",
@@ -642,7 +645,10 @@
         "l10": "Rolando na lama do conhecimento…",
         "l11": "O javali achou um atalho. Era uma árvore.",
         "l12": "Contando páginas com os cascos…"
-      }
+      },
+      "modelTitle": "Escolha o modelo de respostas",
+      "modelSub": "Ele escreve as respostas neste celular. Você pode trocar depois em Modelos.",
+      "knowledgeTitle": "Escolha o conhecimento"
     },
     "places": {
       "title": "Lugares (offline)",

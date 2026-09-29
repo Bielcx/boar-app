@@ -593,7 +593,9 @@ export async function setAnswerSettings(patch: Partial<AnswerSettings>): Promise
 
 /** Where first-run setup was, so a recreated Activity (font size change) or a killed process resumes there. */
 export interface SetupProgress {
-  step: 1 | 2 | 3;
+  /** 2 since the model got its own step (1 welcome, 2 model, 3 knowledge, 4 download and index); absent = 1. */
+  flow?: 2;
+  step: 1 | 2 | 3 | 4;
   packageId: string;
   travelRegionId?: string;
   answerTier?: "default" | "compact";
