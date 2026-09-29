@@ -270,7 +270,9 @@ export function SetupWizardScreen({ onReady, onSkip }: Props) {
               allPresent={allPresent}
               lang={lang}
               onBack={() => setBackOpen(true)}
-              onIndexingChange={(v) => (indexingRef.current = v)}
+              onIndexingChange={(v) => {
+                indexingRef.current = v;
+              }}
               onChoosePackage={() => setStep(2)}
               answerModel={answerModel}
               placesLabel={trip?.label ?? (travel ? (lang.startsWith("pt") ? travel.name.pt : travel.name.en) : undefined)}
@@ -1100,7 +1102,9 @@ function InstallStep({
 
   const ready = indexPhase === "ready";
   const indexing = indexPhase === "building" || indexPhase === "error";
-  useEffect(() => onIndexingChange?.(indexPhase === "building"), [indexPhase, onIndexingChange]);
+  useEffect(() => {
+    onIndexingChange?.(indexPhase === "building");
+  }, [indexPhase, onIndexingChange]);
   const { fontScale } = useWindowDimensions();
   const indexCounter = seed ? t("flows.onboarding.indexCounter", { done: formatCount(seed.done, lang), total: formatCount(seed.total, lang) }) : "";
   // The item whose bytes are arriving now, "Item 2 of 5 — name" under the bar (the mockup's "Model 1 of 3 — …").
