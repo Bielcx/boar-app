@@ -1,4 +1,5 @@
 import { ThemeId } from "../../models/settings";
+import type { ColorTokens } from "./tokens";
 
 /**
  * BOAR Design System — Curated Themes
@@ -270,3 +271,85 @@ export function getThemeColors(id: ThemeId = "midnight") {
 // Default export matching standard tokens
 export const colors = midnightTheme;
 export type Colors = typeof midnightTheme;
+
+/**
+ * Bridge for screens not yet migrated to `useTheme().tokens`: maps the new
+ * palette onto the legacy color shape so `useTheme().colors` follows the
+ * user's light/dark appearance. Screens that import `colors` statically stay
+ * on the old midnight values until their owner migrates them.
+ */
+export function legacyColorsFromTokens(c: ColorTokens): Colors {
+  const accentTone = { bgSubtle: c.accent.soft, border: c.accent.solid };
+  return {
+    ...midnightTheme,
+    bg: {
+      black: c.bg.sunken,
+      terminal: c.bg.canvas,
+      surface: c.bg.canvas,
+      card: c.bg.surface,
+      cardElevated: c.bg.raised,
+      cardHover: c.bg.sunken,
+      input: c.bg.surface,
+      subtle: c.bg.sunken,
+      overlay: c.bg.scrim,
+      modalOverlay: c.bg.scrim,
+    },
+    border: {
+      subtle: c.line.hairline,
+      default: c.line.hairline,
+      elevated: c.line.strong,
+      focus: c.line.focus,
+      emerald: c.field.solid,
+      cyan: c.accent.solid,
+      amber: c.status.warning.solid,
+      danger: c.status.danger.solid,
+      frontier: c.accent.solid,
+    },
+    text: {
+      primary: c.text.primary,
+      heading: c.text.primary,
+      secondary: c.text.secondary,
+      muted: c.text.tertiary,
+      dim: c.text.tertiary,
+      inverse: c.text.onAccent,
+      accentEmerald: c.field.text,
+      accentCyan: c.accent.text,
+      accentAmber: c.status.warning.solid,
+      accentViolet: c.accent.text,
+    },
+    emerald: {
+      50: c.field.soft,
+      400: c.field.text,
+      500: c.field.solid,
+      600: c.field.solid,
+      900: c.field.soft,
+      bgSubtle: c.field.soft,
+      border: c.field.solid,
+    },
+    cyan: { 400: c.accent.text, 500: c.accent.solid, 600: c.accent.pressed, ...accentTone },
+    frontier: {
+      glow: c.accent.solid,
+      glowCyan: c.accent.solid,
+      badgeBg: c.accent.soft,
+      badgeBorder: c.accent.solid,
+      text: c.accent.text,
+      gradientStart: c.bg.canvas,
+      gradientEnd: c.bg.canvas,
+    },
+    amber: {
+      400: c.status.warning.solid,
+      500: c.status.warning.solid,
+      600: c.status.warning.solid,
+      bgSubtle: c.status.warning.soft,
+      border: c.status.warning.solid,
+    },
+    crimson: {
+      400: c.status.danger.solid,
+      500: c.status.danger.solid,
+      600: c.status.danger.solid,
+      900: c.status.danger.soft,
+      bgSubtle: c.status.danger.soft,
+      border: c.status.danger.solid,
+    },
+  };
+}

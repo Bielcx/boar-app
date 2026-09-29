@@ -1,0 +1,67 @@
+# Redo of prints 07/09 only (Boar, after Iris's c7ad4e4 fix): the question typed as Iris wrote it,
+# the answer as it comes out (a Compact refusal under a passage = a quiet line + "Answer anyway"),
+# then the first source expanded. Also a new try at 06 (the model streaming). Same env as prints-v11.yaml (run-prints.sh PRINTS_FLOW=prints-0709.yaml).
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- runFlow:
+    when:
+      true: ${L == 'pt'}
+    commands:
+      - tapOn: "Português"
+- tapOn: ${T_START}
+- tapOn:
+    text: "${T_ESSENTIAL}, .*"
+- scrollUntilVisible:
+    element: ${T_CONTINUE}
+- tapOn: ${T_CONTINUE}
+- tapOn: ${T_PICK}
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- tapOn:
+    text: "List view"
+    optional: true
+- longPressOn:
+    text: ".*\\.gguf"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"
+- extendedWaitUntil:
+    visible: ${T_DONE}
+    timeout: 900000
+- tapOn: ${T_OPEN}
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000
+# typed question; Send without waiting for the UI to settle, so 06 catches stages/streaming
+- tapOn: ${T_ASK}
+- setClipboard: ${Q_MONSOON}
+- pasteText
+- tapOn:
+    text: ${T_SEND}
+    waitToSettleTimeoutMs: 200
+- takeScreenshot: 06-chat-generating_android_${L}_a
+- takeScreenshot: 06-chat-generating_android_${L}_b
+- takeScreenshot: 06-chat-generating_android_${L}_c
+- takeScreenshot: 06-chat-generating_android_${L}_d
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 07-chat-answer_android_${L}
+- runFlow:
+    when:
+      visible: ${T_ASK_MODEL}
+    commands:
+      - tapOn:
+          text: ${T_ASK_MODEL}
+          waitToSettleTimeoutMs: 200
+      - takeScreenshot: 06-chat-generating_android_${L}_ai_a
+      - takeScreenshot: 06-chat-generating_android_${L}_ai_b
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
+      - takeScreenshot: 07-chat-answer_android_${L}_ai
+- tapOn:
+    text: "${T_SOURCE1}.*"
+    optional: true
+- takeScreenshot: 09-chat-source-open_android_${L}

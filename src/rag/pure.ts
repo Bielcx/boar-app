@@ -37,19 +37,18 @@ export function cosineSimilarityInt8(query: Float32Array, bytes: Uint8Array): nu
   return dot / (Math.sqrt(normQ) * Math.sqrt(normV));
 }
 
-// bge-small-en-v1.5 cosine similarity heuristic: below this, a chunk isn't
-// actually about the query, it's just whatever happened to be "closest" out
-// of everything in the knowledge base — brute-force top-K with no floor
-// means even a query with nothing relevant on-device always gets K chunks
-// back, which then get force-fed into the prompt as "Context" the model is
-// told to answer from. Not a precise cutoff (no real device/embedding
-// runtime available to measure this corpus's actual score distribution —
-// see retrieve.relevance.test.ts), just cheap, evidence-informed-as-far-as-
-// possible insurance against near-random matches being presented as
-// relevant. Left unchanged rather than invented/re-guessed — moving it
-// without real score-distribution data to justify a new number would be
-// exactly the mistake it's meant to prevent.
-export const MIN_SEMANTIC_SIMILARITY = 0.45;
+// bge-small-en-v1.5 cosine floor for a semantic hit to count as relevant.
+// Without one, brute-force top-K always returns K chunks even when nothing
+// on the device is about the question, and they get fed to the model as
+// context. Measured on 2026-09-26 (eval/retrieval/questions.v1, 160
+// questions against Wikipedia article leads; docs/KNOWLEDGE_PACKS.md):
+// question → right article: p5 0.573, median 0.776; question → random
+// article: median 0.380, p95 0.483, p99 0.530. The old floor of 0.45 let
+// 13% of random articles through, which is how "Which signature algorithms
+// are quantum resistant?" got answered from the RSA article when no
+// post-quantum text was installed. 0.55 keeps 98% of right articles and
+// 0.6% of random ones.
+export const MIN_SEMANTIC_SIMILARITY = 0.55;
 
 /**
  * Chunks given to the model for a chat answer. Each chunk adds prompt
@@ -156,10 +155,13 @@ export function buildLexicalQuery(query: string): LexicalQuery | null {
  * How many content terms a lexical hit must contain. OR-matching alone
  * would accept a document that shares one incidental word with the
  * question ("black" → "Black Sea" for "black holes"), so short queries
- * need every term and longer ones at least half.
+ * need every term and longer ones a strict majority. Half was too little:
+ * for "Which signature algorithms are quantum resistant?" a nuclear
+ * physicist's bio (quantum Monte Carlo *algorithms*) matched 2 of 4 terms and
+ * became the only source when the corpus had nothing on the topic.
  */
 export function requiredTermMatches(termCount: number): number {
-  return termCount <= 2 ? termCount : Math.ceil(termCount / 2);
+  return termCount <= 2 ? termCount : Math.floor(termCount / 2) + 1;
 }
 
 export function countMatchedTerms(text: string, terms: LexicalTerm[]): number {
@@ -289,10 +291,7 @@ export function assemblePrompt(
   history?: ConversationHistory,
   styleReminder?: string
 ): string {
-  const instruction =
-    systemPrompt && systemPrompt.trim().length > 0
-      ? systemPrompt.trim()
-      : "You are an offline research assistant.";
+  const instruction = instructionOf(systemPrompt);
 
   const summarySection =
     history?.summary && history.summary.trim().length > 0
@@ -311,14 +310,11 @@ export function assemblePrompt(
   // found nothing relevant for), the whole context/citation framing is
   // omitted entirely rather than left as an empty "Context:\n\n" section —
   // an empty-but-present section still tells the model there's supposed to
-  // be something there and to "cite sources as [n]", which is exactly the
+  // be something there and to "cite a source you used by its number", which is exactly the
   // kind of dangling framing that nudges a small model toward inventing
   // content to fill it instead of just answering conversationally.
   const hasContext = chunks.length > 0;
-  const contextInstruction = hasContext
-    ? " Use the context below when relevant, and cite sources as [n]. " +
-      "If the context doesn't cover the question, say so and answer from general knowledge."
-    : "";
+  const contextInstruction = hasContext ? CONTEXT_INSTRUCTION : "";
   const contextSection = hasContext
     ? `Context:\n${chunks.map((c, i) => `[${i + 1}] ${c.title}\n${c.body}`).join("\n\n")}\n\n`
     : "";
@@ -327,6 +323,25 @@ export function assemblePrompt(
     `${summarySection}${turnsSection}` +
     `${contextSection}` +
     `Question: ${userQuery}${styleSection(styleReminder)}\n\nAnswer:`;
+}
+
+const instructionOf = (systemPrompt: string | undefined) =>
+  systemPrompt && systemPrompt.trim().length > 0 ? systemPrompt.trim() : "You are an offline research assistant.";
+
+const CONTEXT_INSTRUCTION =
+  " Use the context below when relevant, and cite a source you used by its number, like [1] or [2]. " +
+  "If the context doesn't cover the question, say so and answer from general knowledge.";
+
+/**
+ * The fixed start of every answer prompt that has sources, for a given tone: persona, source rules and
+ * GROUNDING_INSTRUCTION, before the summary, the sources and the question. `system` opens
+ * assembleChatMessages' system message, `prompt` opens assemblePrompt's text. LlamaEngine keeps it prefilled
+ * in the KV cache (setAnswerPrefix), so a question only pays for what follows it: on the iPhone 13 this is
+ * ~225 of a ~400-token prompt, ~2 s of CPU prefill.
+ */
+export function answerPromptPrefix(systemPrompt?: string): { system: string; prompt: string } {
+  const head = `${instructionOf(systemPrompt)}${CONTEXT_INSTRUCTION} ${GROUNDING_INSTRUCTION}`;
+  return { system: head, prompt: `${head}\n\n` };
 }
 
 export interface ChatMessage {
@@ -356,16 +371,10 @@ export function assembleChatMessages(
   history?: ConversationHistory,
   styleReminder?: string
 ): ChatMessage[] {
-  const instruction =
-    systemPrompt && systemPrompt.trim().length > 0
-      ? systemPrompt.trim()
-      : "You are an offline research assistant.";
+  const instruction = instructionOf(systemPrompt);
 
   const hasContext = chunks.length > 0;
-  const contextInstruction = hasContext
-    ? " Use the context below when relevant, and cite sources as [n]. " +
-      "If the context doesn't cover the question, say so and answer from general knowledge."
-    : "";
+  const contextInstruction = hasContext ? CONTEXT_INSTRUCTION : "";
   const contextSection = hasContext
     ? `\n\nContext:\n${chunks.map((c, i) => `[${i + 1}] ${c.title}\n${c.body}`).join("\n\n")}`
     : "";
@@ -423,6 +432,8 @@ function styleSection(styleReminder: string | undefined): string {
 }
 
 const GROUNDING_INSTRUCTION =
+  // "You are Boar" alone made a 1.5B model answer "Boar is a water mammal" (Sextant, 2026-09-26).
+  'You are BOAR, an offline AI research app running on this phone; "Boar" is the app\'s name, never the animal, so never describe yourself as one. ' +
   "You have no ability to control real-world devices or take physical actions — no alarms, " +
   "lights, thermostats, timers, or any other device or system. You can only respond with text. " +
   "Treat greetings and casual small talk conversationally and briefly, not as a command or task. " +

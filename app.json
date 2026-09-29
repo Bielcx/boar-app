@@ -5,14 +5,29 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "team.sopa.aoair",
+      "buildNumber": "1",
+      "icon": "./assets/icon-ios.png",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "BOAR uses the microphone only while voice input is on, to turn your question into text on this device.",
+        "NSSpeechRecognitionUsageDescription": "BOAR transcribes your voice question on this device. Audio is never sent to a server.",
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "BOAR uses your location, read on this device, to answer questions about places near you, such as restaurants in the city you are in. It is never sent anywhere."
+      },
+      "entitlements": {
+        "com.apple.developer.kernel.increased-memory-limit": true,
+        "com.apple.developer.kernel.extended-virtual-addressing": true
+      }
     },
     "android": {
       "package": "team.sopa.aoair",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#17110D",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -27,21 +42,40 @@
       "expo-dev-client",
       "expo-sharing",
       [
+        "llama.rn",
+        {
+          "enableEntitlements": false,
+          "enableOpenCLAndHexagon": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 360,
           "resizeMode": "contain",
-          "backgroundColor": "#080C14"
+          "backgroundColor": "#17110D",
+          "android": {
+            "image": "./assets/splash-icon-android.png",
+            "imageWidth": 240,
+            "backgroundColor": "#17110D"
+          }
         }
       ],
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "./plugins/withIosSceneLifecycle",
+      "./plugins/withIosMetalOff",
+      "expo-font"
     ],
     "extra": {
       "eas": {
         "projectId": "cba72560-8333-4fca-af84-f42d1c25abe3"
       }
     },
-    "owner": "vaipraonde"
+    "owner": "vaipraonde",
+    "locales": {
+      "en": "./locales/en.json",
+      "pt": "./locales/pt.json"
+    }
   }
 }

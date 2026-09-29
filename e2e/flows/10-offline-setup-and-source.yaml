@@ -1,0 +1,20 @@
+# Smoke for the mini: offline build, fresh install, files already in Downloads
+# (bge, 1.5B, corpus-standard.json, corpus-full.json). Import everything,
+# wait for the index, open BOAR and ask a suggestion that has a source.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- runFlow: common/offline-setup.yaml
+- takeScreenshot: shots/10-setup-ready
+- tapOn: "Open BOAR"
+- extendedWaitUntil:
+    visible: "Ask something"
+    timeout: 120000
+- tapOn:
+    text: "Ask: What is a monsoon\\?"
+- extendedWaitUntil:
+    notVisible: "Stop answer"
+    timeout: ${ANSWER_TIMEOUT || 300000}
+- assertVisible: "SOURCES ON THIS PHONE"
+- assertVisible:
+    text: ".*Monsoon.*"
+- takeScreenshot: shots/10-answer-with-source

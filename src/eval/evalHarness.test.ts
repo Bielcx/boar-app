@@ -222,12 +222,12 @@ describe("runEvaluation", () => {
     expect(withTemplate.timeoutMs).toBe(plain.timeoutMs);
   });
 
-  it("leaves the adaptive config on live-chat formatting (Phi plain), and records it", async () => {
+  it("uses the model's own chat template in the adaptive config too", async () => {
     presentIds.add(PHI.id).add(QWEN.id);
     const comparison = EVAL_SET.find((q) => q.id === "comparison-1")!;
     const run = await runEvaluation({ configs: [{ kind: "adaptive", label: "Adaptive" }], queries: [comparison] });
     expect(run.rows[0].modelId).toBe(PHI.id);
-    expect(run.rows[0].promptFormat).toBe("plain");
+    expect(run.rows[0].promptFormat).toBe("chat-template");
   });
 
   it("records every query in the persisted execution telemetry", async () => {
@@ -240,7 +240,7 @@ describe("runEvaluation", () => {
   it("adaptive config records the routed model and the preset", async () => {
     presentIds.add(PHI.id).add(QWEN.id);
     const run = await runEvaluation({ configs: [{ kind: "adaptive", label: "Adaptive" }], queries: [queries[0]] });
-    expect(run.rows[0]).toMatchObject({ configId: "adaptive", routingPreset: "balanced", adaptiveRoutingUsed: true, modelId: QWEN.id });
+    expect(run.rows[0]).toMatchObject({ configId: "adaptive", routingPreset: "balanced", adaptiveRoutingUsed: true, modelId: PHI.id });
   });
 
   it("reports a model that isn't installed as a failure row instead of aborting the run", async () => {

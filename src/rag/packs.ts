@@ -13,11 +13,23 @@ import * as FileSystem from "expo-file-system/legacy";
 import { CORPUS_CATALOG, MODEL_CATALOG, CatalogModel } from "../models/manifest";
 import { buildLexicalQuery, cosineSimilarityInt8, filterByMinScore, filterByTermCoverage, MIN_SEMANTIC_SIMILARITY } from "./pure";
 import type { RetrievedChunk } from "./retrieve.types";
+import { decompress } from "fzstd";
+import { WikiPack, type PackHit, type PackSearchOptions, type Stem } from "./wikiPack";
+import { guard, type Guarded } from "./guardedDb";
+import { registerResetHook } from "../services/resetOrder";
+import { EXPLAIN_INTENT, explainingFirst } from "./explain";
 
 const PACK_CANDIDATES = 400;
 const EMBEDDING_SHA256 = MODEL_CATALOG.find((m) => m.kind === "embedding" && m.required)!.sha256;
 
-const openPacks = new Map<string, SQLite.SQLiteDatabase>();
+// Guarded connections (src/rag/guardedDb.ts): closing one waits for the searches running on it (RS-1).
+const openPacks = new Map<string, Guarded<SQLite.SQLiteDatabase>>();
+// One open at a time per pack: two searches starting together share it instead of opening the file twice.
+const opening = new Map<string, Promise<SQLite.SQLiteDatabase | null>>();
+// Bumped by closeAllPacks(): an open still in progress then closes what it opened instead of keeping it.
+let generation = 0;
+/** Format-2 packs (scripts/build-wiki-pack.mjs), keyed like openPacks. */
+const wikiPacks = new Map<string, WikiPack>();
 
 const CORPUS_DIR = "corpus/";
 
@@ -49,15 +61,29 @@ export async function knowledgePacks(): Promise<CatalogModel[]> {
   return [...catalog, ...extra];
 }
 
+/**
+ * Stops using a pack (before its file is deleted): later calls on its connection reject in JS. The native connection
+ * is NOT closed: expo-sqlite 57's close crashes on connections that used FTS5 (RS-1); it goes when the app exits,
+ * and deleting the file under it is fine on Android and iOS. Idempotent.
+ */
 export async function closePack(id: string): Promise<void> {
-  const db = openPacks.get(id);
+  const conn = openPacks.get(id);
   openPacks.delete(id);
-  await db?.closeAsync().catch(() => {});
+  wikiPacks.delete(id);
+  conn?.retire();
 }
 
-export async function closeAllPacks(): Promise<void> {
+/** Forgets every pack (reset), including ones still being opened, without closing them natively. Idempotent. */
+export async function forgetAllPacks(): Promise<void> {
+  generation++;
+  await Promise.all([...opening.values()].map((p) => p.catch(() => null)));
   await Promise.all([...openPacks.keys()].map(closePack));
 }
+
+/** @deprecated The reset forgets packs (forgetAllPacks); kept for callers of the first reset contract. */
+export const closeAllPacks = forgetAllPacks;
+
+registerResetHook("forget", "packs", forgetAllPacks);
 
 /** The pack's database if it's fully downloaded and built for this app's embedding model, else null. */
 async function openPack(pack: CatalogModel): Promise<SQLite.SQLiteDatabase | null> {
@@ -69,22 +95,120 @@ async function openPack(pack: CatalogModel): Promise<SQLite.SQLiteDatabase | nul
     return null;
   }
   const cached = openPacks.get(pack.id);
-  if (cached) return cached;
+  if (cached) return cached.db;
+  const pending = opening.get(pack.id);
+  if (pending) return pending;
+  const started = generation;
+  const p = openPackFile(pack, uri, started).finally(() => opening.delete(pack.id));
+  opening.set(pack.id, p);
+  return p;
+}
 
+async function openPackFile(pack: CatalogModel, uri: string, started: number): Promise<SQLite.SQLiteDatabase | null> {
   const path = uri.replace(/^file:\/\//, "");
   const slash = path.lastIndexOf("/");
-  const db = await SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash));
+  const conn = guard(await SQLite.openDatabaseAsync(path.slice(slash + 1), { useNewConnection: true }, path.slice(0, slash)), `pack ${pack.id}`);
+  const db = conn.db;
   const meta = await db
     .getAllAsync<{ key: string; value: string }>("SELECT key, value FROM meta")
     .then((rows) => Object.fromEntries(rows.map((r) => [r.key, r.value])))
     .catch(() => ({} as Record<string, string>));
-  if (meta.format !== "boar-knowledge-pack" || meta.embeddingModelSha256 !== EMBEDDING_SHA256) {
+  // Format 2 may be built without embeddings (empty embeddingModelSha256); format 1 always has them.
+  const embeddingsOk = meta.embeddingModelSha256 === EMBEDDING_SHA256 || (meta.formatVersion === "2" && !meta.embeddingModelSha256);
+  if (meta.format !== "boar-knowledge-pack" || !embeddingsOk) {
     console.warn(`[packs] ${pack.filename} isn't a knowledge pack for this app's embedding model; skipping it`);
-    await db.closeAsync().catch(() => {});
+    conn.retire();
     return null;
   }
-  openPacks.set(pack.id, db);
+  if (meta.formatVersion === "2") {
+    try {
+      wikiPacks.set(pack.id, await WikiPack.open(db, decompress));
+    } catch (e: any) {
+      console.warn(`[packs] ${pack.filename} failed to open:`, e?.message ?? e);
+      conn.retire();
+      return null;
+    }
+  }
+  if (generation !== started) {
+    // closeAllPacks() ran while this pack was opening (a reset): don't keep a connection to a file about to go.
+    wikiPacks.delete(pack.id);
+    conn.retire();
+    return null;
+  }
+  openPacks.set(pack.id, conn);
   return db;
+}
+
+export interface WikiPackResult {
+  packId: string;
+  pack: WikiPack;
+  hits: PackHit[];
+  stems: Stem[];
+}
+
+/** Searches every installed format-2 pack (a failing pack is skipped). */
+export async function searchWikiPacks(query: string, opts: PackSearchOptions = {}): Promise<WikiPackResult[]> {
+  const out: WikiPackResult[] = [];
+  for (const pack of await knowledgePacks()) {
+    try {
+      if (!(await openPack(pack))) continue;
+      const wp = wikiPacks.get(pack.id);
+      if (!wp) continue;
+      const { hits, stems } = await wp.searchDetailed(query, opts);
+      out.push({ packId: pack.id, pack: wp, hits, stems });
+    } catch (e: any) {
+      console.warn(`[packs] search failed in ${pack.id}:`, e?.message ?? e);
+    }
+  }
+  return out;
+}
+
+const SOURCE_LABEL: Record<PackHit["source"], string> = {
+  enwiki: "Wikipedia",
+  enwikivoyage: "Wikivoyage",
+  enwikibooks: "Wikibooks",
+  appropedia: "Appropedia",
+  usgov: "US government",
+  eips: "Ethereum EIPs/ERCs",
+  ethspecs: "Ethereum specs",
+  ethereumorg: "ethereum.org",
+  bips: "Bitcoin BIPs",
+};
+
+/** URL of a pack article: its recorded URL, else the Wikipedia/Wikivoyage/Wikibooks page for its title. */
+/**
+ * A recorded page URL made safe to show and open: a raw title with spaces ("…/wiki/Quantum cryptography") gets
+ * underscores on wiki paths and %20 elsewhere, then any other unencoded character is encoded (already-encoded
+ * URLs are left as they are).
+ */
+export function normalizeUrl(url: string): string {
+  const spaced = /\/wiki\//.test(url) ? url.replace(/ /g, "_") : url.replace(/ /g, "%20");
+  try {
+    return encodeURI(decodeURI(spaced));
+  } catch {
+    return spaced;
+  }
+}
+
+export function articleUrl(title: string, source: PackHit["source"], url?: string): string {
+  if (url) return normalizeUrl(url);
+  const host = source === "enwikivoyage" ? "en.wikivoyage.org" : source === "enwikibooks" ? "en.wikibooks.org" : "en.wikipedia.org";
+  return `https://${host}/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
+}
+
+/** A format-2 pack hit in the shape the chat's retrieval uses. */
+export function packHitToChunk(packId: string, h: PackHit): RetrievedChunk {
+  const label = SOURCE_LABEL[h.source] ?? "Source";
+  return {
+    chunkId: `pack:${packId}:${h.chunkId}`,
+    docId: `pack:${packId}:a${h.articleId}`,
+    title: h.source === "enwiki" ? h.title : `${label}: ${h.title}`,
+    body: h.section ? `${h.section}: ${h.text}` : h.text,
+    source: `${label} — ${articleUrl(h.title, h.source, h.url)}${h.license ? ` (${h.license})` : ""}`,
+    score: h.score,
+    matchType: "lexical",
+    action: h.action,
+  };
 }
 
 type PackRow = { id: number; title: string; body: string; vec: Uint8Array; rank: number };
@@ -93,7 +217,8 @@ type PackRow = { id: number; title: string; body: string; vec: Uint8Array; rank:
 export async function searchPacks(
   query: string,
   queryVec: Float32Array,
-  limit: number
+  limit: number,
+  opts: { explain?: boolean } = {}
 ): Promise<{ lexical: RetrievedChunk[]; semantic: RetrievedChunk[] }> {
   const lexicalQuery = buildLexicalQuery(query);
   const lexical: RetrievedChunk[] = [];
@@ -103,7 +228,7 @@ export async function searchPacks(
   for (const pack of await knowledgePacks()) {
     try {
       const db = await openPack(pack);
-      if (!db) continue;
+      if (!db || wikiPacks.has(pack.id)) continue;
       const rows = await db.getAllAsync<PackRow>(
         `SELECT c.id, c.title, c.body, c.vec, bm25(chunks_fts) AS rank
          FROM chunks_fts f JOIN chunks c ON c.id = f.rowid
@@ -119,10 +244,17 @@ export async function searchPacks(
         score,
         matchType,
       });
-      lexical.push(...filterByTermCoverage(rows, lexicalQuery.terms).slice(0, limit).map((r) => toChunk(r, -r.rank, "lexical")));
+      let lex = filterByTermCoverage(rows, lexicalQuery.terms).slice(0, limit).map((r) => toChunk(r, -r.rank, "lexical"));
       const scored = rows.map((r) => toChunk(r, cosineSimilarityInt8(queryVec, r.vec), "semantic"));
       scored.sort((a, b) => b.score - a.score);
-      semantic.push(...filterByMinScore(scored, MIN_SEMANTIC_SIMILARITY).slice(0, limit));
+      let sem = filterByMinScore(scored, MIN_SEMANTIC_SIMILARITY).slice(0, limit);
+      // A why/what-causes question: within an article, the chunk with the question's other words first (RF-1).
+      if (opts.explain ?? EXPLAIN_INTENT.test(query)) {
+        lex = explainingFirst(lex, lexicalQuery.terms);
+        sem = explainingFirst(sem, lexicalQuery.terms);
+      }
+      lexical.push(...lex);
+      semantic.push(...sem);
     } catch (e: any) {
       console.warn(`[packs] search failed in ${pack.id}:`, e?.message ?? e);
     }

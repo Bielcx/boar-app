@@ -1,0 +1,31 @@
+# System picker (DocumentsUI, English system locale): Downloads > places/ > select every .sqlite.
+# The second picker of a session can stay on "Recent" after the first Downloads tap: wait and retry once.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- extendedWaitUntil:
+    visible: "Show roots"
+    timeout: 20000
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- extendedWaitUntil:
+    visible: "places"
+    timeout: 10000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "places"
+    commands:
+      - tapOn: "Show roots"
+      - extendedWaitUntil:
+          visible: "Downloads"
+          timeout: 10000
+      - tapOn: "Downloads"
+      - extendedWaitUntil:
+          visible: "places"
+          timeout: 15000
+- tapOn: "places"
+- longPressOn:
+    text: ".*\\.sqlite"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"

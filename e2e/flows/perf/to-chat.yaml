@@ -1,0 +1,9 @@
+# Back out of any screen/sheet until the chat composer shows (max 5 backs).
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- repeat:
+    while:
+      notVisible: ${T_ASK}
+    times: 5
+    commands:
+      - back

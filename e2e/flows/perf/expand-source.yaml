@@ -1,0 +1,12 @@
+# Open the source list for real: tap the group row "Source 1: <title>, <origin>" (accessibility label)
+# inside "SOURCES ON THIS PHONE" so the passage expands; run-perf then scrolls the chat with it open.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- scrollUntilVisible:
+    element:
+      text: "(Sources?|Fontes?) 1:.*"
+    optional: true
+- tapOn:
+    text: "(Sources?|Fontes?) 1:.*"
+    optional: true
+- takeScreenshot: perf-source-expanded

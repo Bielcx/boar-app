@@ -1,0 +1,39 @@
+{
+ "packs": [
+  "boar-wiki-en-00.sqlite",
+  "boar-wiki-en-04.sqlite",
+  "boar-wiki-en-09.sqlite",
+  "boar-wiki-en-14.sqlite"
+ ],
+ "questions": 180,
+ "runs": [
+  {
+   "n": 1,
+   "coldP50": 50.2,
+   "coldP95": 105.5,
+   "warmP50": 42.8,
+   "warmP95": 93.8
+  },
+  {
+   "n": 2,
+   "coldP50": 98.1,
+   "coldP95": 209.5,
+   "warmP50": 89.6,
+   "warmP95": 205.5
+  },
+  {
+   "n": 3,
+   "coldP50": 137.2,
+   "coldP95": 314.5,
+   "warmP50": 132.7,
+   "warmP95": 285.2
+  },
+  {
+   "n": 4,
+   "coldP50": 174.2,
+   "coldP95": 367.2,
+   "warmP50": 175.4,
+   "warmP95": 365.7
+  }
+ ]
+}

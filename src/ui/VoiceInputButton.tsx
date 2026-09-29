@@ -1,105 +1,38 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Pressable, Text, StyleSheet, Animated, Alert, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { isVoiceInputAvailable, startListening, stopListening, VoiceEvent } from "../voice/VoiceInput";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { IconButton, Sheet, Button, Text, useAnnounce } from "./components";
+import { isVoiceInputAvailable, startListening, stopListening, type VoiceEvent } from "../voice/VoiceInput";
 
 interface Props {
   disabled?: boolean;
   onTranscript: (text: string) => void;
 }
 
-const AURA_COLORS = ["#22d3ee", "#3b82f6", "#8b5cf6", "#ec4899"] as const; // cyan -> blue -> violet -> pink
-
-function AuraRing({ active, delay }: { active: boolean; delay: number }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!active) {
-      scale.setValue(1);
-      opacity.setValue(0);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(scale, { toValue: 1.9, duration: 900, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: 900, useNativeDriver: true }),
-        ]),
-        Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.55, duration: 0, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [active, delay, scale, opacity]);
-
-  return (
-    <Animated.View
-      style={[styles.ring, { opacity, transform: [{ scale }] }]}
-      pointerEvents="none"
-    >
-      <LinearGradient
-        colors={AURA_COLORS}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.ringGradient}
-      />
-    </Animated.View>
-  );
-}
+// The recognizer caveat is shown once per app run (no settings key for it yet).
+let caveatShown = false;
 
 /**
- * Gemini-style glowing mic: idle is a sleek metallic-gradient circle;
- * listening expands multi-color aura rings (cyan -> blue -> violet ->
- * pink) that pulse outward. Built with core Animated + expo-linear-gradient
- * (no react-native-reanimated) — see docs/MODELS.md for why.
- *
- * Backed by Android's built-in SpeechRecognizer with EXTRA_PREFER_OFFLINE
- * (src/voice/VoiceInput.ts) — not guaranteed available on GrapheneOS/
- * de-Googled builds; shows a clear "unavailable" message there instead of
- * pretending to listen.
+ * Mic button for the composer. Backed by the system SpeechRecognizer
+ * (src/voice/VoiceInput.ts), which may use the network and is often missing
+ * on GrapheneOS / de-Googled builds: when it's missing the button isn't shown,
+ * and the first use explains that it may not be offline.
  */
 export function VoiceInputButton({ disabled, onTranscript }: Props) {
+  const { t } = useTranslation();
+  const announce = useAnnounce();
   const [available, setAvailable] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
-  const pulse = useRef(new Animated.Value(1)).current;
+  const [caveatOpen, setCaveatOpen] = useState(false);
 
   useEffect(() => {
     isVoiceInputAvailable().then(setAvailable).catch(() => setAvailable(false));
   }, []);
 
-  useEffect(() => {
-    if (!listening) {
-      pulse.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.12, duration: 500, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 500, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [listening, pulse]);
+  if (!available) return null;
 
-  const handlePress = async () => {
-    if (available === false) {
-      Alert.alert(
-        "Voice input unavailable",
-        "No on-device speech recognition service was found on this device " +
-          "(common on GrapheneOS / de-Googled builds). Type your question instead."
-      );
-      return;
-    }
-    if (listening) {
-      await stopListening();
-      setListening(false);
-      return;
-    }
+  const listen = async () => {
     setListening(true);
+    announce(t("chat.announce.listening"));
     try {
       const result = await startListening((event: VoiceEvent) => {
         if (event.type === "error") setListening(false);
@@ -107,55 +40,51 @@ export function VoiceInputButton({ disabled, onTranscript }: Props) {
       if (result) onTranscript(result);
     } finally {
       setListening(false);
+      announce(t("chat.announce.stoppedListening"));
     }
   };
 
+  const onPress = async () => {
+    if (listening) {
+      await stopListening();
+      setListening(false);
+      return;
+    }
+    if (!caveatShown) {
+      caveatShown = true;
+      setCaveatOpen(true);
+      return;
+    }
+    listen();
+  };
+
   return (
-    <View style={styles.container}>
-      {[0, 300, 600].map((delay) => (
-        <AuraRing key={delay} active={listening} delay={delay} />
-      ))}
-      <Animated.View style={{ transform: [{ scale: pulse }] }}>
-        <Pressable
-          onPress={handlePress}
-          disabled={disabled && !listening}
-          hitSlop={8}
-          style={(disabled || available === false) && styles.btnDisabled}
-        >
-          <LinearGradient
-            colors={listening ? AURA_COLORS : ["#2a2a3a", "#16161f"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.btn}
-          >
-            <Text style={styles.icon}>{listening ? "●" : "🎤"}</Text>
-          </LinearGradient>
-        </Pressable>
-      </Animated.View>
-    </View>
+    <>
+      <IconButton
+        icon="mic"
+        label={listening ? t("chat.voice.stop") : t("chat.voice.start")}
+        variant={listening ? "filled" : "plain"}
+        selected={listening}
+        disabled={disabled && !listening}
+        onPress={onPress}
+      />
+      <Sheet
+        visible={caveatOpen}
+        onClose={() => setCaveatOpen(false)}
+        title={t("chat.voice.caveatTitle")}
+        footer={
+          <Button
+            label={t("chat.voice.caveatOk")}
+            fullWidth
+            onPress={() => {
+              setCaveatOpen(false);
+              listen();
+            }}
+          />
+        }
+      >
+        <Text color="secondary">{t("chat.voice.caveatBody")}</Text>
+      </Sheet>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  btn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  btnDisabled: { opacity: 0.4 },
-  icon: { fontSize: 16, color: "#fff" },
-  ring: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  ringGradient: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 20,
-  },
-});

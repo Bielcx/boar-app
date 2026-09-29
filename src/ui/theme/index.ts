@@ -1,7 +1,15 @@
 import { colors, getThemeColors, THEMES, midnightTheme, amberTheme, frontierTheme } from "./colors";
 import { typography, fontFamilies, getTypography, FONT_SCALES, Typography } from "./typography";
 import { spacing, radii, shadows } from "./spacing";
-import { ThemeProvider, useTheme } from "./ThemeContext";
+import { ThemeProvider, useTheme, useTokens } from "./ThemeContext";
+export { buildTokens, toneColors, variantFace, variantShape, icon, space, radius, size, motion, opacity, MIN_TOUCH, MIN_FONT_SIZE, APP_FONT_SCALE } from "./tokens";
+export { fontFamilyFor, BUNDLED_FAMILIES } from "./fonts";
+export { opticalOffset, baselineFromTop, iosAscenderInset, renderedBaseline, FACE_METRICS } from "./opticalCenter";
+export type { FontFace, FontWeight } from "./fonts";
+export type { Tokens, ColorTokens, ColorScheme, TextVariant, Tone, TypeStyle } from "./tokens";
+export { getPalette, PALETTE_IDS, SOURCE_PALETTES } from "./palette";
+export type { PaletteId, ResolvedPalette } from "./palette";
+export { resolveScheme } from "./scheme";
 
 export {
   colors,
@@ -19,6 +27,7 @@ export {
   shadows,
   ThemeProvider,
   useTheme,
+  useTokens,
 };
 
 export type { Typography };

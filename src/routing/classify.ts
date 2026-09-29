@@ -10,11 +10,21 @@ import { TaskType } from "./types";
  */
 const PATTERNS: Array<{ type: TaskType; test: RegExp }> = [
   { type: "compare", test: /\b(compare|versus|vs\.?|difference between|which is better)\b/i },
+  // Portuguese (gate ea5978c: "Por que existem as estações do ano?" was "chat", so a from-memory
+  // answer got no "not from the library" line). \b doesn't see accented letters: unaccented stems.
+  { type: "compare", test: /\bdiferen[çc]a entre\b|\bcompar(e|ar|a[çc][ãa]o)\b|\bqual [ée] melhor\b/i },
   { type: "summarize", test: /\b(summarize|summarise|summary of|tl;?dr)\b/i },
   { type: "translate", test: /\btranslate\b/i },
   { type: "code", test: /```|\b(write (a |some )?code|debug this|refactor|fix this function|regex for)\b/i },
   { type: "calculate", test: /\b(calculate|compute|how much is)\b|\d+\s*[+\-*/×÷]\s*\d/i },
   { type: "extract", test: /\b(extract|list all|pull out|find every)\b/i },
+  // Explanation/reasoning questions: never a one-sentence lookup, even when
+  // short and opening with "what" ("What caused the French Revolution?").
+  {
+    type: "research",
+    test: /^(why|how)\b|\b(explain|caused?|causes|effects? of|impacts?|relate[sd]?|relationship|contrast|implications?)\b/i,
+  },
+  { type: "research", test: /^(por ?qu[eê]|como)\s|\b(explique|explica|explicar|causou|causas?|efeitos? d[eao]s?|impactos?)\b/i },
 ];
 
 // Matches ONE greeting phrase, trailing punctuation only — not the whole
@@ -51,6 +61,9 @@ function isGreeting(trimmed: string): boolean {
 const CONVERSATION_RE =
   /^(?:what'?s?\s+(?:is\s+)?your\s+name|who\s+are\s+you|what\s+are\s+you|what\s+can\s+you\s+do|(?:how\s+)?can\s+you\s+help(?:\s+me)?|who\s+(?:made|built|created|trained)\s+you|are\s+you\s+(?:an?\s+)?(?:ai|bot|robot|human|real|person|chatgpt|online|offline)|how\s+do\s+you\s+work|(?:tell\s+me\s+)?(?:a\s+)?joke|what\s+time\s+is\s+it|what'?s?\s+(?:is\s+)?the\s+time|what\s+day\s+is\s+(?:it|today)|what'?s?\s+(?:is\s+)?today'?s\s+date)(?:\s+(?:please|again|now|today))?[\s!.?~]*$/i;
 
+const YES_NO =
+  /^(is|are|was|were|do|does|did|can|could|should|will|would|has|have|é|e|são|sao|era|foi|posso|pode|podem|devo|deve|precisa|preciso|tem|há|ha|existe|vale)(?![\p{L}])[^?]*\?\s*$/iu;
+
 export function classifyTask(query: string): TaskType {
   const trimmed = query.trim();
   if (!trimmed) return "unknown";
@@ -63,12 +76,16 @@ export function classifyTask(query: string): TaskType {
   }
 
   const wordCount = trimmed.split(/\s+/).length;
-  if (/^(who|what|when|where|which)\b/i.test(trimmed) && wordCount <= 12) {
+  if (/^(who|what|when|where|which|quem|o que|qual|quais|quando|onde|quantos?|quantas?)\s/i.test(`${trimmed} `) && wordCount <= 12) {
     return "lookup";
   }
   if (wordCount > 25 || /\b(research|analyze|analyse|investigate|explore|explain in depth)\b/i.test(trimmed)) {
     return "research";
   }
+  // A yes/no question is a question about the world ("Is tipping expected in restaurants in Portugal?", "É esperado
+  // dar gorjeta…?"): as "chat" the compact model answered it from memory with no source (Sextant trv-009: "tão ou
+  // tãozinho, 10%"); as a lookup it declines when the library has nothing on topic. Unicode boundaries ("É").
+  if (YES_NO.test(trimmed)) return "lookup";
   return "chat";
 }
 

@@ -1,0 +1,32 @@
+# NOVO NORTE: vegan places from the offline map, no network. Needs the Berlin places pack.
+# 'near me' depends on a GPS fix within LOCATION_TIMEOUT_MS; setLocation gives a fresh mock fix.
+appId: ${APP_ID || "team.sopa.aoair"}
+---
+- setAirplaneMode: enabled
+- launchApp
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "vegan restaurants in Berlin"
+- assertVisible:
+    text: "VEGAN · [0-9]+ PLACES"
+- assertVisible:
+    text: ".*OpenStreetMap contributors.*"
+- takeScreenshot: shots/04-places-berlin
+- setLocation:
+    latitude: 52.5244
+    longitude: 13.4105
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "best vegan restaurants near me"
+- assertVisible:
+    text: "(VEGAN · [0-9]+ PLACES|Which city\\?)"
+- takeScreenshot: shots/04-places-near-me
+- runFlow:
+    file: common/ask.yaml
+    env:
+      QUESTION: "vegan restaurants in Qujing"
+- assertVisible:
+    text: ".*Nothing here is guessed.*"
+- setAirplaneMode: disabled

@@ -1,0 +1,27 @@
+# Measured window: Send, stream to the end; if a quick passage offers "Answer with AI", stream that too.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- tapOn:
+    text: ${T_SEND}
+    waitToSettleTimeoutMs: 200
+- extendedWaitUntil:
+    visible: ${T_STOP}
+    timeout: 10000
+    optional: true
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- runFlow:
+    when:
+      visible: ${T_ASK_MODEL}
+    commands:
+      - tapOn:
+          text: ${T_ASK_MODEL}
+          waitToSettleTimeoutMs: 200
+      - extendedWaitUntil:
+          visible: ${T_STOP}
+          timeout: 10000
+          optional: true
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
