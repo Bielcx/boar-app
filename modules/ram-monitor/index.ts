@@ -7,9 +7,23 @@ export interface MemoryInfo {
   totalPssBytes: number;
 }
 
+export interface HardwareInfo {
+  /** Chipset model, e.g. "MT6897" (Android 12+; "" before that). */
+  socModel: string;
+  socManufacturer: string;
+  /** Build.HARDWARE, often the chipset's board name on older phones. */
+  hardware: string;
+  apiLevel: number;
+  /** The Features line of /proc/cpuinfo, e.g. "fp asimd ... asimddp ... i8mm". */
+  cpuFeatures: string;
+  /** Each core's top frequency in kHz, in core order; 0 where unknown. */
+  coreMaxFreqKHz: number[];
+}
+
 interface RamMonitorNativeModule {
   getMemoryInfo(): MemoryInfo;
   getDeviceTotalRamBytes(): number;
+  getHardwareInfo?(): HardwareInfo;
 }
 
 const RamMonitor = requireNativeModule<RamMonitorNativeModule>("RamMonitor");
@@ -24,5 +38,14 @@ export function getDeviceTotalRamBytes(): number {
     return RamMonitor.getDeviceTotalRamBytes();
   } catch {
     return 0;
+  }
+}
+
+/** The phone's chipset and CPU, or null on a native build that predates this call. */
+export function getHardwareInfo(): HardwareInfo | null {
+  try {
+    return RamMonitor.getHardwareInfo ? RamMonitor.getHardwareInfo() : null;
+  } catch {
+    return null;
   }
 }
