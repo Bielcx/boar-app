@@ -1,0 +1,4 @@
+appId: ${APP_ID || "team.sopa.aoair"}
+---
+- tapOn: "Open menu"
+- tapOn: "Settings"

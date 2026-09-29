@@ -1,19 +1,26 @@
 import * as SQLite from "expo-sqlite";
+import { abortAllWork } from "./cancellation";
+import { registerResetHook } from "../services/resetOrder";
+import { DbClosedError, guard, type Guarded } from "./guardedDb";
 
 const DB_NAME = "aoair_knowledge.db";
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let dbPromise: Promise<Guarded<SQLite.SQLiteDatabase>> | null = null;
+let resetting: Promise<void> | null = null;
 
 /**
  * Opens (and lazily creates) the local knowledge base: an FTS5 virtual table
  * for lexical search plus a parallel table of vector embeddings for semantic
  * search. Entirely local — expo-sqlite is a native binding, no network.
+ *
+ * The connection is guarded (src/rag/guardedDb.ts): once resetDatabase() starts, calls on it — also through a handle
+ * saved earlier — reject with DbClosedError instead of reaching a closing native connection. A call during a reset
+ * waits for it and gets a fresh connection.
  */
-export function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = openAndMigrate();
-  }
-  return dbPromise;
+export async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (resetting) await resetting;
+  dbPromise ??= openAndMigrate().then((db) => guard(db, "knowledge base"));
+  return (await dbPromise).db;
 }
 
 let writeChain: Promise<unknown> = Promise.resolve();
@@ -29,6 +36,9 @@ export function writeTransaction(
   work: (db: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   const run = writeChain.then(async () => {
+    // A write that reaches the front of the queue during a reset fails instead of waiting for it: the reset waits
+    // for this queue, so waiting here would deadlock (and the write would land in the fresh database).
+    if (resetting) throw new DbClosedError("knowledge base");
     const db = await getDb();
     await db.withTransactionAsync(() => work(db));
   });
@@ -37,20 +47,45 @@ export function writeTransaction(
 }
 
 /**
- * Closes and deletes the on-disk database (chat history, the whole
- * knowledge base — bundled corpus, downloaded packs, and custom imported
- * collections all live in this one file) and clears the cached connection
- * so the next getDb() call creates a fresh one. Used by appReset.ts's
- * "Clear All Data" — not called during normal operation.
+ * Empties the knowledge base on the connection that is already open (RS-1: expo-sqlite 57's native close crashes on
+ * a connection that used FTS5, so "Erase everything" never closes or deletes the database file). Stops indexing and
+ * imports first (their next call finds the data gone or aborts), lets queued writes finish or fail, then deletes every
+ * row of every data table — chat history, the bundled corpus, custom collections, telemetry — in one transaction with
+ * foreign keys checked at commit, and compacts the file. The connection stays open and ready for the setup.
+ * Concurrent calls share one run.
  */
-export async function resetDatabase(): Promise<void> {
-  if (dbPromise) {
-    const db = await dbPromise;
-    await db.closeAsync();
-    dbPromise = null;
-  }
-  await SQLite.deleteDatabaseAsync(DB_NAME);
+export function wipeDatabase(): Promise<void> {
+  resetting ??= (async () => {
+    abortAllWork();
+    await writeChain.catch(() => {});
+    // Opened here if nothing opened it yet in this process ("Erase everything" right after launch): an unopened
+    // database still holds the old data. Not through getDb(), which waits for this very reset.
+    const { db } = await (dbPromise ??= openAndMigrate().then((d) => guard(d, "knowledge base")));
+    const tables = await db.getAllAsync<{ name: string; sql: string | null }>(
+      "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    );
+    // FTS5 keeps its data in shadow tables (chunks_fts_data, …); deleting from the virtual table empties them.
+    const virtual = tables.filter((t) => /^CREATE VIRTUAL TABLE/i.test(t.sql ?? "")).map((t) => t.name);
+    const data = tables.map((t) => t.name).filter((n) => !virtual.some((v) => n.startsWith(`${v}_`)));
+    await db.withTransactionAsync(async () => {
+      await db.execAsync("PRAGMA defer_foreign_keys = ON");
+      for (const name of data) await db.execAsync(`DELETE FROM "${name.replace(/"/g, '""')}"`);
+    });
+    await db.execAsync("VACUUM").catch((e) => console.warn("[db] VACUUM after wipe failed:", e?.message ?? e));
+    // journal_mode is WAL: pages with the erased text can sit in the -wal file until a checkpoint.
+    await db
+      .execAsync("PRAGMA wal_checkpoint(TRUNCATE)")
+      .catch((e) => console.warn("[db] WAL checkpoint after wipe failed:", e?.message ?? e));
+  })().finally(() => {
+    resetting = null;
+  });
+  return resetting;
 }
+
+/** @deprecated "Erase everything" empties the database (wipeDatabase); kept for callers of the first contract. */
+export const resetDatabase = wipeDatabase;
+
+registerResetHook("wipe", "knowledge-base", wipeDatabase);
 
 async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
@@ -197,6 +232,33 @@ export async function insertChunk(
   });
 }
 
+/** Deletes seed-corpus chunks (never user-imported ones) by id; ids that aren't there are ignored. */
+export async function deleteSeedChunks(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const marks = ids.map(() => "?").join(", ");
+  const seedRows = `SELECT chunk_id FROM chunks WHERE collection_id IS NULL AND chunk_id IN (${marks})`;
+  await writeTransaction(async (txn) => {
+    await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id IN (${seedRows})`, ids);
+    await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id IN (${seedRows})`, ids);
+    await txn.runAsync(seedRows.replace("SELECT chunk_id FROM", "DELETE FROM"), ids);
+  });
+}
+
+/** Deletes seed-corpus chunks whose id starts with `prefix`; returns how many. */
+export async function deleteSeedChunksWithPrefix(prefix: string): Promise<number> {
+  // GLOB, not LIKE: case-sensitive, and "_" in an id isn't a wildcard.
+  const pattern = `${prefix.replace(/[*?[\]]/g, "")}*`;
+  const seedRows = `SELECT chunk_id FROM chunks WHERE collection_id IS NULL AND chunk_id GLOB ?`;
+  let removed = 0;
+  await writeTransaction(async (txn) => {
+    await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id IN (${seedRows})`, [pattern]);
+    await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id IN (${seedRows})`, [pattern]);
+    const r = await txn.runAsync(seedRows.replace("SELECT chunk_id FROM", "DELETE FROM"), [pattern]);
+    removed = r.changes;
+  });
+  return removed;
+}
+
 export interface CustomCollection {
   id: string;
   name: string;
@@ -257,16 +319,13 @@ export async function setCustomCollectionActive(id: string, active: boolean): Pr
 }
 
 export async function deleteCustomCollection(id: string): Promise<void> {
+  // Embeddings reference chunks, so they go first; chunks_fts has no index on
+  // chunk_id, so it's cleared in one pass instead of one scan per chunk.
+  const rows = `SELECT chunk_id FROM chunks WHERE collection_id = ?`;
   await writeTransaction(async (txn) => {
-    const rows = await txn.getAllAsync<{ chunk_id: string }>(
-      `SELECT chunk_id FROM chunks WHERE collection_id = ?`,
-      [id]
-    );
-    for (const r of rows) {
-      await txn.runAsync(`DELETE FROM chunks WHERE chunk_id = ?`, [r.chunk_id]);
-      await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id = ?`, [r.chunk_id]);
-      await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id = ?`, [r.chunk_id]);
-    }
+    await txn.runAsync(`DELETE FROM chunk_embeddings WHERE chunk_id IN (${rows})`, [id]);
+    await txn.runAsync(`DELETE FROM chunks_fts WHERE chunk_id IN (${rows})`, [id]);
+    await txn.runAsync(`DELETE FROM chunks WHERE collection_id = ?`, [id]);
     await txn.runAsync(`DELETE FROM custom_collections WHERE id = ?`, [id]);
   });
 }

@@ -170,3 +170,43 @@ describe("conversation: questions to the assistant and chit-chat", () => {
     expect(isRetrievalIrrelevant(classifyTask(q))).toBe(false);
   });
 });
+
+describe("classifyTask explanation questions", () => {
+  it("treats why/how/cause/relationship questions as research, not a one-sentence lookup", () => {
+    expect(classifyTask("What caused the French Revolution?")).toBe("research");
+    expect(classifyTask("Why is the sky blue?")).toBe("research");
+    expect(classifyTask("How does inflation relate to interest rates?")).toBe("research");
+    expect(classifyTask("Contrast mitosis with meiosis")).toBe("research");
+  });
+
+  it("keeps short factual questions as lookups", () => {
+    expect(classifyTask("What is the capital of Australia?")).toBe("lookup");
+    expect(classifyTask("Who wrote Dom Casmurro?")).toBe("lookup");
+  });
+});
+
+describe("classifyTask Portuguese questions (gate ea5978c)", () => {
+  it("classifies PT questions like their English forms", () => {
+    expect(classifyTask("Por que existem as estações do ano?")).toBe("research");
+    expect(classifyTask("Por que existem as estacoes do ano?")).toBe("research");
+    expect(classifyTask("Como funciona o efeito estufa?")).toBe("research");
+    expect(classifyTask("Quem pintou a Mona Lisa?")).toBe("lookup");
+    expect(classifyTask("O que é matéria escura?")).toBe("lookup");
+    expect(classifyTask("Qual a capital da Austrália?")).toBe("lookup");
+    expect(classifyTask("Qual a diferença entre fusão e fissão nuclear?")).toBe("compare");
+    expect(classifyTask("Obrigado pela ajuda")).toBe("chat");
+  });
+});
+
+describe("classifyTask yes/no questions (Sextant trv-009)", () => {
+  it("a yes/no question about the world is a lookup, EN and PT", () => {
+    for (const q of ["Is tipping expected in restaurants in Portugal?", "É esperado dar gorjeta em restaurantes em Portugal?", "Did the 20th century begin on January 1, 1900 or January 1, 1901?", "Posso beber água da torneira na Cidade do México?"]) expect(classifyTask(q), q).toBe("lookup");
+  });
+  it("not greetings, not statements", () => {
+    expect(classifyTask("Is it going well?")).toBe("lookup");
+    expect(classifyTask("hi")).toBe("greeting");
+    expect(classifyTask("Obrigado pela ajuda")).toBe("chat");
+    // A question to the assistant, answered without the library (the "conversation" type above).
+    expect(classifyTask("Can you help me")).toBe("conversation");
+  });
+});

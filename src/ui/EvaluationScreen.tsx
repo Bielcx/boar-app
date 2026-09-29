@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { impact, ImpactFeedbackStyle } from "../services/haptics";
 import { llamaEngine } from "../inference/LlamaEngine";
@@ -14,11 +14,16 @@ import { resultsSharingAvailable, shareDevice, shareEvalRun } from "../eval/shar
 import type { ShareDevice, ShareResult } from "../eval/shareResults.pure";
 import { SharePreview } from "./SharePreview";
 import appConfig from "../../app.json";
-import { colors } from "./theme/colors";
-import { typography } from "./theme/typography";
-import { spacing, radii } from "./theme/spacing";
+import { Button, IconSlot, Progress, Screen, Section, Skeleton, Text, useOpticalLine, useToast } from "./components";
+import { ScreenTitle } from "./flows/ScreenTitle";
+import { screenRhythm } from "./flows/rhythm";
+import type { TextColor } from "./components";
+import { icon, useTokens } from "./theme";
+import { useMotion } from "./theme/motion";
+import { userErrorKey } from "./flows/userError";
 
 interface Props {
+  /** Shown as a Done button when the screen is opened outside the navigation stack (device requests). */
   onClose?: () => void;
   /** A chat reply is still generating — running an evaluation now would fight it for the model. */
   chatBusy?: boolean;
@@ -31,10 +36,10 @@ function formatMs(ms: number | undefined): string {
   return ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
-function outcomeColor(outcome: EvalResultRow["outcome"]): string {
-  if (outcome === "failure") return colors.crimson[400];
-  if (outcome === "cancelled") return colors.amber[400];
-  return colors.text.accentEmerald;
+function outcomeColor(outcome: EvalResultRow["outcome"]): TextColor {
+  if (outcome === "failure") return "danger";
+  if (outcome === "cancelled") return "warning";
+  return "success";
 }
 
 /**
@@ -44,6 +49,9 @@ function outcomeColor(outcome: EvalResultRow["outcome"]): string {
  */
 export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const { t } = useTranslation();
+  const tokens = useTokens();
+  const bodyLine = useOpticalLine("body");
+  const toast = useToast();
   const [models, setModels] = useState<CatalogModel[] | null>(null);
   const [preset, setPreset] = useState<string>("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -53,6 +61,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   const [rows, setRows] = useState<EvalResultRow[]>([]);
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const motion = useMotion();
   const [sharing, setSharing] = useState(false);
   const [shared, setShared] = useState<string | null>(null);
   const [previewDevice, setPreviewDevice] = useState<ShareDevice | null>(null);
@@ -68,6 +77,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   }, []);
 
   const configs: EvalConfig[] = [
+    // The model's real name, not its role ("Fast"): it is saved with every answer and shared with other phones.
     ...(models ?? []).map((m): EvalConfig => ({ kind: "model", modelId: m.id, label: m.label })),
     { kind: "adaptive", label: t("evaluation.adaptiveConfig", { preset }) },
   ];
@@ -102,7 +112,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
         : await runEvaluation({ configs: chosen, ...callbacks });
       setRun(result);
     } catch (e: any) {
-      Alert.alert(t("evaluation.runFailedTitle"), e?.message ?? String(e));
+      toast({ message: `${t("evaluation.runFailedTitle")}: ${t(userErrorKey(e))}`, tone: "danger" });
     } finally {
       setRunning(false);
       setStopping(false);
@@ -123,7 +133,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     try {
       await exportEvalResults(run, format);
     } catch (e: any) {
-      Alert.alert(t("evaluation.exportFailedTitle"), e?.message ?? String(e));
+      toast({ message: `${t("evaluation.exportFailedTitle")}: ${t(userErrorKey(e))}`, tone: "danger" });
     }
   };
 
@@ -135,8 +145,11 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     setPreviewDevice(shareDevice());
   };
 
+  // A second tap before the button re-renders disabled must not send the run again.
+  const sendingRef = useRef(false);
   const confirmShare = async () => {
-    if (!run) return;
+    if (!run || sendingRef.current) return;
+    sendingRef.current = true;
     setSharing(true);
     let result: ShareResult = "failed";
     try {
@@ -144,11 +157,12 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     } catch {
       // e.g. the install id couldn't be saved; reported as a failed share below.
     } finally {
+      sendingRef.current = false;
       setSharing(false);
     }
     setPreviewDevice(null);
     if (result === "shared" || result === "already-shared") setShared(run.runId);
-    Alert.alert(t("evaluation.shareTitle"), t(`evaluation.shareResult.${result}`));
+    toast({ message: t(`evaluation.shareResult.${result}`), tone: result === "shared" || result === "already-shared" ? "success" : "danger" });
   };
 
   const canRun = !running && !chatBusy && chosen.length > 0 && models !== null;
@@ -163,140 +177,169 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
   }, [deviceRequest, models]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>🧪</Text>
-          <View>
-            <Text style={styles.headerTitle}>{t("evaluation.title")}</Text>
-            <Text style={styles.headerSubtitle}>
-              {t("evaluation.subtitle", { version: EVAL_SET_VERSION, count: EVAL_SET.length })}
-            </Text>
-          </View>
-        </View>
-        {!running && (
-          <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>{t("common.done")}</Text>
-          </Pressable>
+    // The flow screens' 14 pt rhythm, like its siblings (Prism FL-29).
+    <Screen contentStyle={screenRhythm(tokens)}>
+      {!onClose && <ScreenTitle>{t("flows.performance.evaluationTitle")}</ScreenTitle>}
+      <View style={{ gap: tokens.space.xs }}>
+        {onClose && !running && (
+          <Button size="sm" variant="ghost" label={t("common.done")} onPress={onClose} style={{ alignSelf: "flex-end" }} />
+        )}
+        <Text variant="callout" color="secondary">
+          {t("evaluation.subtitle", { version: EVAL_SET_VERSION, count: EVAL_SET.length })}
+        </Text>
+        {deviceRequest && (
+          <Text variant="footnote" color="secondary">
+            {t("evaluation.deviceRequest", { id: deviceRequest.requestId })}
+          </Text>
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {deviceRequest && (
-          <Text style={styles.note}>{t("evaluation.deviceRequest", { id: deviceRequest.requestId })}</Text>
-        )}
-        <Text style={styles.sectionTitle}>{t("evaluation.configsTitle")}</Text>
-        {deviceRequest ? null : models === null ? (
-          <ActivityIndicator color={colors.emerald[400]} />
-        ) : (
-          <>
-            {models.length === 0 && <Text style={styles.note}>{t("evaluation.noModels")}</Text>}
-            {configs.map((c) => {
-              const id = evalConfigId(c);
-              const on = selected.has(id);
-              return (
-                <Pressable key={id} style={styles.configRow} onPress={() => toggle(id)}>
-                  <Text style={[styles.checkbox, on && styles.checkboxOn]}>{on ? "☑" : "☐"}</Text>
-                  <Text style={styles.configLabel} numberOfLines={1}>
-                    {c.label}
+      {!deviceRequest && (
+        <Section title={t("evaluation.configsTitle")}>
+          {models === null ? (
+            <View style={{ padding: tokens.space.base }}>
+              <Skeleton height={tokens.size.row} />
+            </View>
+          ) : (
+            <>
+              {models.length === 0 && (
+                <View style={{ padding: tokens.space.base }}>
+                  <Text variant="callout" color="secondary">
+                    {t("evaluation.noModels")}
                   </Text>
-                </Pressable>
-              );
-            })}
-          </>
-        )}
+                </View>
+              )}
+              {configs.map((c) => {
+                const id = evalConfigId(c);
+                const on = selected.has(id);
+                return (
+                  <Pressable
+                    key={id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on, disabled: running }}
+                    accessibilityLabel={c.label}
+                    onPress={() => toggle(id)}
+                    style={{ minHeight: tokens.size.row, paddingHorizontal: tokens.space.base, paddingVertical: tokens.space.md, flexDirection: "row", alignItems: "flex-start", gap: icon.gap }}
+                  >
+                    <IconSlot name={on ? "check-square" : "square"} line={bodyLine} color={on ? tokens.color.accent.text : tokens.color.text.secondary} />
+                    <Text variant="body" style={{ flex: 1 }}>
+                      {c.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
+        </Section>
+      )}
 
+      <View style={{ gap: tokens.space.sm }}>
         {!deviceRequest && (
-          <Text style={styles.note}>
+          <Text variant="footnote" color="secondary">
             {t("evaluation.summary", { queries: EVAL_SET.length, configs: chosen.length, total: EVAL_SET.length * chosen.length })}
           </Text>
         )}
-        <Text style={styles.note}>{chatBusy ? t("evaluation.chatBusy") : t("evaluation.keepScreenOn")}</Text>
-
-        <View style={styles.actionsRow}>
+        <Text variant="footnote" color={chatBusy ? "warning" : "secondary"}>
+          {chatBusy ? t("evaluation.chatBusy") : t("evaluation.keepScreenOn")}
+        </Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.space.sm }}>
           {running ? (
-            <Pressable style={[styles.actionBtn, styles.stopBtn]} onPress={handleStop} disabled={stopping}>
-              <Text style={[styles.actionBtnText, styles.stopBtnText]}>
-                {stopping ? t("evaluation.stopping") : t("evaluation.stop")}
-              </Text>
-            </Pressable>
+            <Button variant="destructive" icon="square" label={stopping ? t("evaluation.stopping") : t("evaluation.stop")} onPress={handleStop} disabled={stopping} />
           ) : (
-            <Pressable style={[styles.actionBtn, !canRun && styles.disabled]} onPress={handleRun} disabled={!canRun}>
-              <Text style={styles.actionBtnText}>{t("evaluation.run")}</Text>
-            </Pressable>
+            <Button label={t("evaluation.run")} icon="play" onPress={handleRun} disabled={!canRun} />
           )}
           {run && !running && (
             <>
-              <Pressable style={styles.actionBtn} onPress={() => handleExport("jsonl")}>
-                <Text style={styles.actionBtnText}>{t("evaluation.exportJsonl")}</Text>
-              </Pressable>
-              <Pressable style={styles.actionBtn} onPress={() => handleExport("csv")}>
-                <Text style={styles.actionBtnText}>{t("evaluation.exportCsv")}</Text>
-              </Pressable>
+              <Button size="sm" variant="secondary" icon="share" label={t("evaluation.exportJsonl")} onPress={() => handleExport("jsonl")} />
+              <Button size="sm" variant="secondary" icon="share" label={t("evaluation.exportCsv")} onPress={() => handleExport("csv")} />
               {resultsSharingAvailable && (
-                <Pressable
-                  style={[styles.actionBtn, (sharing || shared === run.runId) && styles.disabled]}
+                <Button
+                  size="sm"
+                  icon="upload"
+                  label={sharing ? t("evaluation.sharing") : shared === run.runId ? t("evaluation.shared") : t("evaluation.share")}
                   onPress={handleShare}
                   disabled={sharing || shared === run.runId}
-                >
-                  <Text style={styles.actionBtnText}>
-                    {sharing ? t("evaluation.sharing") : shared === run.runId ? t("evaluation.shared") : t("evaluation.share")}
-                  </Text>
-                </Pressable>
+                />
               )}
             </>
           )}
         </View>
+      </View>
 
-        {progress && (
-          <View style={styles.progressBox}>
-            <Text style={styles.progressText}>
-              {t("evaluation.progress", {
-                config: progress.configIndex + 1,
-                configs: progress.configCount,
-                query: progress.queryIndex + 1,
-                queries: progress.queryCount,
-              })}
-            </Text>
-            <Text style={styles.progressQuery} numberOfLines={2}>
-              {progress.config.label} — {progress.query.query}
-            </Text>
-          </View>
-        )}
-
-        {run && (
-          <Text style={styles.note} selectable>
-            {run.stopped ? `${t("evaluation.stoppedEarly")} ` : ""}
-            {t("evaluation.savedTo", { path: run.savedPath })}
+      {progress && (
+        <View style={{ gap: tokens.space.xs }}>
+          <Progress
+            label={t("evaluation.title")}
+            value={(progress.configIndex * progress.queryCount + progress.queryIndex) / (progress.configCount * progress.queryCount)}
+            valueText={t("evaluation.progress", {
+              config: progress.configIndex + 1,
+              configs: progress.configCount,
+              query: progress.queryIndex + 1,
+              queries: progress.queryCount,
+            })}
+          />
+          <Text variant="footnote" color="secondary">
+            {t("evaluation.progress", {
+              config: progress.configIndex + 1,
+              configs: progress.configCount,
+              query: progress.queryIndex + 1,
+              queries: progress.queryCount,
+            })}
           </Text>
-        )}
+          <Text variant="footnote" color="secondary" numberOfLines={2}>
+            {progress.config.label} — {progress.query.query}
+          </Text>
+        </View>
+      )}
 
-        {rows.map((r) => {
-          const key = `${r.configId}/${r.queryId}`;
-          const open = expanded === key;
-          return (
-            <Pressable key={key} style={styles.row} onPress={() => setExpanded(open ? null : key)}>
-              <View style={styles.rowHeader}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {r.queryId} · {r.configLabel}
+      {run && (
+        <Text variant="footnote" color="secondary" selectable>
+          {run.stopped ? `${t("evaluation.stoppedEarly")} ` : ""}
+          {t("evaluation.savedTo", { path: run.savedPath })}
+        </Text>
+      )}
+
+      {rows.length > 0 && (
+        <Section>
+          {rows.map((r) => {
+            const key = `${r.configId}/${r.queryId}`;
+            const open = expanded === key;
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+                accessibilityLabel={`${r.queryId}, ${r.configLabel}, ${r.outcome ?? ""}`}
+                onPress={() => {
+                  motion.animateNextLayout();
+                  setExpanded(open ? null : key);
+                }}
+                style={{ padding: tokens.space.base, gap: tokens.space.xxs }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: tokens.space.sm }}>
+                  <Text variant="subhead" numberOfLines={1} style={{ flex: 1 }}>
+                    {r.queryId} · {r.configLabel}
+                  </Text>
+                  <Text variant="caption" color={outcomeColor(r.outcome)} weight="semibold">
+                    {(r.outcome ?? "—").toUpperCase()}
+                  </Text>
+                </View>
+                <Text variant="caption" color="secondary">
+                  {r.modelId ?? "—"} · {r.taskType ?? "—"} · {r.modelResidency ?? "—"} ·{" "}
+                  {r.retrievalUsed ? r.retrievedTitles.slice(0, 2).join(", ") : t("evaluation.noRetrieval")}
                 </Text>
-                <Text style={[styles.outcome, { color: outcomeColor(r.outcome) }]}>{(r.outcome ?? "—").toUpperCase()}</Text>
-              </View>
-              <Text style={styles.meta}>
-                {r.modelId ?? "—"} · {r.taskType ?? "—"} · {r.modelResidency ?? "—"} ·{" "}
-                {r.retrievalUsed ? r.retrievedTitles.slice(0, 2).join(", ") : t("evaluation.noRetrieval")}
-              </Text>
-              <Text style={styles.meta}>
-                {r.tokPerSec ? `${r.tokPerSec.toFixed(1)} t/s` : "—"} · load {formatMs(r.modelLoadMs)} · TTFT {formatMs(r.ttftMs)} · total{" "}
-                {formatMs(r.totalLatencyMs)}
-              </Text>
-              <Text style={styles.answer} numberOfLines={open ? undefined : 3}>
-                {r.errorMessage && r.outcome === "failure" ? r.errorMessage : r.answer}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <Text variant="caption" color="secondary" numeric>
+                  {r.tokPerSec ? `${r.tokPerSec.toFixed(1)} t/s` : "—"} · load {formatMs(r.modelLoadMs)} · TTFT {formatMs(r.ttftMs)} · total{" "}
+                  {formatMs(r.totalLatencyMs)}
+                </Text>
+                <Text variant="footnote" numberOfLines={open ? undefined : 3}>
+                  {r.errorMessage && r.outcome === "failure" ? r.errorMessage : r.answer}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </Section>
+      )}
       {run && previewDevice && (
         <SharePreview
           visible
@@ -308,85 +351,6 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
           onShare={confirmShare}
         />
       )}
-    </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg.surface },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-    backgroundColor: colors.bg.cardElevated,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  headerIcon: { fontSize: 20 },
-  headerTitle: { ...typography.ui.titleSm, color: colors.text.heading, letterSpacing: 0.5 },
-  headerSubtitle: { ...typography.mono.xs, fontSize: 9, color: colors.text.dim },
-  closeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.xs,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-  },
-  closeBtnText: { ...typography.mono.xs, color: colors.text.accentCyan, fontWeight: "600" },
-  scrollContent: { padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xxxl },
-  sectionTitle: { ...typography.ui.subtext, color: colors.text.heading, fontWeight: "700" },
-  configRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: 8,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bg.cardElevated,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  checkbox: { fontSize: 16, color: colors.text.dim },
-  checkboxOn: { color: colors.text.accentEmerald },
-  configLabel: { ...typography.ui.subtext, color: colors.text.primary, flex: 1 },
-  note: { ...typography.mono.xs, fontSize: 10, color: colors.text.dim },
-  actionsRow: { flexDirection: "row", gap: spacing.sm },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bg.cardElevated,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    alignItems: "center",
-  },
-  actionBtnText: { ...typography.mono.xs, color: colors.text.accentCyan, fontWeight: "600" },
-  stopBtn: { borderColor: colors.crimson.border, backgroundColor: colors.crimson.bgSubtle },
-  stopBtnText: { color: colors.crimson[400] },
-  disabled: { opacity: 0.4 },
-  progressBox: {
-    padding: spacing.sm,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    backgroundColor: colors.bg.cardElevated,
-    gap: 4,
-  },
-  progressText: { ...typography.mono.xs, color: colors.text.accentCyan, fontWeight: "600" },
-  progressQuery: { ...typography.ui.subtext, color: colors.text.primary },
-  row: {
-    backgroundColor: colors.bg.cardElevated,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    padding: spacing.sm,
-    gap: 4,
-  },
-  rowHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  rowTitle: { ...typography.ui.subtext, color: colors.text.heading, fontWeight: "700", flex: 1 },
-  outcome: { ...typography.mono.xs, fontSize: 9, fontWeight: "600" },
-  meta: { ...typography.mono.xs, fontSize: 9, color: colors.text.dim },
-  answer: { ...typography.ui.subtext, color: colors.text.primary },
-});

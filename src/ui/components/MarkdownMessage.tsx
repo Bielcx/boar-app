@@ -1,368 +1,259 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Share } from "react-native";
-import { impact, ImpactFeedbackStyle } from "../../services/haptics";
-import { useTheme } from "../theme";
-import { spacing, radii } from "../theme/spacing";
+import React, { memo, useMemo } from "react";
+import { Text as RNText, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { useTranslation } from "react-i18next";
+import { IconButton, Text, useToast, type TextColor } from ".";
+import { useTokens } from "../theme";
+import { parseMarkdown, sameBlock, type Block, type Inline } from "../chat/markdown";
+import { toneTail } from "../chat/streamReveal";
 
 interface Props {
   content: string;
+  /** Titles of the answer's sources: "[n]" becomes a link to sources[n - 1]. */
+  sourceTitles?: string[];
+  onCitationPress?: (n: number) => void;
   isStreaming?: boolean;
+  /** The newest characters still fading in (SEND-MOTION v2 P1), drawn in the last block. */
+  tail?: Tail;
 }
 
-interface Block {
-  type: "text" | "code";
-  content: string;
-  language?: string;
-}
+type Tail = { tertiary: number; secondary: number };
+const NO_TAIL: Tail = { tertiary: 0, secondary: 0 };
 
-function parseBlocks(text: string): Block[] {
-  const blocks: Block[] = [];
-  const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      blocks.push({
-        type: "text",
-        content: text.slice(lastIndex, match.index),
-      });
-    }
-    blocks.push({
-      type: "code",
-      language: match[1]?.trim() || "CODE",
-      content: match[2]?.replace(/\n$/, "") || "",
-    });
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    blocks.push({
-      type: "text",
-      content: text.slice(lastIndex),
-    });
-  }
-
-  return blocks;
-}
-
-function CodeBlockView({
-  code,
-  language,
-  colors,
-  typography,
+function Inlines({
+  inlines,
+  sourceTitles,
+  onCitationPress,
+  tail = NO_TAIL,
 }: {
-  code: string;
-  language?: string;
-  colors: any;
-  typography: any;
+  inlines: Inline[];
+  sourceTitles: string[];
+  onCitationPress?: (n: number) => void;
+  tail?: Tail;
 }) {
-  const [copied, setCopied] = useState(false);
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  return (
+    <>
+      {toneTail(inlines, tail).map(({ part, tone }, i) => {
+        // A fading character takes a lighter text tone (nested Text has color, not opacity). The newest step
+        // is text.disabled: the DS's tertiary equals secondary, and the fade needs a fainter start.
+        const color: TextColor | undefined = tone === "secondary" ? "secondary" : undefined;
+        const faint = tone === "tertiary" ? { color: t.color.text.disabled } : null;
+        switch (part.type) {
+          case "bold":
+            return (
+              <Text key={i} weight="semibold" color={color} style={faint}>
+                {part.text}
+              </Text>
+            );
+          case "italic":
+            return (
+              <Text key={i} style={[{ fontStyle: "italic" }, faint]} color={color}>
+                {part.text}
+              </Text>
+            );
+          case "code":
+            return (
+              <Text key={i} variant="mono" style={[{ backgroundColor: t.color.bg.sunken }, faint]} color={color}>
+                {part.text}
+              </Text>
+            );
+          case "cite":
+            // A nested Text link, not a chip: hitSlop doesn't apply inside text and
+            // adjacent markers would overlap. The source strip is the large target.
+            return (
+              <Text
+                key={i}
+                color={color ?? "field"}
+                style={faint}
+                weight="semibold"
+                numeric
+                onPress={onCitationPress ? () => onCitationPress(part.n) : undefined}
+                accessibilityRole="link"
+                accessibilityLabel={tr("chat.sources.cite", { n: part.n, title: sourceTitles[part.n - 1] ?? "" })}
+                maxFontSizeMultiplier={1.5}
+              >
+                {`[${part.n}]`}
+              </Text>
+            );
+          default:
+            // A raw nested Text: it inherits the block's type (a heading stays a heading) and only
+            // changes the colour; the DS Text would reset it to body for the fade.
+            return color || faint ? (
+              <RNText key={i} style={faint ?? { color: t.color.text.secondary }}>
+                {part.text}
+              </RNText>
+            ) : (
+              part.text
+            );
+        }
+      })}
+    </>
+  );
+}
 
-  const handleCopy = async () => {
-    try {
-      impact(ImpactFeedbackStyle.Light);
-      await Share.share({ message: code });
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback
-    }
-  };
+function CodeBlock({ language, code }: { language: string; code: string }) {
+  const t = useTokens();
+  const { t: tr } = useTranslation();
+  const toast = useToast();
+  return (
+    <View style={{ backgroundColor: t.color.bg.sunken, borderRadius: t.radius.md, overflow: "hidden" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingLeft: t.space.md,
+          borderBottomWidth: t.size.hairline,
+          borderBottomColor: t.color.line.hairline,
+        }}
+      >
+        <Text variant="caption" color="tertiary">
+          {language || "code"}
+        </Text>
+        <IconButton
+          icon="copy"
+          size="sm"
+          label={tr("chat.actions.copy")}
+          onPress={async () => {
+            await Clipboard.setStringAsync(code);
+            toast({ message: tr("chat.actions.copied") });
+          }}
+        />
+      </View>
+      <Text variant="mono" selectable style={{ padding: t.space.md }}>
+        {code}
+      </Text>
+    </View>
+  );
+}
 
+/** The mockup's streaming cursor: a 9x17 ember bar right after the last word ("…treatment▌"), hidden from screen readers. */
+function Caret() {
+  const t = useTokens();
   return (
     <View
-      style={[
-        styles.codeBlock,
-        {
-          backgroundColor: colors.bg.terminal,
-          borderColor: colors.border.default,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.codeHeader,
-          {
-            backgroundColor: colors.bg.cardElevated,
-            borderBottomColor: colors.border.default,
-          },
-        ]}
-      >
-        <View style={styles.codeHeaderLeft}>
-          <View
-            style={[
-              styles.codeIndicatorDot,
-              { backgroundColor: colors.emerald[400] },
-            ]}
-          />
-          <Text
-            style={[
-              typography.mono.xs,
-              { color: colors.text.secondary, fontWeight: "700" },
-            ]}
-          >
-            {(language || "plaintext").toUpperCase()}
-          </Text>
-        </View>
-        <Pressable
-          style={[
-            styles.copyBtn,
-            { backgroundColor: "rgba(255, 255, 255, 0.08)" },
-            copied && {
-              backgroundColor: colors.emerald.bgSubtle,
-              borderColor: colors.emerald.border,
-              borderWidth: 1,
-            },
-          ]}
-          onPress={handleCopy}
-          hitSlop={8}
-        >
-          <Text
-            style={[
-              typography.mono.xs,
-              {
-                color: copied ? colors.text.accentEmerald : colors.text.muted,
-                fontWeight: "700",
-              },
-            ]}
-          >
-            {copied ? "✓ SHARED" : "COPY / SHARE"}
-          </Text>
-        </Pressable>
-      </View>
-      <View style={styles.codeBody}>
-        <Text
-          style={[
-            typography.mono.sm,
-            { color: colors.text.primary, lineHeight: 19 },
-          ]}
-          selectable
-        >
-          {code}
-        </Text>
-      </View>
-    </View>
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{ width: t.space.sm + 1, height: t.space.base + 1, borderRadius: t.space.xxs, marginLeft: t.space.xxs, backgroundColor: t.color.accent.solid }}
+    />
   );
 }
 
-export function MarkdownMessage({ content, isStreaming }: Props) {
-  const { colors, typography } = useTheme();
-  const blocks = parseBlocks(content);
+interface BlockProps {
+  block: Block;
+  sourceTitles: string[];
+  onCitationPress?: (n: number) => void;
+  /** Streaming cursor drawn inline at the end of this block's text (the last block). */
+  caret?: boolean;
+  /** The fading tail (the last block while streaming). */
+  tail?: Tail;
+}
 
-  const renderInline = (text: string) => {
-    const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
-        const codeSnippet = part.slice(1, -1);
-        return (
-          <Text
-            key={index}
-            style={[
-              typography.mono.sm,
-              styles.inlineCode,
-              {
-                backgroundColor: "rgba(0, 0, 0, 0.45)",
-                color: colors.text.accentCyan,
-                borderColor: colors.cyan.border,
-              },
-            ]}
-            selectable
-          >
-            {codeSnippet}
-          </Text>
-        );
-      }
-      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-        const boldText = part.slice(2, -2);
-        return (
-          <Text
-            key={index}
-            style={[
-              typography.ui.bodyLg,
-              { fontWeight: "800", color: colors.text.heading },
-            ]}
-            selectable
-          >
-            {boldText}
-          </Text>
-        );
-      }
+const sameTitles = (a: string[], b: string[]) => a === b || (a.length === b.length && a.every((x, i) => x === b[i]));
+
+function BlockContent({ block, sourceTitles, onCitationPress, caret: withCaret, tail }: BlockProps) {
+  const t = useTokens();
+  const caret = withCaret ? <Caret /> : null;
+  const inl = (inlines: Inline[]) => (
+    <Inlines inlines={inlines} sourceTitles={sourceTitles} onCitationPress={onCitationPress} tail={tail} />
+  );
+  switch (block.type) {
+    case "heading":
       return (
-        <Text
-          key={index}
-          style={[typography.ui.bodyLg, { color: colors.text.primary }]}
-          selectable
-        >
-          {part}
+        <Text variant={block.level === 1 ? "title3" : "headline"} header style={{ marginTop: t.space.xs }}>
+          {inl(block.inlines)}
+          {caret}
         </Text>
       );
-    });
-  };
-
-  return (
-    <View style={styles.container}>
-      {blocks.map((block, idx) => {
-        if (block.type === "code") {
-          return (
-            <CodeBlockView
-              key={idx}
-              code={block.content}
-              language={block.language}
-              colors={colors}
-              typography={typography}
-            />
-          );
-        }
-
-        const lines = block.content.split("\n");
-        return (
-          <View key={idx} style={styles.paragraphContainer}>
-            {lines.map((line, lineIdx) => {
-              const trimmed = line.trim();
-              if (trimmed.startsWith("### ")) {
-                return (
-                  <Text
-                    key={lineIdx}
-                    style={[
-                      typography.ui.titleSm,
-                      { color: colors.text.accentCyan, marginTop: 4, marginBottom: 2 },
-                    ]}
-                  >
-                    {trimmed.slice(4)}
-                  </Text>
-                );
-              }
-              if (trimmed.startsWith("## ")) {
-                return (
-                  <Text
-                    key={lineIdx}
-                    style={[
-                      typography.ui.title,
-                      { color: colors.text.heading, marginTop: 6, marginBottom: 2 },
-                    ]}
-                  >
-                    {trimmed.slice(3)}
-                  </Text>
-                );
-              }
-              if (trimmed.startsWith("# ")) {
-                return (
-                  <Text
-                    key={lineIdx}
-                    style={[
-                      typography.ui.titleLg,
-                      { color: colors.text.heading, marginTop: 8, marginBottom: 4 },
-                    ]}
-                  >
-                    {trimmed.slice(2)}
-                  </Text>
-                );
-              }
-              if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-                return (
-                  <View key={lineIdx} style={styles.bulletRow}>
-                    <Text
-                      style={[
-                        typography.ui.body,
-                        { color: colors.text.accentEmerald, fontWeight: "800" },
-                      ]}
-                    >
-                      •
-                    </Text>
-                    <Text style={styles.bulletText}>{renderInline(trimmed.slice(2))}</Text>
-                  </View>
-                );
-              }
-
-              return (
-                <Text key={lineIdx} style={[typography.ui.bodyLg, { color: colors.text.primary }]}>
-                  {renderInline(line)}
-                </Text>
-              );
-            })}
-          </View>
-        );
-      })}
-
-      {isStreaming && (
-        <View style={styles.cursorRow}>
-          <View
-            style={[
-              styles.streamingCursor,
-              { backgroundColor: colors.emerald[400] },
-            ]}
-          />
+    case "paragraph":
+      return (
+        <Text selectable>
+          {inl(block.inlines)}
+          {caret}
+        </Text>
+      );
+    case "bullet":
+    case "ordered":
+      return (
+        <View style={{ flexDirection: "row", gap: t.space.sm, paddingLeft: t.space.xs }}>
+          <Text color="secondary" numeric importantForAccessibility="no">
+            {block.type === "bullet" ? "•" : `${block.n}.`}
+          </Text>
+          <Text selectable style={{ flex: 1 }}>
+            {inl(block.inlines)}
+            {caret}
+          </Text>
         </View>
-      )}
-    </View>
-  );
+      );
+    case "code":
+      return <CodeBlock language={block.language} code={block.text} />;
+    case "table":
+      return (
+        <View style={{ gap: t.space.sm }}>
+          {block.rows.map((row, r) => (
+            <View
+              key={r}
+              style={{ gap: t.space.xxs, paddingLeft: t.space.md, borderLeftWidth: 2, borderLeftColor: t.color.line.hairline }}
+            >
+              {row.map((cell, c) => (
+                <Text key={c} selectable>
+                  <Text weight="semibold">{`${cell.header}: `}</Text>
+                  {inl(cell.cells)}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      );
+  }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.xs,
-  },
-  paragraphContainer: {
-    gap: 4,
-  },
-  inlineCode: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: radii.xs,
-    borderWidth: 1,
-  },
-  bulletRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingLeft: spacing.xs,
-    gap: 6,
-    marginVertical: 1,
-  },
-  bulletText: {
-    flex: 1,
-  },
-  codeBlock: {
-    borderRadius: radii.md,
-    overflow: "hidden",
-    marginVertical: spacing.xs,
-    borderWidth: 1,
-  },
-  codeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-  },
-  codeHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  codeIndicatorDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  copyBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.xs,
-  },
-  codeBody: {
-    padding: spacing.sm,
-  },
-  cursorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  streamingCursor: {
-    width: 8,
-    height: 18,
-    borderRadius: 2,
-    opacity: 0.85,
-  },
+/**
+ * Memoized by content: while an answer streams, parseMarkdown hands back new objects every frame, but only
+ * the block being written changed; the ones above it (and their native text) stay as they are.
+ */
+const BlockView = memo(
+  BlockContent,
+  (a: BlockProps, b: BlockProps) =>
+    a.caret === b.caret &&
+    a.tail?.tertiary === b.tail?.tertiary &&
+    a.tail?.secondary === b.tail?.secondary &&
+    a.onCitationPress === b.onCitationPress &&
+    sameTitles(a.sourceTitles, b.sourceTitles) &&
+    sameBlock(a.block, b.block)
+);
+
+const NO_TITLES: string[] = [];
+
+/** Renders an answer's Markdown with design-system type; "[n]" citations open the source. */
+export const MarkdownMessage = memo(function MarkdownMessage({
+  content,
+  sourceTitles = NO_TITLES,
+  onCitationPress,
+  isStreaming,
+  tail,
+}: Props) {
+  const t = useTokens();
+  const blocks = useMemo(() => parseMarkdown(content, sourceTitles.length), [content, sourceTitles.length]);
+  // The cursor sits inside the last text block (readers hear stage changes, never tokens).
+  const last = blocks[blocks.length - 1];
+  const inlineCaret = !!isStreaming && !!last && last.type !== "code" && last.type !== "table";
+  return (
+    <View style={{ gap: t.space.sm }}>
+      {blocks.map((block, i) => (
+        <BlockView
+          key={i}
+          block={block}
+          sourceTitles={sourceTitles}
+          onCitationPress={onCitationPress}
+          caret={inlineCaret && i === blocks.length - 1}
+          tail={i === blocks.length - 1 ? tail : undefined}
+        />
+      ))}
+      {/* Nothing streamed yet, or the last block is code/table: the cursor on its own line. */}
+      {isStreaming && !inlineCaret && <Caret />}
+    </View>
+  );
 });

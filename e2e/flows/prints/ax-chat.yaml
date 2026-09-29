@@ -1,0 +1,70 @@
+# Night 28/09 (Boar #3): 07 (typed question, then Iris 0e6f5ae's tappable "Answer anyway"), 12 (Settings >
+# Assistant) and 11 (honest decline) on an app that is already set up, at the current font_scale.
+# ONLY_12=1 shoots 12 alone.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000
+- runFlow:
+    when:
+      true: ${ONLY_12 != '1'}
+    commands:
+      - runFlow: new-chat.yaml
+      - runFlow:
+          file: ask-paste.yaml
+          env:
+            QUESTION: ${Q_MONSOON}
+      - extendedWaitUntil:
+          visible: ${T_STOP}
+          timeout: 10000
+          optional: true
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
+      - takeScreenshot: 07-chat-answer_android_${L}${SUF}
+      - runFlow:
+          when:
+            visible: ${T_ANYWAY}
+          commands:
+            - tapOn: ${T_ANYWAY}
+            - extendedWaitUntil:
+                visible: ${T_STOP}
+                timeout: 10000
+                optional: true
+            - takeScreenshot: 07-chat-answer_android_${L}${SUF}_anyway_streaming
+            - extendedWaitUntil:
+                notVisible: ${T_STOP}
+                timeout: 300000
+            - takeScreenshot: 07-chat-answer_android_${L}${SUF}_anyway
+- tapOn: ${T_MENU}
+- tapOn: ${T_SETTINGS}
+- scrollUntilVisible:
+    element: ${T_ASSISTANT}
+    optional: true
+- tapOn: ${T_ASSISTANT}
+- takeScreenshot: 12-settings-assistant_android_${L}${SUF}
+- scroll
+- takeScreenshot: 12-settings-assistant_android_${L}${SUF}_b
+- scroll
+- takeScreenshot: 12-settings-assistant_android_${L}${SUF}_c
+- back
+- back
+- runFlow:
+    when:
+      true: ${ONLY_12 != '1'}
+    commands:
+      - runFlow: new-chat.yaml
+      - runFlow:
+          file: ask-paste.yaml
+          env:
+            QUESTION: ${Q_DECLINE}
+      - extendedWaitUntil:
+          visible: ${T_STOP}
+          timeout: 10000
+          optional: true
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
+      - takeScreenshot: 11-honest-decline_android_${L}${SUF}

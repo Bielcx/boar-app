@@ -5,6 +5,7 @@ import * as Crypto from "expo-crypto";
 import { getDeviceTotalRamBytes, getHardwareInfo } from "ram-monitor";
 import appConfig from "../../app.json";
 import { getOrCreateInstallId } from "../models/settings";
+import { networkAllowed } from "../config/variant";
 import type { EvalResultRow } from "./evalHarness.pure";
 import {
   buildSubmission,
@@ -21,8 +22,11 @@ const PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 const ENDPOINT = submitResultsUrl(SUPABASE_URL, PUBLISHABLE_KEY);
 
-/** False in builds made without the Supabase values in .env: the screen shows no share button. */
-export const resultsSharingAvailable = ENDPOINT !== null;
+/**
+ * False in builds made without the Supabase values in .env, and in the offline build (no network
+ * permission): the screen shows no share button.
+ */
+export const resultsSharingAvailable = ENDPOINT !== null && networkAllowed();
 
 /** Everything about this phone that a shared run carries (listed on the preview before sending). */
 export function shareDevice(): ShareDevice {
@@ -46,7 +50,7 @@ export function shareDevice(): ShareDevice {
 }
 
 export async function shareEvalRun(rows: EvalResultRow[]): Promise<ShareResult> {
-  if (!ENDPOINT || !PUBLISHABLE_KEY || rows.length === 0) return "failed";
+  if (!ENDPOINT || !PUBLISHABLE_KEY || !networkAllowed() || rows.length === 0) return "failed";
   const installId = await getOrCreateInstallId(() => Crypto.randomUUID());
   const body = buildSubmission(rows, shareDevice(), installId, appConfig.expo.version);
   try {

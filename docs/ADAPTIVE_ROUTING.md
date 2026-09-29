@@ -1,4 +1,150 @@
-# Adaptive Offline Intelligence — Phase 0 Architecture Audit
+# Adaptive routing — layered answers
+
+> **Current design (v2, 2026-09).** Sections below "Historical: Phase 0 audit"
+> describe the earlier role-based router and are kept for context only.
+
+## TL;DR
+
+- Routing picks **how deep** to answer, never **which model** writes a normal answer. The model the user picks ("Use") always answers; the old router ignored it for most questions.
+- Three tiers: **instant** (a source sentence, no LLM, <1 s) → **fast** (the user's model over ~1.2k tokens of compressed sources) → **deep** (a large MoE in one pass over ~400 tokens, or multi-pass on the user's model when no deep model fits), with verification by a distinct model.
+- The UI consumes one typed event stream (`AnswerEvent`, `src/routing/events.ts`) through `answer()` / `deepen()` (`src/routing/answerService.ts`).
+- The pre-load memory check understands mmap: only KV cache + compute buffers must fit; weights may stream from storage (`src/inference/memoryFit.ts`).
+
+```ts
+import { answer, deepen } from "../routing/answerService";
+const h = answer({ query }, (e) => dispatch(e), { systemPrompt, styleReminder, history, maxTokens });
+// h.stop(); const result = await h.done;
+deepen(query, result.sources, (e) => dispatch(e), ctx); // "Deeper answer" button
+```
+
+## Settings
+
+| Key (`src/models/settings.ts`) | Default | Meaning | Migrates from |
+|---|---|---|---|
+| `answerQuickFirst` | `true` | Show the instant source excerpt first; it may be the whole answer to a confident lookup | `adaptiveRoutingEnabled` |
+| `answerAlwaysComplete` | `false` | Always produce the complete (deep) answer | `deepResearchMode` |
+| `deepModelId` | auto | Deep-tier model. `undefined` = largest installed "reasoning" model that fits and is not the fast model; `null` = none | — |
+| `activeModelId.llm` | default model | The model the user picked; always writes the fast answer | — |
+
+`routingPreset` and `modelRoleAssignments` are no longer read by chat (the evaluation harness still uses `router.ts`).
+
+### Toggle matrix (quickFirst / alwaysComplete)
+
+| | alwaysComplete off | alwaysComplete on |
+|---|---|---|
+| **quickFirst on** | instant → (lookup with confidence ≥ 0.75: stop) → fast → `deep_available` | instant as preview only → complete answer (no fast pass) |
+| **quickFirst off** | fast with the picked model; deeper only on request | complete answer |
+
+## Depth plan (`src/routing/depth.ts`, pure)
+
+```
+classifyTask(query)                     # regex, deterministic (classify.ts)
+  ├─ greeting/calculate/translate/code → no retrieval, no instant, fast only
+  ├─ requestedTier = deep (deepen) or alwaysComplete → complete
+  │     ├─ deep model usable (fit ≠ thrashing/insufficient) → deep, single pass, 6 chunks → 400 tokens,
+  │     │    answer ≤ 200 tokens, no thinking block (deep-tier contract, docs/adr/0001: TTFT ≤ 15 s on a streaming MoE)
+  │     └─ else → deep tier, multi-pass on the picked model (orchestrator.ts)
+  │     └─ + verify when a distinct "verifier" model is installed
+  └─ else → fast: picked model, 6 chunks → 1.2k tokens; instant first when quickFirst
+```
+
+Reason codes (`receipt.reasonCodes`) record every decision, e.g. `task:lookup`, `instant:may-finish`, `generate:user-model-qwen2.5-1.5b-instruct-q4km`, `context:748->185`.
+
+## Answer contract (`src/routing/events.ts`)
+
+Every event carries `answerId`; drop events whose id is not the current answer's.
+
+| Event | When |
+|---|---|
+| `stage` `{stage, tier, modelId?, detail?, at}` | `loading_model`, `retrieving` (multi-pass: `detail.index/count`), `prefill`, `generating` (first token), `verifying`, `synthesizing` |
+| `sources` `{tier, sources}` | Once the numbered source list is final: `[n]` in text = `sources[n-1]`, global and deduplicated |
+| `instant` `{snippet:{text, sourceIndex}, confidence}` | Extractive excerpt (0..1 confidence) |
+| `token` `{tier, text}` | Streamed text of the fast/deep answer |
+| `warning` `{code: "model_streams_from_storage", message}` | The model loaded but its weights stream from storage (slower) |
+| `done` `{tier, outcome, receipt, error?}` | Always last for the answer. `outcome`: success/stopped/timeout/interrupted/error; `error.code`: no_model/oom/load_failed/generation_failed/unknown |
+| `deep_available` `{reason?, estSeconds?}` | After a fast `done`, when deepening is possible |
+
+`receipt`: `modelId` (`"extractive"` for instant), `modelLabel`, `tokens`, `tokPerSec` (llama.cpp decode timing), `ttftMs` (to first visible text), `totalMs`, `retrievalMs`, `prefillMs` + `ctxTokens` (llama.cpp `timings.prompt_ms` / `prompt_n`), `cachedTokens` (prompt tokens reused from the KV cache), `loadMs`, `verification`, `reasonCodes`. There is no prefill progress: llama.rn has no prompt-progress callback.
+
+Concurrency: a new `answer()` stops the previous one and waits for it; `LlamaEngine.generate()` is queued and `stop()` also cancels queued generations, so a double send can never run two completions on one context.
+
+## Places questions (`src/routing/geo.ts`)
+
+"Tell me the best vegan restaurants in [the city I'm in]" is answered **without an LLM**, from offline POI records, so no place name can be invented and the list appears in under a second.
+
+```
+detectGeoIntent(query)       # place words (restaurant, café, padaria, "onde comer"), or food words + location/diet;
+                             # never explanatory questions ("What food did the Romans eat?")
+                             # or a diet + place noun ("best vegan places in Tokyo"); "places" alone is not food
+  ├─ city named ("in Lisbon", "em São Paulo") or answer({ place }) → resolvePlace → center, no distances
+  │    └─ getLocation({ timeoutMs: 150 }) in parallel, read only if in by the end of the search: within 25 km → area.deviceInside
+  ├─ city in lower case / after PT "de" ("in berlin", "veganos de Roma") → placeCandidates, longest first;
+  │    used only if resolvePlace gives a city (≥100k) or the same name; else the device path
+  └─ else device: getLocation({ timeoutMs: 700 })   # never prompts; denied/unavailable → coverage "needs_place"
+searchPois({ center, diet, text, limit: 10 })       # pack ranks: diet tag only > yes > limited, then distance
+  ├─ no map covers the center (or unknown city) → empty "no_data": "I don't have offline place data for X / near you"
+  ├─ a map covers it, 0 hits up to 25 km → empty "no_match": "The offline map for X has no place tagged vegan within 25 km"
+  │    (both: coverage "none", no list, never a generic one; near the device never a pack or tile id)
+  └─ places event + text list: name — distance — address — diet tag — hours [n]; Wikivoyage entries (approx) in a separate guide block
+```
+
+- `criterion` is `diet_match` when a diet was asked, else `distance`; "best" says so and states that ratings/popularity are not available offline.
+- Events: `stage retrieving` → `location` (device only) → `sources` → `places` → `done` (tier `instant`, `receipt.modelId` `"places"`). `places.attribution` carries ODbL (OSM, with extract date) and CC BY-SA (Wikivoyage).
+- `places.area.deviceInside` (city areas only): true when a recent device fix lies within 25 km of the named city's center, so the UI may compute open/closed with the device clock. It is never set by a new permission prompt, and the list never waits for the fix: one that is not in when the POI search ends is ignored.
+- `places.empty` (coverage `none` only, additive): `no_data` = no installed map covers the area; `no_match` = a map covers it but nothing matches the filters within `area.radiusM` (the data exists: the UI must not say "no map"). `area.place.lat/lon` (city areas, once resolved) lets an empty answer offer the map covering the city (`tilesFor(lat, lon, km)`).
+- Providers are injected with `registerGeoProviders({ hasPlaces, getLocation, resolvePlace, searchPois })` (`answerService.ts`): POI pack from the knowledge layer (`src/rag/pois.ts`), location from the UI layer (`src/services/location.ts`). Without them the answer is "places pack not installed".
+
+## Context compression (`src/routing/context.ts`)
+
+Prefill dominates time-to-first-token on phone CPUs (~70 tok/s for a 1.5B, ~27 tok/s for the streaming 35B MoE). Instead of whole chunks, the prompt gets the sentences that match the question (IDF-weighted term coverage), each chunk opening with its first sentence, in document order, within a token budget. Chunks with nothing relevant are dropped (the "Hall Primary School" problem).
+
+| Test scenario | Before | After |
+|---|---|---|
+| Lookup over 5 encyclopedia leads (`context.test.ts`) | 748 tok | 185 tok |
+| Comparison over the same 5 leads | 748 tok | 216 tok |
+| Full chat prompt, 3 chunks (`answer.test.ts`) | 454 tok | 316 tok |
+| "Which signature algorithms are quantum resistant?" over 6 real Wikipedia excerpts, RSA/ECDSA first | 1341 tok | 513 tok; [1] = the source naming Dilithium/Falcon/SPHINCS+, RSA dropped |
+
+Kept chunks are ordered by relevance (that order is the `[n]` numbering) and a chunk under half the best chunk's relevance is dropped. Soft line wraps in Wikipedia text are joined before splitting sentences; list items stay separate.
+
+Token counts are approximate (4 chars/token) in tests; on device `receipt.ctxTokens` is llama.cpp's own count.
+
+**KV reuse of the system prompt:** llama.rn keeps the last completion's KV cache and re-evaluates from the first differing token (`find_common_prefix_length`, `cpp/rn-completion.cpp`). A follow-up in the same chat reuses the persona, source rules and grounding text for free (`prompt.test.ts`). Putting sources after the history was tried and gained ~6%, not worth the change.
+
+**Answer prefix kept prefilled** (`LlamaEngine.setAnswerPrefix`, `answerPromptPrefix` in `src/rag/pure.ts`). On the iPhone 13 (28/09) the first token took 4.0-5.3 s: a new chat's first question prefilled its whole ~400-token prompt at ~100 tok/s, because the session title generated right after every new chat's first answer (and before that, the load) had replaced the cache. The engine now prefills the fixed start of the answer prompt for the chat's tone (persona + source rules + grounding, with `n_predict: 0`, in the answer's own chat format) after a load and after any completion with another prompt (title, summary, Deep Research stage), once the engine has been idle for `PREFIX_WARM_IDLE_MS` (750 ms), and never in front of a generation already waiting. The answerer registers the tone of each answer; at launch the saved tone. The prompt text is unchanged.
+
+| First question of a new chat (session title in the cache), "what's a monsoon?" + Monsoon source, succinct | tokens prefilled | Qwen2.5-1.5B | Qwen3-4B |
+|---|---|---|---|
+| Before | 332 of 335 | 1400 ms | 4080 ms |
+| After (prefix prefilled) | 106 of 335 | 477 ms (−66%) | 1487 ms (−64%) |
+
+M1 Ultra CPU, 4 threads, node-llama-cpp, median of 3 (llama.cpp tokenizer). At the A15's ~100 tok/s the device's ~400-token prompt goes from ~4 s to ~1.7 s of prefill. Not yet measured on the phone: the receipt's `cachedTokens` (and `ctxTokens`) show it there. Loading another model (deep tier, verifier) drops the cache; the refill follows the load. The sources-in-the-user-turn layout below is not needed for this: it helps follow-ups, not a new chat's first question.
+
+**Tried and not adopted (v1.1 item 5): sources in the user's turn.** Moving the sources out of the system message into the user's turn (branch `feat/prompt-cache`, `src/routing/prompt.ts`) makes the system prompt static, so llama.rn's prefix reuse keeps more of each follow-up prompt. Measured (llama-server prompt cache, Qwen2.5-1.5B, M4 CPU 4 threads, 6-question conversation): total prefill −15% (turns 4–6 −29% to −38%, turn 1 +3%, turn 2 +16%). But the blind s32 A/B against the current layout regressed on the default model, Qwen3-4B, in three prompt variants (Jev score 0.14 → 0.22 → 0.27, correct answers 50% → 22% / 31% / 38%): it refused when sources missed, answered Portuguese in English, and wrote shorter, less complete answers. Qwen2.5-1.5B did not regress. The v1.1 rule was "merge only if TTFT improves and quality does not regress", so it stays out; further prompt tweaking on the same 32 questions would overfit the evaluation set. Reports: `eval/reports/ab-sources-layout-*.md` (feat/eval-frontier).
+
+## Memory check (`src/inference/memoryFit.ts`)
+
+| Verdict | Condition | Load? |
+|---|---|---|
+| `resident` | KV + buffers + whole file ≤ available | yes |
+| `streaming` | MoE; KV + buffers + 2× per-token hot weights ≤ available | yes, with warning |
+| `thrashing` | buffers fit, hot weights do not (dense model larger than RAM) | yes, strong warning; not used as deep tier |
+| `insufficient` | KV + buffers alone > available | no (throws) |
+
+Inputs: GGUF header via `loadLlamaModelInfo` (layers, heads, KV heads, head width, expert count/used/FFN width) and `ActivityManager.availMem` (Android) / `os_proc_available_memory()` (iOS), falling back to total − RSS − 2 GB. Example: Qwen3-30B-A3B, 11 GB file, 12 GB phone with 7 GB available → ~0.4 GB KV (4k ctx, f16), hot set ~1.2 GB → `streaming` (the old check refused it).
+
+## UNKNOWN
+
+- Real RSS / low-memory-killer behavior with an 11 GB mmap on Android; real tok/s of the deep tier through plain llama.rn (no expert cache). Needs a device-lab run.
+- The hot-set estimate counts parameters, not bytes. Unsloth "UD" quants keep attention/shared weights at higher precision than experts, so the dense part is underestimated: Qwen3.6-35B-A3B UD-Q2_K_XL measures 1.63 GiB dense + 9.80 GiB experts (Caldera, `gguf-split.py`), i.e. ~1.9 GiB touched per token vs ~0.9 GiB estimated. On a 12 GB phone the verdict is `streaming` either way; on smaller devices it may be optimistic. Fix if needed: read per-tensor sizes from the GGUF tensor table (not exposed by llama.rn's `loadLlamaModelInfo`).
+- Instant-tier confidence threshold (0.75) is set from test fixtures, not from the evaluation set.
+- Quality effect of sentence-level compression vs whole chunks: needs the frontier evaluation.
+
+---
+
+# Historical: Phase 0 audit (role-based router)
+
+## Adaptive Offline Intelligence — Phase 0 Architecture Audit
 
 Branch: `adaptive-offline-ai`. This audit is the required Phase 0 deliverable
 before any routing/execution-engine code is written, per the build plan.
@@ -128,7 +274,7 @@ JSX text, worth remembering when the routing UI adds its own status-label maps.
 
 `ModelSetupScreen.tsx` (Settings) and `SetupWizardScreen.tsx` (first-run) both
 already have model-management UI (download, activate, remove). `ModelBrowser.tsx`
-+ `ModelCatalogScreen.tsx` handle Hugging Face search. **The routing layer
+handles Hugging Face search. **The routing layer
 should read from/write to this existing model-management state, not introduce
 a second one** — e.g. "assign this already-downloaded model to the `reasoning`
 role" is a new relationship on top of existing `CatalogModel`/`discoveredModels`

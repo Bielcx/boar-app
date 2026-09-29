@@ -1,0 +1,6 @@
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- runFlow: to-chat.yaml
+- tapOn: ${T_MENU}
+- tapOn: ${T_KNOWLEDGE}
+- takeScreenshot: perf-knowledge

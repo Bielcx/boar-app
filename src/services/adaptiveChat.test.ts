@@ -17,6 +17,7 @@ vi.mock("../inference/LlamaEngine", () => ({
   llamaEngine: {
     load: (filename: string) => loadMock(filename),
     generate: (opts: any) => generateMock(opts),
+    hasEmbeddedChatTemplate: () => true,
     getModelInfo: () =>
       mockResidentFilename ? { filename: mockResidentFilename, nCtx: 4096, nThreads: 4 } : null,
   },
@@ -70,8 +71,9 @@ beforeEach(() => {
 });
 
 describe("runAdaptiveChat", () => {
-  it("greeting: no retrieval, routes to the fast-role model when installed", async () => {
+  it("greeting: no retrieval, routes to the picked model", async () => {
     statusAllMock.mockResolvedValue([statusOf(PHI, true), statusOf(QWEN_FAST, true)]);
+    getActiveModelIdMock.mockResolvedValue(QWEN_FAST.id);
     const result = await runAdaptiveChat({ query: "hey, what's up?" }, 512);
 
     expect(result.taskType).toBe("greeting");
@@ -82,8 +84,18 @@ describe("runAdaptiveChat", () => {
     expect(loadMock).toHaveBeenCalledWith(QWEN_FAST.filename);
   });
 
-  it("simple/chat request uses the fast-role model when installed, and does retrieve", async () => {
+  it("everyday questions use the model the user picked, not the curated fast model (review C1)", async () => {
     statusAllMock.mockResolvedValue([statusOf(PHI, true), statusOf(QWEN_FAST, true)]);
+    // Default mock: the user picked Phi.
+    for (const query of ["tell me a fun fact", "Who wrote Dom Casmurro?", "summarize the causes of WW1"]) {
+      const result = await runAdaptiveChat({ query }, 512);
+      expect(result.plan.steps.find((s) => s.type === "generate")?.modelId).toBe(PHI.id);
+    }
+  });
+
+  it("simple/chat request uses the picked model, and does retrieve", async () => {
+    statusAllMock.mockResolvedValue([statusOf(PHI, true), statusOf(QWEN_FAST, true)]);
+    getActiveModelIdMock.mockResolvedValue(QWEN_FAST.id);
     retrieveMock.mockResolvedValue([
       { chunkId: "c1", docId: "d1", title: "T", body: "B", score: 1, matchType: "hybrid" as const },
     ]);
@@ -124,11 +136,14 @@ describe("runAdaptiveChat", () => {
 
   it("model switch across two requests releases/reloads via the same LlamaEngine.load, and modelSwitches reflects within-plan switches", async () => {
     statusAllMock.mockResolvedValue([statusOf(PHI, true), statusOf(QWEN_FAST, true)]);
+    getActiveModelIdMock.mockResolvedValue(QWEN_FAST.id);
 
     const greeting = await runAdaptiveChat({ query: "hey!" }, 512);
     expect(greeting.plan.steps.find((s) => s.type === "generate")?.modelId).toBe(QWEN_FAST.id);
     expect(loadMock).toHaveBeenLastCalledWith(QWEN_FAST.filename);
 
+    // The user then picks Phi.
+    getActiveModelIdMock.mockResolvedValue(PHI.id);
     const research = await runAdaptiveChat(
       { query: "Research the environmental and economic implications of nuclear power adoption over the next two decades" },
       512
@@ -181,5 +196,15 @@ describe("runAdaptiveChat", () => {
     const onToken = vi.fn();
     await runAdaptiveChat({ query: "hey!" }, 512, { onToken, onStepStart });
     expect(onStepStart).toHaveBeenCalled();
+  });
+});
+
+describe("runAdaptiveChat prompt format", () => {
+  it("sends role messages (the GGUF's own chat template) for every model, not just the flagged one", async () => {
+    statusAllMock.mockResolvedValue([statusOf(PHI, true), statusOf(QWEN_FAST, true)]);
+    await runAdaptiveChat({ query: "tell me a fun fact" }, 512);
+    const opts = generateMock.mock.calls.at(-1)![0];
+    expect(Array.isArray(opts.messages)).toBe(true);
+    expect(opts.prompt).toBeUndefined();
   });
 });

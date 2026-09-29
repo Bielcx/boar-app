@@ -4,7 +4,8 @@
  * Deep Research Mode (src/services/orchestrator.ts) is completely
  * separate and untouched — this module is never called from that path.
  *
- * Feature-flagged (settings.ts's getAdaptiveRoutingEnabled, off by
+ * Legacy path: superseded by src/routing/answerService.ts (depth routing).
+ * Feature-flagged (settings.ts's getAdaptiveRoutingEnabled, on by
  * default) and designed to fail safe: every external call here (disk
  * status, settings, RAM readout) is wrapped so a single failure degrades
  * gracefully rather than throwing, and the ONE thing this module cannot
@@ -72,7 +73,14 @@ export async function runAdaptiveChat(
   }
 
   const taskType = classifyTask(input.query);
-  const profiles = buildModelProfiles(preset, available, overrides, deviceRamBytes, fallbackId ?? undefined);
+  // The model the user picked ("Use") answers everyday questions: it fills
+  // the fast and general roles unless the user assigned those explicitly.
+  // Without this, balanced-preset routing sent chat/lookup/summarize to the
+  // curated 1.5B and ignored the user's choice (review C1).
+  const effectiveOverrides = fallbackId
+    ? { fast: fallbackId, general: fallbackId, ...overrides }
+    : overrides;
+  const profiles = buildModelProfiles(preset, available, effectiveOverrides, deviceRamBytes, fallbackId ?? undefined);
 
   const context: RoutingContext = {
     taskType,
@@ -91,7 +99,8 @@ export async function runAdaptiveChat(
       .filter((a) => a.present)
       .map((a) => [
         a.model.id,
-        { id: a.model.id, filename: a.model.filename, usesChatTemplate: a.model.capabilities?.usesChatTemplate },
+        // Every model uses its own GGUF chat template when it ships one (same rule as the fixed path and answer.ts).
+        { id: a.model.id, filename: a.model.filename, usesChatTemplate: "if-embedded" as const },
       ])
   );
   const resolveModel = (modelId: string) => modelById.get(modelId);

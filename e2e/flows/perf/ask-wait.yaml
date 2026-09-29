@@ -1,0 +1,15 @@
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- runFlow: to-chat.yaml
+- runFlow: ../prints/new-chat.yaml
+- runFlow:
+    file: ../prints/ask-paste.yaml
+    env:
+      QUESTION: ${QUESTION}
+- extendedWaitUntil:
+    visible: ${T_STOP}
+    timeout: 10000
+    optional: true
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000

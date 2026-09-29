@@ -1,0 +1,156 @@
+# UI approval prints v1.1 (Iris, review/ui-qa/finish/PRINTS-v11.md), one language per run.
+# run-prints.sh passes L (en|pt) and the T_*/Q_* strings from the app's locale files, clears the app
+# between languages and captures 01 (splash) itself with adb screencap. Default theme = Campfire dark.
+# Files: models + corpus in Download/ (setup imports them), Rome tile + gazetteer in Download/places/.
+appId: ${APP_ID || "team.sopa.aoair.offline"}
+---
+- launchApp
+- runFlow:
+    when:
+      true: ${L == 'pt'}
+    commands:
+      - tapOn: "Português"
+- extendedWaitUntil:
+    visible: ${T_START}
+    timeout: 60000
+- takeScreenshot: 02-setup1-language_android_${L}
+- tapOn: ${T_START}
+- tapOn:
+    text: "${T_ESSENTIAL}, .*"
+- takeScreenshot: 03-setup2-model_android_${L}
+- scrollUntilVisible:
+    element: ${T_CONTINUE}
+- tapOn: ${T_CONTINUE}
+- assertVisible: ${T_IMPORT_TITLE}
+- tapOn: ${T_PICK}
+- tapOn: "Show roots"
+- tapOn: "Downloads"
+- tapOn:
+    text: "List view"
+    optional: true
+- longPressOn:
+    text: ".*\\.gguf"
+- tapOn: "More options"
+- tapOn: "Select all"
+- tapOn: "Select"
+# 35-50 % of the import; best effort (Maestro polls the hierarchy about once a second)
+- extendedWaitUntil:
+    visible:
+      text: ".*\\b(3[5-9]|4[0-9]|50) ?%.*"
+    timeout: 600000
+    optional: true
+- takeScreenshot: 04-setup3-download_android_${L}
+- extendedWaitUntil:
+    visible: ${T_DONE}
+    timeout: 900000
+- tapOn: ${T_OPEN}
+- extendedWaitUntil:
+    visible: ${T_ASK}
+    timeout: 120000
+- takeScreenshot: 05-chat-empty_android_${L}
+# 06/07/09: the empty state's suggestion chip (no typing, same question as the e2e smoke).
+# 06 is shot right after the tap (stages/streaming); the quick answer (source passage) can land in
+# <1 s, then "Answer with AI", when offered, starts the model: shoot 06 again while it streams.
+- tapOn:
+    text: ${T_CHIP_MONSOON}
+- takeScreenshot: 06-chat-generating_android_${L}_a
+- takeScreenshot: 06-chat-generating_android_${L}_b
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 07-chat-answer_android_${L}_quick
+- runFlow:
+    when:
+      visible: ${T_ASK_MODEL}
+    commands:
+      - tapOn: ${T_ASK_MODEL}
+      - takeScreenshot: 06-chat-generating_android_${L}_c
+      - takeScreenshot: 06-chat-generating_android_${L}_d
+      - takeScreenshot: 06-chat-generating_android_${L}_e
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
+- takeScreenshot: 07-chat-answer_android_${L}
+- tapOn:
+    text: "${T_SOURCE1}.*"
+    optional: true
+- takeScreenshot: 09-chat-source-open_android_${L}
+# back only if something covers the chat (a sheet); a bare back would leave the app
+- runFlow:
+    when:
+      notVisible: ${T_ASK}
+    commands:
+      - back
+# 07 with the question as Iris wrote it, typed (Boar: does EN hold the answer back like PT?)
+- runFlow: new-chat.yaml
+- runFlow:
+    file: ask-paste.yaml
+    env:
+      QUESTION: ${Q_MONSOON}
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 07-chat-answer_android_${L}_typed
+- runFlow:
+    when:
+      visible: ${T_ASK_MODEL}
+    commands:
+      - tapOn: ${T_ASK_MODEL}
+      - extendedWaitUntil:
+          notVisible: ${T_STOP}
+          timeout: 300000
+      - takeScreenshot: 07-chat-answer_android_${L}_typed_ai
+- tapOn: ${T_MENU}
+- tapOn: ${T_SETTINGS}
+- scrollUntilVisible:
+    element: ${T_ASSISTANT}
+    optional: true
+- tapOn: ${T_ASSISTANT}
+- takeScreenshot: 12-settings-assistant_android_${L}
+- back
+- back
+- runFlow: new-chat.yaml
+- runFlow:
+    file: ask-paste.yaml
+    env:
+      QUESTION: ${Q_DECLINE}
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 11-honest-decline_android_${L}
+# 10 last: import the Rome tile + gazetteer from Knowledge > Places
+- tapOn: ${T_MENU}
+- tapOn: ${T_KNOWLEDGE}
+- scrollUntilVisible:
+    element: ${T_IMPORT_PLACES}
+# gazetteer first, then the tile (together, the tile is rejected as unknown: app bug, ecb83d3)
+- tapOn: ${T_IMPORT_PLACES}
+- runFlow:
+    file: ../common/pick-places-file.yaml
+    env:
+      FILE: "world-places.sqlite"
+- extendedWaitUntil:
+    visible:
+      text: "${T_VERIFIED} World places.*"
+    timeout: 180000
+- scrollUntilVisible:
+    element: ${T_IMPORT_PLACES}
+- tapOn: ${T_IMPORT_PLACES}
+- runFlow:
+    file: ../common/pick-places-file.yaml
+    env:
+      FILE: "t-N41E012.sqlite"
+- extendedWaitUntil:
+    visible:
+      text: "${T_VERIFIED} .*N41E012.*"
+    timeout: 180000
+- back
+- runFlow: new-chat.yaml
+- runFlow:
+    file: ask-paste.yaml
+    env:
+      QUESTION: ${Q_PLACES}
+- extendedWaitUntil:
+    notVisible: ${T_STOP}
+    timeout: 300000
+- takeScreenshot: 10-places_android_${L}

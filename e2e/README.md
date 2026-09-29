@@ -1,0 +1,136 @@
+# e2e — device lab suite (Android emulator, Maestro)
+
+TL;DR: Maestro YAML flows for the product paths, plus the adb scripts the device lab
+used to produce the release evidence (FS-1, network audit, places, shots).
+
+```bash
+make -C e2e syntax                         # check every flow
+make -C e2e build VARIANT=downloader       # full APK (emulator OFF while compiling)
+make -C e2e build-js SHA=<commit>          # JS-only rebuild on the same native base (~1 min)
+make -C e2e android                        # all flows, downloader build installed
+make -C e2e flow F=04-places-berlin        # one flow
+make -C e2e fs1 TAG=<build>                # FS-1 acceptance (live font change on setup step 3)
+```
+
+Toolchain and emulator setup: `docs/DEVICE_LAB.md`.
+
+## Why Maestro (not Detox)
+
+- YAML flows run against the release APK: no test build, no JS instrumentation.
+- Same flows run on the iOS simulator (`appId` is the bundle id), so Harbor can
+  reuse them on the mini.
+- The app has no `testID`s; Maestro matches visible text and accessibility labels,
+  which the UI primitives already set (`Button`, `ListRow`, `Chip`, …).
+
+## Flows (`e2e/flows/`)
+
+| Flow | Covers |
+|---|---|
+| `01-setup-downloader` | onboarding → Essential → download → chat |
+| `01-setup-offline-import` | offline build: import every file from Downloads at once |
+| `02-ask-with-sources` | answer with sources, expand a source |
+| `03-airplane-mode` | answer with no network |
+| `04-places-berlin` | vegan places: explicit city, near me (mock GPS), city with no data (Qujing) |
+| `05-switch-model` | switch the answer model in Models |
+| `06-knowledge` | topic packs listed |
+| `10-offline-setup-and-source` | mini smoke: offline setup (import everything in Downloads), suggestion with a source |
+| `11-offline-places-city` | batch import of a 1°×1° tile + world gazetteer (Knowledge › Import places), vegan places in Rome with the OSM credit, a city with no tile (Lima), no_match (kosher in Aprilia) |
+| `prints/` | UI approval prints (PRINTS-v11): `prints-v11` (02–12, EN then PT), `prints-final` (06/07/09 typed + 10) |
+| `99-reset` | erase all data → onboarding |
+
+Status, `maestro test` against the offline build (APP_ID=team.sopa.aoair.offline), AVD 393×852 dp:
+
+| Flow | 54202b7 (first run) | ce4fe83 (27/09 15:00) |
+|---|---|---|
+| `01-setup-downloader` | PASS (7 min, real download) | not run (offline build) |
+| `01-setup-offline-import` | not run | not run (needs clearState + ~10 min setup) |
+| `02-ask-with-sources` | not run | **UNKNOWN**: reached the answer and the open sources card once; since the flow update, `inputText` ends the Maestro process without an error on this AVD (harness issue, see gotchas) |
+| `03-airplane-mode` | not run | **PASS** |
+| `04-places-berlin` | not run | **PASS** (Berlin by name, near me with mock GPS, Qujing "Nothing here is guessed") |
+| `05-switch-model` | SKIP with one model | not run |
+| `06-knowledge` | PASS | not run |
+| `99-reset` | FAIL (RS-1, app bug, fixed in RS-1 v2) | not run |
+
+Flows updated to the current UI: new chat is opened from the drawer (the header has no New chat
+button since the fidelity sprint), and the passage itself opens the source (no "Full passage" link).
+
+The first run also hit a native crash in expo-sqlite (`closeDatabase` → `sqlite3_finalize`,
+Scudo "corrupted chunk header") when the app was stopped and relaunched between flows.
+
+Mini runs, v1.1 (27/09, AVD 1080×2400 @420, airplane mode):
+
+| Flow | ecb83d3 | dcdab04 | 377d9bf |
+|---|---|---|---|
+| `10-offline-setup-and-source` | **PASS** (flow 179 s) | not run | not run |
+| `11-offline-places-city` | **PASS** only when the gazetteer is imported before the tile (together, the tile was rejected as unknown: app bug, fixed by Bramble 94fda8c) | **PASS** batch import (flow 272 s) | **PASS** batch import (flow 271 s; tile shown as "Area at 41°N 12°E") |
+| `prints/*` | 02–12 EN/PT | 07/09 | 06/07/09/10 EN/PT |
+
+## Scripts (`e2e/scripts/`), used for the evidence
+
+| Script | What it does |
+|---|---|
+| `ui.py` | adb + uiautomator: `dump`, `tap <regex>`, `wait`/`gone <regex>`, `has` (no Maestri portal) |
+| `px.py` | colour of one screen pixel (theme checks, e.g. Moonlight `#0E1330`) |
+| `gpsloop.sh` | feeds the emulator GNSS every second, like a real receiver |
+| `netaudit.sh` | sockets in `/proc/net/*` and `netstats` for the app uid |
+| `fs1-accept.sh` | live font/density change on setup step 3 during download: shots, PID, no new `downloadAsync`, monotonic progress |
+| `chat-states.sh` | chat finish shots: loading, empty, generating, answer, source expanded |
+| `build.sh`, `build-js.sh` | release APK with ninja -j3 + nice; JS-only incremental rebuild |
+| `ask-capture.sh` | new chat (via the drawer), ask, wait, save PNG + text dump (EN/PT labels) |
+| `splash-check.sh` | record a cold start, 20 fps frames, per-frame background colour and icon box (jumps > 6 px flagged); `PKG=` for the offline build |
+| `boot-timing.sh` | 3 cold + 3 warm starts: Android `TotalTime` + the app's `[boot]` log lines |
+| `rs1.sh` | Erase everything right after launch; checks SIGABRT/tombstones, Setup shown, models/corpus/poi gone; streams `logcat -b all` from before the tap |
+| `shot.sh`, `tap.sh`, `wait-text.sh`, `matrix-shots.sh` | older portal-based helpers |
+
+## Mac mini (default for Android builds and e2e since 27/09)
+
+Heavy work runs on the mini through the shared lock (`~/boar/bin/heavy <owner> <cmd>`); SDK installs,
+clones, `npm ci` and prebuild run outside the lock with `nice -n 19`. Scripts in `e2e/scripts/mini/`:
+
+| Script | Where it runs | What it does |
+|---|---|---|
+| `install-sdk.sh` | outside the lock | cmdline-tools, platform-tools, android-36, build-tools 36, cmake 3.22.1, NDK 27.1 (stops below 12 GB free) |
+| `install-emu.sh` | outside the lock | emulator, `system-images;android-35;default;arm64-v8a` (AOSP, no GMS), AVD `boar_api35` (4 GB RAM), Maestro |
+| `prep-android.sh <sha> <variant>` | outside the lock | clone, checkout, `npm ci` (only if the lock file changed), `expo prebuild --clean` |
+| `gradle-android.sh` | **inside the lock**, normal class (no `HEAVY_CLASS`) | `assembleRelease` arm64 with a disk watchdog (10 GB floor during gradle, Boar 27/09, `GRADLE_FLOOR=` to override; `GRADLE_WORKERS=2 CMAKE_JOBS=3` when the mini's swap is high), sha256, offline audit, then deletes intermediates (keeps `~/.gradle` and the llama.rn `.cxx`) |
+| `run-e2e.sh <apk> <flow> [-e K=V…]` | **inside the lock**, as a short job: `HEAVY_CLASS=short ~/boar/bin/heavy Piston bash run-e2e.sh …` (jumps ahead of the next gate; one flow ≈ 4 min) | headless emulator (`-no-window`, wiped data), fresh install, push model/corpus files, Maestro flow, emulator off and AVD data removed. `PLACES_FILES="a b"` pushes place files to `Download/places/` (a subfolder, so the setup's Select all skips them) |
+| `run-prints.sh <apk> <sha>` | inside the lock, normal class | UI approval prints: splash screencap burst, `wm size`/`density`, EN then PT (`pm clear` between); `PRINTS_FLOW=`, `SKIP_SPLASH=1`, `PLACES_FILES=` |
+| `run-night.sh <apk> <sha>` | inside the lock, normal class | one AVD boot for several phases (`PHASES="prints iris misc perf"`): `prints` = 02/03/07/11/12 at font 1.3/2.0 (`prints/ax-*.yaml`); `iris` = splash at 2.0 + setup 1-3 EN/PT x 1.0/2.0 (`setup-shots.yaml`) + `iris-misc.yaml` (Knowledge import error, Settings, Performance logs, Campfire light); `misc` = only `iris-misc` per language; `perf` = `dumpsys gfxinfo` (reset, window, dump) for streaming, chat scroll, Models, Knowledge, places + Show more, cold start, `REPS` each, plus a 5 s Perfetto trace mid-stream (`flows/perf/`). `FLOOR_GB` (default 12) disk watchdog; `PLACES_FILES` defaults to the pinned Rome tile + gazetteer |
+
+Local post-processing (MacBook): `e2e/scripts/night-collect.py <night-dir> <sha>` copies the prints into `shots/final-v11/<sha>/android/` and prints the gfxinfo table; `e2e/scripts/perfetto-stream.py <trace>` (needs `pip install perfetto`) gives CPU per thread and frame slices. Results of 28/09: `review/perf/GFXINFO.md` (outside this repo).
+
+First measurements (27/09): `assembleRelease` 6eb9ca7 offline 271 s with warm caches (the first run
+needs ~15 GB of disk at peak); `10-offline-setup-and-source` **PASS** in 250 s total (boot 27 s,
+install + files 33 s, flow 182 s).
+
+## Emulator gotchas
+
+- AOSP keyboard autocorrects `adb shell input text` ("Qujing" → "Quaking"): for text
+  entry disable it (`adb root; adb shell pm disable-user --user 0 com.android.inputmethod.latin`),
+  re-enable it for keyboard tests.
+- `adb emu geo fix` is a single fix; the app asks for a fresh GPS fix with a short
+  timeout, so use `gpsloop.sh` or a test provider
+  (`cmd location providers set-test-provider-location gps --location lat,lon`).
+- The AOSP image has no TalkBack and no Gboard: screen-reader and Gboard checks need a
+  real phone.
+- `adb emu kill` can leave qemu alive: check `pgrep -x qemu-system-aarch64`.
+- Maestro `inputText`: on this AVD it sometimes ends the Maestro process with no error right after
+  "Inputting text" (seen with the AOSP keyboard enabled). With accents it needs its own IME, which never became active on this
+  AOSP image: PT questions were typed without accents (`adb shell input text`) and marked so.
+- Files pushed with `adb push` over 2 GB must be media-scanned
+  (`am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/<f>`)
+  before the picker sees their size; in the picker use *List view* (the grid view exposes only
+  "Preview the file …" nodes).
+- `uiautomator dump` can omit nodes of a long drawer: tap by coordinates after checking a screenshot.
+- Frame used for UI fidelity: `wm size 1179x2556` + `wm density 480` = 393×852 dp, the iPhone mockup frame.
+- The emulator's speed depends on the host: with the Mac's swap near full (7 of 8 GB) the guest RAM
+  is paged out and generation drops from ~30 tok/s to near zero. Check `sysctl vm.swapusage` and
+  the qemu RSS before any latency measurement; never kill processes with `pkill -f` patterns that
+  also match your own command line.
+- The AOSP keyboard asks for contacts the first time it opens, and the dialog eats the flow's taps:
+  `run-e2e.sh` / `run-prints.sh` grant READ_CONTACTS to the IME up front.
+- Accents: Maestro `setClipboard` + `pasteText` types them (`inputText` doesn't).
+- `hideKeyboard` with no keyboard on screen acts as *back* and can leave the app: don't use it blindly.
+- Maestro `tapOn` waits for the UI to settle, which swallows a streaming answer: use
+  `waitToSettleTimeoutMs: 200` on the Send tap to capture the generating state.
+- The second system picker of a session can stay on *Recent* after tapping Downloads: `common/pick-places.yaml` waits and retries.

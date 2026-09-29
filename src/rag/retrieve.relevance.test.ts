@@ -23,14 +23,15 @@ function chunk(id: string, score: number, matchType: RetrievedChunk["matchType"]
 
 describe("filterByMinScore", () => {
   it("excludes scores below the floor and keeps scores at or above it", () => {
-    const chunks = [chunk("a", 0.9), chunk("b", 0.44), chunk("c", 0.45), chunk("d", 0.1)];
+    const floor = MIN_SEMANTIC_SIMILARITY;
+    const chunks = [chunk("a", 0.9), chunk("b", floor - 0.01), chunk("c", floor), chunk("d", 0.1)];
     const kept = filterByMinScore(chunks, MIN_SEMANTIC_SIMILARITY);
     expect(kept.map((c) => c.chunkId)).toEqual(["a", "c"]);
   });
 
   it("returns empty when every score is below the floor — the 'gibberish query' case", () => {
     // Simulates "asdfghjkl qwerty": semanticSearch's real cosine scores
-    // against genuine gibberish should all land well below 0.45 (a
+    // against genuine gibberish should all land well below the floor (a
     // meaningful embedding needs some actual semantic content to match
     // against) — this test proves the floor mechanics themselves correctly
     // produce zero results when that's what upstream scoring reports,
@@ -43,8 +44,8 @@ describe("filterByMinScore", () => {
     // "a legitimate query with weak/partial wording" — a chunk barely
     // above the floor must still survive, not be treated as noise just
     // because it's not a strong match.
-    const chunks = [chunk("a", 0.46)];
-    expect(filterByMinScore(chunks, MIN_SEMANTIC_SIMILARITY)).toEqual([chunk("a", 0.46)]);
+    const chunks = [chunk("a", MIN_SEMANTIC_SIMILARITY + 0.01)];
+    expect(filterByMinScore(chunks, MIN_SEMANTIC_SIMILARITY)).toEqual(chunks);
   });
 });
 

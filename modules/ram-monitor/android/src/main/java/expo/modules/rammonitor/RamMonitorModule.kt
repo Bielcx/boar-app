@@ -55,6 +55,13 @@ class RamMonitorModule : Module() {
         "coreMaxFreqKHz" to readCoreMaxFreqs()
       )
     }
+
+    // RAM the kernel can hand to a new allocation right now (free +
+    // reclaimable cache, ~MemAvailable), for the pre-load fit check. More
+    // honest than total - our RSS - a fixed guess for everyone else.
+    Function("getAvailableRamBytes") {
+      readAvailableRamBytes()
+    }
   }
 
   private fun readCpuFeatures(): String {
@@ -73,6 +80,18 @@ class RamMonitorModule : Module() {
       } catch (e: Exception) {
         0
       }
+    }
+  }
+
+  private fun readAvailableRamBytes(): Long {
+    return try {
+      val context = appContext.reactContext ?: return 0L
+      val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+      val info = ActivityManager.MemoryInfo()
+      am.getMemoryInfo(info)
+      info.availMem
+    } catch (e: Exception) {
+      0L
     }
   }
 

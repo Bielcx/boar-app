@@ -91,8 +91,10 @@ Deno.serve(async (req) => {
     if (!queryId || !configId || !outcome) return json(400, { error: "each row needs queryId, configId and outcome" });
     const data = { ...r };
     if (typeof data.answer === "string") data.answer = data.answer.slice(0, MAX_ANSWER_CHARS);
-    // The fields compute_eval_scores casts: anything malformed becomes null instead of failing the run.
-    data.tokensGenerated = int(r.tokensGenerated);
+    // The fields compute_eval_scores casts: anything malformed becomes null instead of failing the run
+    // (tokensGenerated becomes a Postgres int, so at most 2^31 - 1).
+    const tokens = int(r.tokensGenerated);
+    data.tokensGenerated = tokens !== null && tokens <= 2_147_483_647 ? tokens : null;
     data.peakRssBytes = int(r.peakRssBytes);
     data.timedOut = bool(r.timedOut);
     data.expectedKbHit = bool(r.expectedKbHit);

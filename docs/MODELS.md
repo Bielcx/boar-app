@@ -44,11 +44,17 @@ file `bge-small-en-v1.5-q8_0.gguf` (~35MB, sha256 below).
   (`chunk_embeddings` table). Fine at the corpus scale a phone can hold within the
   storage budget; revisit with a proper ANN index (e.g. quantized HNSW) only if
   corpus size makes brute-force too slow on-device.
-- **Corpus source**: `assets/corpus/corpus.json` — 300 docs: ~58 curated article
-  summaries covering AI/systems topics relevant to the bounty's own eval questions
-  (MoE, quantization, RAG, BM25, mmap, transformers) plus general research topics
-  across science, history, geography, biology, and economics, topped up with
-  random **Wikipedia** (CC BY-SA 4.0) articles to reach 300. Built by
+- **Corpus source**: `assets/corpus/corpus.json` — 300 Wikipedia (CC BY-SA 4.0)
+  article introductions: 58 picked by title in `scripts/build-corpus.mjs` (AI/systems
+  topics such as MoE, quantization, RAG, BM25 and mmap, plus general science,
+  history, geography, biology and economics), topped up with random articles to
+  reach 300. **The 58 picked titles overlap the topics of the device eval set
+  (`src/eval/evalSet.ts`), so that set's retrieval results on the built-in corpus
+  are optimistic;** measure retrieval on a large pack instead
+  (`eval/retrieval/`, see `docs/KNOWLEDGE_PACKS.md`). Every document is Wikipedia
+  text (checked against the live API on 2026-09-26: 58/58 of the picked ones
+  match); the five hand-written notes that earlier versions also installed were
+  removed (`RETIRED_SEED_IDS` in `src/rag/seedCorpus.ts`). Built by
   `scripts/build-corpus.mjs` + `scripts/build-corpus-tier.mjs` (dev-machine-only,
   online, run once to curate/update the corpus — not run by the shipped app).
   ~188KB of text; embeddings are computed on-device at first launch via
