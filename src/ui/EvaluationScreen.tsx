@@ -145,8 +145,11 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     setPreviewDevice(shareDevice());
   };
 
+  // A second tap before the button re-renders disabled must not send the run again.
+  const sendingRef = useRef(false);
   const confirmShare = async () => {
-    if (!run) return;
+    if (!run || sendingRef.current) return;
+    sendingRef.current = true;
     setSharing(true);
     let result: ShareResult = "failed";
     try {
@@ -154,6 +157,7 @@ export function EvaluationScreen({ onClose, chatBusy, deviceRequest }: Props) {
     } catch {
       // e.g. the install id couldn't be saved; reported as a failed share below.
     } finally {
+      sendingRef.current = false;
       setSharing(false);
     }
     setPreviewDevice(null);
